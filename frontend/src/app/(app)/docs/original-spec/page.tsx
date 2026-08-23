@@ -19,7 +19,7 @@ export default async function OriginalSpecPage() {
         <h1 className="text-2xl font-semibold">Original build spec (raw)</h1>
         <p className="mt-1 text-muted-foreground">
           The original n8n/Act! build specification as delivered. Kept verbatim
-          for reference — our actual build uses FastAPI + Next.js + Postgres, not
+          for reference. Our actual build uses FastAPI + Next.js + Postgres, not
           n8n, but the goals, edge cases and acceptance criteria described here
           still apply. See{" "}
           <Link href="/requirements" className="underline underline-offset-2">
@@ -31,7 +31,7 @@ export default async function OriginalSpecPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            BMI Sales &amp; Data Brain — MVP (Option 2) Build Spec
+            BMI Sales &amp; Data Brain: MVP (Option 2) Build Spec
           </CardTitle>
           <CardDescription>Prepared by Cybix · 9 July 2026</CardDescription>
         </CardHeader>

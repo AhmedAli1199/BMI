@@ -20,7 +20,7 @@ export default async function AppLayout({
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-4" />
           <span className="text-sm text-muted-foreground">
-            BMI Publishing — Sales &amp; Data Brain
+            BMI Publishing: Sales &amp; Data Brain
           </span>
         </header>
         <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>

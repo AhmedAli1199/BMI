@@ -29,10 +29,10 @@ import type { SessionPayload } from "@/lib/session";
 
 const STAGE_LABELS: Record<Exclude<RequirementStage, "overview">, string> = {
   foundation: "Foundation",
-  stage1: "Stage 1 — Clean Foundation",
-  stage2: "Stage 2 — Living Memory + AI Chat",
-  stage3: "Stage 3 — Daily Engine",
-  stage4: "Stage 4 — Reporting & Leadership",
+  stage1: "Stage 1: Clean Foundation",
+  stage2: "Stage 2: Living Memory + AI Chat",
+  stage3: "Stage 3: Daily Engine",
+  stage4: "Stage 4: Reporting & Leadership",
 };
 
 const STAGE_ORDER: Exclude<RequirementStage, "overview">[] = [
@@ -46,10 +46,6 @@ const STAGE_ORDER: Exclude<RequirementStage, "overview">[] = [
 export function AppSidebar({ session }: { session: SessionPayload | null }) {
   const pathname = usePathname();
 
-  const overviewItems = automations.filter(
-    (a) => a.stage === "overview" && a.id !== "overview"
-  );
-  const isRequirementsActive = pathname.startsWith("/requirements");
   const isDocsActive = pathname.startsWith("/docs");
 
   return (
@@ -81,38 +77,14 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <Collapsible defaultOpen={isRequirementsActive} className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger render={<SidebarMenuButton />}>
-                    Requirements &amp; questions
-                    <ChevronRight className="ml-auto transition-transform group-data-[panel-open]/collapsible:rotate-90" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton
-                          render={<Link href="/requirements" />}
-                          isActive={pathname === "/requirements"}
-                        >
-                          All automations
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      {overviewItems
-                        .filter((a) => a.id !== "overview")
-                        .map((item) => (
-                          <SidebarMenuSubItem key={item.id}>
-                            <SidebarMenuSubButton
-                              render={<Link href={`/requirements/${item.id}`} />}
-                              isActive={pathname === `/requirements/${item.id}`}
-                            >
-                              {item.name}
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/requirements" />}
+                  isActive={pathname === "/requirements"}
+                >
+                  Requirements &amp; questions
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {STAGE_ORDER.map((stage) => {
                 const items = automations.filter((a) => a.stage === stage);

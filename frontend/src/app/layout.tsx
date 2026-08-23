@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "BMI Sales Brain",
-  description: "BMI Publishing — Sales & Data Brain",
+  description: "BMI Publishing: Sales & Data Brain",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -30,83 +30,11 @@ export const automations: Automation[] = [
     stage: "overview",
     effort: null,
     whatItDoes:
-      "BMI Publishing's Sales & Data Brain is a set of 23 automations plus an AI chat assistant, organized into a Foundation and four stages, all built around Act! CRM as the system of record. Stage 1 cleans and maintains the contact database (bounce handling, departure/successor tracking, deduplication, business-card intake). Stage 2 turns every call, email, and proposal into structured CRM history and adds an AI chat that lets reps ask questions about their clients in plain English. Stage 3 is the daily engine: automatically drafted follow-ups, a ranked morning task queue, proposal and renewal drafting, and pitch generation — always as a draft a human approves before sending. Stage 4 gives leadership a live pipeline, revenue dashboard, delivery tracking, and a weekly written brief. Total scope is roughly 93–144 build-days before integration/testing/PM overhead, originally spec'd for n8n but being rebuilt here as a FastAPI + Next.js + Postgres application.",
+      "BMI Publishing's Sales & Data Brain is a set of 23 automations plus an AI chat assistant, organised into a Foundation and four stages, all built around Act! CRM as the system of record. Stage 1 cleans and maintains the contact database (bounce handling, departure/successor tracking, deduplication, business-card intake). Stage 2 turns every call, email, and proposal into structured CRM history and adds an AI chat that lets reps ask questions about their clients in plain English. Stage 3 is the daily engine: automatically drafted follow-ups, a ranked morning task queue, proposal and renewal drafting, and pitch generation, always as a draft a human approves before sending. Stage 4 gives leadership a live pipeline, revenue dashboard, delivery tracking, and a weekly written brief. Total scope is roughly 93–144 build-days before integration/testing/PM overhead, originally spec'd for n8n but being rebuilt here as a FastAPI + Next.js + Postgres application.",
     howItWorks: [],
     systemsAndData: [],
     requirements: [],
     questionsForClient: [],
-    edgeCases: [],
-    dependsOn: [],
-  },
-
-  // ---------- MASTER QUESTIONS ----------
-  {
-    id: "master-questions",
-    code: null,
-    name: "Master Questions (Confirm Before Quoting)",
-    stage: "overview",
-    effort: null,
-    whatItDoes:
-      "These are the ten items from the original spec's \"must confirm before quoting\" list — the answers that move build estimates the most and, in a few cases, change what's technically possible at all. Resolve these first, before detailed scoping on any individual automation, because several automations are blocked or reshaped entirely depending on the answers (e.g. Act! Pro vs Premium changes whether a Web API exists at all).",
-    howItWorks: [],
-    systemsAndData: [],
-    requirements: [
-      "Act! Premium Web API base URL, version, and an auth token/API key with read/write access to Contacts, Notes, History, Activities, Opportunities, Companies, and Groups",
-      "Read-only SQL Server Express credentials as a fallback path for bulk/read-heavy queries, if available",
-      "Email platform admin access: app registration (e.g. Microsoft Graph for O365/Exchange, or Google Workspace equivalent) with mailbox-level permissions for inbox-watch and draft-into-mailbox on every rep's mailbox that needs it",
-      "Teams and/or Zoom API/webhook access for call transcripts, plus confirmation that transcription is already licensed",
-      "Access to the Sales Order Register in whatever form it currently exists (shared Excel file location/permissions, or a database connection if it moves)",
-      "A confirmed, compliant enrichment/LinkedIn-data provider account and API key (not scraping — ToS risk)",
-      "Xero API access (OAuth app or API key) scoped to the correct organisation/tenant, read-only",
-      "A chosen LLM provider with a signed DPA and no-training guarantee, given ~10k contacts + ~40k prospects of EU personal data will pass through it",
-      "A decision and access details for where this gets hosted (BMI's own server vs a managed VPS) — already resolved for this build: Dokploy-managed",
-      "Digital-edition platform access or API docs, to confirm whether stable per-advertiser page URLs exist",
-    ],
-    questionsForClient: [
-      "What Act! edition are you running — Premium (Desktop or Web) or Pro? Pro has no Web API at all, which changes the entire integration approach. If Premium Desktop only, can the Web API (IIS component) be installed on your server?",
-      "What version of Act! is this, and are there any known API rate limits we should design around? Is a read-only SQL Server Express connection available as a fallback for bulk reads?",
-      "Which email platform do you use for sales — O365/Exchange, Google Workspace, or something else — and how many mailboxes need inbox-watch and draft-into-mailbox access?",
-      "Do you use Microsoft Teams, Zoom, or both for sales calls? Is call transcription already licensed/enabled, or would we need to add a transcription service (which has its own cost and data-residency implications)?",
-      "The Sales Order Register is described as a shared, overwrite-prone Excel file today — is that still accurate, and would you be open to it moving to a database or Google/Excel Online sheet with real access control? This affects four separate automations (proposal assembly, renewal outreach, pipeline, and the revenue dashboard).",
-      "For finding successors/replacements when a contact leaves a company, what's an acceptable, compliant way to look up who replaced them — a licensed data-enrichment provider (e.g. one with a LinkedIn data partnership), or should this stay a manual-assist step for a human to complete? Direct scraping of LinkedIn is against their Terms of Service and is the riskiest dependency in the whole build.",
-      "Do you use Xero for accounting, and can we get read-only API access to the correct organisation/tenant for revenue reporting?",
-      "Where is BMI's contact and prospect data allowed to be processed — do you need an EU-region LLM provider with a signed Data Processing Agreement and a guarantee that your data isn't used for model training?",
-      "Do you want this hosted on your own server, or are you comfortable with a Cybix-managed VPS? (Note: this build already runs on a Cybix-managed Dokploy instance.)",
-      "What platform hosts your digital editions, and can it produce a stable, durable URL for a specific advertiser's placement in a specific past issue? This is needed to link renewal emails back to a client's actual prior ad.",
-      "Roughly how many contacts, prospects, bounces per mailing, and calls/emails per day/week should we plan for? This drives AI token-cost estimates, infrastructure sizing, and several of the day estimates above.",
-    ],
-    edgeCases: [],
-    dependsOn: [],
-  },
-
-  // ---------- RUNNING COSTS ----------
-  {
-    id: "running-costs",
-    code: null,
-    name: "Running Costs (Monthly Opex)",
-    stage: "overview",
-    effort: null,
-    whatItDoes:
-      "Separate from the one-off build cost, this system has ongoing monthly running costs that scale with usage. Several of these can't be sized precisely until we know real volumes (contacts, prospects, calls, emails, mailings) — this page turns each cost category into a concrete sizing question to ask the client.",
-    howItWorks: [],
-    systemsAndData: [
-      "Hosting (app server + database) — fixed monthly cost, already running on a Cybix-managed VPS via Dokploy for this build",
-      "LLM API usage — per-token, the main variable cost, scales with call/email/proposal volume",
-      "Vector store — hosting cost for the RAG index behind the AI chat",
-      "Call transcription — only if not already covered by existing Teams/Zoom licensing",
-      "Email verification — per-address, used by hygiene and card-capture flows",
-      "Data enrichment (LinkedIn→email / people-move) — per-lookup, used by successor-finding and dedupe",
-      "Support & maintenance — optional ongoing retainer",
-    ],
-    requirements: [],
-    questionsForClient: [
-      "Roughly how many sales calls happen per week, and how long on average? This drives transcription volume and LLM token cost for call-note capture.",
-      "Roughly how many outbound and inbound sales emails per day/week, across how many reps? This drives LLM cost for proposal logging, email summarising, and follow-up drafting.",
-      "How many contacts are in Act! today (spec assumes ~10,000) and how many prospects in the wider database (spec assumes ~40,000)? This sizes the initial AI-chat backfill and ongoing dedupe/hygiene volume.",
-      "How many bounces typically come back per mailing (spec assumes 200+), and how many mailings go out per month/title?",
-      "Is call transcription already included in your Teams or Zoom licensing, or would this need to be added as a separate paid service?",
-      "Do you want an ongoing support/maintenance retainer, or will an internal person own day-to-day operation once it's built?",
-    ],
     edgeCases: [],
     dependsOn: [],
   },
@@ -119,18 +47,18 @@ export const automations: Automation[] = [
     stage: "foundation",
     effort: "Shared · Est. 10–16 days",
     whatItDoes:
-      "The shared plumbing every other automation is built on top of: the Act! integration layer, the shared AI/LLM access, the vector store for the chat assistant, email and call-transcript ingestion, connectors to the Sales Order Register and Xero, enrichment/verification providers, and the human-review UI and notification channel every drafting workflow needs. Act!'s Web API is a documented, IIS-based component that ships alongside Act! Premium for Web and exposes exactly the objects this project needs — Contacts, Companies, Groups, Activities, Notes, History, Opportunities. The open question isn't whether it's possible — it's whether BMI's specific installation has it enabled, on a compatible version, with the right permissions.",
+      "The shared plumbing every other automation is built on top of: the Act! integration layer, the shared AI/LLM access, the vector store for the chat assistant, email and call-transcript ingestion, connectors to the Sales Order Register and Xero, enrichment/verification providers, and the human-review UI and notification channel every drafting workflow needs. Act!'s Web API is a documented, IIS-based component that ships alongside Act! Premium for Web and exposes exactly the objects this project needs: Contacts, Companies, Groups, Activities, Notes, History, Opportunities. The open question isn't whether it's possible; it's whether BMI's specific installation has it enabled, on a compatible version, with the right permissions.",
     howItWorks: [
       "Backend service authenticates to the Act! Web API and exposes reusable helpers for contact matching (by name/company/email pattern), writing notes/history stamped with date + source + salesperson, and logging every automated action back to Act! for auditability",
       "Every AI-written Note/History entry is tagged with a recognisable convention (e.g. \"AI Sales Brain | Email | HS | 23 Aug 2026\") so BMI can always tell what the automation wrote versus a human",
       "A shared LLM client and prompt library handles extraction, classification, summarising, and drafting across all automations, so prompt behaviour and model choice are consistent and centrally managed",
       "A vector store is populated from Act! notes/history/proposals and re-indexed whenever new data is written, powering the AI chat's retrieval",
-      "Email accounts are connected per-mailbox for inbox-watching (bounces, inbound mail, thread tracking) and for creating drafts directly in a rep's own mailbox — never sending on their behalf",
+      "Email accounts are connected per-mailbox for inbox-watching (bounces, inbound mail, thread tracking) and for creating drafts directly in a rep's own mailbox, never sending on their behalf",
       "Call transcripts are pulled from Teams/Zoom as they become available and fed into the call-note and meeting-to-pitch automations",
       "The Sales Order Register and Xero are connected as read sources for proposals, renewals, pipeline, and revenue reporting",
       "A human-review UI provides the morning queue, draft approve/edit screens, chase lists, and exception queues that every automation with an AI-drafted output relies on",
       "A notification channel (Teams) posts \"ready to review\", exception, and alert messages",
-      "Once Act! credentials are provided, access is validated directly at the Web API's own test page (/Act.Web.API/swagger/index.html) — logging in with username, password, and database name returns a bearer token, confirming the connection works before any code is built against it",
+      "Once Act! credentials are provided, access is validated directly at the Web API's own test page (/Act.Web.API/swagger/index.html): logging in with username, password, and database name returns a bearer token, confirming the connection works before any code is built against it",
     ],
     systemsAndData: [
       "Act! Web API (Contacts, Notes, History, Activities, Opportunities, Companies, Groups)",
@@ -147,11 +75,19 @@ export const automations: Automation[] = [
       "Teams notification webhook",
     ],
     requirements: [
-      "Exact Act! version, confirmed running as Act! Premium for Web (v18 or later — required for the Web API)",
-      "Act! Web API installed (an IIS app on the same web server as Act! Premium for Web) — installable by BMI's IT if not already present, per Act!'s own Web API Administrator's Guide",
+      "Exact Act! version, confirmed running as Act! Premium for Web (v18 or later, required for the Web API)",
+      "Act! Web API installed (an IIS app on the same web server as Act! Premium for Web), installable by BMI's IT if not already present, per Act!'s own Web API Administrator's Guide",
       "Web API base URL plus a dedicated integration login (username, password, database name)",
       "A CA-issued SSL certificate on the web server hosting the Web API (their IT/hosting responsibility)",
       "A read-only Act! Premium for Web login for our dev team, separate from the API service account, to browse contacts, groups, opportunities, and templates visually while building and testing",
+      "This is a ONE-TIME consolidated request covering every Act! object the whole project touches: granted once here, never re-requested per automation. The access level and why each object is needed:",
+      "Contacts: read + write. Read: contact matching, used by nearly every automation. Write: unsubscribe/address flags (CS-001, CS-005), new-contact creation (SALES-001/002/011), successor updates (CS-002/003), merges (CS-004)",
+      "Companies: read + write. Read: matching and successor lookups (CS-003, SALES-002). Write: new company creation when a fan-out to sibling records finds none (CS-003)",
+      "Groups: read + write. Read: existing taxonomy for group suggestions (SALES-002/011). Write: assigning new/existing contacts to groups (SALES-002/011)",
+      "Notes: write only. Compliance and context notes stamped with source + date, used by most drafting/logging automations (CS-002/003/004/005, SALES-008/009/010/020/021/022/023)",
+      "History: write only. The audit trail for every automated action across the whole project; every automation that touches a record writes here",
+      "Activities: read + write. Follow-up tasks and call-back scheduling (SALES-012/013/005), and the follow-up task created after a proposal is sent (SALES-009)",
+      "Opportunities: read + write. Proposal value, pipeline stage, and revenue tracking (SALES-009/020/021/024/025/026)",
       "SQL Server Express read-only credentials, kept as an emergency fallback only, subject to client IT approval",
       "Per-mailbox email app registration with inbox-read and draft-creation permissions",
       "Teams/Zoom API or webhook access for transcripts",
@@ -161,9 +97,9 @@ export const automations: Automation[] = [
       "LLM provider account with EU data-residency/DPA terms confirmed",
     ],
     questionsForClient: [
-      "What exact version of Act! are you running? We'll need the Act! Web API enabled for this — an IIS component that installs alongside Act! Premium for Web (v18 or later). If it's not already installed, your IT team can add it following Act!'s own Web API Administrator's Guide.",
-      "Can you give us a Web API base URL and a dedicated login (username/password/database name)? We'll test the connection directly at /Act.Web.API/swagger/index.html and confirm we get a bearer token back — the fastest way to know it's actually working.",
-      "Can you also provision a read-only Act! Premium for Web login for our development team? This is separate from the API integration account — it's so we can look at real records, your Group structure, and existing templates directly in the UI while we build, rather than only inferring from API responses.",
+      "What exact version of Act! are you running? We'll need the Act! Web API enabled for this: an IIS component that installs alongside Act! Premium for Web (v18 or later). If it's not already installed, your IT team can add it following Act!'s own Web API Administrator's Guide.",
+      "Can you give us a Web API base URL and a dedicated login (username/password/database name)? We'll test the connection directly at /Act.Web.API/swagger/index.html and confirm we get a bearer token back. That's the fastest way to know it's actually working.",
+      "Can you also provision a read-only Act! Premium for Web login for our development team? This is separate from the API integration account: it's so we can look at real records, your Group structure, and existing templates directly in the UI while we build, rather than only inferring from API responses.",
       "Are any important BMI fields stored in Act! custom fields or custom tables we should know about?",
       "Are proposals/quotes stored inside Act! as attachments or documents, or kept somewhere else (e.g. email, a shared drive)?",
       "Who is the right technical contact to provision credentials for Act!, email, Teams/Zoom, Xero, and the SOR?",
@@ -185,7 +121,7 @@ export const automations: Automation[] = [
       "A scheduled job polls the sending mailbox(es) every 15–30 minutes after a mailing, looking for unread messages matching bounce heuristics (DSN/subject patterns)",
       "The message is parsed for SMTP status code, failed-recipient address, and body text; a regex pre-filter separates clear 5xx (hard) from 4xx (soft) cases",
       "Ambiguous or text-only bounces are sent to the LLM for classification, returning a class, SMTP code, reason text, and confidence score",
-      "Hard bounces trigger an Act! contact lookup by email and a write: the contact is flagged unsubscribed and a History note is stamped with source, date, and mailing ID — nothing is hard-deleted",
+      "Hard bounces trigger an Act! contact lookup by email and a write: the contact is flagged unsubscribed and a History note is stamped with source, date, and mailing ID; nothing is hard-deleted",
       "Soft bounces are logged to a counter that escalates after a configurable number of failures in a rolling window",
       "Out-of-office or referral replies are handed off to the departure/successor automation (CS-002)",
       "A per-mailing summary is posted to the team notification channel, with unclear cases sent to a human review queue",
@@ -198,12 +134,12 @@ export const automations: Automation[] = [
       "Human-review queue",
     ],
     requirements: [
-      "Confirmed email platform and access to the sending mailbox(es) used for title/salesperson mailings",
-      "Act! Web API write access to Contacts (unsubscribe flag) and History",
+      "Inbox-read access to the same mailbox(es) used to send each title's mailings: bounces and OOO replies land back in that sending mailbox, not a separate monitoring account",
+      "(Act! write access to Contacts + History is covered by the Foundation-level grant, not requested again here)",
     ],
     questionsForClient: [
       "Which mailbox(es) send each title's mailings, and can we get inbox-read access to them?",
-      "How quickly after a mailing do you need bounces processed — is a 15–30 minute poll cadence acceptable, or do you need it faster?",
+      "How quickly after a mailing do you need bounces processed? Is a 15–30 minute poll cadence acceptable, or do you need it faster?",
       "How many failed sends in what time window should count as a \"soft bounce escalation\" worth a human look (e.g. 3 fails in 30 days)?",
     ],
     edgeCases: [
@@ -223,14 +159,14 @@ export const automations: Automation[] = [
     stage: "stage1",
     effort: "Medium · Est. 3–5 days",
     whatItDoes:
-      "Reads each out-of-office or auto-reply for a named alternate contact, successor, or return date, verifies that person against Act!, and writes the replacement with a compliance note — without ever mistaking a temporary absence for a permanent replacement.",
+      "Reads each out-of-office or auto-reply for a named alternate contact, successor, or return date, verifies that person against Act!, and writes the replacement with a compliance note, without ever mistaking a temporary absence for a permanent replacement.",
     howItWorks: [
       "Receives a handoff from CS-001 whenever a reply is classed as out-of-office or an auto-reply referral, along with the email body and originating contact",
       "The LLM extracts any alternate name/email/phone, whether they're a successor, a return date, or a general departmental address",
       "If a named alternate is found, Act! is fuzzy-matched on name + company to avoid creating a duplicate; if no match exists, a new contact is created under the same company",
       "The original contact is updated and a compliance note is written with the source (OOO reply + message ID) and date",
       "If the reply confirms departure with no named alternate, it's handed off to the departure/successor automation (CS-003)",
-      "Anything ambiguous — especially a possible confusion between \"I'm away until X\" and \"I've left, contact Y\" — goes to a human review queue with the original reply attached",
+      "Anything ambiguous (especially a possible confusion between \"I'm away until X\" and \"I've left, contact Y\") goes to a human review queue with the original reply attached",
     ],
     systemsAndData: [
       "LLM API (extraction)",
@@ -239,7 +175,7 @@ export const automations: Automation[] = [
       "Human-review queue",
     ],
     requirements: [
-      "Act! Web API write access to Contacts and Notes",
+      "None beyond the Foundation-level Act! grant: this automation only reads what CS-001 hands it and writes Contacts/Notes, both already covered",
     ],
     questionsForClient: [
       "If someone's out-of-office reply says they're returning within N days, should we skip creating a \"replacement\" entirely? What's a sensible grace-period number of days?",
@@ -282,7 +218,7 @@ export const automations: Automation[] = [
       "Act! Web API access sufficient to enumerate and bulk-update all sibling records under one company",
     ],
     questionsForClient: [
-      "What confidence threshold should trigger an automatic write versus a human review — are you comfortable with any auto-writes here, or should every successor change be reviewed first given the risk of writing a wrong person into multiple records?",
+      "What confidence threshold should trigger an automatic write versus a human review? Are you comfortable with any auto-writes here, or should every successor change be reviewed first given the risk of writing a wrong person into multiple records?",
       "If we can't verify a successor at all, what should the fallback general company address look like, and who verifies it's still current?",
     ],
     edgeCases: [
@@ -303,14 +239,14 @@ export const automations: Automation[] = [
     stage: "stage1",
     effort: "High · Est. 6–9 days",
     whatItDoes:
-      "Detects duplicate and similar-name records across reader lists and the ~40,000-record prospects database, confirms genuine moved-person cases (rather than two different people with the same name), merges old records into new ones with full history preserved, and runs a rolling retirement pass over stale records — nothing is ever deleted silently.",
+      "Detects duplicate and similar-name records across reader lists and the ~40,000-record prospects database, confirms genuine moved-person cases (rather than two different people with the same name), merges old records into new ones with full history preserved, and runs a rolling retirement pass over stale records; nothing is ever deleted silently.",
     howItWorks: [
       "Event path: when a new registration or re-subscription arrives, Act! is searched for an exact email match, then a fuzzy name+company match, producing a candidate set",
       "Batch path: a scheduled job pulls a batch of records, groups them by a blocking key (surname or email domain), and runs pairwise similarity scoring",
       "An LLM adjudication step decides whether a candidate pair is the same person, and whether they appear to have moved companies",
       "A LinkedIn/enrichment check confirms genuine moved-person cases",
       "Confirmed moves are merged (new record survives, old is retired with history preserved) with a stamped note; silent re-subscription failures are flagged separately",
-      "Batch runs produce a reviewable list of dead/stale/duplicate candidates for retirement — uncertain matches always go to a human queue, never auto-merged",
+      "Batch runs produce a reviewable list of dead/stale/duplicate candidates for retirement; uncertain matches always go to a human queue, never auto-merged",
     ],
     systemsAndData: [
       "Act! Web API (search, merge/retire, Notes) or SQL Server read fallback for bulk scanning",
@@ -324,15 +260,15 @@ export const automations: Automation[] = [
       "Enrichment provider access for moved-person confirmation",
     ],
     questionsForClient: [
-      "What similarity threshold feels safe to you for auto-merging two records versus sending them to a human — given a false merge of two genuinely different people (e.g. father and son with the same name) is effectively irreversible?",
-      "What's your policy on retiring stale/dead records — how old does a record need to be with no activity before it's a retirement candidate, and do you want retention or deletion for GDPR purposes?",
+      "What similarity threshold feels safe to you for auto-merging two records versus sending them to a human, given a false merge of two genuinely different people (e.g. father and son with the same name) is effectively irreversible?",
+      "What's your policy on retiring stale/dead records? How old does a record need to be with no activity before it's a retirement candidate, and do you want retention or deletion for GDPR purposes?",
       "How often should the rolling dedupe pass run, and in what batch sizes are you comfortable reviewing?",
     ],
     edgeCases: [
       "False-merge of genuinely different people with the same name (namesake trap)",
       "Partial-match families (e.g. father/son with identical names)",
       "Act!'s merge API limitations may require a field-copy-then-retire pattern instead of a true merge",
-      "40,000-record scan performance favors the SQL read path over the Web API",
+      "40,000-record scan performance favours the SQL read path over the Web API",
       "GDPR considerations around retention vs deletion",
       "Re-subscriptions silently blocked at the email service provider end",
     ],
@@ -345,7 +281,7 @@ export const automations: Automation[] = [
     stage: "stage1",
     effort: "Low · Est. 1–2 days",
     whatItDoes:
-      "Reads each returned print-copy label from an undeliverable mailing, matches it to its Act! record, and either corrects the address or retires the record with a reason — turning a manual post-room task into a quick review-and-confirm step.",
+      "Reads each returned print-copy label from an undeliverable mailing, matches it to its Act! record, and either corrects the address or retires the record with a reason, turning a manual post-room task into a quick review-and-confirm step.",
     howItWorks: [
       "An operator photographs or scans a batch of returned label images and uploads them via a form or email",
       "Each label image is read with OCR/vision to extract text, then parsed by the LLM into a structured address plus any customer/mailing reference",
@@ -364,8 +300,8 @@ export const automations: Automation[] = [
       "An OCR/vision provider account",
     ],
     questionsForClient: [
-      "How do you want to submit returned-copy batches — a simple upload form, or by forwarding an email with photos attached?",
-      "What's your standard taxonomy for retiring a record — e.g. \"moved\", \"closed\", \"unknown\" — or should we define one?",
+      "How do you want to submit returned-copy batches: a simple upload form, or by forwarding an email with photos attached?",
+      "What's your standard taxonomy for retiring a record, e.g. \"moved\", \"closed\", \"unknown\", or should we define one?",
     ],
     edgeCases: [
       "Poor OCR quality on skewed or marked labels",
@@ -383,11 +319,11 @@ export const automations: Automation[] = [
     stage: "stage1",
     effort: "Low · Est. 2–3 days",
     whatItDoes:
-      "Turns photographed trade-show business cards — including multiple cards in one photo — into structured contact records automatically, flagging anything unreadable rather than guessing.",
+      "Turns photographed trade-show business cards (including multiple cards in one photo) into structured contact records automatically, flagging anything unreadable rather than guessing.",
     howItWorks: [
       "A team member uploads card photos via a form or email after a show, along with the show name and date",
       "Vision detects and crops each individual card region out of a multi-card photo",
-      "Each card is OCR/vision-extracted, then the LLM normalizes the fields into name, company, job title, email, phone, and address",
+      "Each card is OCR/vision-extracted, then the LLM normalises the fields into name, company, job title, email, phone, and address",
       "Low-confidence cards are flagged for a quick human correction rather than guessed",
       "The structured batch, stamped with the show name and date, is handed off to the dedupe/group-assignment step (SALES-002)",
     ],
@@ -401,8 +337,8 @@ export const automations: Automation[] = [
       "An OCR/vision provider account",
     ],
     questionsForClient: [
-      "How do reps currently submit trade-show cards after an event — would a simple upload form work, or do you prefer email intake?",
-      "How many cards would a typical photo batch contain — should we design for single-card photos or multi-card shots as the norm?",
+      "How do reps currently submit trade-show cards after an event? Would a simple upload form work, or do you prefer email intake?",
+      "How many cards would a typical photo batch contain? Should we design for single-card photos or multi-card shots as the norm?",
     ],
     edgeCases: [
       "Multiple cards overlapping in one photo",
@@ -445,7 +381,7 @@ export const automations: Automation[] = [
       "For new contacts from a card scan, do you want them written to Act! automatically once reviewed, or should every single one require an explicit confirm click?",
     ],
     edgeCases: [
-      "Same person at a different company — correctly treated as a new record, not a duplicate",
+      "Same person at a different company: correctly treated as a new record, not a duplicate",
       "Company-name variants blocking an accurate match",
       "Generic info@ emails defeating email-pattern matching",
       "No taxonomy group fits a new contact",
@@ -462,11 +398,11 @@ export const automations: Automation[] = [
     stage: "stage2",
     effort: "Medium · Est. 4–6 days",
     whatItDoes:
-      "Turns every finished Teams or Zoom sales call into a structured, tagged Act! note against the right contact, with zero manual typing — capturing products discussed, rates mentioned, budget signals, and objections.",
+      "Turns every finished Teams or Zoom sales call into a structured, tagged Act! note against the right contact, with zero manual typing, capturing products discussed, rates mentioned, budget signals, and objections.",
     howItWorks: [
       "Triggered by a call-ended/transcript-ready webhook from Teams or Zoom, with a scheduled fallback poll of the transcription store every 15 minutes",
       "Fetches the transcript and meeting metadata (organiser, participants, start/end time, title)",
-      "Normalizes speaker turns, strips filler words, and chunks the transcript if it exceeds the model's context window",
+      "Normalises speaker turns, strips filler words, and chunks the transcript if it exceeds the model's context window",
       "Matches the call to an Act! contact/company by participant email, falling back to email-domain + fuzzy name match; low-confidence matches go to a human review queue rather than being guess-written",
       "The LLM extracts a structured summary: interest, products discussed, rates mentioned (verbatim), a budget signal with amount and window, timing signal, objections, and personal notes",
       "Writes one Act! note per call, stamped with date, source, and salesperson, and tags budget/timing signals so the follow-up engine can query them later",
@@ -490,11 +426,11 @@ export const automations: Automation[] = [
       "What time should the daily per-rep digest be delivered?",
     ],
     edgeCases: [
-      "Multi-party calls — attribute to the primary external contact, log others separately",
-      "No transcript or a silent call — skip and log, don't guess",
-      "Ambiguous contact (shared domain, name absent) — always goes to review, never guess-written",
-      "Act! API token expiry — refresh and retry with backoff",
-      "Duplicate webhook delivery — idempotency key on call ID",
+      "Multi-party calls: attribute to the primary external contact, log others separately",
+      "No transcript or a silent call: skip and log, don't guess",
+      "Ambiguous contact (shared domain, name absent): always goes to review, never guess-written",
+      "Act! API token expiry: refresh and retry with backoff",
+      "Duplicate webhook delivery: idempotency key on call ID",
     ],
     dependsOn: [],
   },
@@ -505,7 +441,7 @@ export const automations: Automation[] = [
     stage: "stage2",
     effort: "Medium · Est. 3–5 days",
     whatItDoes:
-      "Detects every outbound proposal email and logs exactly what was quoted — products, prices, terms — against the client in Act!, creating the contact if they're new to the CRM.",
+      "Detects every outbound proposal email and logs exactly what was quoted (products, prices, terms) against the client in Act!, creating the contact if they're new to the CRM.",
     howItWorks: [
       "Watches the sent-mail folder for outbound messages matching an agreed convention (e.g. subject/body starting with \"proposal\")",
       "Extracts the email body text; any PDF/DOCX attachment is run through OCR/vision to extract text",
@@ -526,16 +462,16 @@ export const automations: Automation[] = [
       "An agreed convention for identifying a proposal email (subject line prefix or similar)",
     ],
     questionsForClient: [
-      "How do reps currently signal that an email is a formal proposal — is there an existing subject-line convention, or should we agree one?",
+      "How do reps currently signal that an email is a formal proposal? Is there an existing subject-line convention, or should we agree one?",
       "How many days after a proposal is sent should the automatic follow-up be scheduled by default?",
       "For a brand-new contact discovered this way, should we create them in Act! automatically, or wait for a rep to confirm first?",
     ],
     edgeCases: [
-      "Attachment is unreadable or encrypted — goes to review",
-      "Proposal sent to an existing multi-contact company — attach to the addressed contact only",
-      "False positives on the detection convention — handled with a confidence gate and rep confirmation for new-contact creates",
+      "Attachment is unreadable or encrypted: goes to review",
+      "Proposal sent to an existing multi-contact company: attach to the addressed contact only",
+      "False positives on the detection convention: handled with a confidence gate and rep confirmation for new-contact creates",
       "A revised/re-sent proposal appends a new note rather than overwriting the old one",
-      "Multi-currency or discounted line items are captured as-is, not normalized",
+      "Multi-currency or discounted line items are captured as-is, not normalised",
     ],
     dependsOn: [],
   },
@@ -546,7 +482,7 @@ export const automations: Automation[] = [
     stage: "stage2",
     effort: "Medium · Est. 4–6 days",
     whatItDoes:
-      "When a meaningful client email exchange goes quiet, writes a concise Act! note capturing what was discussed, offered, agreed, and at what rate — while completely ignoring routine back-and-forth pleasantries and confirmations.",
+      "When a meaningful client email exchange goes quiet, writes a concise Act! note capturing what was discussed, offered, agreed, and at what rate, while completely ignoring routine back-and-forth pleasantries and confirmations.",
     howItWorks: [
       "Inbox-watch captures new client mail and records the thread plus a last-activity timestamp in a state store",
       "A scheduled sweep looks for threads that have gone idle for N configurable hours",
@@ -567,14 +503,14 @@ export const automations: Automation[] = [
     ],
     questionsForClient: [
       "How many hours of silence on a thread should count as \"the conversation is closed\" and ready to summarise?",
-      "How aggressively should the noise filter drop routine threads — are you more concerned about missing a real conversation, or about clutter from pure \"thanks!\" replies?",
+      "How aggressively should the noise filter drop routine threads? Are you more concerned about missing a real conversation, or about clutter from pure \"thanks!\" replies?",
     ],
     edgeCases: [
-      "Thread reopens after being summarised — append, don't duplicate",
-      "Internal-only or mixed internal/external threads — summarise external-facing content only",
-      "Very long threads exceeding the model's context window — handled with a map-reduce summarising approach",
+      "Thread reopens after being summarised: append, don't duplicate",
+      "Internal-only or mixed internal/external threads: summarise external-facing content only",
+      "Very long threads exceeding the model's context window: handled with a map-reduce summarising approach",
       "CC'd third parties attributed to the primary contact",
-      "An over-eager noise filter accidentally dropping a real exchange — the daily digest lets a rep flag misses",
+      "An over-eager noise filter accidentally dropping a real exchange: the daily digest lets a rep flag misses",
     ],
     dependsOn: ["sales-008"],
   },
@@ -585,7 +521,7 @@ export const automations: Automation[] = [
     stage: "stage2",
     effort: "Low · Est. 2–3 days",
     whatItDoes:
-      "When mail arrives from someone not already in Act!, extracts their details from the signature and offers a rep a one-click add with suggested groups and an optional newsletter opt-in — no contact is ever created without a human clicking accept.",
+      "When mail arrives from someone not already in Act!, extracts their details from the signature and offers a rep a one-click add with suggested groups and an optional newsletter opt-in. No contact is ever created without a human clicking accept.",
     howItWorks: [
       "Inbox-watch runs across each sales mailbox",
       "The sender's email is checked against Act!; if already present, nothing happens",
@@ -606,31 +542,31 @@ export const automations: Automation[] = [
     ],
     questionsForClient: [
       "Should shared/role mailboxes (info@, sales@) be excluded entirely from this, since they rarely represent a real individual worth adding?",
-      "What's the default answer for the newsletter opt-in toggle — on or off by default when a new contact is suggested?",
+      "What's the default answer for the newsletter opt-in toggle: on or off by default when a new contact is suggested?",
     ],
     edgeCases: [
-      "Sender already in Act! under a different address — surfaces as a possible duplicate rather than creating a new record",
-      "Sparse or missing signature — partial card, rep completes the rest",
+      "Sender already in Act! under a different address: surfaces as a possible duplicate rather than creating a new record",
+      "Sparse or missing signature: partial card, rep completes the rest",
       "Shared/role mailboxes suppressed or flagged low-confidence",
-      "Marketing mail that slips the filter — rep simply dismisses the card",
+      "Marketing mail that slips the filter: rep simply dismisses the card",
     ],
     dependsOn: [],
   },
   {
     id: "ai-hub-chat",
     code: "AI Hub Chat",
-    name: "AI Hub Chat — Plain-English CRM Interrogation",
+    name: "AI Hub Chat: Plain-English CRM Interrogation",
     stage: "stage2",
     effort: "High · Est. 8–12 days",
     whatItDoes:
-      "Lets a salesperson ask a chat assistant plain-English questions about a client — \"what did they last buy, what's their budget window, what was the last rate?\" — and get a grounded answer with a citation back to the source Act! record, scoped so a rep can only see what they're allowed to see.",
+      "Lets a salesperson ask a chat assistant plain-English questions about a client (\"what did they last buy, what's their budget window, what was the last rate?\") and get a grounded answer with a citation back to the source Act! record, scoped so a rep can only see what they're allowed to see.",
     howItWorks: [
       "Initial backfill paginates every Act! contact and its notes/history/activities/opportunities, chunking one record per note/history/opportunity/activity plus a rolled-up contact profile, so every citation maps to exactly one source record",
       "Each chunk is embedded and stored in a vector database with metadata: contact, company, record type, owner rep, date, and a deep-link back to Act!",
       "Every time SALES-008/009/010/011 write a new note or contact, the new record is embedded and upserted so the index never lags the CRM; a nightly full reconciliation catches manual edits made directly in Act!",
       "A user's query is resolved to identify a named client (with disambiguation if there's more than one match), then access-scoped by the querying rep's identity before any search happens",
       "Retrieval combines vector search with keyword search (needed for exact rates/dates that pure semantic search can miss), then re-ranks the top results",
-      "The LLM answers only from the retrieved chunks, citing each source record — if there's no evidence, it says so explicitly rather than guessing",
+      "The LLM answers only from the retrieved chunks, citing each source record; if there's no evidence, it says so explicitly rather than guessing",
     ],
     systemsAndData: [
       "Act! Web API + SQL read fallback for bulk export",
@@ -651,11 +587,11 @@ export const automations: Automation[] = [
       "Is there a house style or format you'd want answers to follow, or is a plain grounded answer with a citation sufficient?",
     ],
     edgeCases: [
-      "Stale index vs a live Act! edit — handled with re-index-on-write plus nightly reconciliation",
-      "Ambiguous client name — the assistant asks for disambiguation",
-      "Empty or insufficient retrieval — explicit \"no record found\" rather than fabrication",
-      "Access-scope leak — must be enforced server-side and tested, not just in the UI",
-      "Exact-figure queries (e.g. \"what was the last rate\") missed by pure vector search — handled with hybrid keyword retrieval",
+      "Stale index vs a live Act! edit: handled with re-index-on-write plus nightly reconciliation",
+      "Ambiguous client name: the assistant asks for disambiguation",
+      "Empty or insufficient retrieval: explicit \"no record found\" rather than fabrication",
+      "Access-scope leak: must be enforced server-side and tested, not just in the UI",
+      "Exact-figure queries (e.g. \"what was the last rate\") missed by pure vector search: handled with hybrid keyword retrieval",
       "Changing the embedding model requires a full re-embed migration",
     ],
     dependsOn: ["sales-008", "sales-009", "sales-010", "sales-011"],
@@ -669,7 +605,7 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Medium · Est. 4–6 days",
     whatItDoes:
-      "Fires a context-assembled follow-up ahead of every budget window, promised call-back, or renewal date recorded in Act!, drafted and queued for the owning salesperson — so nothing falls through the cracks and no rep has to remember dates manually.",
+      "Fires a context-assembled follow-up ahead of every budget window, promised call-back, or renewal date recorded in Act!, drafted and queued for the owning salesperson, so nothing falls through the cracks and no rep has to remember dates manually.",
     howItWorks: [
       "Runs hourly during business hours, scanning Act! for date-typed intents (budget-window month, renewal date, promised call-back) whose due date minus a lead window (default 14 days) has arrived and isn't already actioned",
       "For each trigger, fetches the contact, recent history, any open opportunity, previous bookings, and recent coverage into one context object",
@@ -689,15 +625,15 @@ export const automations: Automation[] = [
       "Act! fields/tags for budget-window, renewal date, and promised call-back must be consistently populated (fed by SALES-008/010)",
     ],
     questionsForClient: [
-      "What's the right default lead-window — how many days before a budget window or renewal date should the first follow-up draft appear?",
+      "What's the right default lead-window? How many days before a budget window or renewal date should the first follow-up draft appear?",
       "For each salesperson, can you provide a few sample emails so we can build a voice profile that sounds like them rather than generic?",
     ],
     edgeCases: [
       "Duplicate triggers for the same contact collapse into one entry",
-      "Client already replied before the window opened — stand down, no draft",
-      "Missing rate/opportunity data — draft goes out without a price and is flagged",
-      "Reply-match false positive from a shared inbox — requires a thread-ID match, not just sender",
-      "Salesperson reassignment — resolves the current record owner at queue time, not at trigger creation",
+      "Client already replied before the window opened: stand down, no draft",
+      "Missing rate/opportunity data: draft goes out without a price and is flagged",
+      "Reply-match false positive from a shared inbox: requires a thread-ID match, not just sender",
+      "Salesperson reassignment: resolves the current record owner at queue time, not at trigger creation",
     ],
     dependsOn: ["sales-008", "sales-010", "sales-013"],
   },
@@ -708,14 +644,14 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Medium · Est. 4–6 days",
     whatItDoes:
-      "Every working morning, presents each salesperson a single value/urgency-ranked queue of due follow-ups, each one carrying a pre-drafted email ready to review, tweak, and send — the central guardrail: the system never auto-sends, a human always does.",
+      "Every working morning, presents each salesperson a single value/urgency-ranked queue of due follow-ups, each one carrying a pre-drafted email ready to review, tweak, and send. This is the central guardrail: the system never auto-sends, a human always does.",
     howItWorks: [
       "Runs once per working morning per user's timezone, plus an on-demand refresh option",
       "Pulls every due entry for that owner: fired triggers, awaited replies past their SLA, and call-backs due today",
       "Enriches each with its opportunity value and ranks the list by a weighted combination of value and urgency",
       "Any entry missing a draft (not already produced upstream) gets one generated on the spot",
       "Renders the ranked queue in a per-salesperson view and notifies them it's ready",
-      "Send/Defer/Skip actions each log back to Act! — Send creates the email from the rep's own mailbox and logs history, Defer reschedules to the next working day, Skip logs a dropped reason",
+      "Send/Defer/Skip actions each log back to Act!: Send creates the email from the rep's own mailbox and logs history, Defer reschedules to the next working day, Skip logs a dropped reason",
     ],
     systemsAndData: [
       "Review-queue store (backing the review UI)",
@@ -730,11 +666,11 @@ export const automations: Automation[] = [
     ],
     questionsForClient: [
       "What time each morning should the queue be delivered, and does this need to respect each rep's own working-day calendar/timezone?",
-      "How should we weight ranking between opportunity value and urgency — is value the dominant factor, or should urgency (e.g. an overdue reply) usually win?",
+      "How should we weight ranking between opportunity value and urgency? Is value the dominant factor, or should urgency (e.g. an overdue reply) usually win?",
     ],
     edgeCases: [
       "Empty queue still sends a \"nothing due\" note rather than silence",
-      "Draft generation failing for one entry never blocks the whole queue — shown with a retry option",
+      "Draft generation failing for one entry never blocks the whole queue: shown with a retry option",
       "A send failure (mailbox auth issue) keeps the entry pending and surfaces the error rather than falsely logging it as sent",
       "The same contact appearing in two entries is merged or ordered adjacently",
       "A deferred item re-surfaces the next working day, not the same day",
@@ -748,7 +684,7 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Low · Est. 2–3 days",
     whatItDoes:
-      "On the day a recorded personal date falls due — return from leave, an anniversary, a promised catch-up — drafts a short, warm personal note in the salesperson's own voice into their morning queue, and never nags twice about the same one.",
+      "On the day a recorded personal date falls due (return from leave, an anniversary, a promised catch-up), drafts a short, warm personal note in the salesperson's own voice into their morning queue, and never nags twice about the same one.",
     howItWorks: [
       "Runs daily, early morning, selecting touchpoints tagged (by SALES-008/010) whose date matches today",
       "For each, fetches the contact, the occasion detail, and recent activity for context on \"what's happened since\"",
@@ -766,13 +702,13 @@ export const automations: Automation[] = [
       "A consistent Act! field or note tag for personal touchpoint dates, fed by SALES-008/010",
     ],
     questionsForClient: [
-      "Are there occasion types that should never be automated — e.g. a bereavement — and should always route to a manual-only reminder instead of an AI-drafted note?",
+      "Are there occasion types that should never be automated (e.g. a bereavement) and should always route to a manual-only reminder instead of an AI-drafted note?",
     ],
     edgeCases: [
-      "Vague or missing occasion detail — falls back to a generic-but-warm note, flagged low confidence",
+      "Vague or missing occasion detail: falls back to a generic-but-warm note, flagged low confidence",
       "Sensitive occasions (e.g. bereavement) route for manual handling only",
       "Recurring annual touchpoints only fire on the correct date, not every day",
-      "Contact has left the company — suppressed",
+      "Contact has left the company: suppressed",
       "Once skipped, an item never reappears the next day",
     ],
     dependsOn: ["sales-008", "sales-010", "sales-013"],
@@ -784,7 +720,7 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Medium · Est. 4–6 days",
     whatItDoes:
-      "On request, assembles an on-brand, voice-matched proposal draft pulling from Act! history, the Sales Order Register, and the editorial plan — ready for a salesperson to tweak and send, with prices always sourced from real data, never invented.",
+      "On request, assembles an on-brand, voice-matched proposal draft pulling from Act! history, the Sales Order Register, and the editorial plan, ready for a salesperson to tweak and send, with prices always sourced from real data, never invented.",
     howItWorks: [
       "Triggered on-demand by a salesperson requesting a proposal for a specific contact/title",
       "Fetches Act! context: client history, rates, and the last conversation",
@@ -813,7 +749,7 @@ export const automations: Automation[] = [
     ],
     edgeCases: [
       "SOR access or format changes must fail loudly, never silently drop history",
-      "New client with no previous bookings — assembles from the catalogue only, flagged as such",
+      "New client with no previous bookings: assembles from the catalogue only, flagged as such",
       "Rate-card ambiguity presents options rather than guessing",
       "Editorial feature not found is omitted and flagged, not fabricated",
       "Currency/VAT/discount decisions are left to rep judgement, not automated",
@@ -827,7 +763,7 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Medium · Est. 4–6 days",
     whatItDoes:
-      "When a guide or issue opens its next cycle, drafts a personal renewal email to every previous advertiser — linking their actual prior ad and quoting this year's price — while automatically excluding anyone already booked for the new cycle.",
+      "When a guide or issue opens its next cycle, drafts a personal renewal email to every previous advertiser, linking their actual prior ad and quoting this year's price, while automatically excluding anyone already booked for the new cycle.",
     howItWorks: [
       "Triggered when a cycle opens for a given title/edition",
       "Pulls the previous edition's advertiser list from the SOR and subtracts anyone already booked for the new cycle, including annual-series clients who should never be re-approached this way",
@@ -854,11 +790,11 @@ export const automations: Automation[] = [
       "What campaign tool, if any, currently handles the wider (non-directly-approached) advertiser outreach, so we can hand off correctly?",
     ],
     edgeCases: [
-      "Advertiser already booked but the SOR is lagging — SOR booking status is treated as source of truth and re-checked at send time",
-      "No stable per-advertiser URL available — falls back to an issue-level link, flagged",
-      "Annual-series client wrongly included — needs an explicit exclusion list",
-      "Price not yet set for the new cycle — draft is held",
-      "Contact owner unknown — falls back to a designated owner queue",
+      "Advertiser already booked but the SOR is lagging: SOR booking status is treated as source of truth and re-checked at send time",
+      "No stable per-advertiser URL available: falls back to an issue-level link, flagged",
+      "Annual-series client wrongly included: needs an explicit exclusion list",
+      "Price not yet set for the new cycle: draft is held",
+      "Contact owner unknown: falls back to a designated owner queue",
     ],
     dependsOn: ["sales-013"],
   },
@@ -869,7 +805,7 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Low · Est. 2–3 days",
     whatItDoes:
-      "Turns salespeople's private Word template libraries into one shared engine that automatically selects and personalises the right template — including a save-the-sale reply to a \"no\" — delivered as a voice-matched draft.",
+      "Turns salespeople's private Word template libraries into one shared engine that automatically selects and personalises the right template (including a save-the-sale reply to a \"no\") delivered as a voice-matched draft.",
     howItWorks: [
       "Fires when a sales situation calls for a standard email: new-prospect outreach, existing-advertiser contact, join-the-project invite, or an inbound decline",
       "For inbound situations, classifies which template family applies, using deterministic rules first and an LLM fallback for anything unclear",
@@ -891,9 +827,9 @@ export const automations: Automation[] = [
       "What lower-cost alternatives or fallback offers should be available when a prospect declines on budget grounds?",
     ],
     edgeCases: [
-      "Misclassified template family — deterministic rules override where the signal is clear, low-confidence routes to manual pick",
+      "Misclassified template family: deterministic rules override where the signal is clear, low-confidence routes to manual pick",
       "A decline with no viable alternative still gets an acknowledge/ask response without a forced offer",
-      "Template drift over time — handled with per-user overrides on top of a shared base",
+      "Template drift over time: handled with per-user overrides on top of a shared base",
       "Missing personalisation fields are flagged as placeholders, never sent raw",
     ],
     dependsOn: ["sales-013"],
@@ -905,7 +841,7 @@ export const automations: Automation[] = [
     stage: "stage3",
     effort: "Medium · Est. 3–5 days",
     whatItDoes:
-      "Converts captured meeting notes into a client-specific pitch draft, drawing on the strongest elements of similar prior pitches, in the owner's own voice and the house layout — turning a scattered set of notes into a ready-to-tailor pitch document.",
+      "Converts captured meeting notes into a client-specific pitch draft, drawing on the strongest elements of similar prior pitches, in the owner's own voice and the house layout, turning a scattered set of notes into a ready-to-tailor pitch document.",
     howItWorks: [
       "Triggered by a meeting flagged as pitch-worthy, either from the transcription pipeline or a manual \"make a pitch from this\" action with notes attached",
       "An extraction pass pulls out the client's situation, positioning angle, budget signals, and what they responded well to",
@@ -929,9 +865,9 @@ export const automations: Automation[] = [
       "Is there a house layout or brand template these pitches need to follow?",
     ],
     edgeCases: [
-      "Thin or low-quality notes — flagged low confidence, more detail requested before drafting",
-      "No similar prior pitch exists (cold start) — drafts from the brief alone, marked as no-retrieval",
-      "A retrieved pitch has stale pricing/product info — only its structure/angle is reused, never its figures",
+      "Thin or low-quality notes: flagged low confidence, more detail requested before drafting",
+      "No similar prior pitch exists (cold start): drafts from the brief alone, marked as no-retrieval",
+      "A retrieved pitch has stale pricing/product info: only its structure/angle is reused, never its figures",
       "Sensitive or off-record remarks in notes are excluded from the client-facing draft",
       "Wrong contact attribution is confirmed before logging",
     ],
@@ -968,16 +904,16 @@ export const automations: Automation[] = [
     ],
     questionsForClient: [
       "Can each salesperson export their current tracking spreadsheet/notebook so we can migrate existing pipeline data rather than starting from zero?",
-      "What fields do you need captured at the point of booking — billing contact, address, PO number, booking spec, value, currency — is this list complete or is anything missing?",
+      "What fields do you need captured at the point of booking: billing contact, address, PO number, booking spec, value, currency? Is this list complete or is anything missing?",
       "What's the current project/issue naming convention, so the pipeline structure matches how your team already thinks about it?",
     ],
     edgeCases: [
-      "Email matches multiple Act! contacts — routed to review",
-      "Prospect not yet in Act! — a stub is created or held in review",
+      "Email matches multiple Act! contacts: routed to review",
+      "Prospect not yet in Act!: a stub is created or held in review",
       "Duplicate approaches to the same contact+issue are deduped on a key",
       "Migration rows with ambiguous project/issue go to a review queue",
       "Status regressions are blocked by the state machine",
-      "SOR unavailable at close time — the record is queued and retried",
+      "SOR unavailable at close time: the record is queued and retried",
     ],
     dependsOn: [],
   },
@@ -988,7 +924,7 @@ export const automations: Automation[] = [
     stage: "stage4",
     effort: "Medium · Est. 3–5 days",
     whatItDoes:
-      "Keeps pipeline statuses current automatically from replies, bounces, and booking confirmations, and surfaces gone-quiet prospects as a chase list with a drafted nudge — nothing sends automatically.",
+      "Keeps pipeline statuses current automatically from replies, bounces, and booking confirmations, and surfaces gone-quiet prospects as a chase list with a drafted nudge. Nothing sends automatically.",
     howItWorks: [
       "Inbound email is resolved to a tracked prospect by sender/thread ID",
       "The message intent is classified: reply-interested, reply-decline, bounce, booking-confirmation, or neutral",
@@ -1007,12 +943,12 @@ export const automations: Automation[] = [
       "Inbound email read access across tracked prospect threads",
     ],
     questionsForClient: [
-      "What chase interval feels right per pipeline stage — e.g. how many days of silence before a \"contacted\" prospect should appear on the chase list?",
+      "What chase interval feels right per pipeline stage, e.g. how many days of silence before a \"contacted\" prospect should appear on the chase list?",
       "Under what conditions should a decline trigger a save-the-sale offer versus just being logged and scheduled for a later touchpoint?",
     ],
     edgeCases: [
-      "Ambiguous reply — goes to review, no automatic status transition",
-      "Booking confirmation with no matching prospect — goes to review/create",
+      "Ambiguous reply: goes to review, no automatic status transition",
+      "Booking confirmation with no matching prospect: goes to review/create",
       "Soft-fail vs hard-fail bounces are treated differently",
       "Out-of-office replies are suppressed from being misread as a real reply",
       "Duplicate booking confirmations are idempotent on the booking reference",
@@ -1026,7 +962,7 @@ export const automations: Automation[] = [
     stage: "stage4",
     effort: "Medium · Est. 5–7 days",
     whatItDoes:
-      "A live dashboard of booked/forecast revenue and per-person sales activity, built entirely from the automation by-products of the other workflows, with cycle-on-cycle comparison and drill-down to source records — mostly aggregation, minimal AI, deterministic numbers.",
+      "A live dashboard of booked/forecast revenue and per-person sales activity, built entirely from the automation by-products of the other workflows, with cycle-on-cycle comparison and drill-down to source records. Mostly aggregation, minimal AI, deterministic numbers.",
     howItWorks: [
       "An activity collector reads the append-only event log from SALES-024/025 (proposals sent, follow-ups, replies, bookings) and buckets it by salesperson × title × product × period",
       "A revenue collector pulls SOR bookings and Xero invoiced/actual figures, reconciling the two on invoice/booking reference to avoid double-counting",
@@ -1048,12 +984,12 @@ export const automations: Automation[] = [
     ],
     questionsForClient: [
       "Which Xero organisation/tenant should this connect to, and can you provision read-only API access?",
-      "What does \"the equivalent point in the prior cycle\" mean for your titles — are cycles aligned to calendar months, or to each issue's own publication schedule (which can shift)?",
-      "Explicitly confirmed in the original spec: no approval gate or policing on this dashboard — is that still the right cultural fit, i.e. purely informational, no forms to fill in?",
+      "What does \"the equivalent point in the prior cycle\" mean for your titles? Are cycles aligned to calendar months, or to each issue's own publication schedule (which can shift)?",
+      "Explicitly confirmed in the original spec: no approval gate or policing on this dashboard. Is that still the right cultural fit, i.e. purely informational, no forms to fill in?",
     ],
     edgeCases: [
-      "SOR schema drift or manual Excel edits breaking the parser — needs a schema-guard and alert",
-      "Xero token expiry — refresh with fail-soft behaviour",
+      "SOR schema drift or manual Excel edits breaking the parser: needs a schema-guard and alert",
+      "Xero token expiry: refresh with fail-soft behaviour",
       "A booking appearing in both SOR and Xero must be deduped on reference, not double-counted",
       "Cycle alignment when issue dates shift needs issue-relative comparison logic, not calendar-relative",
       "Missing dimension tags are surfaced as an \"unattributed\" bucket rather than silently dropped",
@@ -1067,10 +1003,10 @@ export const automations: Automation[] = [
     stage: "stage4",
     effort: "Medium · Est. 3–5 days",
     whatItDoes:
-      "Tracks every sold item through the production, editorial, and events hand-offs, flagging anything that stalls beyond its expected window with an owner and an age — mostly rules-based, catching things that go quiet even without an explicit signal.",
+      "Tracks every sold item through the production, editorial, and events hand-offs, flagging anything that stalls beyond its expected window with an owner and an age. Mostly rules-based, catching things that go quiet even without an explicit signal.",
     howItWorks: [
       "When a booking is confirmed, a delivery item is created with its type, promised spec, owning team, current stage, and expected-completion window",
-      "As the item moves between teams, its stage and owner are updated — from structured signals (status emails, Act! Activity completion) or a manual update where no automatic signal exists",
+      "As the item moves between teams, its stage and owner are updated: from structured signals (status emails, Act! Activity completion) or a manual update where no automatic signal exists",
       "A daily stall-detection sweep compares how long an item has been in its current stage against the expected window for that stage/type, flagging it stalled with the owner and age if exceeded",
       "Stalls are pushed to the owning team and the selling rep",
       "Completion and stall counts roll up into the revenue dashboard and the weekly leadership summary",
@@ -1088,10 +1024,10 @@ export const automations: Automation[] = [
     ],
     questionsForClient: [
       "For each type of sold item (advertorial, banner, event package), what's a realistic expected time in each production stage before it should be flagged as stalled?",
-      "How do production, editorial, and events currently signal that something has moved to the next stage — is there any existing structured system, or is this entirely informal today (email, verbal, spreadsheets)?",
+      "How do production, editorial, and events currently signal that something has moved to the next stage? Is there any existing structured system, or is this entirely informal today (email, verbal, spreadsheets)?",
     ],
     edgeCases: [
-      "A team that never sends a hand-off signal — the sweep still flags on age alone",
+      "A team that never sends a hand-off signal: the sweep still flags on age alone",
       "An item can skip a stage (non-linear transitions allowed)",
       "Ambiguous hand-off emails route to review",
       "Cancelled/refunded bookings are closed out and excluded from stall counts",
@@ -1106,10 +1042,10 @@ export const automations: Automation[] = [
     stage: "stage4",
     effort: "Low · Est. 2–3 days",
     whatItDoes:
-      "Delivers a short, written weekly leadership brief drawn straight from the dashboard data, and fires early alerts whenever an open issue or event is tracking materially behind its equivalent point in the prior cycle — read-only, informational, no approval gate.",
+      "Delivers a short, written weekly leadership brief drawn straight from the dashboard data, and fires early alerts whenever an open issue or event is tracking materially behind its equivalent point in the prior cycle. Read-only, informational, no approval gate.",
     howItWorks: [
       "On a weekly schedule, pulls the essentials from the metrics store: revenue position by title/issue, activity highlights, stalled items, and exceptions needing a decision",
-      "The LLM composes a short, readable narrative brief from these structured inputs, with an evidence link per point — figures always come from the metrics store, never invented by the model",
+      "The LLM composes a short, readable narrative brief from these structured inputs, with an evidence link per point. Figures always come from the metrics store, never invented by the model",
       "The brief is delivered to leadership and archived for cross-cycle trend review",
       "A continuous comparison sweep separately checks each open issue/event against its prior-cycle equivalent point; if the gap exceeds a threshold, an alert fires immediately with the gap quantified and linked records",
     ],
@@ -1124,7 +1060,7 @@ export const automations: Automation[] = [
       "Agreed alert-gap thresholds per title/event type",
     ],
     questionsForClient: [
-      "Who should receive the weekly brief and the real-time behind-schedule alerts — is this the same group, or different audiences?",
+      "Who should receive the weekly brief and the real-time behind-schedule alerts? Is this the same group, or different audiences?",
       "What day and time should the weekly brief go out?",
       "How far behind the prior cycle's equivalent point should an issue/event be before it's worth an urgent alert, versus just showing up in the next weekly brief?",
     ],
