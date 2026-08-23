@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +19,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/logout-button";
 import { automations, type RequirementStage } from "@/lib/requirements-data";
@@ -37,7 +46,11 @@ const STAGE_ORDER: Exclude<RequirementStage, "overview">[] = [
 export function AppSidebar({ session }: { session: SessionPayload | null }) {
   const pathname = usePathname();
 
-  const overviewItems = automations.filter((a) => a.stage === "overview");
+  const overviewItems = automations.filter(
+    (a) => a.stage === "overview" && a.id !== "overview"
+  );
+  const isRequirementsActive = pathname.startsWith("/requirements");
+  const isDocsActive = pathname.startsWith("/docs");
 
   return (
     <Sidebar>
@@ -56,33 +69,91 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Overview</SidebarGroupLabel>
+          <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  render={<Link href="/requirements" />}
-                  isActive={pathname === "/requirements"}
+                  render={<Link href="/" />}
+                  isActive={pathname === "/"}
                 >
-                  All automations
+                  Dashboard
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {overviewItems
-                .filter((a) => a.id !== "overview")
-                .map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      render={<Link href={`/requirements/${item.id}`} />}
-                      isActive={pathname === `/requirements/${item.id}`}
-                    >
-                      {item.name}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+
+              <Collapsible defaultOpen={isRequirementsActive} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger render={<SidebarMenuButton />}>
+                    Requirements &amp; questions
+                    <ChevronRight className="ml-auto transition-transform group-data-[panel-open]/collapsible:rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          render={<Link href="/requirements" />}
+                          isActive={pathname === "/requirements"}
+                        >
+                          All automations
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      {overviewItems
+                        .filter((a) => a.id !== "overview")
+                        .map((item) => (
+                          <SidebarMenuSubItem key={item.id}>
+                            <SidebarMenuSubButton
+                              render={<Link href={`/requirements/${item.id}`} />}
+                              isActive={pathname === `/requirements/${item.id}`}
+                            >
+                              {item.name}
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              {STAGE_ORDER.map((stage) => {
+                const items = automations.filter((a) => a.stage === stage);
+                if (items.length === 0) return null;
+                const isStageActive = items.some(
+                  (item) => pathname === `/requirements/${item.id}`
+                );
+                return (
+                  <Collapsible
+                    key={stage}
+                    defaultOpen={isStageActive}
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger render={<SidebarMenuButton />}>
+                        {STAGE_LABELS[stage]}
+                        <ChevronRight className="ml-auto transition-transform group-data-[panel-open]/collapsible:rotate-90" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {items.map((item) => (
+                            <SidebarMenuSubItem key={item.id}>
+                              <SidebarMenuSubButton
+                                render={<Link href={`/requirements/${item.id}`} />}
+                                isActive={pathname === `/requirements/${item.id}`}
+                              >
+                                {item.code ?? item.name}
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                );
+              })}
+
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href="/docs/original-spec" />}
-                  isActive={pathname === "/docs/original-spec"}
+                  isActive={isDocsActive}
                 >
                   Original spec (raw)
                 </SidebarMenuButton>
@@ -90,30 +161,6 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {STAGE_ORDER.map((stage) => {
-          const items = automations.filter((a) => a.stage === stage);
-          if (items.length === 0) return null;
-          return (
-            <SidebarGroup key={stage}>
-              <SidebarGroupLabel>{STAGE_LABELS[stage]}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {items.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        render={<Link href={`/requirements/${item.id}`} />}
-                        isActive={pathname === `/requirements/${item.id}`}
-                      >
-                        {item.code ?? item.name}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          );
-        })}
       </SidebarContent>
       <SidebarFooter>
         {session && (
