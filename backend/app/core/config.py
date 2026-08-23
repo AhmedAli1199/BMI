@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/bmi"
     cors_origins: list[str] = ["http://localhost:3000"]
+    api_key: str = "dev-only-change-me"
 
 
 settings = Settings()

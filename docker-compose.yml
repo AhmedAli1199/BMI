@@ -19,17 +19,19 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/bmi
       CORS_ORIGINS: '["http://localhost:3000"]'
+      API_KEY: dev-local-key
     ports:
       - "8000:8000"
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000
+    build: ./frontend
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      BACKEND_API_URL: http://backend:8000
+      BACKEND_API_KEY: dev-local-key
+      SESSION_SECRET: dev-local-session-secret-change-me
     ports:
       - "3000:3000"
 

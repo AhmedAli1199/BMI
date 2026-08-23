@@ -1,10 +1,18 @@
-from fastapi import FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health
+from app.api.routes import auth, health
 from app.core.config import settings
+from app.core.security import require_api_key
 
-app = FastAPI(title=settings.app_name)
+docs_enabled = settings.environment != "production"
+
+app = FastAPI(
+    title=settings.app_name,
+    docs_url="/docs" if docs_enabled else None,
+    redoc_url="/redoc" if docs_enabled else None,
+    openapi_url="/openapi.json" if docs_enabled else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,7 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health.router, prefix="/api")
+api_router = APIRouter(prefix="/api", dependencies=[Depends(require_api_key)])
+api_router.include_router(health.router)
+api_router.include_router(auth.router)
+app.include_router(api_router)
 
 
 @app.get("/")

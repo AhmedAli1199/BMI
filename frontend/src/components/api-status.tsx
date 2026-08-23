@@ -9,10 +9,9 @@ export function ApiStatus() {
   const [state, setState] = useState<ApiState>("checking");
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
     let cancelled = false;
 
-    fetch(`${apiUrl}/api/health`)
+    fetch("/api/health")
       .then((res) => {
         if (!cancelled) setState(res.ok ? "online" : "offline");
       })
