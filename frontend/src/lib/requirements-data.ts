@@ -53,7 +53,7 @@ export const automations: Automation[] = [
       "Every AI-written Note/History entry is tagged with a recognisable convention (e.g. \"AI Sales Brain | Email | HS | 23 Aug 2026\") so BMI can always tell what the automation wrote versus a human",
       "A shared LLM client and prompt library handles extraction, classification, summarising, and drafting across all automations, so prompt behaviour and model choice are consistent and centrally managed",
       "A vector store is populated from Act! notes/history/proposals and re-indexed whenever new data is written, powering the AI chat's retrieval",
-      "Email accounts are connected per-mailbox for inbox-watching (bounces, inbound mail, thread tracking) and for creating drafts directly in a rep's own mailbox, never sending on their behalf",
+      "Email accounts are connected per-mailbox for inbox-watching (bounces, inbound mail, thread tracking) and for creating drafts directly in a rep's own mailbox, never sending on their behalf. There are two distinct categories of mailbox in play, not one: each rep's individual mailbox (proposals, call-note follow-ups, personal email threads) and the shared/marketing sending mailbox(es) used for bulk magazine mailings, one likely per title. These are almost certainly different accounts with different owners, so each gets identified and provisioned separately",
       "Call transcripts are pulled from Teams/Zoom as they become available and fed into the call-note and meeting-to-pitch automations",
       "The Sales Order Register and Xero are connected as read sources for proposals, renewals, pipeline, and revenue reporting",
       "A human-review UI provides the morning queue, draft approve/edit screens, chase lists, and exception queues that every automation with an AI-drafted output relies on",
@@ -89,7 +89,7 @@ export const automations: Automation[] = [
       "Activities: read + write. Follow-up tasks and call-back scheduling (SALES-012/013/005), and the follow-up task created after a proposal is sent (SALES-009)",
       "Opportunities: read + write. Proposal value, pipeline stage, and revenue tracking (SALES-009/020/021/024/025/026)",
       "SQL Server Express read-only credentials, kept as an emergency fallback only, subject to client IT approval",
-      "Per-mailbox email app registration with inbox-read and draft-creation permissions",
+      "Per-mailbox email app registration with inbox-read and draft-creation permissions, covering two distinct categories: (1) each individual rep's mailbox, for proposals/follow-ups/call-note threads, and (2) the shared/marketing sending mailbox(es) used for bulk magazine mailings (one per title), for bounce and OOO handling",
       "Teams/Zoom API or webhook access for transcripts",
       "SOR access details (file location + permissions, or DB connection string)",
       "Xero API credentials + org/tenant ID",
@@ -104,6 +104,7 @@ export const automations: Automation[] = [
       "Can you also provision a read-only Act! Premium for Web login for our development team? This is separate from the API integration account: it's so we can look at real records, your Group structure, and existing templates directly in the UI while we build, rather than only inferring from API responses.",
       "Are any important BMI fields stored in Act! custom fields or custom tables we should know about?",
       "Are proposals/quotes stored inside Act! as attachments or documents, or kept somewhere else (e.g. email, a shared drive)?",
+      "Can you list out every mailbox we'll need access to, split into the two categories: each individual rep's mailbox (for proposals, follow-ups, call threads) and the shared/marketing sending mailbox(es) used for bulk magazine mailings (one per title)? These are separate accounts with separate owners, so we need both lists to provision access correctly.",
       "Who is the right technical contact to provision credentials for Act!, email, Teams/Zoom, Xero, and the SOR?",
     ],
     edgeCases: [],
@@ -130,14 +131,13 @@ export const automations: Automation[] = [
     ],
     systemsAndData: [
       "Email inbox-watch (per sending mailbox)",
-      "LLM API (classification)",
+      "Google Gemini API (classification; covered by the Foundation-level grant)",
       "Act! Web API (Contacts lookup + write, History)",
       "Team notification channel",
       "Human-review queue",
     ],
     requirements: [
-      "Inbox-read access to the same mailbox(es) used to send each title's mailings: bounces and OOO replies land back in that sending mailbox, not a separate monitoring account",
-      "(Act! write access to Contacts + History is covered by the Foundation-level grant, not requested again here)",
+      "Inbox-read access to the shared/marketing sending mailbox(es) used to send each title's bulk mailings, not individual rep mailboxes: bounces and OOO replies land back in that same sending mailbox, not a separate monitoring account",
     ],
     questionsForClient: [
       "Which mailbox(es) send each title's mailings, and can we get inbox-read access to them?",
@@ -171,7 +171,7 @@ export const automations: Automation[] = [
       "Anything ambiguous (especially a possible confusion between \"I'm away until X\" and \"I've left, contact Y\") goes to a human review queue with the original reply attached",
     ],
     systemsAndData: [
-      "LLM API (extraction)",
+      "Google Gemini API (extraction; covered by the Foundation-level grant)",
       "Act! Web API (Contacts search/create/update, Notes/History)",
       "Enrichment provider (optional email-pattern verification)",
       "Human-review queue",
@@ -208,7 +208,7 @@ export const automations: Automation[] = [
       "Anything unresolved goes to a human review queue with the full research bundle attached, plus a notification alert",
     ],
     systemsAndData: [
-      "LLM API (research synthesis + verification)",
+      "Google Gemini API (research synthesis + verification; covered by the Foundation-level grant)",
       "Enrichment provider (LinkedIn→email, people-move alerts)",
       "Act! Web API (company→contacts fan-out, multi-record update, Notes)",
       "Web fetch capability",
@@ -251,7 +251,7 @@ export const automations: Automation[] = [
     ],
     systemsAndData: [
       "Act! Web API (search, merge/retire, Notes) or SQL Server read fallback for bulk scanning",
-      "LLM API (match adjudication)",
+      "Google Gemini API (match adjudication; covered by the Foundation-level grant)",
       "Enrichment/LinkedIn provider (identity confirmation)",
       "Human-review queue",
       "Team notification channel",
@@ -365,7 +365,7 @@ export const automations: Automation[] = [
     ],
     systemsAndData: [
       "Act! Web API (Contacts search, Groups read/assign, create/update, Notes)",
-      "LLM API (group suggestion + change detection)",
+      "Google Gemini API (group suggestion + change detection; covered by the Foundation-level grant)",
       "Human-review UI",
     ],
     requirements: [
@@ -404,16 +404,14 @@ export const automations: Automation[] = [
       "A daily per-rep digest lists captured notes with a one-click correct/reject option",
     ],
     systemsAndData: [
-      "Teams/Zoom transcription (licensing to confirm)",
-      "LLM API (provider + GDPR/data-residency to confirm)",
+      "Teams/Zoom transcription (covered by the Foundation-level grant)",
+      "Google Gemini API (covered by the Foundation-level grant)",
       "Act! Web API (Contacts, Companies, Notes, Groups)",
       "SQL Server read fallback",
       "Team notification channel (digest)",
     ],
     requirements: [
-      "Teams and/or Zoom transcription licensing and webhook/API access",
-      "Act! Premium Web API write access to Notes",
-      "A confirmed LLM provider with residency/DPA sign-off, since call content is personal data",
+      "None beyond the Foundation-level Teams/Zoom, Act!, and Gemini grants",
     ],
     questionsForClient: [
       "Is call transcription already enabled and licensed in your Teams/Zoom setup, or does this need to be turned on/added?",
@@ -442,18 +440,17 @@ export const automations: Automation[] = [
       "Extracts the email body text; any PDF/DOCX attachment is run through OCR/vision to extract text",
       "The LLM parses out line items: product, quantity, unit price, and terms",
       "The recipient is matched in Act! by email; if not found, a new contact is created from the email signature with suggested groups",
-      "A structured note recording the full quote is written, and an Act! Activity is created as a follow-up trigger for a later date",
+      "A structured note recording the full quote is written, and an Act! Activity is created as a follow-up trigger for a later date; this is the same trigger the Stage 3 daily engine (SALES-012/013) later picks up to build the rep's ranked morning queue with a pre-drafted follow-up email",
+      "The same mailbox's inbox is watched for a reply on that thread; if the client replies before the follow-up date, the Activity is automatically stood down so the rep is never nagged to chase someone who already responded",
       "Unreadable attachments or ambiguous parses go to a human review queue rather than being silently skipped",
     ],
     systemsAndData: [
-      "Email integration (O365/Exchange to confirm), Sent Items access",
-      "OCR/vision (scanned/PDF quotes)",
-      "LLM API",
+      "Email integration (O365/Exchange to confirm), Sent Items access plus inbox access on the same mailbox for reply detection",
+      "Google Gemini API (vision for scanned/PDF quotes, text for parsing; covered by the Foundation-level grant)",
       "Act! Web API (Contacts, Companies, Groups, Notes, Activities)",
     ],
     requirements: [
-      "Sent-folder access to every rep mailbox that sends proposals",
-      "Act! Web API write access to Activities (for the follow-up trigger)",
+      "Sent-folder access to every rep mailbox that sends proposals (a specific scope on top of the Foundation-level per-mailbox inbox grant, which already covers reply detection)",
       "An agreed convention for identifying a proposal email (subject line prefix or similar)",
     ],
     questionsForClient: [
@@ -467,6 +464,7 @@ export const automations: Automation[] = [
       "False positives on the detection convention: handled with a confidence gate and rep confirmation for new-contact creates",
       "A revised/re-sent proposal appends a new note rather than overwriting the old one",
       "Multi-currency or discounted line items are captured as-is, not normalised",
+      "Reply-thread matching false positive: requires a thread-ID match, not just any reply from the same sender, to avoid standing down the wrong follow-up",
     ],
     dependsOn: [],
   },
@@ -479,7 +477,7 @@ export const automations: Automation[] = [
     whatItDoes:
       "When a meaningful client email exchange goes quiet, writes a concise Act! note capturing what was discussed, offered, agreed, and at what rate, while completely ignoring routine back-and-forth pleasantries and confirmations.",
     howItWorks: [
-      "Inbox-watch captures new client mail and records the thread plus a last-activity timestamp in a state store",
+      "Inbox-watch on each rep's own individual mailbox captures new client mail and records the thread plus a last-activity timestamp in a state store; this is the same rep-mailbox category as SALES-009, not the shared/marketing sending mailboxes CS-001 watches",
       "A scheduled sweep looks for threads that have gone idle for N configurable hours",
       "A noise filter (rules plus an LLM classifier) drops threads that are pure confirmations, pleasantries, or auto-replies before any summarising happens",
       "The full thread is assembled in order and summarised by the LLM into what was discussed, what package/rate was offered, and any agreed or promised next steps, with the rate captured verbatim",
@@ -487,14 +485,13 @@ export const automations: Automation[] = [
       "If the thread reopens after being summarised, a supplementary note is appended rather than duplicating the first one",
     ],
     systemsAndData: [
-      "Email integration (platform to confirm)",
-      "LLM API",
+      "Email integration (platform to confirm), inbox access on each rep's individual mailbox",
+      "Google Gemini API (covered by the Foundation-level grant)",
       "Act! Web API (Contacts, Companies, Notes, Groups)",
-      "State store for thread tracking",
+      "State store for thread tracking (built as part of this app, not a client dependency)",
     ],
     requirements: [
-      "Inbox-watch access to each rep's mailbox",
-      "A state store to track thread idle-time",
+      "Inbox access to each rep's individual mailbox (covered by the Foundation-level per-mailbox grant, called out here since this automation specifically depends on it)",
     ],
     questionsForClient: [
       "How many hours of silence on a thread should count as \"the conversation is closed\" and ready to summarise?",
@@ -518,7 +515,7 @@ export const automations: Automation[] = [
     whatItDoes:
       "When mail arrives from someone not already in Act!, extracts their details from the signature and offers a rep a one-click add with suggested groups and an optional newsletter opt-in. No contact is ever created without a human clicking accept.",
     howItWorks: [
-      "Inbox-watch runs across each sales mailbox",
+      "Inbox-watch runs across each rep's individual sales mailbox (the same rep-mailbox category as SALES-009/010, not the shared/marketing sending mailboxes CS-001 watches)",
       "The sender's email is checked against Act!; if already present, nothing happens",
       "A noise filter drops automated, marketing, no-reply, and list mail using header heuristics plus a classifier",
       "The LLM parses the email signature into structured contact fields",
@@ -526,13 +523,13 @@ export const automations: Automation[] = [
       "On accept, the contact is created in Act! with group memberships and a source stamp; on decline, nothing is written",
     ],
     systemsAndData: [
-      "Email integration (platform to confirm)",
-      "LLM/parsing for signature extraction",
+      "Email integration (platform to confirm), inbox access on each rep's individual mailbox",
+      "Google Gemini API (signature parsing; covered by the Foundation-level grant)",
       "Act! Web API (Contacts, Groups)",
       "Human-review UI",
     ],
     requirements: [
-      "Inbox-watch access to each sales mailbox",
+      "Inbox access to each rep's individual mailbox (covered by the Foundation-level per-mailbox grant, called out here since this automation specifically depends on it)",
       "Act! Groups already defined to suggest against",
     ],
     questionsForClient: [
@@ -559,26 +556,23 @@ export const automations: Automation[] = [
       "Initial backfill paginates every Act! contact and its notes/history/activities/opportunities, chunking one record per note/history/opportunity/activity plus a rolled-up contact profile, so every citation maps to exactly one source record",
       "Each chunk is embedded and stored in a vector database with metadata: contact, company, record type, owner rep, date, and a deep-link back to Act!",
       "Every time SALES-008/009/010/011 write a new note or contact, the new record is embedded and upserted so the index never lags the CRM; a nightly full reconciliation catches manual edits made directly in Act!",
-      "A user's query is resolved to identify a named client (with disambiguation if there's more than one match), then access-scoped by the querying rep's identity before any search happens",
+      "A user's query is resolved to identify a named client (with disambiguation if there's more than one match), then access-scoped by the querying rep's identity before any search happens; if the chat lives inside this same app, that identity comes straight from the login session already built (no separate SSO integration needed)",
       "Retrieval combines vector search with keyword search (needed for exact rates/dates that pure semantic search can miss), then re-ranks the top results",
       "The LLM answers only from the retrieved chunks, citing each source record; if there's no evidence, it says so explicitly rather than guessing",
     ],
     systemsAndData: [
       "Act! Web API + SQL read fallback for bulk export",
-      "Embedding model + LLM API (provider + GDPR/residency to confirm)",
-      "Vector store (self-hosted, e.g. pgvector)",
-      "Teams bot framework or web chat surface",
-      "SSO identity mapping to rep/team",
+      "Google Gemini API (embeddings + generation, covered by the Foundation-level grant)",
+      "Vector store: the pgvector extension on the same Dokploy-managed Postgres already provisioned for this app, so no separate vector database or hosting decision is needed",
+      "Chat surface: either a page inside this app (identity already solved via the existing login) or a Teams bot (needs Teams SSO integration)",
     ],
     requirements: [
-      "A hosting decision and setup for the vector store",
-      "LLM/embedding provider with confirmed residency/DPA terms",
-      "A decision on the chat surface: Teams bot vs web app",
-      "SSO identity mapping so a query can be scoped to the right rep/team",
+      "A decision on the chat surface: a page inside this app (simplest, identity already solved) vs a Teams bot (extra integration work, but meets reps where they already work)",
+      "If a Teams bot is chosen: Teams SSO/identity mapping so a query can be scoped to the right rep",
     ],
     questionsForClient: [
       "Should reps be able to see other reps' client history through this chat, or must access be strictly scoped so a rep only sees their own clients? Are there any exceptions (e.g. managers see everyone)?",
-      "Would you rather this live as a bot inside Microsoft Teams (using your existing Teams identity for access control), or as a standalone web app?",
+      "Would you rather this live as a page inside the sales brain app itself (fastest to build, since login is already solved), or as a bot inside Microsoft Teams (meets reps where they work, but needs a separate Teams integration)?",
       "Is there a house style or format you'd want answers to follow, or is a plain grounded answer with a citation sufficient?",
     ],
     edgeCases: [
@@ -611,9 +605,9 @@ export const automations: Automation[] = [
     systemsAndData: [
       "Act! Web API (Activities, Contacts, Notes, History, Opportunities)",
       "SQL read fallback for date sweeps",
-      "LLM API (drafting)",
+      "Google Gemini API (drafting; covered by the Foundation-level grant)",
       "Human-review queue (shared with SALES-013)",
-      "Email inbox-watch for reply detection",
+      "Email inbox-watch on each rep's individual mailbox for reply detection",
     ],
     requirements: [
       "Voice profiles per salesperson so drafts sound like them, not a generic template",
@@ -651,12 +645,12 @@ export const automations: Automation[] = [
     systemsAndData: [
       "Review-queue store (backing the review UI)",
       "Act! Web API (Opportunities, History, Activities)",
-      "LLM API (only for entries missing a draft)",
-      "Email send via draft-into-mailbox",
+      "Google Gemini API (only for entries missing a draft; covered by the Foundation-level grant)",
+      "Email send via draft-into-mailbox on each rep's individual mailbox",
       "Team notification channel",
     ],
     requirements: [
-      "Draft-into-mailbox permission for every rep's mailbox",
+      "Draft-into-mailbox permission for every rep's mailbox (covered by the Foundation-level per-mailbox grant, called out here since this is the automation that actually delivers the drafts)",
       "Value/urgency weighting agreed with sales leadership for the ranking formula",
     ],
     questionsForClient: [
@@ -690,7 +684,7 @@ export const automations: Automation[] = [
     systemsAndData: [
       "Act! Web API (Contacts filtered by touchpoint date field, Notes, History)",
       "SQL read fallback for date-field filtering",
-      "LLM API",
+      "Google Gemini API (covered by the Foundation-level grant)",
       "SALES-013 queue",
     ],
     requirements: [
@@ -726,13 +720,12 @@ export const automations: Automation[] = [
     ],
     systemsAndData: [
       "Act! Web API (contact/opportunity/history reads)",
-      "SOR reader (format to confirm)",
+      "SOR reader (format to confirm; base access covered by the Foundation-level grant)",
       "Editorial plan source",
-      "LLM API",
+      "Google Gemini API (covered by the Foundation-level grant)",
       "House-format template engine (docx/HTML)",
     ],
     requirements: [
-      "SOR access in whatever format it exists (Excel file location, or DB connection)",
       "A source for the current editorial plan/feature list",
       "A current rate card in a structured, referenceable form",
       "A house proposal template (branded document format)",
@@ -771,11 +764,11 @@ export const automations: Automation[] = [
       "Digital-edition platform (deep-link lookup)",
       "Rate card source",
       "Act! Web API (Contacts, owner lookup, History)",
-      "LLM API",
+      "Google Gemini API (covered by the Foundation-level grant)",
       "Campaign engine handoff",
     ],
     requirements: [
-      "SOR access with prior-edition advertiser data and current-cycle booking status",
+      "SOR data specifically covering prior-edition advertiser lists and current-cycle booking status (base SOR access is covered by the Foundation-level grant, this is the specific data shape needed)",
       "Confirmation the digital-edition platform can produce a stable, durable per-advertiser page URL",
       "A defined list/rule for annual-series clients who should be excluded from this flow",
     ],
@@ -811,7 +804,7 @@ export const automations: Automation[] = [
     systemsAndData: [
       "Template store (keyed by family + tags)",
       "Act! Web API (contact/history reads, History write)",
-      "LLM API (family selection + personalisation)",
+      "Google Gemini API (family selection + personalisation; covered by the Foundation-level grant)",
     ],
     requirements: [
       "Access to every salesperson's existing private Word template library for one-off migration into the shared store",
@@ -845,9 +838,9 @@ export const automations: Automation[] = [
       "The draft is merged into the house layout and delivered to the owner's queue; on send, the new pitch is indexed back into the pitch store for future retrieval",
     ],
     systemsAndData: [
-      "Teams/Zoom transcription",
-      "Vector store (pitch retrieval)",
-      "LLM API (extraction + drafting)",
+      "Teams/Zoom transcription (covered by the Foundation-level grant)",
+      "Vector store: the same pgvector setup used by the AI Hub Chat",
+      "Google Gemini API (extraction + drafting; covered by the Foundation-level grant)",
       "Act! Web API (Contacts, History)",
       "House-template engine",
     ],
@@ -886,7 +879,8 @@ export const automations: Automation[] = [
       "A one-off migration step parses each salesperson's existing personal spreadsheet/notebook into normalised pipeline rows",
     ],
     systemsAndData: [
-      "Outbound email stream (platform to confirm)",
+      "Outbound email stream on each rep's individual mailbox (platform to confirm; covered by the Foundation-level grant)",
+      "Google Gemini API (approach classification; covered by the Foundation-level grant)",
       "Act! Web API (Contacts, Opportunities)",
       "Pipeline store (Postgres)",
       "Human-review UI",
@@ -894,7 +888,7 @@ export const automations: Automation[] = [
     ],
     requirements: [
       "Access to each salesperson's existing personal spreadsheet/notebook for one-off migration",
-      "SOR write access (or an agreed close-record format) for the booking hand-off",
+      "SOR write access (or an agreed close-record format) for the booking hand-off, a specific scope on top of the Foundation-level SOR access",
       "An agreed project/issue taxonomy",
     ],
     questionsForClient: [
@@ -928,14 +922,14 @@ export const automations: Automation[] = [
       "A daily scheduled sweep finds prospects untouched past their interval and builds a chase list with a drafted nudge per entry for review",
     ],
     systemsAndData: [
-      "Email read connector",
+      "Email read connector on each rep's individual mailbox (covered by the Foundation-level grant)",
       "Pipeline store (from SALES-024)",
       "Act! History",
-      "LLM API (classification + nudge drafting)",
+      "Google Gemini API (classification + nudge drafting; covered by the Foundation-level grant)",
       "Human-review queue",
     ],
     requirements: [
-      "Inbound email read access across tracked prospect threads",
+      "None beyond the Foundation-level per-mailbox grant",
     ],
     questionsForClient: [
       "What chase interval feels right per pipeline stage, e.g. how many days of silence before a \"contacted\" prospect should appear on the chase list?",
@@ -973,9 +967,7 @@ export const automations: Automation[] = [
       "Dashboard surface (built into this app)",
     ],
     requirements: [
-      "SOR read access in whatever current format",
-      "Xero API access scoped to the correct organisation/tenant, read-only",
-      "Agreed metric definitions with sales leadership",
+      "Agreed metric definitions with sales leadership (SOR and Xero access are both covered by the Foundation-level grant)",
     ],
     questionsForClient: [
       "Which Xero organisation/tenant should this connect to, and can you provision read-only API access?",
@@ -1046,7 +1038,7 @@ export const automations: Automation[] = [
     ],
     systemsAndData: [
       "Metrics store (from SALES-026/027, read-only)",
-      "LLM API (brief drafting)",
+      "Google Gemini API (brief drafting; covered by the Foundation-level grant)",
       "Email/Teams delivery",
       "Summary archive store",
     ],
