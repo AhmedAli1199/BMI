@@ -64,7 +64,7 @@ export const automations: Automation[] = [
       "Act! Web API (Contacts, Notes, History, Activities, Opportunities, Companies, Groups)",
       "Act! Premium for Web UI (read-only login for the dev team, separate from the API service account)",
       "SQL Server Express (emergency/exception fallback only, not a primary dependency)",
-      "LLM API provider",
+      "Google Gemini API (text + vision in a single provider: covers extraction, classification, drafting, and every OCR/vision task like card and label reading, so no separate OCR vendor is needed)",
       "Vector store (e.g. Postgres pgvector or a dedicated vector DB)",
       "Email platform (O365/Exchange or equivalent), per-mailbox auth",
       "Teams/Zoom transcript source",
@@ -94,9 +94,11 @@ export const automations: Automation[] = [
       "SOR access details (file location + permissions, or DB connection string)",
       "Xero API credentials + org/tenant ID",
       "Enrichment provider account/API key",
-      "LLM provider account with EU data-residency/DPA terms confirmed",
+      "Google Gemini API key (chosen provider, since it handles both text and vision, so one account covers LLM drafting/extraction and every OCR/vision need across the project)",
+      "Confirmation that Google's data processing terms for the Gemini API are acceptable for BMI's EU personal data (~10k contacts + ~40k prospects will pass through it for classification, drafting, and vision tasks)",
     ],
     questionsForClient: [
+      "We're planning to use Google's Gemini API as the LLM/vision provider (one provider covers both text tasks and OCR/vision, like reading card and label images). Is BMI comfortable with that, or does your data-processing policy require a different provider or region-specific setup?",
       "What exact version of Act! are you running? We'll need the Act! Web API enabled for this: an IIS component that installs alongside Act! Premium for Web (v18 or later). If it's not already installed, your IT team can add it following Act!'s own Web API Administrator's Guide.",
       "Can you give us a Web API base URL and a dedicated login (username/password/database name)? We'll test the connection directly at /Act.Web.API/swagger/index.html and confirm we get a bearer token back. That's the fastest way to know it's actually working.",
       "Can you also provision a read-only Act! Premium for Web login for our development team? This is separate from the API integration account: it's so we can look at real records, your Group structure, and existing templates directly in the UI while we build, rather than only inferring from API responses.",
@@ -215,10 +217,9 @@ export const automations: Automation[] = [
     ],
     requirements: [
       "A confirmed, GDPR-compliant enrichment/people-move data provider with an API key",
-      "Act! Web API access sufficient to enumerate and bulk-update all sibling records under one company",
     ],
     questionsForClient: [
-      "What confidence threshold should trigger an automatic write versus a human review? Are you comfortable with any auto-writes here, or should every successor change be reviewed first given the risk of writing a wrong person into multiple records?",
+      "If the departure signal itself names the successor (e.g. an OOO reply saying \"contact Jane Smith, jane@company.com\"), we can extract and write that directly. But when nothing is named and we have to research a successor ourselves (enrichment/web lookup), how much oversight do you want: should every researched successor go to a human before it's written, or are you comfortable with auto-writes there too?",
       "If we can't verify a successor at all, what should the fallback general company address look like, and who verifies it's still current?",
     ],
     edgeCases: [
@@ -256,8 +257,7 @@ export const automations: Automation[] = [
       "Team notification channel",
     ],
     requirements: [
-      "Act! Web API or SQL read access capable of scanning ~40,000 prospect records efficiently",
-      "Enrichment provider access for moved-person confirmation",
+      "None beyond the Foundation-level Act!, SQL fallback, and enrichment provider grants",
     ],
     questionsForClient: [
       "What similarity threshold feels safe to you for auto-merging two records versus sending them to a human, given a false merge of two genuinely different people (e.g. father and son with the same name) is effectively irreversible?",
@@ -284,20 +284,18 @@ export const automations: Automation[] = [
       "Reads each returned print-copy label from an undeliverable mailing, matches it to its Act! record, and either corrects the address or retires the record with a reason, turning a manual post-room task into a quick review-and-confirm step.",
     howItWorks: [
       "An operator photographs or scans a batch of returned label images and uploads them via a form or email",
-      "Each label image is read with OCR/vision to extract text, then parsed by the LLM into a structured address plus any customer/mailing reference",
+      "Each label image is read with Gemini's vision capability to extract text, then parsed into a structured address plus any customer/mailing reference",
       "Act! is searched for a matching contact by reference first, falling back to name + company + postcode",
       "If the company appears to have moved, the address is corrected and a History note added; if closed, the record is retired with a reason; if nothing matches, it goes to a review queue",
       "A per-title batch summary is posted for quick review",
     ],
     systemsAndData: [
-      "OCR/vision service (label reading)",
-      "LLM API (address parsing/adjudication)",
+      "Google Gemini API (vision for label reading, text for address parsing/adjudication; covered by the Foundation-level grant)",
       "Act! Web API (Contacts match, address update, History)",
       "Human-review queue",
     ],
     requirements: [
       "An intake channel for uploading photographed labels (form or email)",
-      "An OCR/vision provider account",
     ],
     questionsForClient: [
       "How do you want to submit returned-copy batches: a simple upload form, or by forwarding an email with photos attached?",
@@ -322,19 +320,17 @@ export const automations: Automation[] = [
       "Turns photographed trade-show business cards (including multiple cards in one photo) into structured contact records automatically, flagging anything unreadable rather than guessing.",
     howItWorks: [
       "A team member uploads card photos via a form or email after a show, along with the show name and date",
-      "Vision detects and crops each individual card region out of a multi-card photo",
-      "Each card is OCR/vision-extracted, then the LLM normalises the fields into name, company, job title, email, phone, and address",
+      "Gemini's vision capability detects and crops each individual card region out of a multi-card photo",
+      "Each card is read with Gemini vision, then the fields are normalised into name, company, job title, email, phone, and address",
       "Low-confidence cards are flagged for a quick human correction rather than guessed",
       "The structured batch, stamped with the show name and date, is handed off to the dedupe/group-assignment step (SALES-002)",
     ],
     systemsAndData: [
       "Intake form or email",
-      "OCR/vision model (card detection + reading)",
-      "LLM API (field structuring)",
+      "Google Gemini API (vision for card detection/reading, text for field structuring; covered by the Foundation-level grant)",
     ],
     requirements: [
       "An intake channel for card photo uploads",
-      "An OCR/vision provider account",
     ],
     questionsForClient: [
       "How do reps currently submit trade-show cards after an event? Would a simple upload form work, or do you prefer email intake?",
@@ -373,7 +369,6 @@ export const automations: Automation[] = [
       "Human-review UI",
     ],
     requirements: [
-      "Act! Web API write access to Contacts and Groups",
       "A copy of the current Act! Groups taxonomy to train suggestions against",
     ],
     questionsForClient: [

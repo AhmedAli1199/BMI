@@ -92,7 +92,7 @@ export default async function AutomationDetailPage(
           />
           <Separator />
           <Section
-            title="Questions to ask the client"
+            title="Questions"
             items={automation.questionsForClient}
           />
           <Separator />
