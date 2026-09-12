@@ -21,6 +21,27 @@ Schema design decisions: `CONTEXT.md`, and the docstrings in `backend/app/models
 
 ## One-time setup
 
+### Windows PowerShell
+
+Install and start [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+with the WSL 2 backend enabled. Then open a new PowerShell window and run:
+
+```powershell
+cd F:\bmi-sandbox\migration
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+docker version
+```
+
+If `docker` is not recognized, Docker Desktop is not installed, is not
+running, or its CLI directory is not on `PATH`. Start Docker Desktop and open
+a new PowerShell window before retrying. If Docker Desktop reports that WSL 2
+is unavailable, run `wsl --update`, reboot Windows if requested, and enable
+WSL 2 integration in Docker Desktop settings.
+
+### Linux/macOS
+
 ```bash
 cd migration
 python3 -m venv .venv && source .venv/bin/activate
@@ -65,7 +86,7 @@ docker exec act-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '<passwo
 ```bash
 python etl.py --source-db onboard \
   --mssql-host localhost --mssql-port 1433 --mssql-user sa --mssql-password '<password>' \
-  --pg-url 'postgresql://USER:PASSWORD@HOST:PORT/DBNAME'
+  --pg-url 'postgresql+psycopg://postgres:postgres@localhost:5433/bmi'
 ```
 
 Read its output. It prints, per entity type, how many rows it extracted

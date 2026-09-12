@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .claude/
 CREDENTIALS.local.md
+DATA_INSPECTION_REPORT.md
+etl-onboard.log

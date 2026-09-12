@@ -12,7 +12,7 @@ docs/act-schema/*.md.
 Usage:
     python etl.py --source-db onboard \\
         --mssql-host localhost --mssql-port 1433 --mssql-password '...' \\
-        --pg-url postgresql://postgres:postgres@localhost:5432/bmi
+        --pg-url postgresql+psycopg://postgres:postgres@localhost:5433/bmi
 
 Safe to re-run: every insert is keyed on (source_db, source_act_id) with
 ON CONFLICT DO NOTHING, so re-running after a partial failure only adds
@@ -84,6 +84,16 @@ def to_uuid_str(v) -> str | None:
     return str(v).strip("{}").lower()
 
 
+def remove_nul_bytes(value):
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, dict):
+        return {key: remove_nul_bytes(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [remove_nul_bytes(item) for item in value]
+    return value
+
+
 class IdMap:
     """act_id (lowercased string) -> our new uuid.UUID, per entity kind."""
 
@@ -109,11 +119,19 @@ def bulk_upsert(conn, table, rows: list[dict], constraint: str, label: str):
     if not rows:
         print(f"  {label}: 0 rows (nothing to insert)")
         return 0
-    stmt = sa.dialects.postgresql.insert(table).values(rows)
-    stmt = stmt.on_conflict_do_nothing(constraint=constraint).returning(table.c.id)
-    # .rowcount is unreliable for ON CONFLICT DO NOTHING with some drivers -
-    # count the RETURNING rows instead, which always reflects what actually landed.
-    inserted = len(conn.execute(stmt).fetchall())
+    # Keep each statement below PostgreSQL's 65,535-parameter limit.
+    batch_size = 500
+    inserted = 0
+    for start in range(0, len(rows), batch_size):
+        batch = [
+            {key: remove_nul_bytes(value) for key, value in row.items()}
+            for row in rows[start:start + batch_size]
+        ]
+        stmt = sa.dialects.postgresql.insert(table).values(batch)
+        stmt = stmt.on_conflict_do_nothing(constraint=constraint).returning(table.c.id)
+        # .rowcount is unreliable for ON CONFLICT DO NOTHING with some drivers -
+        # count the RETURNING rows instead, which always reflects what actually landed.
+        inserted += len(conn.execute(stmt).fetchall())
     print(f"  {label}: {len(rows)} extracted, {inserted} inserted "
           f"({len(rows) - inserted} already present / skipped)")
     return inserted
