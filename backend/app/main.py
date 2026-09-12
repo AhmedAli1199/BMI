@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, health
+from app.api.routes import auth, companies, contacts, health
 from app.core.config import settings
 from app.core.security import require_api_key
 
@@ -25,6 +25,8 @@ app.add_middleware(
 api_router = APIRouter(prefix="/api", dependencies=[Depends(require_api_key)])
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
+api_router.include_router(contacts.router)
+api_router.include_router(companies.router)
 app.include_router(api_router)
 
 
