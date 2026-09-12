@@ -79,6 +79,24 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
 
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  render={<Link href="/contacts" />}
+                  isActive={pathname.startsWith("/contacts")}
+                >
+                  Contacts
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/companies" />}
+                  isActive={pathname.startsWith("/companies")}
+                >
+                  Companies
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
                   render={<Link href="/requirements" />}
                   isActive={pathname === "/requirements"}
                 >
