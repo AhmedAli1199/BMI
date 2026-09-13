@@ -219,6 +219,49 @@ class GroupListItem(BaseModel):
     member_count: int = 0
 
 
+class SourceBreakdown(BaseModel):
+    source_db: str
+    count: int
+
+
+class RecentContact(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    full_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    job_title: str | None = None
+    company_id: uuid.UUID | None = None
+    company_name: str | None = None
+    created_at: datetime
+
+
+class RecentCompany(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    industry: str | None = None
+    created_at: datetime
+
+
+class TopCompany(BaseModel):
+    id: uuid.UUID
+    name: str
+    industry: str | None = None
+    contact_count: int
+
+
+class DashboardStats(BaseModel):
+    total_contacts: int
+    total_companies: int
+    total_groups: int
+    contacts_by_source: list[SourceBreakdown]
+    companies_by_source: list[SourceBreakdown]
+    recent_contacts: list[RecentContact]
+    recent_companies: list[RecentCompany]
+    top_companies: list[TopCompany]
+
+
 class GroupDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

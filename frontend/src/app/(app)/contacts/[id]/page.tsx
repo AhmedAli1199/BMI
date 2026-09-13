@@ -10,6 +10,8 @@ import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteContact } from "@/lib/actions";
 import { cleanNoteBody } from "@/lib/notes";
+import { sourceLabel } from "@/lib/sources";
+import { EntityAvatar } from "@/components/entity-avatar";
 
 export default async function ContactDetailPage({
   params,
@@ -33,21 +35,24 @@ export default async function ContactDetailPage({
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{name}</h1>
-            <Badge variant="secondary">{contact.source_db}</Badge>
+        <div className="flex items-start gap-4">
+          <EntityAvatar name={name} className="mt-0.5 size-11 text-sm" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold">{name}</h1>
+              <Badge variant="secondary">{sourceLabel(contact.source_db)}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {contact.job_title}
+              {contact.job_title && contact.department ? " · " : ""}
+              {contact.department}
+            </p>
+            {contact.company && (
+              <Link href={`/companies/${contact.company.id}`} className="text-sm hover:underline">
+                {contact.company.name}
+              </Link>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {contact.job_title}
-            {contact.job_title && contact.department ? " · " : ""}
-            {contact.department}
-          </p>
-          {contact.company && (
-            <Link href={`/companies/${contact.company.id}`} className="text-sm hover:underline">
-              {contact.company.name}
-            </Link>
-          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <ContactFormDialog

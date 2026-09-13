@@ -31,7 +31,7 @@ import type { SessionPayload } from "@/lib/session";
 // default text-sm - the client asked for this explicitly ("bigger bolder
 // for easy viewing"), applied here rather than in the shared ui/sidebar.tsx
 // primitive so it's specific to this app's nav, not every future sidebar use.
-const NAV_ITEM = "text-[15px] font-semibold [&_svg]:size-[18px]";
+const NAV_ITEM = "text-[15.5px] font-semibold h-10 [&_svg]:size-[19px]";
 const NAV_SUBITEM = "text-[13.5px] font-medium";
 
 export function AppSidebar({ session }: { session: SessionPayload | null }) {
@@ -62,7 +62,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
         <SidebarGroup>
           <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Platform</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href="/" />}

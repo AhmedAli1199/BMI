@@ -17,6 +17,8 @@ import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteCompany } from "@/lib/actions";
 import { cleanNoteBody } from "@/lib/notes";
+import { sourceLabel } from "@/lib/sources";
+import { EntityAvatar } from "@/components/entity-avatar";
 
 export default async function CompanyDetailPage({
   params,
@@ -35,26 +37,29 @@ export default async function CompanyDetailPage({
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{company.name}</h1>
-            <Badge variant="secondary">{company.source_db}</Badge>
+        <div className="flex items-start gap-4">
+          <EntityAvatar name={company.name} square className="mt-0.5 size-11 text-sm" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold">{company.name}</h1>
+              <Badge variant="secondary">{sourceLabel(company.source_db)}</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {company.industry}
+              {company.industry && company.category ? " · " : ""}
+              {company.category}
+            </p>
+            {company.website && (
+              <a
+                href={company.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm hover:underline"
+              >
+                {company.website}
+              </a>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {company.industry}
-            {company.industry && company.category ? " · " : ""}
-            {company.category}
-          </p>
-          {company.website && (
-            <a
-              href={company.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm hover:underline"
-            >
-              {company.website}
-            </a>
-          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <CompanyFormDialog existing={company} />

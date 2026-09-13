@@ -90,3 +90,41 @@ export type GroupDetail = {
   parent_group_id: string | null;
   members: ContactListItem[];
 };
+
+export type SourceBreakdown = { source_db: string; count: number };
+
+export type RecentContact = {
+  id: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  job_title: string | null;
+  company_id: string | null;
+  company_name: string | null;
+  created_at: string;
+};
+
+export type RecentCompany = {
+  id: string;
+  name: string;
+  industry: string | null;
+  created_at: string;
+};
+
+export type TopCompany = {
+  id: string;
+  name: string;
+  industry: string | null;
+  contact_count: number;
+};
+
+export type DashboardStats = {
+  total_contacts: number;
+  total_companies: number;
+  total_groups: number;
+  contacts_by_source: SourceBreakdown[];
+  companies_by_source: SourceBreakdown[];
+  recent_contacts: RecentContact[];
+  recent_companies: RecentCompany[];
+  top_companies: TopCompany[];
+};

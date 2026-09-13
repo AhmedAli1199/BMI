@@ -1,14 +1,8 @@
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { GroupListItem, Page } from "@/lib/types";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 
@@ -29,12 +23,12 @@ export default async function GroupsPage({
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (
-    <div className="flex w-full flex-col gap-4 p-6">
+    <div className="flex w-full flex-col gap-5 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Groups</h1>
           <p className="text-sm text-muted-foreground">
-            {data.total.toLocaleString()} total &middot; segments, lists and tags for contacts
+            {data.total.toLocaleString()} segments, lists and tags for contacts
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -45,37 +39,37 @@ export default async function GroupsPage({
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Members</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.items.map((g) => (
-              <TableRow key={g.id}>
-                <TableCell>
-                  <Link href={`/groups/${g.id}`} className="font-medium hover:underline">
-                    {g.name}
-                  </Link>
-                </TableCell>
-                <TableCell>{g.description || <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell>{g.member_count.toLocaleString()}</TableCell>
-              </TableRow>
-            ))}
-            {data.items.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground">
-                  No groups yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {/* Groups tend to be few and meaningful (a segment, a mailing list) -
+          tiles you can scan read better here than a table with two mostly-
+          empty columns would. */}
+      {data.items.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {data.items.map((g) => (
+            <Link key={g.id} href={`/groups/${g.id}`}>
+              <Card className="h-full transition-colors hover:border-primary/40 hover:bg-accent/40">
+                <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
+                  <CardTitle className="text-base font-semibold">{g.name}</CardTitle>
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                    <Users className="size-3.5" />
+                    {g.member_count.toLocaleString()}
+                  </span>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {g.description || "No description."}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            No groups yet — create one to start segmenting contacts.
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
