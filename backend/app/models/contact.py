@@ -40,6 +40,10 @@ class Contact(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
 
     birthdate: Mapped[date | None] = mapped_column(Date)
     is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Set by the bounce-handling automation on a confirmed hard bounce -
+    # never by hand-editing a field elsewhere, so it always has a note
+    # explaining why right next to it.
+    is_unsubscribed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
 
     last_meet_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_reach_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

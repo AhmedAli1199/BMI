@@ -1,0 +1,124 @@
+"""The plug-in point every automation uses to add itself to the review
+queue, without the generic API route or the frontend needing to know
+anything about what a "bounce" or a "departure" actually is.
+
+Each automation module (bounce_handling.py, ooo.py, departure.py, ...)
+calls `register()` once per *kind* of review item it can produce, at
+import time. A kind carries:
+
+- its own human-readable label/description (shown as a filter chip and
+  card header - never a generic "Review item"),
+- its own list of actions, each with its own label/style/required input
+  (so "Confirm & unsubscribe" and "Confirm successor" and "Approve sales
+  template" can all exist side by side without the frontend hardcoding
+  any of them - it just renders whatever buttons this list says exist),
+- and a handler function that actually performs the CRM write for
+  whichever action was clicked.
+
+The review_queue table itself stores completely generic rows (kind,
+payload, status) - see review_queue.py's docstring. This registry is
+what gives each kind its specific meaning on top of that generic shape.
+
+Payload contract (what an automation should put in ReviewQueueItem.payload
+so the generic UI can render it without per-kind frontend code):
+
+    {
+      "summary": "One line shown as the card's headline",
+      "details": [{"key": "...", "label": "...", "value": "...", "editable": bool}],
+      "original_text": "Raw source text (email body, OCR'd label, etc.) - optional",
+      "related_entities": [{"type": "contact"|"company", "id": "...", "label": "..."}],
+      "suggested_contact": {"id": "...", "label": "..."} | None,
+      "confidence": 0.0-1.0 | None,
+    }
+
+None of these keys are enforced by the schema (payload is a plain JSONB
+blob) - they're a convention the frontend's generic renderer expects,
+documented here so every automation module follows it without needing
+its own bespoke UI.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Callable, Literal
+
+from sqlalchemy.orm import Session
+
+from app.models import ReviewQueueItem
+
+ActionStyle = Literal["primary", "secondary", "destructive"]
+ActionOutcome = Literal["approved", "rejected"]
+
+
+@dataclass(frozen=True)
+class ExtraField:
+    """One additional input the UI must collect before this action can be
+    submitted, beyond the note/contact-picker shortcuts below - e.g. a
+    name+email pair for "create this as a new contact". Rendered as a
+    plain text input in the generic review card; `required` blocks
+    submission until it's non-empty."""
+    key: str
+    label: str
+    placeholder: str = ""
+    required: bool = True
+
+
+@dataclass(frozen=True)
+class ReviewAction:
+    id: str
+    label: str
+    # Controls button color/prominence - "primary" is the expected/likely
+    # choice, "destructive" is red and always paired with confirm_message.
+    style: ActionStyle = "secondary"
+    # Which coarse bucket this action counts as, for the status filter and
+    # any future reporting - "what fraction of bounces did we end up
+    # confirming vs. dismissing" only works if every action declares this.
+    outcome: ActionOutcome = "approved"
+    # If set, the UI shows a text box and requires it non-empty before the
+    # action can be submitted - e.g. "why are you overriding this?".
+    requires_note: bool = False
+    # If set, the UI shows a contact search/picker and requires a
+    # selection before the action can be submitted - e.g. "pick who this
+    # should actually be matched to".
+    requires_contact_picker: bool = False
+    # Arbitrary additional text inputs this action needs - see ExtraField.
+    extra_fields: list[ExtraField] = field(default_factory=list)
+    # If set, shown in a confirm step before the action fires - use for
+    # anything that writes to multiple records or can't be undone from
+    # the UI (a merge, a multi-record successor update).
+    confirm_message: str | None = None
+
+
+@dataclass(frozen=True)
+class ReviewKind:
+    kind: str
+    label: str
+    description: str
+    actions: list[ReviewAction]
+    # (db, item, action_id, input_data) -> None. Raise ValueError with a
+    # human-readable message for anything the reviewer should see as an
+    # error (stale data, missing contact, etc.) rather than a 500.
+    handler: Callable[[Session, ReviewQueueItem, str, dict], None]
+
+
+_REGISTRY: dict[str, ReviewKind] = {}
+
+
+def register(kind_def: ReviewKind) -> None:
+    if kind_def.kind in _REGISTRY:
+        raise ValueError(f"Review kind {kind_def.kind!r} is already registered")
+    _REGISTRY[kind_def.kind] = kind_def
+
+
+def get_kind(kind: str) -> ReviewKind | None:
+    return _REGISTRY.get(kind)
+
+
+def get_action(kind: str, action_id: str) -> ReviewAction | None:
+    kind_def = _REGISTRY.get(kind)
+    if not kind_def:
+        return None
+    return next((a for a in kind_def.actions if a.id == action_id), None)
+
+
+def all_kinds() -> list[ReviewKind]:
+    return list(_REGISTRY.values())

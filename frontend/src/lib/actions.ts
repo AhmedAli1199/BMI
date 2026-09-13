@@ -300,3 +300,25 @@ export async function searchContacts(q: string): Promise<ContactListItem[]> {
   );
   return page.items;
 }
+
+// ---- Automations / review queue --------------------------------------------
+
+/** Resolves one review-queue item by the specific action a reviewer picked
+ * (see backend/app/automations/registry.py) - not a generic approve/reject,
+ * since each automation's actions carry their own meaning and wording.
+ * Throws with the backend's own message on failure (missing required
+ * input, already resolved by someone else, stale data) - the caller shows
+ * that text directly rather than a generic "something went wrong". */
+export async function resolveReviewItem(
+  itemId: string,
+  actionId: string,
+  input: { note?: string; contact_id?: string; fields?: Record<string, string> }
+) {
+  await backendFetch(`/api/review-queue/${itemId}/actions/${actionId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  revalidatePath("/automations");
+  revalidatePath("/automations/review");
+}
