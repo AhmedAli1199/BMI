@@ -50,8 +50,10 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
 
   return (
     <Sidebar>
-      <SidebarHeader>
-        <SidebarMenu>
+      <SidebarHeader className="relative overflow-hidden">
+        <div className="ambient-glow" aria-hidden="true" />
+        <div className="ambient-stars" aria-hidden="true" />
+        <SidebarMenu className="relative">
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
@@ -161,7 +163,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                 {session.email}
               </p>
             </div>
-            <LogoutButton />
+            <LogoutButton className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
           </div>
         )}
       </SidebarFooter>

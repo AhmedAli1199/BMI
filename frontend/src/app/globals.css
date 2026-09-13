@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Themes are switched via [data-theme] on <html>, not a light/dark toggle -
+   see components/theme-provider.tsx. Same three tokens sets style shadcn's
+   whole component library (--primary, --card, --sidebar-*, etc.) - swapping
+   the theme never touches structure, only these values. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -48,73 +52,144 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+/* ============ MORNING (default) — cool daylight, warm sun accent ============ */
+:root,
+[data-theme="morning"] {
+  --background: #f7f9fc;
+  --foreground: #12151c;
+  --card: #ffffff;
+  --card-foreground: #12151c;
+  --popover: #ffffff;
+  --popover-foreground: #12151c;
+  --primary: #c8720f;
+  --primary-foreground: #fffaf3;
+  --secondary: #eef1f6;
+  --secondary-foreground: #12151c;
+  --muted: #eef1f6;
+  --muted-foreground: #5b6472;
+  --accent: #fdf0dc;
+  --accent-foreground: #8a4e0a;
+  --destructive: #b3261e;
+  --border: #e2e7ef;
+  --input: #e2e7ef;
+  --ring: #c8720f;
+  --chart-1: #c8720f;
+  --chart-2: #3a5c8a;
+  --chart-3: #5b6472;
+  --chart-4: #94a1b3;
+  --chart-5: #c3cbd6;
+  --radius: 0.5rem;
+
+  --sidebar: #171a22;
+  --sidebar-foreground: #e7e9f0;
+  --sidebar-primary: #f0a537;
+  --sidebar-primary-foreground: #171a22;
+  --sidebar-accent: #20232d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262a35;
+  --sidebar-ring: #f0a537;
+
+  --ambient-glow: radial-gradient(circle at 15% -10%, rgba(240, 165, 55, 0.28), transparent 60%);
+  --ambient-line: #f0a537;
+  --ok: #157a53;
+  --ok-tint: #e5f4ee;
+  --warn: #a3660c;
+  --warn-tint: #fbf0dd;
+  --bad: #b23a3a;
+  --bad-tint: #fbeaea;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* ============ EVENING — dusk warmth, plum/rose accent ============ */
+[data-theme="evening"] {
+  --background: #f6f1ef;
+  --foreground: #241b1f;
+  --card: #fdfaf9;
+  --card-foreground: #241b1f;
+  --popover: #fdfaf9;
+  --popover-foreground: #241b1f;
+  --primary: #8a3b5c;
+  --primary-foreground: #fdf6f9;
+  --secondary: #e9dfe2;
+  --secondary-foreground: #241b1f;
+  --muted: #e9dfe2;
+  --muted-foreground: #6b5d63;
+  --accent: #f3e1e8;
+  --accent-foreground: #7a2f4e;
+  --destructive: #a23f32;
+  --border: #e1d3d8;
+  --input: #e1d3d8;
+  --ring: #8a3b5c;
+  --chart-1: #8a3b5c;
+  --chart-2: #c2843f;
+  --chart-3: #6b5d63;
+  --chart-4: #a5949a;
+  --chart-5: #d3c5ca;
+  --radius: 0.5rem;
+
+  --sidebar: #201319;
+  --sidebar-foreground: #f0e3e8;
+  --sidebar-primary: #e08a4e;
+  --sidebar-primary-foreground: #201319;
+  --sidebar-accent: #2b1a22;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #34212a;
+  --sidebar-ring: #e08a4e;
+
+  --ambient-glow: radial-gradient(circle at 85% -10%, rgba(224, 138, 78, 0.26), transparent 60%),
+    radial-gradient(circle at 10% 110%, rgba(138, 59, 92, 0.22), transparent 55%);
+  --ambient-line: #e08a4e;
+  --ok: #2f7d4f;
+  --ok-tint: #e6f0e7;
+  --warn: #a6791f;
+  --warn-tint: #f6ecd7;
+  --bad: #9c4636;
+  --bad-tint: #f5e6e1;
+}
+
+/* ============ NIGHT — near-black, cool moonlight accent ============ */
+[data-theme="night"] {
+  --background: #0e1015;
+  --foreground: #e7e9ee;
+  --card: #15171e;
+  --card-foreground: #e7e9ee;
+  --popover: #15171e;
+  --popover-foreground: #e7e9ee;
+  --primary: #7b8cff;
+  --primary-foreground: #0e1015;
+  --secondary: #1b1e27;
+  --secondary-foreground: #e7e9ee;
+  --muted: #1b1e27;
+  --muted-foreground: #8b90a0;
+  --accent: #1c2036;
+  --accent-foreground: #aab6ff;
+  --destructive: #e0685c;
+  --border: #24262f;
+  --input: #24262f;
+  --ring: #7b8cff;
+  --chart-1: #7b8cff;
+  --chart-2: #56c0c8;
+  --chart-3: #8b90a0;
+  --chart-4: #565a6b;
+  --chart-5: #34384a;
+  --radius: 0.5rem;
+
+  --sidebar: #08090c;
+  --sidebar-foreground: #d9dbe3;
+  --sidebar-primary: #7b8cff;
+  --sidebar-primary-foreground: #08090c;
+  --sidebar-accent: #14161c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1c1e26;
+  --sidebar-ring: #7b8cff;
+
+  --ambient-glow: radial-gradient(circle at 20% -10%, rgba(123, 140, 255, 0.18), transparent 60%);
+  --ambient-line: #7b8cff;
+  --ok: #4ad395;
+  --ok-tint: #10251d;
+  --warn: #e0b24d;
+  --warn-tint: #2b230f;
+  --bad: #e0685c;
+  --bad-tint: #2b1512;
 }
 
 @layer base {
@@ -127,4 +202,43 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ---- Ambient theme decoration: a quiet glow behind the sidebar brand
+   header, plus a tiny starfield for night. Same DOM (.ambient-glow /
+   .ambient-stars in app-sidebar.tsx) across all three themes - only the
+   token values above change what renders. Respects reduced motion: no
+   animation runs by default, only a slow twinkle on stars, disabled below. */
+.ambient-glow {
+  position: absolute;
+  inset: 0;
+  background: var(--ambient-glow);
+  pointer-events: none;
+}
+
+.ambient-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background-image: radial-gradient(1.5px 1.5px at 20px 30px, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 70px 90px, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 130px 20px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 170px 70px, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 30px 110px, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 190px 130px, rgba(255,255,255,0.7), transparent);
+  background-repeat: repeat;
+  background-size: 220px 160px;
+}
+[data-theme="night"] .ambient-stars {
+  opacity: 1;
+  animation: twinkle 5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="night"] .ambient-stars { animation: none; opacity: 0.85; }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
 }
