@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
     AddressOut,
+    AddressWrite,
     CompanySummary,
     ContactCreate,
     ContactDetail,
@@ -17,12 +18,15 @@ from app.api.schemas import (
     ContactsPage,
     ContactUpdate,
     EmailOut,
+    EmailWrite,
     GroupOut,
     HistoryOut,
     NoteCreate,
     NoteOut,
     PhoneOut,
+    PhoneWrite,
 )
+from app.api.routes._channels import create_channel, delete_channel, update_channel
 from app.db.session import get_db
 from app.models import (
     Activity,
@@ -178,6 +182,71 @@ def add_contact_note(contact_id: uuid.UUID, payload: NoteCreate, db: Session = D
     db.add(note)
     db.commit()
     return NoteOut.model_validate(note)
+
+
+def _require_contact(db: Session, contact_id: uuid.UUID) -> None:
+    if not db.get(Contact, contact_id):
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+
+@router.post("/{contact_id}/emails", response_model=EmailOut, status_code=201)
+def add_contact_email(contact_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)) -> EmailOut:
+    _require_contact(db, contact_id)
+    return EmailOut.model_validate(create_channel(db, Email, "contact_id", contact_id, payload))
+
+
+@router.patch("/{contact_id}/emails/{email_id}", response_model=EmailOut)
+def update_contact_email(
+    contact_id: uuid.UUID, email_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)
+) -> EmailOut:
+    _require_contact(db, contact_id)
+    return EmailOut.model_validate(update_channel(db, Email, "contact_id", contact_id, email_id, payload))
+
+
+@router.delete("/{contact_id}/emails/{email_id}", status_code=204, response_model=None)
+def delete_contact_email(contact_id: uuid.UUID, email_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    _require_contact(db, contact_id)
+    delete_channel(db, Email, "contact_id", contact_id, email_id)
+
+
+@router.post("/{contact_id}/phones", response_model=PhoneOut, status_code=201)
+def add_contact_phone(contact_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)) -> PhoneOut:
+    _require_contact(db, contact_id)
+    return PhoneOut.model_validate(create_channel(db, Phone, "contact_id", contact_id, payload))
+
+
+@router.patch("/{contact_id}/phones/{phone_id}", response_model=PhoneOut)
+def update_contact_phone(
+    contact_id: uuid.UUID, phone_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)
+) -> PhoneOut:
+    _require_contact(db, contact_id)
+    return PhoneOut.model_validate(update_channel(db, Phone, "contact_id", contact_id, phone_id, payload))
+
+
+@router.delete("/{contact_id}/phones/{phone_id}", status_code=204, response_model=None)
+def delete_contact_phone(contact_id: uuid.UUID, phone_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    _require_contact(db, contact_id)
+    delete_channel(db, Phone, "contact_id", contact_id, phone_id)
+
+
+@router.post("/{contact_id}/addresses", response_model=AddressOut, status_code=201)
+def add_contact_address(contact_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)) -> AddressOut:
+    _require_contact(db, contact_id)
+    return AddressOut.model_validate(create_channel(db, Address, "contact_id", contact_id, payload))
+
+
+@router.patch("/{contact_id}/addresses/{address_id}", response_model=AddressOut)
+def update_contact_address(
+    contact_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)
+) -> AddressOut:
+    _require_contact(db, contact_id)
+    return AddressOut.model_validate(update_channel(db, Address, "contact_id", contact_id, address_id, payload))
+
+
+@router.delete("/{contact_id}/addresses/{address_id}", status_code=204, response_model=None)
+def delete_contact_address(contact_id: uuid.UUID, address_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    _require_contact(db, contact_id)
+    delete_channel(db, Address, "contact_id", contact_id, address_id)
 
 
 @router.post("", response_model=ContactDetail, status_code=201)

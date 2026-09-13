@@ -1,31 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Building2,
-  ExternalLink,
-  Globe,
-  Layers,
-  Mail,
-  MapPin,
-  Phone,
-  Plus,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, ExternalLink, Layers, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { AddressBlock } from "@/components/address-block";
 import { AddNoteDialog } from "@/components/add-note-dialog";
 import { addCompanyNote } from "@/lib/actions";
 import { cleanNoteBody } from "@/lib/notes";
 import { sourceLabel } from "@/lib/sources";
-import { CompanyEditablePanel } from "@/components/company-editable-panel";
+import { CompanyDossier } from "@/components/company-dossier";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
+import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
 
 export default async function CompanyDetailPage({
   params,
@@ -42,19 +30,6 @@ export default async function CompanyDetailPage({
   }
 
   const customEntries = Object.entries(company.custom_fields || {});
-
-  const publicationBadgeStyle = (source: string) => {
-    switch (source) {
-      case "onboard":
-        return "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400";
-      case "sellingtravel":
-        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-      case "prospects":
-        return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-      default:
-        return "border-border bg-muted text-muted-foreground";
-    }
-  };
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
@@ -90,120 +65,7 @@ export default async function CompanyDetailPage({
         {/* Zone 1: Sticky Company Dossier (Left Column, 4 cols) */}
         <aside className="lg:col-span-4 xl:col-span-4">
           <div className="sticky top-4 flex flex-col gap-4">
-            <Card className="editorial-card overflow-hidden">
-              <div className="h-2 w-full bg-gradient-to-r from-emerald-600/60 via-primary to-blue-700/60" />
-              <CardHeader className="p-5 pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-                    <Building2 className="size-7" />
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={`text-[11px] font-medium ${publicationBadgeStyle(
-                      company.source_db
-                    )}`}
-                  >
-                    {sourceLabel(company.source_db)}
-                  </Badge>
-                </div>
-
-                <div className="mt-3">
-                  <h2 className="editorial-title text-xl font-bold tracking-tight text-foreground">
-                    {company.name}
-                  </h2>
-                  {company.industry && (
-                    <p className="text-xs font-medium text-muted-foreground mt-0.5">
-                      {company.industry}
-                    </p>
-                  )}
-                  {company.category && (
-                    <Badge variant="secondary" className="mt-2 text-[10px]">
-                      {company.category}
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="flex flex-col gap-4 p-5 pt-1 text-xs">
-                {company.description && (
-                  <p className="text-xs leading-relaxed text-muted-foreground border-b pb-3 italic">
-                    &ldquo;{company.description}&rdquo;
-                  </p>
-                )}
-
-                {/* Company Contact Channels */}
-                <div className="flex flex-col gap-2 rounded-md border border-border/80 bg-muted/40 p-3">
-                  {company.website && (
-                    <a
-                      href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 truncate text-foreground hover:text-primary font-medium"
-                    >
-                      <Globe className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{company.website.replace(/^https?:\/\//, "")}</span>
-                      <ExternalLink className="size-3 ml-auto text-muted-foreground" />
-                    </a>
-                  )}
-
-                  {company.phones.map((p, idx) => (
-                    <a
-                      key={p.id || idx}
-                      href={`tel:${p.number}`}
-                      className="flex items-center gap-2 truncate text-foreground hover:text-primary"
-                    >
-                      <Phone className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{p.number}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        {p.type_label || "Phone"}
-                      </span>
-                    </a>
-                  ))}
-
-                  {company.emails.map((e, idx) => (
-                    <a
-                      key={e.id || idx}
-                      href={`mailto:${e.address}`}
-                      className="flex items-center gap-2 truncate text-foreground hover:text-primary"
-                    >
-                      <Mail className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{e.address}</span>
-                    </a>
-                  ))}
-
-                  {company.addresses.map((a, idx) => (
-                    <div key={a.id || idx} className="flex items-start gap-2 pt-1">
-                      <MapPin className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                      <div className="flex-1 text-[11px] text-muted-foreground">
-                        <AddressBlock address={a} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Scale Stats */}
-                {(company.num_employees || company.territory || company.region) && (
-                  <div className="grid grid-cols-2 gap-2 border-t pt-3 text-[11px]">
-                    {company.num_employees && (
-                      <div>
-                        <span className="text-muted-foreground">Employees: </span>
-                        <span className="font-semibold text-foreground">
-                          {company.num_employees.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                    {company.region && (
-                      <div>
-                        <span className="text-muted-foreground">Region: </span>
-                        <span className="font-medium text-foreground">
-                          {company.region}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <CompanyDossier company={company} />
           </div>
         </aside>
 
@@ -230,12 +92,6 @@ export default async function CompanyDetailPage({
                 >
                   Account Profile ({customEntries.length})
                 </TabsTrigger>
-                <TabsTrigger
-                  value="edit"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
-                >
-                  Edit Account
-                </TabsTrigger>
               </TabsList>
 
               <AddNoteDialog id={company.id} action={addCompanyNote} />
@@ -252,7 +108,10 @@ export default async function CompanyDetailPage({
                     Direct staff linked to {company.name} across BMI titles
                   </p>
                 </div>
-                <ContactFormDialog />
+                <div className="flex items-center gap-2">
+                  <AddExistingContactPicker companyId={company.id} companyName={company.name} />
+                  <ContactFormDialog />
+                </div>
               </div>
 
               {company.contacts.length > 0 ? (
@@ -363,13 +222,6 @@ export default async function CompanyDetailPage({
                     </span>
                   )}
                 </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* TAB 4: Edit */}
-            <TabsContent value="edit" className="mt-4">
-              <Card className="editorial-card p-6">
-                <CompanyEditablePanel company={company} />
               </Card>
             </TabsContent>
           </Tabs>

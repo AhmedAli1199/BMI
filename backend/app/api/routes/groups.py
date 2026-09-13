@@ -23,6 +23,7 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 @router.get("", response_model=GroupsPage)
 def list_groups(
     q: str | None = Query(None, description="Search by group name"),
+    source_db: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -35,6 +36,8 @@ def list_groups(
     )
 
     stmt = select(Group, member_count_subq.label("member_count"))
+    if source_db:
+        stmt = stmt.where(Group.source_db == source_db)
     if q:
         stmt = stmt.where(Group.name.ilike(f"%{q}%"))
 
@@ -44,7 +47,7 @@ def list_groups(
     rows = db.execute(stmt).all()
 
     items = [
-        GroupListItem(id=g.id, name=g.name, description=g.description, member_count=count)
+        GroupListItem(id=g.id, source_db=g.source_db, name=g.name, description=g.description, member_count=count)
         for g, count in rows
     ]
     return GroupsPage(items=items, total=total, page=page, page_size=page_size)

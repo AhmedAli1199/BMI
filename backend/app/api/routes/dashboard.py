@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.schemas import (
     DashboardStats,
@@ -22,27 +22,41 @@ TOP_COMPANIES_LIMIT = 6
 
 
 @router.get("/stats", response_model=DashboardStats)
-def get_dashboard_stats(db: Session = Depends(get_db)) -> DashboardStats:
-    total_contacts = db.scalar(select(func.count()).select_from(Contact)) or 0
-    total_companies = db.scalar(select(func.count()).select_from(Company)) or 0
-    total_groups = db.scalar(select(func.count()).select_from(Group)) or 0
+def get_dashboard_stats(
+    source_db: str | None = Query(None, description="Restrict every figure to one publication's data"),
+    db: Session = Depends(get_db),
+) -> DashboardStats:
+    contact_filter = [Contact.source_db == source_db] if source_db else []
+    company_filter = [Company.source_db == source_db] if source_db else []
+    group_filter = [Group.source_db == source_db] if source_db else []
+
+    total_contacts = db.scalar(select(func.count()).select_from(Contact).where(*contact_filter)) or 0
+    total_companies = db.scalar(select(func.count()).select_from(Company).where(*company_filter)) or 0
+    total_groups = db.scalar(select(func.count()).select_from(Group).where(*group_filter)) or 0
 
     contacts_by_source = [
-        SourceBreakdown(source_db=source_db, count=count)
-        for source_db, count in db.execute(
-            select(Contact.source_db, func.count()).group_by(Contact.source_db).order_by(func.count().desc())
+        SourceBreakdown(source_db=s, count=count)
+        for s, count in db.execute(
+            select(Contact.source_db, func.count())
+            .where(*contact_filter)
+            .group_by(Contact.source_db)
+            .order_by(func.count().desc())
         ).all()
     ]
     companies_by_source = [
-        SourceBreakdown(source_db=source_db, count=count)
-        for source_db, count in db.execute(
-            select(Company.source_db, func.count()).group_by(Company.source_db).order_by(func.count().desc())
+        SourceBreakdown(source_db=s, count=count)
+        for s, count in db.execute(
+            select(Company.source_db, func.count())
+            .where(*company_filter)
+            .group_by(Company.source_db)
+            .order_by(func.count().desc())
         ).all()
     ]
 
     recent_contacts_rows = db.execute(
         select(Contact, Company.name.label("company_name"))
         .outerjoin(Company, Contact.company_id == Company.id)
+        .where(*contact_filter)
         .order_by(Contact.created_at.desc())
         .limit(RECENT_LIMIT)
     ).all()
@@ -61,21 +75,25 @@ def get_dashboard_stats(db: Session = Depends(get_db)) -> DashboardStats:
     ]
 
     recent_companies_rows = db.scalars(
-        select(Company).order_by(Company.created_at.desc()).limit(RECENT_LIMIT)
+        select(Company).where(*company_filter).order_by(Company.created_at.desc()).limit(RECENT_LIMIT)
     ).all()
     recent_companies = [
         RecentCompany(id=c.id, name=c.name, industry=c.industry, created_at=c.created_at)
         for c in recent_companies_rows
     ]
 
+    # Contacts counted per company must respect the same publication filter -
+    # otherwise switching to one title would still rank companies by their
+    # total contact count across every title.
     contact_count_subq = (
         select(func.count(Contact.id))
-        .where(Contact.company_id == Company.id)
+        .where(Contact.company_id == Company.id, *contact_filter)
         .correlate(Company)
         .scalar_subquery()
     )
     top_companies_rows = db.execute(
         select(Company, contact_count_subq.label("contact_count"))
+        .where(*company_filter)
         .order_by(contact_count_subq.desc())
         .limit(TOP_COMPANIES_LIMIT)
     ).all()

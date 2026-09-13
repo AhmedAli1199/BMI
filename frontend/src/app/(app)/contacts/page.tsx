@@ -1,22 +1,23 @@
 import Link from "next/link";
-import { Search, Sparkles, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
+import { getPublicationFilter } from "@/lib/publication";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
+import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 
 const PAGE_SIZE = 50;
 
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; source_db?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q, page: pageParam, source_db } = await searchParams;
+  const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const source_db = await getPublicationFilter();
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -24,12 +25,6 @@ export default async function ContactsPage({
 
   const data = await backendFetch<Page<ContactListItem>>(`/api/contacts?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
-
-  const filterLink = (nextSource: string | undefined) => {
-    const p = new URLSearchParams({ ...(q ? { q } : {}) });
-    if (nextSource) p.set("source_db", nextSource);
-    return `/contacts${p.toString() ? `?${p}` : ""}`;
-  };
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
@@ -62,49 +57,11 @@ export default async function ContactsPage({
         </div>
       </div>
 
-      {/* Publication Segmentation Strip */}
+      {/* Publication Segmentation Strip - same global filter as the header
+          switcher (lib/publication.ts); setting it here also applies to
+          Companies, Groups and the Dashboard until changed back. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={filterLink(undefined)}>
-            <Badge
-              variant={!source_db ? "default" : "outline"}
-              className="cursor-pointer text-xs font-medium px-3 py-1"
-            >
-              All Titles
-            </Badge>
-          </Link>
-          <Link href={filterLink("onboard")}>
-            <Badge
-              variant={source_db === "onboard" ? "default" : "outline"}
-              className={`cursor-pointer text-xs font-medium px-3 py-1 ${
-                source_db === "onboard" ? "bg-blue-600 text-white hover:bg-blue-700" : ""
-              }`}
-            >
-              Onboard Hospitality
-            </Badge>
-          </Link>
-          <Link href={filterLink("sellingtravel")}>
-            <Badge
-              variant={source_db === "sellingtravel" ? "default" : "outline"}
-              className={`cursor-pointer text-xs font-medium px-3 py-1 ${
-                source_db === "sellingtravel" ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""
-              }`}
-            >
-              Selling Travel
-            </Badge>
-          </Link>
-          <Link href={filterLink("prospects")}>
-            <Badge
-              variant={source_db === "prospects" ? "default" : "outline"}
-              className={`cursor-pointer text-xs font-medium px-3 py-1 ${
-                source_db === "prospects" ? "bg-amber-600 text-white hover:bg-amber-700" : ""
-              }`}
-            >
-              Prospects DB
-            </Badge>
-          </Link>
-        </div>
-
+        <PublicationQuickFilter current={source_db} />
         <span className="text-xs text-muted-foreground">
           Tip: Click any contact to slide open quick inspection
         </span>
@@ -122,7 +79,7 @@ export default async function ContactsPage({
           {page > 1 && (
             <Link
               className="rounded-md border border-border bg-card px-3 py-1.5 hover:bg-muted font-medium"
-              href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), ...(source_db ? { source_db } : {}), page: String(page - 1) })}`}
+              href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
             >
               &larr; Previous
             </Link>
@@ -130,7 +87,7 @@ export default async function ContactsPage({
           {page < totalPages && (
             <Link
               className="rounded-md border border-border bg-card px-3 py-1.5 hover:bg-muted font-medium"
-              href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), ...(source_db ? { source_db } : {}), page: String(page + 1) })}`}
+              href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
             >
               Next &rarr;
             </Link>

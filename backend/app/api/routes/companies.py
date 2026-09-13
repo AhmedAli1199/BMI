@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
     AddressOut,
+    AddressWrite,
     CompaniesPage,
     CompanyCreate,
     CompanyDetail,
@@ -17,10 +18,13 @@ from app.api.schemas import (
     CompanyUpdate,
     ContactListItem,
     EmailOut,
+    EmailWrite,
     NoteCreate,
     NoteOut,
     PhoneOut,
+    PhoneWrite,
 )
+from app.api.routes._channels import create_channel, delete_channel, update_channel
 from app.db.session import get_db
 from app.models import Activity, Company, Contact, Email, HistoryEntry, Note, Opportunity
 from app.models.contact_channel import Address, Phone
@@ -134,6 +138,71 @@ def add_company_note(company_id: uuid.UUID, payload: NoteCreate, db: Session = D
     db.add(note)
     db.commit()
     return NoteOut.model_validate(note)
+
+
+def _require_company(db: Session, company_id: uuid.UUID) -> None:
+    if not db.get(Company, company_id):
+        raise HTTPException(status_code=404, detail="Company not found")
+
+
+@router.post("/{company_id}/emails", response_model=EmailOut, status_code=201)
+def add_company_email(company_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)) -> EmailOut:
+    _require_company(db, company_id)
+    return EmailOut.model_validate(create_channel(db, Email, "company_id", company_id, payload))
+
+
+@router.patch("/{company_id}/emails/{email_id}", response_model=EmailOut)
+def update_company_email(
+    company_id: uuid.UUID, email_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)
+) -> EmailOut:
+    _require_company(db, company_id)
+    return EmailOut.model_validate(update_channel(db, Email, "company_id", company_id, email_id, payload))
+
+
+@router.delete("/{company_id}/emails/{email_id}", status_code=204, response_model=None)
+def delete_company_email(company_id: uuid.UUID, email_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    _require_company(db, company_id)
+    delete_channel(db, Email, "company_id", company_id, email_id)
+
+
+@router.post("/{company_id}/phones", response_model=PhoneOut, status_code=201)
+def add_company_phone(company_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)) -> PhoneOut:
+    _require_company(db, company_id)
+    return PhoneOut.model_validate(create_channel(db, Phone, "company_id", company_id, payload))
+
+
+@router.patch("/{company_id}/phones/{phone_id}", response_model=PhoneOut)
+def update_company_phone(
+    company_id: uuid.UUID, phone_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)
+) -> PhoneOut:
+    _require_company(db, company_id)
+    return PhoneOut.model_validate(update_channel(db, Phone, "company_id", company_id, phone_id, payload))
+
+
+@router.delete("/{company_id}/phones/{phone_id}", status_code=204, response_model=None)
+def delete_company_phone(company_id: uuid.UUID, phone_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    _require_company(db, company_id)
+    delete_channel(db, Phone, "company_id", company_id, phone_id)
+
+
+@router.post("/{company_id}/addresses", response_model=AddressOut, status_code=201)
+def add_company_address(company_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)) -> AddressOut:
+    _require_company(db, company_id)
+    return AddressOut.model_validate(create_channel(db, Address, "company_id", company_id, payload))
+
+
+@router.patch("/{company_id}/addresses/{address_id}", response_model=AddressOut)
+def update_company_address(
+    company_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)
+) -> AddressOut:
+    _require_company(db, company_id)
+    return AddressOut.model_validate(update_channel(db, Address, "company_id", company_id, address_id, payload))
+
+
+@router.delete("/{company_id}/addresses/{address_id}", status_code=204, response_model=None)
+def delete_company_address(company_id: uuid.UUID, address_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    _require_company(db, company_id)
+    delete_channel(db, Address, "company_id", company_id, address_id)
 
 
 @router.post("", response_model=CompanyDetail, status_code=201)

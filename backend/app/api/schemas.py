@@ -78,6 +78,27 @@ class EmailOut(BaseModel):
     address: str | None = None
 
 
+class AddressWrite(BaseModel):
+    type_label: str | None = "Business"
+    line1: str | None = None
+    line2: str | None = None
+    line3: str | None = None
+    city: str | None = None
+    state: str | None = None
+    postal_code: str | None = None
+    country: str | None = None
+
+
+class PhoneWrite(BaseModel):
+    type_label: str | None = "Business"
+    number: str | None = None
+
+
+class EmailWrite(BaseModel):
+    type_label: str | None = "Business"
+    address: str | None = None
+
+
 class NoteOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -231,6 +252,7 @@ class GroupUpdate(BaseModel):
 class GroupListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
+    source_db: str
     name: str
     description: str | None = None
     member_count: int = 0

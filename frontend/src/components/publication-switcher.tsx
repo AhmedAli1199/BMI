@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { BookOpen, Check, ChevronDown, Compass, Plane, Sparkles } from "lucide-react";
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { setPublicationFilter } from "@/lib/actions";
 
 export const PUBLICATIONS = [
   {
@@ -52,33 +54,25 @@ export const PUBLICATIONS = [
   },
 ] as const;
 
-export function PublicationSwitcher() {
+/**
+ * The single control for "which publication's data am I looking at" -
+ * persists via a cookie (lib/publication.ts), not a URL search param, so it
+ * survives navigating to a completely different tab (Dashboard -> Contacts
+ * -> Groups) instead of resetting on every route change. Selecting a
+ * publication never navigates - it just re-filters whatever page you're
+ * already on, including the dashboard itself.
+ */
+export function PublicationSwitcher({ current }: { current: string }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [pending, startTransition] = useTransition();
 
-  const currentSource = searchParams?.get("source_db") || "all";
-  const active =
-    PUBLICATIONS.find((p) => p.id === currentSource) || PUBLICATIONS[0];
+  const active = PUBLICATIONS.find((p) => p.id === (current || "all")) || PUBLICATIONS[0];
 
   function selectPublication(id: string) {
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-    if (id === "all") {
-      params.delete("source_db");
-    } else {
-      params.set("source_db", id);
-    }
-    params.delete("page");
-
-    // If on contacts or companies page, keep path and append params
-    if (pathname.startsWith("/contacts") || pathname.startsWith("/companies")) {
-      const q = params.toString();
-      router.push(`${pathname}${q ? `?${q}` : ""}`);
-    } else {
-      // Otherwise navigate to contacts filtered by that publication
-      const q = params.toString();
-      router.push(`/contacts${q ? `?${q}` : ""}`);
-    }
+    startTransition(async () => {
+      await setPublicationFilter(id === "all" ? "" : id);
+      router.refresh();
+    });
   }
 
   return (
@@ -88,6 +82,7 @@ export function PublicationSwitcher() {
           <Button
             variant="outline"
             size="sm"
+            disabled={pending}
             className="h-8 gap-2 border-sidebar-border bg-sidebar-accent/50 px-2.5 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
           >
             <span className={`size-2 rounded-full ${active.dot}`} />
@@ -105,7 +100,7 @@ export function PublicationSwitcher() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {PUBLICATIONS.map((pub) => {
-            const isSelected = pub.id === currentSource;
+            const isSelected = pub.id === (current || "all");
             const Icon = pub.icon;
             return (
               <DropdownMenuItem

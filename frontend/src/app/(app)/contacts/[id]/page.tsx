@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { ContactDossier } from "@/components/contact-dossier";
 import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
 import { InlineActivityComposer } from "@/components/inline-activity-composer";
-import { ContactEditablePanel } from "@/components/contact-editable-panel";
 import { sourceLabel } from "@/lib/sources";
 
 export default async function ContactDetailPage({
@@ -147,12 +146,6 @@ export default async function ContactDetailPage({
                 >
                   Custom Metadata ({customEntries.length})
                 </TabsTrigger>
-                <TabsTrigger
-                  value="edit"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
-                >
-                  Edit Profile
-                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -250,13 +243,6 @@ export default async function ContactDetailPage({
                     </span>
                   )}
                 </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* TAB 4: Edit Profile in Place */}
-            <TabsContent value="edit" className="mt-4">
-              <Card className="editorial-card p-6">
-                <ContactEditablePanel contact={contact} />
               </Card>
             </TabsContent>
           </Tabs>

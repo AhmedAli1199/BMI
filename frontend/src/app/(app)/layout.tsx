@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -7,6 +6,7 @@ import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 import { LiveClock } from "@/components/live-clock";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PublicationSwitcher } from "@/components/publication-switcher";
+import { getPublicationFilter } from "@/lib/publication";
 
 export default async function AppLayout({
   children,
@@ -15,6 +15,7 @@ export default async function AppLayout({
 }) {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const verified = token ? await verifySessionToken(token) : null;
+  const publicationFilter = await getPublicationFilter();
   const session =
     verified ??
     (process.env.NODE_ENV !== "production" || process.env.LOCAL_BYPASS === "true"
@@ -37,9 +38,7 @@ export default async function AppLayout({
             BMI Publishing
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
-          <Suspense fallback={<div className="h-8 w-24 rounded bg-sidebar-accent/40 animate-pulse" />}>
-            <PublicationSwitcher />
-          </Suspense>
+          <PublicationSwitcher current={publicationFilter} />
           <LiveClock className="ml-auto text-[15px] font-semibold text-sidebar-foreground" />
           <ThemeSwitcher />
         </header>

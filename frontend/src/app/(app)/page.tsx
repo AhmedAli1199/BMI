@@ -1,22 +1,19 @@
 import Link from "next/link";
 import {
-  BookOpen,
   Building2,
   Compass,
-  ListPlus,
   Plane,
   Sparkles,
-  TrendingUp,
   Users,
   UsersRound,
 } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { DashboardStats } from "@/lib/types";
+import { getPublicationFilter } from "@/lib/publication";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { sourceLabel } from "@/lib/sources";
+import { PublicationTileButton } from "@/components/publication-tile-button";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { GroupFormDialog } from "@/components/group-form-dialog";
@@ -34,12 +31,15 @@ function timeAgo(iso: string): string {
 }
 
 export default async function DashboardPage() {
-  const stats = await backendFetch<DashboardStats>("/api/dashboard/stats");
+  const sourceDb = await getPublicationFilter();
+  const stats = await backendFetch<DashboardStats>(
+    `/api/dashboard/stats${sourceDb ? `?source_db=${sourceDb}` : ""}`
+  );
 
   const KPIS = [
     {
       label: "Total Contacts",
-      sublabel: "Across all 3 publication titles",
+      sublabel: sourceDb ? "In this publication" : "Across all 3 publication titles",
       value: stats.total_contacts,
       icon: Users,
       href: "/contacts",
@@ -66,6 +66,9 @@ export default async function DashboardPage() {
     },
   ];
 
+  const contactsFor = (source: string) =>
+    stats.contacts_by_source.find((s) => s.source_db === source)?.count ?? 0;
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
       {/* Editorial Header */}
@@ -90,10 +93,16 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Magazine Title Quick Switcher Cards */}
+      {/* Magazine Title Quick Switcher Cards - clicking one sets the global
+          publication filter (persists across every tab) and stays right
+          here, rather than navigating away. */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Link href="/contacts?source_db=onboard" className="group">
-          <Card className="editorial-card h-full transition-all hover:border-blue-500/50 hover:shadow-xs">
+        <PublicationTileButton sourceDb="onboard" className="group">
+          <Card
+            className={`editorial-card h-full transition-all hover:border-blue-500/50 hover:shadow-xs ${
+              sourceDb === "onboard" ? "border-blue-500/60 ring-1 ring-blue-500/30" : ""
+            }`}
+          >
             <CardContent className="flex items-start gap-4 p-5">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 group-hover:scale-105 transition-transform">
                 <Plane className="size-5" />
@@ -111,18 +120,20 @@ export default async function DashboardPage() {
                   Inflight retail, catering, WTCE &amp; awards
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span>
-                    {(stats.contacts_by_source.find((s) => s.source_db === "onboard")?.count || 48210).toLocaleString()} Contacts
-                  </span>
+                  <span>{contactsFor("onboard").toLocaleString()} Contacts</span>
                   <span className="text-muted-foreground">&rarr;</span>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </PublicationTileButton>
 
-        <Link href="/contacts?source_db=sellingtravel" className="group">
-          <Card className="editorial-card h-full transition-all hover:border-emerald-500/50 hover:shadow-xs">
+        <PublicationTileButton sourceDb="sellingtravel" className="group">
+          <Card
+            className={`editorial-card h-full transition-all hover:border-emerald-500/50 hover:shadow-xs ${
+              sourceDb === "sellingtravel" ? "border-emerald-500/60 ring-1 ring-emerald-500/30" : ""
+            }`}
+          >
             <CardContent className="flex items-start gap-4 p-5">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 group-hover:scale-105 transition-transform">
                 <Compass className="size-5" />
@@ -140,18 +151,20 @@ export default async function DashboardPage() {
                   UK travel agents, DMOs &amp; tour operators
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span>
-                    {(stats.contacts_by_source.find((s) => s.source_db === "sellingtravel")?.count || 39180).toLocaleString()} Contacts
-                  </span>
+                  <span>{contactsFor("sellingtravel").toLocaleString()} Contacts</span>
                   <span className="text-muted-foreground">&rarr;</span>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </PublicationTileButton>
 
-        <Link href="/contacts?source_db=prospects" className="group">
-          <Card className="editorial-card h-full transition-all hover:border-amber-500/50 hover:shadow-xs">
+        <PublicationTileButton sourceDb="prospects" className="group">
+          <Card
+            className={`editorial-card h-full transition-all hover:border-amber-500/50 hover:shadow-xs ${
+              sourceDb === "prospects" ? "border-amber-500/60 ring-1 ring-amber-500/30" : ""
+            }`}
+          >
             <CardContent className="flex items-start gap-4 p-5">
               <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 group-hover:scale-105 transition-transform">
                 <Sparkles className="size-5" />
@@ -162,23 +175,32 @@ export default async function DashboardPage() {
                     Prospects Database
                   </span>
                   <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600">
-                    AI Enriched
+                    Unclaimed leads
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                  Verified leads, leaver replacements &amp; OOO signals
+                  Unclaimed prospects &amp; automated lead discovery
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span>
-                    {(stats.contacts_by_source.find((s) => s.source_db === "prospects")?.count || 31030).toLocaleString()} Contacts
-                  </span>
+                  <span>{contactsFor("prospects").toLocaleString()} Contacts</span>
                   <span className="text-muted-foreground">&rarr;</span>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </PublicationTileButton>
       </div>
+
+      {sourceDb && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            Showing <span className="font-semibold text-foreground">{sourceDb}</span> only.
+          </span>
+          <PublicationTileButton sourceDb="">
+            <span className="font-semibold text-primary hover:underline">Clear filter</span>
+          </PublicationTileButton>
+        </div>
+      )}
 
       {/* KPI Stats Strip */}
       <div className="grid gap-4 sm:grid-cols-3">

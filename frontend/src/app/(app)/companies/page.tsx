@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyListItem, Page } from "@/lib/types";
+import { getPublicationFilter } from "@/lib/publication";
 import {
   Table,
   TableBody,
@@ -15,16 +16,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { sourceLabel } from "@/lib/sources";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
+import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 
 const PAGE_SIZE = 50;
 
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; source_db?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q, page: pageParam, source_db } = await searchParams;
+  const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const source_db = await getPublicationFilter();
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -32,12 +35,6 @@ export default async function CompaniesPage({
 
   const data = await backendFetch<Page<CompanyListItem>>(`/api/companies?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
-
-  const filterLink = (nextSource: string | undefined) => {
-    const p = new URLSearchParams({ ...(q ? { q } : {}) });
-    if (nextSource) p.set("source_db", nextSource);
-    return `/companies${p.toString() ? `?${p}` : ""}`;
-  };
 
   return (
     <div className="flex w-full flex-col gap-5 p-6">
@@ -56,20 +53,7 @@ export default async function CompaniesPage({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={filterLink(undefined)}>
-          <Badge variant={!source_db ? "default" : "outline"} className="cursor-pointer font-medium">
-            All sources
-          </Badge>
-        </Link>
-        {["onboard", "prospects", "sellingtravel", "manual"].map((s) => (
-          <Link key={s} href={filterLink(s)}>
-            <Badge variant={source_db === s ? "default" : "outline"} className="cursor-pointer font-medium">
-              {sourceLabel(s)}
-            </Badge>
-          </Link>
-        ))}
-      </div>
+      <PublicationQuickFilter current={source_db} />
 
       <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
@@ -122,7 +106,7 @@ export default async function CompaniesPage({
           {page > 1 && (
             <Link
               className="rounded border px-3 py-1 hover:bg-muted"
-              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), ...(source_db ? { source_db } : {}), page: String(page - 1) })}`}
+              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
             >
               Previous
             </Link>
@@ -130,7 +114,7 @@ export default async function CompaniesPage({
           {page < totalPages && (
             <Link
               className="rounded border px-3 py-1 hover:bg-muted"
-              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), ...(source_db ? { source_db } : {}), page: String(page + 1) })}`}
+              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
             >
               Next
             </Link>

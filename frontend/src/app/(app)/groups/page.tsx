@@ -2,9 +2,11 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { GroupListItem, Page } from "@/lib/types";
+import { getPublicationFilter } from "@/lib/publication";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
+import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 
 const PAGE_SIZE = 50;
 
@@ -15,9 +17,11 @@ export default async function GroupsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const source_db = await getPublicationFilter();
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
+  if (source_db) params.set("source_db", source_db);
 
   const data = await backendFetch<Page<GroupListItem>>(`/api/groups?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
@@ -38,6 +42,8 @@ export default async function GroupsPage({
           <GroupFormDialog />
         </div>
       </div>
+
+      <PublicationQuickFilter current={source_db} />
 
       {/* Groups tend to be few and meaningful (a segment, a mailing list) -
           tiles you can scan read better here than a table with two mostly-

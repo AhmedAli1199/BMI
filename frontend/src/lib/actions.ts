@@ -1,7 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
+import { PUBLICATION_COOKIE } from "@/lib/publication";
 import type { CompanyListItem, ContactDetail, ContactListItem, GroupListItem, Page } from "@/lib/types";
 
 /** Every CRUD mutation for Contacts/Companies/Groups, callable straight from
@@ -9,6 +11,21 @@ import type { CompanyListItem, ContactDetail, ContactListItem, GroupListItem, Pa
  * where they're invoked from - this is how forms/buttons reach the FastAPI
  * backend without ever exposing BACKEND_API_KEY to the browser).
  */
+
+// ---- Publication filter -----------------------------------------------------
+
+/** Sets the site-wide "which publication" filter (see lib/publication.ts).
+ * sourceDb === "" clears it back to "All titles". Every page reads this
+ * cookie itself and re-fetches on the next render - callers just need to
+ * follow this with a router.refresh(). */
+export async function setPublicationFilter(sourceDb: string) {
+  const store = await cookies();
+  if (sourceDb) {
+    store.set(PUBLICATION_COOKIE, sourceDb, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  } else {
+    store.delete(PUBLICATION_COOKIE);
+  }
+}
 
 // ---- Contacts --------------------------------------------------------------
 
@@ -52,6 +69,10 @@ export async function updateContact(id: string, input: ContactFormInput) {
   });
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
+  // company_id may have changed (linking this contact to a company, or
+  // re-assigning it) - that company's page shows a contacts list that
+  // needs to reflect the change.
+  if (input.company_id) revalidatePath(`/companies/${input.company_id}`);
   return contact;
 }
 
@@ -79,6 +100,101 @@ export async function addContactNote(contactId: string, body: string, note_type:
     body: JSON.stringify({ body, note_type }),
   });
   revalidatePath(`/contacts/${contactId}`);
+}
+
+// ---- Contact channels (email/phone/address) --------------------------------
+// One shared shape per channel type - a plain object matching the backend's
+// *Write schema (type_label + the one value field). "" for id means create;
+// a real id means update; ChannelActions.remove(id) deletes.
+
+export type EmailInput = { type_label?: string; address?: string };
+export type PhoneInput = { type_label?: string; number?: string };
+export type AddressInput = {
+  type_label?: string;
+  line1?: string;
+  line2?: string;
+  line3?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+};
+
+function channelPath(entity: "contacts" | "companies", channel: "emails" | "phones" | "addresses", entityId: string, channelId?: string) {
+  return `/api/${entity}/${entityId}/${channel}${channelId ? `/${channelId}` : ""}`;
+}
+
+async function saveChannel<T extends Record<string, unknown>>(
+  entity: "contacts" | "companies",
+  channel: "emails" | "phones" | "addresses",
+  entityId: string,
+  channelId: string | undefined,
+  input: T
+) {
+  await backendFetch(channelPath(entity, channel, entityId, channelId), {
+    method: channelId ? "PATCH" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  revalidatePath(`/${entity}/${entityId}`);
+}
+
+async function removeChannel(
+  entity: "contacts" | "companies",
+  channel: "emails" | "phones" | "addresses",
+  entityId: string,
+  channelId: string
+) {
+  await backendFetch(channelPath(entity, channel, entityId, channelId), { method: "DELETE" });
+  revalidatePath(`/${entity}/${entityId}`);
+}
+
+// Next's "use server" file convention only recognizes top-level `async
+// function` declarations as callable server actions - a `const foo = (...)
+// => ...` export (even one that just forwards to an async helper, as these
+// did originally) silently fails to register, so every one of these needs
+// to be its own async function statement rather than a thin arrow wrapper.
+
+export async function saveContactEmail(contactId: string, channelId: string | undefined, input: EmailInput) {
+  return saveChannel("contacts", "emails", contactId, channelId, input);
+}
+export async function removeContactEmail(contactId: string, channelId: string) {
+  return removeChannel("contacts", "emails", contactId, channelId);
+}
+
+export async function saveContactPhone(contactId: string, channelId: string | undefined, input: PhoneInput) {
+  return saveChannel("contacts", "phones", contactId, channelId, input);
+}
+export async function removeContactPhone(contactId: string, channelId: string) {
+  return removeChannel("contacts", "phones", contactId, channelId);
+}
+
+export async function saveContactAddress(contactId: string, channelId: string | undefined, input: AddressInput) {
+  return saveChannel("contacts", "addresses", contactId, channelId, input);
+}
+export async function removeContactAddress(contactId: string, channelId: string) {
+  return removeChannel("contacts", "addresses", contactId, channelId);
+}
+
+export async function saveCompanyEmail(companyId: string, channelId: string | undefined, input: EmailInput) {
+  return saveChannel("companies", "emails", companyId, channelId, input);
+}
+export async function removeCompanyEmail(companyId: string, channelId: string) {
+  return removeChannel("companies", "emails", companyId, channelId);
+}
+
+export async function saveCompanyPhone(companyId: string, channelId: string | undefined, input: PhoneInput) {
+  return saveChannel("companies", "phones", companyId, channelId, input);
+}
+export async function removeCompanyPhone(companyId: string, channelId: string) {
+  return removeChannel("companies", "phones", companyId, channelId);
+}
+
+export async function saveCompanyAddress(companyId: string, channelId: string | undefined, input: AddressInput) {
+  return saveChannel("companies", "addresses", companyId, channelId, input);
+}
+export async function removeCompanyAddress(companyId: string, channelId: string) {
+  return removeChannel("companies", "addresses", companyId, channelId);
 }
 
 // ---- Companies --------------------------------------------------------------
