@@ -33,13 +33,13 @@ export default async function ContactsPage({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
             <Users className="size-3.5" />
-            <span>Master Directory</span>
+            <span>Contacts</span>
           </div>
           <h1 className="editorial-title text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Publishing &amp; Sales Contacts
+            Contacts
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {data.total.toLocaleString()} media buyers, advertisers &amp; editorial contributors across all titles
+            {data.total.toLocaleString()} contacts across all titles
           </p>
         </div>
 

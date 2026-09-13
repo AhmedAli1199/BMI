@@ -78,19 +78,19 @@ export default async function CompanyDetailPage({
                   value="contacts"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
                 >
-                  Associated People ({company.contacts.length})
+                  Contacts ({company.contacts.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="notes"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
                 >
-                  Account Notes ({company.notes.length})
+                  Notes ({company.notes.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="custom"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
                 >
-                  Account Profile ({customEntries.length})
+                  Custom Fields ({customEntries.length})
                 </TabsTrigger>
               </TabsList>
 
@@ -102,10 +102,10 @@ export default async function CompanyDetailPage({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-foreground">
-                    Key Contacts &amp; Decision Makers
+                    Contacts
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Direct staff linked to {company.name} across BMI titles
+                    People linked to {company.name}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export default async function CompanyDetailPage({
                 <CardHeader className="p-0 pb-3">
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <Layers className="size-4 text-primary" />
-                    <span>Act! Database &amp; Commercial Fields</span>
+                    <span>Custom Fields</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">

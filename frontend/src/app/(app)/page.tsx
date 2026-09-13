@@ -47,7 +47,7 @@ export default async function DashboardPage() {
       accent: "from-amber-600 to-amber-700",
     },
     {
-      label: "Commercial Accounts",
+      label: "Companies",
       sublabel: "Airlines, caterers & travel partners",
       value: stats.total_companies,
       icon: Building2,
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
       accent: "from-blue-600 to-blue-700",
     },
     {
-      label: "Circulation Groups",
+      label: "Groups",
       sublabel: "Active buyer & awards segments",
       value: stats.total_groups,
       icon: UsersRound,
@@ -229,17 +229,17 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Two Column Operational Feed: Recent Contacts & Top Accounts */}
+      {/* Two Column Operational Feed: Recent Contacts & Top Companies */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Contacts */}
         <Card className="editorial-card">
           <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
             <div>
               <CardTitle className="editorial-heading text-base font-bold text-foreground">
-                Recent Touchpoints &amp; Additions
+                Recently Active Contacts
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Latest editorial &amp; commercial contacts updated
+                Most recently added or last edited in Act!
               </p>
             </div>
             <Link
@@ -281,15 +281,15 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Top Accounts */}
+        {/* Top Companies */}
         <Card className="editorial-card">
           <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
             <div>
               <CardTitle className="editorial-heading text-base font-bold text-foreground">
-                Key Publishing Accounts
+                Top Companies
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                High-density accounts with active advertising inserts
+                Companies with the most contacts on file
               </p>
             </div>
             <Link
@@ -313,7 +313,7 @@ export default async function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs font-bold text-foreground">{c.name}</div>
                     <div className="truncate text-[11px] text-muted-foreground">
-                      {c.industry || "Commercial Partner"}
+                      {c.industry || "No industry on file"}
                     </div>
                   </div>
                   <Badge variant="secondary" className="text-[11px] font-semibold">

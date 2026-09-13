@@ -56,7 +56,7 @@ export function InteractiveContactTable({ items }: { items: ContactListItem[] })
           <TableHeader className="bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-[32%] py-3">Contact &amp; Title</TableHead>
-              <TableHead className="w-[26%]">Account / Publisher</TableHead>
+              <TableHead className="w-[26%]">Company</TableHead>
               <TableHead className="w-[20%]">Direct Email</TableHead>
               <TableHead className="w-[14%]">Publication</TableHead>
               <TableHead className="w-[8%] text-right pr-4">Action</TableHead>

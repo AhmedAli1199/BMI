@@ -81,41 +81,11 @@ export default async function ContactDetailPage({
         {/* Zone 1: Sticky Identity Dossier (Left Column, 4 cols on lg, 3.5 on xl) */}
         <aside className="lg:col-span-4 xl:col-span-4">
           <div className="sticky top-4 flex flex-col gap-4">
+            {/* Category/Department/Referred by/Source database are all
+                shown (and, in edit mode, editable) on the dossier itself
+                now - a separate read-only summary card here just repeated
+                the same three fields under different labels. */}
             <ContactDossier contact={contact} />
-
-            {/* Publication Affiliation Summary */}
-            <Card className="editorial-card p-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-2">
-                <BookOpen className="size-3.5 text-primary" />
-                <span>Publishing Affiliation</span>
-              </div>
-              <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                <div className="flex justify-between">
-                  <span>Primary Title:</span>
-                  <span className="font-semibold text-foreground">
-                    {sourceLabel(contact.source_db)}
-                  </span>
-                </div>
-                {contact.category && (
-                  <div className="flex justify-between">
-                    <span>Segment:</span>
-                    <span className="font-medium text-foreground">{contact.category}</span>
-                  </div>
-                )}
-                {contact.department && (
-                  <div className="flex justify-between">
-                    <span>Dept:</span>
-                    <span className="font-medium text-foreground">{contact.department}</span>
-                  </div>
-                )}
-                {contact.referred_by && (
-                  <div className="flex justify-between">
-                    <span>Source:</span>
-                    <span className="font-medium text-foreground">{contact.referred_by}</span>
-                  </div>
-                )}
-              </div>
-            </Card>
           </div>
         </aside>
 
@@ -144,7 +114,7 @@ export default async function ContactDetailPage({
                   value="custom"
                   className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
                 >
-                  Custom Metadata ({customEntries.length})
+                  Custom Fields ({customEntries.length})
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -193,17 +163,17 @@ export default async function ContactDetailPage({
                     <div className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-3 flex items-center justify-between">
                       <div>
                         <span className="font-semibold text-foreground block">
-                          Company Account: {contact.company.name}
+                          Company: {contact.company.name}
                         </span>
                         <span className="text-muted-foreground text-[11px]">
-                          Industry: {contact.company.industry || "Publishing Partner"}
+                          Industry: {contact.company.industry || "No industry on file"}
                         </span>
                       </div>
                       <Link
                         href={`/companies/${contact.company.id}`}
                         className="text-xs font-semibold text-primary hover:underline"
                       >
-                        View Account Record &rarr;
+                        View Company &rarr;
                       </Link>
                     </div>
                   )}
@@ -217,7 +187,7 @@ export default async function ContactDetailPage({
                 <CardHeader>
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <Layers className="size-4 text-primary" />
-                    <span>Act! Legacy Fields &amp; Extended Metadata</span>
+                    <span>Custom Fields</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

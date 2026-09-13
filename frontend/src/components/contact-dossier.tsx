@@ -561,7 +561,7 @@ export function ContactDossier({ contact }: { contact: ContactDetail }) {
 
           {/* Group Memberships - already independently editable, left as-is */}
           <div className="border-t pt-3">
-            <span className="text-[11px] font-semibold text-muted-foreground block mb-2">Assigned Publishing Groups</span>
+            <span className="text-[11px] font-semibold text-muted-foreground block mb-2">Groups</span>
             <ContactGroupsEditor contactId={contact.id} groups={contact.groups} />
           </div>
 

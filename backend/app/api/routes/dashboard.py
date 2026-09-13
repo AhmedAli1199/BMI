@@ -53,11 +53,22 @@ def get_dashboard_stats(
         ).all()
     ]
 
+    # "Recently active" has to mean something real. Contact.created_at is
+    # when OUR system ingested the row - for the ~118k contacts that came
+    # in through one bulk ETL run, that's the same instant for nearly all
+    # of them, so ordering by it just returns migration order and every one
+    # shows the same "1 day ago", not genuine recent activity. Act!'s own
+    # act_edited_at/act_created_at carry the real last-touched date for
+    # migrated rows; a manually-created CRM contact has neither, so it
+    # falls back to created_at (which is genuinely "now" for those).
+    contact_activity_at = func.coalesce(Contact.act_edited_at, Contact.act_created_at, Contact.created_at)
+    company_activity_at = func.coalesce(Company.act_edited_at, Company.act_created_at, Company.created_at)
+
     recent_contacts_rows = db.execute(
-        select(Contact, Company.name.label("company_name"))
+        select(Contact, Company.name.label("company_name"), contact_activity_at.label("activity_at"))
         .outerjoin(Company, Contact.company_id == Company.id)
         .where(*contact_filter)
-        .order_by(Contact.created_at.desc())
+        .order_by(contact_activity_at.desc())
         .limit(RECENT_LIMIT)
     ).all()
     recent_contacts = [
@@ -69,17 +80,20 @@ def get_dashboard_stats(
             job_title=c.job_title,
             company_id=c.company_id,
             company_name=company_name,
-            created_at=c.created_at,
+            created_at=activity_at,
         )
-        for c, company_name in recent_contacts_rows
+        for c, company_name, activity_at in recent_contacts_rows
     ]
 
-    recent_companies_rows = db.scalars(
-        select(Company).where(*company_filter).order_by(Company.created_at.desc()).limit(RECENT_LIMIT)
+    recent_companies_rows = db.execute(
+        select(Company, company_activity_at.label("activity_at"))
+        .where(*company_filter)
+        .order_by(company_activity_at.desc())
+        .limit(RECENT_LIMIT)
     ).all()
     recent_companies = [
-        RecentCompany(id=c.id, name=c.name, industry=c.industry, created_at=c.created_at)
-        for c in recent_companies_rows
+        RecentCompany(id=c.id, name=c.name, industry=c.industry, created_at=activity_at)
+        for c, activity_at in recent_companies_rows
     ]
 
     # Contacts counted per company must respect the same publication filter -
