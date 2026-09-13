@@ -71,11 +71,7 @@ export default async function GroupDetailPage({
                     </TableCell>
                     <TableCell>
                       {c.company_id ? (
-                        <Link
-                          href={`/companies/${c.company_id}`}
-                          className="hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
+                        <Link href={`/companies/${c.company_id}`} className="hover:underline">
                           {c.company_name}
                         </Link>
                       ) : (
