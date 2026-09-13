@@ -36,7 +36,7 @@ class Company(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     # company in the SAME source database - cross-database parents can't
     # happen since we keep records per-title).
     parent_company_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True, index=True
     )
 
     # Every custom field (CUST_*, USER1-10) that wasn't important enough to

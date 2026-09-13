@@ -22,7 +22,7 @@ class Group(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     hier_level: Mapped[int | None] = mapped_column(Integer)
     hier_path: Mapped[str | None] = mapped_column(String(556))
     parent_group_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True, index=True
     )
 
     custom_fields: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

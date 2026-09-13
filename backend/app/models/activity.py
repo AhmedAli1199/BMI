@@ -24,8 +24,8 @@ class Activity(Base, UUIDPk, ProvenanceMixin):
         CheckConstraint("contact_id IS NULL OR company_id IS NULL", name="ck_activities_one_owner"),
     )
 
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"))
-    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), index=True)
 
     activity_type: Mapped[str | None] = mapped_column(String(128))  # decoded via TBL_ACTIVITYTYPE
     subject: Mapped[str | None] = mapped_column(String(512))  # Act! "REGARDING"

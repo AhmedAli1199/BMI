@@ -28,8 +28,8 @@ class Address(Base, UUIDPk, ProvenanceMixin):
         CheckConstraint(_OWNER_CHECK, name="ck_addresses_one_owner"),
     )
 
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"))
-    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), index=True)
 
     # Resolved from Act!'s TYPEID via the picklist (e.g. "Business", "Home"),
     # stored as plain text rather than a separate lookup table - simple, and
@@ -55,8 +55,8 @@ class Phone(Base, UUIDPk, ProvenanceMixin):
         CheckConstraint(_OWNER_CHECK, name="ck_phones_one_owner"),
     )
 
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"))
-    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), index=True)
 
     type_label: Mapped[str | None] = mapped_column(String(64))
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -72,8 +72,8 @@ class Email(Base, UUIDPk, ProvenanceMixin):
         CheckConstraint(_OWNER_CHECK, name="ck_emails_one_owner"),
     )
 
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"))
-    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), index=True)
 
     type_label: Mapped[str | None] = mapped_column(String(64))
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

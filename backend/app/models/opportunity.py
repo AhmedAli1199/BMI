@@ -20,8 +20,8 @@ class Opportunity(Base, UUIDPk, ProvenanceMixin):
     __tablename__ = "opportunities"
     __table_args__ = (UniqueConstraint("source_db", "source_act_id", name="uq_opportunities_source"),)
 
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"))
-    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), index=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), index=True)
 
     name: Mapped[str | None] = mapped_column(String(128))
     status: Mapped[str | None] = mapped_column(String(26))

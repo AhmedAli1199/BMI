@@ -22,7 +22,7 @@ class Contact(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     __table_args__ = (UniqueConstraint("source_db", "source_act_id", name="uq_contacts_source"),)
 
     company_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True, index=True
     )
 
     first_name: Mapped[str | None] = mapped_column(String(128))
