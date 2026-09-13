@@ -18,13 +18,13 @@ export default async function AppLayout({
     <SidebarProvider>
       <AppSidebar session={session} />
       <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="h-4" />
-          <span className="text-sm text-muted-foreground">
+        <header className="app-topbar flex h-14 shrink-0 items-center gap-3 border-b border-sidebar-border px-4 text-sidebar-foreground">
+          <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+          <Separator orientation="vertical" className="h-5 bg-sidebar-border" />
+          <span className="text-[15px] font-semibold text-sidebar-foreground/90">
             BMI Publishing: Sales &amp; Data Brain
           </span>
-          <LiveClock className="ml-auto text-sm" />
+          <LiveClock className="ml-auto text-[15px] font-semibold text-sidebar-foreground" />
           <ThemeSwitcher />
         </header>
         <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>

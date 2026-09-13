@@ -31,8 +31,12 @@ export function ThemeSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" size="sm" className="gap-2">
-            <Icon className="size-4" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 border-sidebar-border bg-sidebar-accent/50 font-semibold text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <Icon className="size-4" style={{ color: "var(--nav-accent)" }} />
             {mounted ? current.label : ""}
           </Button>
         }

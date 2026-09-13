@@ -24,29 +24,20 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/logout-button";
-import { automations, type RequirementStage } from "@/lib/requirements-data";
+import { ThemeMotif } from "@/components/theme-motif";
 import type { SessionPayload } from "@/lib/session";
 
-const STAGE_LABELS: Record<Exclude<RequirementStage, "overview">, string> = {
-  foundation: "Foundation",
-  stage1: "Stage 1: Clean Foundation",
-  stage2: "Stage 2: Living Memory + AI Chat",
-  stage3: "Stage 3: Daily Engine",
-  stage4: "Stage 4: Reporting & Leadership",
-};
-
-const STAGE_ORDER: Exclude<RequirementStage, "overview">[] = [
-  "foundation",
-  "stage1",
-  "stage2",
-  "stage3",
-  "stage4",
-];
+// Nav items get a deliberately bigger, bolder treatment than shadcn's
+// default text-sm - the client asked for this explicitly ("bigger bolder
+// for easy viewing"), applied here rather than in the shared ui/sidebar.tsx
+// primitive so it's specific to this app's nav, not every future sidebar use.
+const NAV_ITEM = "text-[15px] font-semibold [&_svg]:size-[18px]";
+const NAV_SUBITEM = "text-[13.5px] font-medium";
 
 export function AppSidebar({ session }: { session: SessionPayload | null }) {
   const pathname = usePathname();
 
-  const isDocsActive = pathname.startsWith("/docs");
+  const isSpecActive = pathname.startsWith("/requirements") || pathname.startsWith("/docs");
 
   return (
     <Sidebar>
@@ -59,21 +50,24 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
               size="lg"
               render={<Link href="/" />}
               isActive={pathname === "/"}
+              className="gap-3"
             >
-              <span className="font-semibold">BMI Sales Brain</span>
+              <ThemeMotif className="theme-motif size-7 shrink-0" />
+              <span className="text-base font-bold tracking-tight">BMI Sales Brain</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Platform</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href="/" />}
                   isActive={pathname === "/"}
+                  className={NAV_ITEM}
                 >
                   Dashboard
                 </SidebarMenuButton>
@@ -83,6 +77,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                 <SidebarMenuButton
                   render={<Link href="/contacts" />}
                   isActive={pathname.startsWith("/contacts")}
+                  className={NAV_ITEM}
                 >
                   Contacts
                 </SidebarMenuButton>
@@ -92,6 +87,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                 <SidebarMenuButton
                   render={<Link href="/companies" />}
                   isActive={pathname.startsWith("/companies")}
+                  className={NAV_ITEM}
                 >
                   Companies
                 </SidebarMenuButton>
@@ -101,64 +97,53 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                 <SidebarMenuButton
                   render={<Link href="/groups" />}
                   isActive={pathname.startsWith("/groups")}
+                  className={NAV_ITEM}
                 >
                   Groups
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/requirements" />}
-                  isActive={pathname === "/requirements"}
-                >
-                  Requirements &amp; questions
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {STAGE_ORDER.map((stage) => {
-                const items = automations.filter((a) => a.stage === stage);
-                if (items.length === 0) return null;
-                const isStageActive = items.some(
-                  (item) => pathname === `/requirements/${item.id}`
-                );
-                return (
-                  <Collapsible
-                    key={stage}
-                    defaultOpen={isStageActive}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger render={<SidebarMenuButton />}>
-                        {STAGE_LABELS[stage]}
-                        <ChevronRight className="ml-auto transition-transform group-data-[panel-open]/collapsible:rotate-90" />
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {items.map((item) => (
-                            <SidebarMenuSubItem key={item.id}>
-                              <SidebarMenuSubButton
-                                render={<Link href={`/requirements/${item.id}`} />}
-                                isActive={pathname === `/requirements/${item.id}`}
-                              >
-                                {item.code ?? item.name}
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          ))}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
-                );
-              })}
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/docs/original-spec" />}
-                  isActive={isDocsActive}
-                >
-                  Original spec (raw)
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+        {/* Everything from the original automations planning pass - kept,
+            not deleted, but tucked under one collapsed group so it stops
+            competing with the actual product for space. Collapsed by
+            default; opens automatically if you're already on one of these
+            pages (e.g. a direct link). */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <Collapsible defaultOpen={isSpecActive} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger render={<SidebarMenuButton className={NAV_ITEM} />}>
+                    Build spec (reference)
+                    <ChevronRight className="ml-auto transition-transform group-data-[panel-open]/collapsible:rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          render={<Link href="/requirements" />}
+                          isActive={pathname === "/requirements"}
+                          className={NAV_SUBITEM}
+                        >
+                          Requirements &amp; questions
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          render={<Link href="/docs/original-spec" />}
+                          isActive={pathname.startsWith("/docs")}
+                          className={NAV_SUBITEM}
+                        >
+                          Original spec (raw)
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -167,8 +152,8 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
         {session && (
           <div className="flex items-center justify-between gap-2 px-2 py-1.5">
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{session.name}</p>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="truncate text-sm font-semibold">{session.name}</p>
+              <p className="truncate text-xs text-sidebar-foreground/60">
                 {session.email}
               </p>
             </div>

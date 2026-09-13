@@ -27,7 +27,7 @@ export function LiveClock({ className }: { className?: string }) {
   return (
     <span className={className}>
       <span className="font-mono tabular-nums">{time}</span>
-      <span className="text-muted-foreground"> · {day}</span>
+      <span className="font-normal text-sidebar-foreground/60"> · {day}</span>
     </span>
   );
 }

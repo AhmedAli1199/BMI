@@ -2,10 +2,11 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Themes are switched via [data-theme] on <html>, not a light/dark toggle -
-   see components/theme-provider.tsx. Same three tokens sets style shadcn's
-   whole component library (--primary, --card, --sidebar-*, etc.) - swapping
-   the theme never touches structure, only these values. */
+/* Themes are switched via [data-theme] on <html> - not a light/dark toggle,
+   three named looks (morning/evening/night). Every token below (content
+   AND sidebar/topbar) changes per theme, so the whole app - tables, cards,
+   buttons, the nav shell - reads as one consistent world, not a themed
+   frame around an unthemed page. See components/theme-provider.tsx. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -52,45 +53,49 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ============ MORNING (default) — cool daylight, warm sun accent ============ */
+/* ============ MORNING (default) — daybreak: warm ivory, gold + indigo ============ */
 :root,
 [data-theme="morning"] {
-  --background: #f7f9fc;
-  --foreground: #12151c;
+  --background: #faf6ee;
+  --foreground: #1c1710;
   --card: #ffffff;
-  --card-foreground: #12151c;
+  --card-foreground: #1c1710;
   --popover: #ffffff;
-  --popover-foreground: #12151c;
+  --popover-foreground: #1c1710;
   --primary: #c8720f;
   --primary-foreground: #fffaf3;
-  --secondary: #eef1f6;
-  --secondary-foreground: #12151c;
-  --muted: #eef1f6;
-  --muted-foreground: #5b6472;
-  --accent: #fdf0dc;
+  --secondary: #f1e9d8;
+  --secondary-foreground: #1c1710;
+  --muted: #f1e9d8;
+  --muted-foreground: #6b6152;
+  --accent: #fdead0;
   --accent-foreground: #8a4e0a;
   --destructive: #b3261e;
-  --border: #e2e7ef;
-  --input: #e2e7ef;
+  --border: #ead9bd;
+  --input: #ead9bd;
   --ring: #c8720f;
   --chart-1: #c8720f;
   --chart-2: #3a5c8a;
-  --chart-3: #5b6472;
-  --chart-4: #94a1b3;
-  --chart-5: #c3cbd6;
+  --chart-3: #6b6152;
+  --chart-4: #a99a7c;
+  --chart-5: #d8c9a8;
   --radius: 0.5rem;
 
-  --sidebar: #171a22;
-  --sidebar-foreground: #e7e9f0;
-  --sidebar-primary: #f0a537;
-  --sidebar-primary-foreground: #171a22;
-  --sidebar-accent: #20232d;
+  --sidebar: #171a26;
+  --sidebar-foreground: #eef0f8;
+  --sidebar-primary: #ffb04a;
+  --sidebar-primary-foreground: #171a26;
+  --sidebar-accent: #262a3c;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #262a35;
-  --sidebar-ring: #f0a537;
+  --sidebar-border: #2c3145;
+  --sidebar-ring: #ffb04a;
+  --nav-gradient: linear-gradient(165deg, #1b2033 0%, #232a42 45%, #3a2f1c 100%);
+  --nav-glow: radial-gradient(ellipse 340px 220px at 12% -12%, rgba(255, 176, 74, 0.42), transparent 65%),
+    radial-gradient(ellipse 260px 180px at 100% 0%, rgba(120, 170, 255, 0.16), transparent 60%);
+  --nav-accent: #ffb04a;
+  --nav-accent-2: #6fa8ff;
+  --topbar-gradient: linear-gradient(90deg, #1b2033 0%, #262a3c 55%, #3a2f1c 130%);
 
-  --ambient-glow: radial-gradient(circle at 15% -10%, rgba(240, 165, 55, 0.28), transparent 60%);
-  --ambient-line: #f0a537;
   --ok: #157a53;
   --ok-tint: #e5f4ee;
   --warn: #a3660c;
@@ -99,45 +104,48 @@
   --bad-tint: #fbeaea;
 }
 
-/* ============ EVENING — dusk warmth, plum/rose accent ============ */
+/* ============ EVENING — dusk: rose-taupe, ember + coral ============ */
 [data-theme="evening"] {
-  --background: #f6f1ef;
-  --foreground: #241b1f;
-  --card: #fdfaf9;
-  --card-foreground: #241b1f;
-  --popover: #fdfaf9;
-  --popover-foreground: #241b1f;
-  --primary: #8a3b5c;
-  --primary-foreground: #fdf6f9;
-  --secondary: #e9dfe2;
-  --secondary-foreground: #241b1f;
-  --muted: #e9dfe2;
-  --muted-foreground: #6b5d63;
-  --accent: #f3e1e8;
-  --accent-foreground: #7a2f4e;
+  --background: #f6ece9;
+  --foreground: #241512;
+  --card: #fffbfa;
+  --card-foreground: #241512;
+  --popover: #fffbfa;
+  --popover-foreground: #241512;
+  --primary: #b1503a;
+  --primary-foreground: #fff6f3;
+  --secondary: #ecdcd6;
+  --secondary-foreground: #241512;
+  --muted: #ecdcd6;
+  --muted-foreground: #7a5f58;
+  --accent: #f7ddd0;
+  --accent-foreground: #8a3a24;
   --destructive: #a23f32;
-  --border: #e1d3d8;
-  --input: #e1d3d8;
-  --ring: #8a3b5c;
-  --chart-1: #8a3b5c;
-  --chart-2: #c2843f;
-  --chart-3: #6b5d63;
-  --chart-4: #a5949a;
-  --chart-5: #d3c5ca;
+  --border: #e4cec6;
+  --input: #e4cec6;
+  --ring: #b1503a;
+  --chart-1: #b1503a;
+  --chart-2: #8a3b5c;
+  --chart-3: #7a5f58;
+  --chart-4: #bfa199;
+  --chart-5: #e0c9c1;
   --radius: 0.5rem;
 
-  --sidebar: #201319;
-  --sidebar-foreground: #f0e3e8;
-  --sidebar-primary: #e08a4e;
-  --sidebar-primary-foreground: #201319;
-  --sidebar-accent: #2b1a22;
+  --sidebar: #24121c;
+  --sidebar-foreground: #f6e9ee;
+  --sidebar-primary: #ff7a4d;
+  --sidebar-primary-foreground: #24121c;
+  --sidebar-accent: #33182b;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #34212a;
-  --sidebar-ring: #e08a4e;
+  --sidebar-border: #3d1f31;
+  --sidebar-ring: #ff7a4d;
+  --nav-gradient: linear-gradient(165deg, #22101a 0%, #391a2a 45%, #5c2a1b 100%);
+  --nav-glow: radial-gradient(ellipse 360px 240px at 88% -14%, rgba(255, 122, 77, 0.46), transparent 65%),
+    radial-gradient(ellipse 300px 220px at 0% 100%, rgba(210, 90, 150, 0.28), transparent 60%);
+  --nav-accent: #ff7a4d;
+  --nav-accent-2: #e879a8;
+  --topbar-gradient: linear-gradient(90deg, #22101a 0%, #391a2a 55%, #5c2a1b 130%);
 
-  --ambient-glow: radial-gradient(circle at 85% -10%, rgba(224, 138, 78, 0.26), transparent 60%),
-    radial-gradient(circle at 10% 110%, rgba(138, 59, 92, 0.22), transparent 55%);
-  --ambient-line: #e08a4e;
   --ok: #2f7d4f;
   --ok-tint: #e6f0e7;
   --warn: #a6791f;
@@ -146,44 +154,48 @@
   --bad-tint: #f5e6e1;
 }
 
-/* ============ NIGHT — near-black, cool moonlight accent ============ */
+/* ============ NIGHT — after dark: full dark mode, periwinkle + jade ============ */
 [data-theme="night"] {
-  --background: #0e1015;
+  --background: #0b0d12;
   --foreground: #e7e9ee;
-  --card: #15171e;
+  --card: #14161d;
   --card-foreground: #e7e9ee;
-  --popover: #15171e;
+  --popover: #14161d;
   --popover-foreground: #e7e9ee;
-  --primary: #7b8cff;
-  --primary-foreground: #0e1015;
+  --primary: #8d97ff;
+  --primary-foreground: #0b0d12;
   --secondary: #1b1e27;
   --secondary-foreground: #e7e9ee;
   --muted: #1b1e27;
   --muted-foreground: #8b90a0;
   --accent: #1c2036;
-  --accent-foreground: #aab6ff;
+  --accent-foreground: #b4bdff;
   --destructive: #e0685c;
-  --border: #24262f;
-  --input: #24262f;
-  --ring: #7b8cff;
-  --chart-1: #7b8cff;
-  --chart-2: #56c0c8;
+  --border: #262933;
+  --input: #262933;
+  --ring: #8d97ff;
+  --chart-1: #8d97ff;
+  --chart-2: #61e0c9;
   --chart-3: #8b90a0;
   --chart-4: #565a6b;
   --chart-5: #34384a;
   --radius: 0.5rem;
 
-  --sidebar: #08090c;
-  --sidebar-foreground: #d9dbe3;
-  --sidebar-primary: #7b8cff;
-  --sidebar-primary-foreground: #08090c;
-  --sidebar-accent: #14161c;
+  --sidebar: #06070b;
+  --sidebar-foreground: #dfe2ee;
+  --sidebar-primary: #8d97ff;
+  --sidebar-primary-foreground: #06070b;
+  --sidebar-accent: #12141f;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1c1e26;
-  --sidebar-ring: #7b8cff;
+  --sidebar-border: #1a1c29;
+  --sidebar-ring: #8d97ff;
+  --nav-gradient: linear-gradient(165deg, #05060a 0%, #0a0c17 55%, #11142b 100%);
+  --nav-glow: radial-gradient(ellipse 300px 200px at 18% -10%, rgba(141, 151, 255, 0.28), transparent 65%),
+    radial-gradient(ellipse 220px 160px at 95% 10%, rgba(120, 200, 255, 0.14), transparent 60%);
+  --nav-accent: #8d97ff;
+  --nav-accent-2: #61e0c9;
+  --topbar-gradient: linear-gradient(90deg, #05060a 0%, #0a0c17 55%, #11142b 130%);
 
-  --ambient-glow: radial-gradient(circle at 20% -10%, rgba(123, 140, 255, 0.18), transparent 60%);
-  --ambient-line: #7b8cff;
   --ok: #4ad395;
   --ok-tint: #10251d;
   --warn: #e0b24d;
@@ -204,15 +216,20 @@
   }
 }
 
-/* ---- Ambient theme decoration: a quiet glow behind the sidebar brand
-   header, plus a tiny starfield for night. Same DOM (.ambient-glow /
-   .ambient-stars in app-sidebar.tsx) across all three themes - only the
-   token values above change what renders. Respects reduced motion: no
-   animation runs by default, only a slow twinkle on stars, disabled below. */
+/* ---- Nav shell: a real gradient (not just the flat bg-sidebar color) via
+   a plain rule, since Tailwind's bg-sidebar utility only carries a solid
+   color. Same DOM every theme - only the token values above change. ---- */
+[data-slot="sidebar-inner"] {
+  background: var(--nav-gradient);
+}
+.app-topbar {
+  background: var(--topbar-gradient);
+}
+
 .ambient-glow {
   position: absolute;
   inset: 0;
-  background: var(--ambient-glow);
+  background: var(--nav-glow);
   pointer-events: none;
 }
 
@@ -242,3 +259,7 @@
   0%, 100% { opacity: 0.75; }
   50% { opacity: 1; }
 }
+
+/* Theme motif icon (sun/sunset/moon, rendered in app-sidebar.tsx) */
+.theme-motif { color: var(--nav-accent); }
+.theme-motif .accent-2 { color: var(--nav-accent-2); }
