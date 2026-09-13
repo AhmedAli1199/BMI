@@ -9,7 +9,13 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+# source_db used for anything created directly in the CRM (not migrated
+# from an Act! database). Kept distinct from the three real source
+# databases (see app.models.base.SOURCE_DBS) so it's always obvious in
+# provenance data which rows came from Act! vs. were typed in here.
+MANUAL_SOURCE_DB = "manual"
 
 
 class CompanySummary(BaseModel):
@@ -150,3 +156,77 @@ class CompanyDetail(BaseModel):
     emails: list[EmailOut] = []
     contacts: list[ContactListItem] = []
     notes: list[NoteOut] = []
+
+
+# ---- Write schemas (CRUD) --------------------------------------------------
+# Separate Create/Update shapes rather than reusing the *Detail models:
+# creation never accepts source_db/source_act_id/custom_fields (those are
+# provenance, not something a user types in), and update makes every field
+# optional so a PATCH can touch just one.
+
+
+class ContactCreate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    full_name: str | None = None
+    job_title: str | None = None
+    department: str | None = None
+    company_id: uuid.UUID | None = None
+    email: str | None = None
+    phone: str | None = None
+
+
+class ContactUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    full_name: str | None = None
+    job_title: str | None = None
+    department: str | None = None
+    company_id: uuid.UUID | None = None
+
+
+class CompanyCreate(BaseModel):
+    name: str = Field(min_length=1)
+    industry: str | None = None
+    category: str | None = None
+    website: str | None = None
+
+
+class CompanyUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    industry: str | None = None
+    category: str | None = None
+    website: str | None = None
+
+
+class GroupCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+    parent_group_id: uuid.UUID | None = None
+
+
+class GroupUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    description: str | None = None
+    parent_group_id: uuid.UUID | None = None
+
+
+class GroupListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    description: str | None = None
+    member_count: int = 0
+
+
+class GroupDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    description: str | None = None
+    parent_group_id: uuid.UUID | None = None
+    members: list[ContactListItem] = []
+
+
+class GroupsPage(Page):
+    items: list[GroupListItem]

@@ -7,17 +7,20 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    MANUAL_SOURCE_DB,
     AddressOut,
     CompaniesPage,
+    CompanyCreate,
     CompanyDetail,
     CompanyListItem,
+    CompanyUpdate,
     ContactListItem,
     EmailOut,
     NoteOut,
     PhoneOut,
 )
 from app.db.session import get_db
-from app.models import Company, Contact, Email, Note
+from app.models import Activity, Company, Contact, Email, HistoryEntry, Note, Opportunity
 from app.models.contact_channel import Address, Phone
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -109,3 +112,56 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
         ],
         notes=[NoteOut.model_validate(n) for n in notes],
     )
+
+
+@router.post("", response_model=CompanyDetail, status_code=201)
+def create_company(payload: CompanyCreate, db: Session = Depends(get_db)) -> CompanyDetail:
+    company = Company(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),
+        name=payload.name,
+        industry=payload.industry,
+        category=payload.category,
+        website=payload.website,
+        custom_fields={},
+    )
+    db.add(company)
+    db.commit()
+    return get_company(company.id, db)
+
+
+@router.patch("/{company_id}", response_model=CompanyDetail)
+def update_company(company_id: uuid.UUID, payload: CompanyUpdate, db: Session = Depends(get_db)) -> CompanyDetail:
+    company = db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(company, field, value)
+    db.commit()
+    return get_company(company_id, db)
+
+
+@router.delete("/{company_id}", status_code=204, response_model=None)
+def delete_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    company = db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    # Nothing that merely references this company gets deleted with it -
+    # contacts, activities, opportunities and any child company are just
+    # detached (their FK is nullable). Everything with a real FK straight
+    # into companies.id needs handling before the delete, same reasoning
+    # as delete_contact.
+    db.execute(Contact.__table__.update().where(Contact.company_id == company_id).values(company_id=None))
+    db.execute(Company.__table__.update().where(Company.parent_company_id == company_id).values(parent_company_id=None))
+    db.execute(Activity.__table__.update().where(Activity.company_id == company_id).values(company_id=None))
+    db.execute(Opportunity.__table__.update().where(Opportunity.company_id == company_id).values(company_id=None))
+    db.execute(Address.__table__.delete().where(Address.company_id == company_id))
+    db.execute(Phone.__table__.delete().where(Phone.company_id == company_id))
+    db.execute(Email.__table__.delete().where(Email.company_id == company_id))
+    db.execute(Note.__table__.delete().where(Note.entity_type == "company", Note.entity_id == company_id))
+    db.execute(HistoryEntry.__table__.delete().where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == company_id))
+    db.delete(company)
+    db.commit()

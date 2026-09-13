@@ -7,11 +7,14 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    MANUAL_SOURCE_DB,
     AddressOut,
     CompanySummary,
+    ContactCreate,
     ContactDetail,
     ContactListItem,
     ContactsPage,
+    ContactUpdate,
     EmailOut,
     GroupOut,
     HistoryOut,
@@ -20,6 +23,7 @@ from app.api.schemas import (
 )
 from app.db.session import get_db
 from app.models import (
+    Activity,
     Company,
     Contact,
     Email,
@@ -27,6 +31,7 @@ from app.models import (
     GroupMembership,
     HistoryEntry,
     Note,
+    Opportunity,
 )
 from app.models.contact_channel import Address, Phone
 
@@ -147,3 +152,99 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         notes=[NoteOut.model_validate(n) for n in notes],
         history=[HistoryOut.model_validate(h) for h in history],
     )
+
+
+@router.post("", response_model=ContactDetail, status_code=201)
+def create_contact(payload: ContactCreate, db: Session = Depends(get_db)) -> ContactDetail:
+    if payload.company_id and not db.get(Company, payload.company_id):
+        raise HTTPException(status_code=400, detail="company_id does not exist")
+
+    contact = Contact(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),  # provenance columns are NOT NULL even for manual rows
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        full_name=payload.full_name or " ".join(filter(None, [payload.first_name, payload.last_name])) or None,
+        job_title=payload.job_title,
+        department=payload.department,
+        company_id=payload.company_id,
+        custom_fields={},
+    )
+    db.add(contact)
+    db.flush()
+
+    if payload.email:
+        db.add(Email(
+            id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+            contact_id=contact.id, address=payload.email, is_primary=True,
+        ))
+    if payload.phone:
+        db.add(Phone(
+            id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+            contact_id=contact.id, number=payload.phone, is_primary=True,
+        ))
+    db.commit()
+    return get_contact(contact.id, db)
+
+
+@router.patch("/{contact_id}", response_model=ContactDetail)
+def update_contact(contact_id: uuid.UUID, payload: ContactUpdate, db: Session = Depends(get_db)) -> ContactDetail:
+    contact = db.get(Contact, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    if payload.company_id and not db.get(Company, payload.company_id):
+        raise HTTPException(status_code=400, detail="company_id does not exist")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(contact, field, value)
+    db.commit()
+    return get_contact(contact_id, db)
+
+
+@router.delete("/{contact_id}", status_code=204, response_model=None)
+def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    contact = db.get(Contact, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    # No cascade at the DB level (see contact_channel.py) - clean up every
+    # row that actually has a foreign key into contacts.id ourselves, in one
+    # transaction, before deleting the contact itself. Notes/History use
+    # entity_id (not a real FK) so they can't block the delete, but we still
+    # remove them - nothing should reference a contact that no longer exists.
+    db.execute(GroupMembership.__table__.delete().where(GroupMembership.contact_id == contact_id))
+    db.execute(Activity.__table__.update().where(Activity.contact_id == contact_id).values(contact_id=None))
+    db.execute(Opportunity.__table__.update().where(Opportunity.contact_id == contact_id).values(contact_id=None))
+    db.execute(Address.__table__.delete().where(Address.contact_id == contact_id))
+    db.execute(Phone.__table__.delete().where(Phone.contact_id == contact_id))
+    db.execute(Email.__table__.delete().where(Email.contact_id == contact_id))
+    db.execute(Note.__table__.delete().where(Note.entity_type == "contact", Note.entity_id == contact_id))
+    db.execute(HistoryEntry.__table__.delete().where(HistoryEntry.entity_type == "contact", HistoryEntry.entity_id == contact_id))
+    db.delete(contact)
+    db.commit()
+
+
+@router.post("/{contact_id}/groups/{group_id}", status_code=204, response_model=None)
+def add_to_group(contact_id: uuid.UUID, group_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    if not db.get(Contact, contact_id):
+        raise HTTPException(status_code=404, detail="Contact not found")
+    if not db.get(Group, group_id):
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    exists = db.scalar(
+        select(GroupMembership).where(GroupMembership.contact_id == contact_id, GroupMembership.group_id == group_id)
+    )
+    if not exists:
+        db.add(GroupMembership(id=uuid.uuid4(), contact_id=contact_id, group_id=group_id))
+        db.commit()
+
+
+@router.delete("/{contact_id}/groups/{group_id}", status_code=204, response_model=None)
+def remove_from_group(contact_id: uuid.UUID, group_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    db.execute(
+        GroupMembership.__table__.delete().where(
+            GroupMembership.contact_id == contact_id, GroupMembership.group_id == group_id
+        )
+    )
+    db.commit()
