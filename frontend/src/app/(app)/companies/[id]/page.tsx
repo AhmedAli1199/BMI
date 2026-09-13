@@ -12,9 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClickableTableRow } from "@/components/clickable-table-row";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteCompany } from "@/lib/actions";
+import { cleanNoteBody } from "@/lib/notes";
 
 export default async function CompanyDetailPage({
   params,
@@ -90,6 +92,12 @@ export default async function CompanyDetailPage({
                 {company.num_employees.toLocaleString()}
               </div>
             )}
+            {company.emails.length === 0 &&
+              company.phones.length === 0 &&
+              company.addresses.length === 0 &&
+              !company.num_employees && (
+                <span className="text-muted-foreground">No details on file.</span>
+              )}
           </CardContent>
         </Card>
 
@@ -127,14 +135,18 @@ export default async function CompanyDetailPage({
               </TableHeader>
               <TableBody>
                 {company.contacts.map((c) => (
-                  <TableRow key={c.id}>
+                  <ClickableTableRow key={c.id} href={`/contacts/${c.id}`}>
                     <TableCell>
                       <Link href={`/contacts/${c.id}`} className="hover:underline">
-                        {c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ")}
+                        {c.full_name ||
+                          [c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                          "(no name)"}
                       </Link>
                     </TableCell>
-                    <TableCell>{c.job_title}</TableCell>
-                  </TableRow>
+                    <TableCell>
+                      {c.job_title || <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  </ClickableTableRow>
                 ))}
               </TableBody>
             </Table>
@@ -153,7 +165,7 @@ export default async function CompanyDetailPage({
             company.notes.map((n) => (
               <div key={n.id}>
                 <div className="text-xs text-muted-foreground">{n.note_type}</div>
-                <p className="whitespace-pre-wrap">{n.body}</p>
+                <p className="whitespace-pre-wrap">{cleanNoteBody(n.body) || "No content."}</p>
               </div>
             ))
           ) : (

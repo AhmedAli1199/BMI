@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClickableTableRow } from "@/components/clickable-table-row";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
@@ -58,10 +59,10 @@ export default async function CompaniesPage({
           </TableHeader>
           <TableBody>
             {data.items.map((c) => (
-              <TableRow key={c.id}>
+              <ClickableTableRow key={c.id} href={`/companies/${c.id}`}>
                 <TableCell>
                   <Link href={`/companies/${c.id}`} className="font-medium hover:underline">
-                    {c.name}
+                    {c.name || "(no name)"}
                   </Link>
                 </TableCell>
                 <TableCell>{c.industry || <span className="text-muted-foreground">—</span>}</TableCell>
@@ -69,7 +70,7 @@ export default async function CompaniesPage({
                 <TableCell>
                   <Badge variant="secondary">{c.source_db}</Badge>
                 </TableCell>
-              </TableRow>
+              </ClickableTableRow>
             ))}
           </TableBody>
         </Table>

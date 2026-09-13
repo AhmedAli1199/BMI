@@ -9,6 +9,7 @@ import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteContact } from "@/lib/actions";
+import { cleanNoteBody } from "@/lib/notes";
 
 export default async function ContactDetailPage({
   params,
@@ -130,7 +131,7 @@ export default async function ContactDetailPage({
                 <div className="text-xs text-muted-foreground">
                   {n.note_type} · {n.act_created_at ? new Date(n.act_created_at).toLocaleDateString() : ""}
                 </div>
-                <p className="whitespace-pre-wrap">{n.body}</p>
+                <p className="whitespace-pre-wrap">{cleanNoteBody(n.body) || "No content."}</p>
                 <Separator className="mt-3" />
               </div>
             ))

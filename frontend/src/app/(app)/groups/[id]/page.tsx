@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClickableTableRow } from "@/components/clickable-table-row";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteGroup } from "@/lib/actions";
@@ -60,23 +61,31 @@ export default async function GroupDetailPage({
               </TableHeader>
               <TableBody>
                 {group.members.map((c) => (
-                  <TableRow key={c.id}>
+                  <ClickableTableRow key={c.id} href={`/contacts/${c.id}`}>
                     <TableCell>
                       <Link href={`/contacts/${c.id}`} className="hover:underline">
-                        {c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ")}
+                        {c.full_name ||
+                          [c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                          "(no name)"}
                       </Link>
                     </TableCell>
                     <TableCell>
                       {c.company_id ? (
-                        <Link href={`/companies/${c.company_id}`} className="hover:underline">
+                        <Link
+                          href={`/companies/${c.company_id}`}
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {c.company_name}
                         </Link>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell>{c.job_title}</TableCell>
-                  </TableRow>
+                    <TableCell>
+                      {c.job_title || <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  </ClickableTableRow>
                 ))}
               </TableBody>
             </Table>

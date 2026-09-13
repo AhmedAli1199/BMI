@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ClickableTableRow } from "@/components/clickable-table-row";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
@@ -59,7 +60,7 @@ export default async function ContactsPage({
           </TableHeader>
           <TableBody>
             {data.items.map((c) => (
-              <TableRow key={c.id}>
+              <ClickableTableRow key={c.id} href={`/contacts/${c.id}`}>
                 <TableCell>
                   <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">
                     {c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "(no name)"}
@@ -67,7 +68,11 @@ export default async function ContactsPage({
                 </TableCell>
                 <TableCell>
                   {c.company_id ? (
-                    <Link href={`/companies/${c.company_id}`} className="hover:underline">
+                    <Link
+                      href={`/companies/${c.company_id}`}
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {c.company_name}
                     </Link>
                   ) : (
@@ -79,7 +84,7 @@ export default async function ContactsPage({
                 <TableCell>
                   <Badge variant="secondary">{c.source_db}</Badge>
                 </TableCell>
-              </TableRow>
+              </ClickableTableRow>
             ))}
           </TableBody>
         </Table>
