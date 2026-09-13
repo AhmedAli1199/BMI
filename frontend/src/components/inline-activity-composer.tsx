@@ -31,19 +31,17 @@ export function InlineActivityComposer({
   function handleSubmit() {
     if (!content.trim()) return;
 
-    const prefixMap: Record<ActivityType, string> = {
-      call: "📞 [Call Log]: ",
-      meeting: "🤝 [Meeting]: ",
-      note: "📝 [Note]: ",
-      email: "✉️ [Email Sent]: ",
+    const typeMap: Record<ActivityType, string> = {
+      call: "Call",
+      meeting: "Meeting",
+      note: "Note",
+      email: "Email",
     };
-
-    const fullBody = `${prefixMap[activityType]}${content.trim()}`;
 
     startTransition(async () => {
       try {
-        await addContactNote(contactId, fullBody);
-        toast.success("Touchpoint logged to timeline");
+        await addContactNote(contactId, content.trim(), typeMap[activityType]);
+        toast.success(`${typeMap[activityType]} logged to timeline`);
         setContent("");
         setIsOpen(false);
       } catch {

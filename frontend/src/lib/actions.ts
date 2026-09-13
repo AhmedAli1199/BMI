@@ -72,11 +72,11 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
   revalidatePath(`/groups/${groupId}`);
 }
 
-export async function addContactNote(contactId: string, body: string) {
+export async function addContactNote(contactId: string, body: string, note_type: string = "Note") {
   await backendFetch(`/api/contacts/${contactId}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, note_type }),
   });
   revalidatePath(`/contacts/${contactId}`);
 }
