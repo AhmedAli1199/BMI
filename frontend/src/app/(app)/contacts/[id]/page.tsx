@@ -1,16 +1,24 @@
-import { Mail, MapPin, Phone } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  ArrowLeft,
+  BookOpen,
+  Calendar,
+  FileText,
+  Layers,
+  Sparkles,
+  UserCheck,
+} from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactDetail } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AddNoteDialog } from "@/components/add-note-dialog";
-import { Separator } from "@/components/ui/separator";
-import { ContactGroupsEditor } from "@/components/contact-groups-editor";
+import { ContactDossier } from "@/components/contact-dossier";
+import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
+import { InlineActivityComposer } from "@/components/inline-activity-composer";
 import { ContactEditablePanel } from "@/components/contact-editable-panel";
-import { addContactNote } from "@/lib/actions";
-import { cleanNoteBody } from "@/lib/notes";
-import { AddressBlock } from "@/components/address-block";
+import { sourceLabel } from "@/lib/sources";
 
 export default async function ContactDetailPage({
   params,
@@ -26,160 +34,234 @@ export default async function ContactDetailPage({
     notFound();
   }
 
+  const name =
+    contact.full_name ||
+    [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
+    "(no name)";
+
+  // Partition custom fields into meaningful publishing groups
+  const customEntries = Object.entries(contact.custom_fields || {});
+  const publishingFields = customEntries.filter(([k]) =>
+    /issue|ad|print|circulation|tier|title|sponsor|expo|wtce/i.test(k)
+  );
+  const generalFields = customEntries.filter(
+    ([k]) => !/issue|ad|print|circulation|tier|title|sponsor|expo|wtce/i.test(k)
+  );
+
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-      <ContactEditablePanel contact={contact} />
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
+      {/* Editorial Navigation Top Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/contacts"
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span>Back to Contacts</span>
+          </Link>
+          <span className="text-muted-foreground/50">/</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            {sourceLabel(contact.source_db)}
+          </span>
+          <span className="text-muted-foreground/50">/</span>
+          <span className="text-xs font-bold text-foreground truncate max-w-[200px]">
+            {name}
+          </span>
+        </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Contact details</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2.5 text-sm">
-            {contact.emails.map((e) => (
-              <div key={e.id} className="flex items-start gap-2.5">
-                <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div>
-                  <div>{e.address}</div>
-                  <div className="text-xs text-muted-foreground">{e.type_label || "Email"}</div>
-                </div>
-              </div>
-            ))}
-            {contact.phones.map((p) => (
-              <div key={p.id} className="flex items-start gap-2.5">
-                <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div>
-                  <div>{p.number}</div>
-                  <div className="text-xs text-muted-foreground">{p.type_label || "Phone"}</div>
-                </div>
-              </div>
-            ))}
-            {contact.addresses.map((a) => (
-              <div key={a.id} className="flex items-start gap-2.5">
-                <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <div>
-                  <AddressBlock address={a} />
-                  <div className="text-xs text-muted-foreground">{a.type_label || "Address"}</div>
-                </div>
-              </div>
-            ))}
-            {contact.emails.length === 0 && contact.phones.length === 0 && contact.addresses.length === 0 && (
-              <span className="text-muted-foreground">No contact details on file.</span>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Groups</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ContactGroupsEditor contactId={contact.id} groups={contact.groups} />
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[11px] font-mono">
+            {contact.source_act_id || `ID: ${contact.id.slice(0, 8)}`}
+          </Badge>
+        </div>
       </div>
 
-      {(contact.last_meet_date ||
-        contact.last_reach_date ||
-        contact.last_attempt_date ||
-        contact.last_letter_date) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Latest activity</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            {contact.last_meet_date && (
-              <div>
-                <div className="text-xs text-muted-foreground">Last meeting</div>
-                <div>{new Date(contact.last_meet_date).toLocaleDateString()}</div>
-              </div>
-            )}
-            {contact.last_reach_date && (
-              <div>
-                <div className="text-xs text-muted-foreground">Last call reach</div>
-                <div>{new Date(contact.last_reach_date).toLocaleDateString()}</div>
-              </div>
-            )}
-            {contact.last_attempt_date && (
-              <div>
-                <div className="text-xs text-muted-foreground">Last call attempt</div>
-                <div>{new Date(contact.last_attempt_date).toLocaleDateString()}</div>
-              </div>
-            )}
-            {contact.last_letter_date && (
-              <div>
-                <div className="text-xs text-muted-foreground">Last letter sent</div>
-                <div>{new Date(contact.last_letter_date).toLocaleDateString()}</div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* 3-Zone Split-Pane Editorial Workspace */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Zone 1: Sticky Identity Dossier (Left Column, 4 cols on lg, 3.5 on xl) */}
+        <aside className="lg:col-span-4 xl:col-span-4">
+          <div className="sticky top-4 flex flex-col gap-4">
+            <ContactDossier contact={contact} />
 
-      {Object.keys(contact.custom_fields).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Custom fields</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-            {Object.entries(contact.custom_fields).map(([key, value]) => (
-              <div key={key}>
-                <span className="text-muted-foreground">{key}: </span>
-                {String(value)}
+            {/* Publication Affiliation Summary */}
+            <Card className="editorial-card p-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-2">
+                <BookOpen className="size-3.5 text-primary" />
+                <span>Publishing Affiliation</span>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Notes</CardTitle>
-          <CardAction>
-            <AddNoteDialog id={contact.id} action={addContactNote} />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          {contact.notes.length > 0 ? (
-            contact.notes.map((n) => (
-              <div key={n.id}>
-                <div className="text-xs text-muted-foreground">
-                  {n.note_type} · {n.act_created_at ? new Date(n.act_created_at).toLocaleDateString() : ""}
+              <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Primary Title:</span>
+                  <span className="font-semibold text-foreground">
+                    {sourceLabel(contact.source_db)}
+                  </span>
                 </div>
-                <p className="whitespace-pre-wrap">{cleanNoteBody(n.body) || "No content."}</p>
-                <Separator className="mt-3" />
+                {contact.category && (
+                  <div className="flex justify-between">
+                    <span>Segment:</span>
+                    <span className="font-medium text-foreground">{contact.category}</span>
+                  </div>
+                )}
+                {contact.department && (
+                  <div className="flex justify-between">
+                    <span>Dept:</span>
+                    <span className="font-medium text-foreground">{contact.department}</span>
+                  </div>
+                )}
+                {contact.referred_by && (
+                  <div className="flex justify-between">
+                    <span>Source:</span>
+                    <span className="font-medium text-foreground">{contact.referred_by}</span>
+                  </div>
+                )}
               </div>
-            ))
-          ) : (
-            <span className="text-muted-foreground">No notes.</span>
-          )}
-        </CardContent>
-      </Card>
+            </Card>
+          </div>
+        </aside>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">History</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm">
-          {contact.history.length > 0 ? (
-            contact.history.map((h) => (
-              <div key={h.id} className="flex items-center justify-between">
-                <div>
-                  <Badge variant="outline" className="mr-2">
-                    {h.history_type}
-                  </Badge>
-                  {h.subject}
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(h.occurred_at).toLocaleDateString()}
-                </span>
-              </div>
-            ))
-          ) : (
-            <span className="text-muted-foreground">No history.</span>
-          )}
-        </CardContent>
-      </Card>
+        {/* Zone 2 & 3: Tabbed Operational Canvas (Right Column, 8 cols) */}
+        <main className="lg:col-span-8 xl:col-span-8 flex flex-col gap-5">
+          {/* Quick Touchpoint Composer Bar */}
+          <InlineActivityComposer contactId={contact.id} contactName={name} />
+
+          {/* Workspace Tabs */}
+          <Tabs defaultValue="timeline" className="w-full">
+            <div className="flex items-center justify-between border-b border-border/80 pb-1">
+              <TabsList className="bg-transparent gap-2 sm:gap-4 p-0">
+                <TabsTrigger
+                  value="timeline"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
+                >
+                  Activity &amp; Notes ({contact.notes.length + contact.history.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="commercial"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
+                >
+                  Magazine &amp; Commercial
+                </TabsTrigger>
+                <TabsTrigger
+                  value="custom"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
+                >
+                  Custom Metadata ({customEntries.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="edit"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
+                >
+                  Edit Profile
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* TAB 1: Activity Timeline */}
+            <TabsContent value="timeline" className="mt-4">
+              <UnifiedActivityTimeline
+                notes={contact.notes}
+                history={contact.history}
+              />
+            </TabsContent>
+
+            {/* TAB 2: Magazine & Commercial */}
+            <TabsContent value="commercial" className="mt-4 flex flex-col gap-4">
+              <Card className="editorial-card">
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <BookOpen className="size-4 text-primary" />
+                    <span>Issue &amp; Advertising Placement</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3 text-xs">
+                  {publishingFields.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {publishingFields.map(([k, v]) => (
+                        <div
+                          key={k}
+                          className="rounded-md border border-border/80 bg-muted/30 p-3"
+                        >
+                          <span className="text-muted-foreground block text-[11px] mb-1">
+                            {k}
+                          </span>
+                          <span className="font-semibold text-foreground text-sm">
+                            {String(v)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+                      No ad campaign or issue-specific data recorded yet.
+                    </div>
+                  )}
+
+                  {contact.company && (
+                    <div className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-3 flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold text-foreground block">
+                          Company Account: {contact.company.name}
+                        </span>
+                        <span className="text-muted-foreground text-[11px]">
+                          Industry: {contact.company.industry || "Publishing Partner"}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/companies/${contact.company.id}`}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        View Account Record &rarr;
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB 3: Custom Fields & Legacy Act! Archive */}
+            <TabsContent value="custom" className="mt-4 flex flex-col gap-4">
+              <Card className="editorial-card">
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Layers className="size-4 text-primary" />
+                    <span>Act! Legacy Fields &amp; Extended Metadata</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {customEntries.length > 0 ? (
+                    <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
+                      {customEntries.map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex flex-col justify-center rounded border border-border/60 bg-muted/20 p-2.5"
+                        >
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            {key}
+                          </span>
+                          <span className="font-medium text-foreground mt-0.5">
+                            {String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">
+                      No custom fields on file.
+                    </span>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB 4: Edit Profile in Place */}
+            <TabsContent value="edit" className="mt-4">
+              <Card className="editorial-card p-6">
+                <ContactEditablePanel contact={contact} />
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 }

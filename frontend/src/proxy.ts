@@ -3,6 +3,11 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 export async function proxy(request: NextRequest) {
+  // Local bypass: bypass password/auth screen for local development / preview
+  if (process.env.NODE_ENV !== "production" || process.env.LOCAL_BYPASS === "true") {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
 

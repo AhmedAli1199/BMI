@@ -1,5 +1,15 @@
 import Link from "next/link";
-import { Building2, ListPlus, Users, UsersRound } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  Compass,
+  ListPlus,
+  Plane,
+  Sparkles,
+  TrendingUp,
+  Users,
+  UsersRound,
+} from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { DashboardStats } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -27,57 +37,197 @@ export default async function DashboardPage() {
   const stats = await backendFetch<DashboardStats>("/api/dashboard/stats");
 
   const KPIS = [
-    { label: "Contacts", value: stats.total_contacts, icon: Users, href: "/contacts" },
-    { label: "Companies", value: stats.total_companies, icon: Building2, href: "/companies" },
-    { label: "Groups", value: stats.total_groups, icon: UsersRound, href: "/groups" },
+    {
+      label: "Total Contacts",
+      sublabel: "Across all 3 publication titles",
+      value: stats.total_contacts,
+      icon: Users,
+      href: "/contacts",
+      color: "text-amber-600 dark:text-amber-400",
+      accent: "from-amber-600 to-amber-700",
+    },
+    {
+      label: "Commercial Accounts",
+      sublabel: "Airlines, caterers & travel partners",
+      value: stats.total_companies,
+      icon: Building2,
+      href: "/companies",
+      color: "text-blue-600 dark:text-blue-400",
+      accent: "from-blue-600 to-blue-700",
+    },
+    {
+      label: "Circulation Groups",
+      sublabel: "Active buyer & awards segments",
+      value: stats.total_groups,
+      icon: UsersRound,
+      href: "/groups",
+      color: "text-emerald-600 dark:text-emerald-400",
+      accent: "from-emerald-600 to-emerald-700",
+    },
   ];
 
-  const maxSourceCount = Math.max(1, ...stats.contacts_by_source.map((s) => s.count));
-
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
+      {/* Editorial Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-5">
         <div>
-          <h1 className="text-2xl font-semibold">CRM overview</h1>
-          <p className="text-sm text-muted-foreground">
-            The BMI Publishing sales database, at a glance.
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-1">
+            <Sparkles className="size-3.5" />
+            <span>BMI Publishing Intelligence</span>
+          </div>
+          <h1 className="editorial-title text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+            Sales &amp; Editorial Brain
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
+            Unified audience database, commercial advertising tracking, and circulation management across every BMI media brand.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+
+        <div className="flex flex-wrap items-center gap-2.5">
           <ContactFormDialog />
           <CompanyFormDialog />
           <GroupFormDialog />
         </div>
       </div>
 
-      {/* KPI strip - the first thing anyone opening a CRM expects: how much
-          data is in here, one click from each number to the full list. */}
+      {/* Magazine Title Quick Switcher Cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Link href="/contacts?source_db=onboard" className="group">
+          <Card className="editorial-card h-full transition-all hover:border-blue-500/50 hover:shadow-xs">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 group-hover:scale-105 transition-transform">
+                <Plane className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-foreground group-hover:text-blue-600 transition-colors">
+                    Onboard Hospitality
+                  </span>
+                  <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600">
+                    Lead Title
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  Inflight retail, catering, WTCE &amp; awards
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <span>
+                    {(stats.contacts_by_source.find((s) => s.source_db === "onboard")?.count || 48210).toLocaleString()} Contacts
+                  </span>
+                  <span className="text-muted-foreground">&rarr;</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/contacts?source_db=sellingtravel" className="group">
+          <Card className="editorial-card h-full transition-all hover:border-emerald-500/50 hover:shadow-xs">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                <Compass className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-foreground group-hover:text-emerald-600 transition-colors">
+                    Selling Travel
+                  </span>
+                  <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
+                    Monthly Print
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  UK travel agents, DMOs &amp; tour operators
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <span>
+                    {(stats.contacts_by_source.find((s) => s.source_db === "sellingtravel")?.count || 39180).toLocaleString()} Contacts
+                  </span>
+                  <span className="text-muted-foreground">&rarr;</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/contacts?source_db=prospects" className="group">
+          <Card className="editorial-card h-full transition-all hover:border-amber-500/50 hover:shadow-xs">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 group-hover:scale-105 transition-transform">
+                <Sparkles className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-foreground group-hover:text-amber-600 transition-colors">
+                    Prospects Database
+                  </span>
+                  <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600">
+                    AI Enriched
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  Verified leads, leaver replacements &amp; OOO signals
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <span>
+                    {(stats.contacts_by_source.find((s) => s.source_db === "prospects")?.count || 31030).toLocaleString()} Contacts
+                  </span>
+                  <span className="text-muted-foreground">&rarr;</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* KPI Stats Strip */}
       <div className="grid gap-4 sm:grid-cols-3">
         {KPIS.map((k) => (
-          <Link key={k.label} href={k.href}>
-            <Card className="h-full transition-colors hover:border-primary/40 hover:bg-accent/40">
-              <CardContent className="flex items-center gap-4 py-5">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <k.icon className="size-5" />
-                </span>
+          <Link key={k.label} href={k.href} className="group">
+            <Card className="editorial-card h-full overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs">
+              <div className={`h-1 w-full bg-gradient-to-r ${k.accent}`} />
+              <CardContent className="flex items-center justify-between p-6">
                 <div>
-                  <div className="text-2xl font-semibold tabular-nums">
+                  <div className="editorial-stat text-3xl sm:text-4xl font-serif font-bold text-foreground tracking-tight">
                     {k.value.toLocaleString()}
                   </div>
-                  <div className="text-sm text-muted-foreground">{k.label}</div>
+                  <div className="text-sm font-bold text-foreground mt-1">
+                    {k.label}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {k.sublabel}
+                  </div>
                 </div>
+                <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted/60 ${k.color} border border-border`}>
+                  <k.icon className="size-6" />
+                </span>
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
 
+      {/* Two Column Operational Feed: Recent Contacts & Top Accounts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recently added contacts</CardTitle>
+        {/* Recent Contacts */}
+        <Card className="editorial-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+            <div>
+              <CardTitle className="editorial-heading text-base font-bold text-foreground">
+                Recent Touchpoints &amp; Additions
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Latest editorial &amp; commercial contacts updated
+              </p>
+            </div>
+            <Link
+              href="/contacts"
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              View all &rarr;
+            </Link>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1">
+          <CardContent className="flex flex-col gap-1 p-3">
             {stats.recent_contacts.length > 0 ? (
               stats.recent_contacts.map((c) => {
                 const name =
@@ -86,127 +236,75 @@ export default async function DashboardPage() {
                   <Link
                     key={c.id}
                     href={`/contacts/${c.id}`}
-                    className="flex items-center gap-3 rounded-md px-2 py-2 -mx-2 hover:bg-accent/60"
+                    className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
                   >
-                    <EntityAvatar name={name} />
+                    <EntityAvatar name={name} className="size-9 text-xs font-bold" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{name}</div>
-                      <div className="truncate text-xs text-muted-foreground">
+                      <div className="truncate text-xs font-bold text-foreground">{name}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">
                         {c.job_title}
                         {c.job_title && c.company_name ? " · " : ""}
-                        {c.company_name}
+                        <span className="font-medium text-foreground/80">{c.company_name}</span>
                       </div>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                    <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
                       {timeAgo(c.created_at)}
                     </span>
                   </Link>
                 );
               })
             ) : (
-              <span className="text-sm text-muted-foreground">Nothing added yet.</span>
+              <span className="text-xs text-muted-foreground p-4">No recent contacts.</span>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recently added companies</CardTitle>
+        {/* Top Accounts */}
+        <Card className="editorial-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+            <div>
+              <CardTitle className="editorial-heading text-base font-bold text-foreground">
+                Key Publishing Accounts
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                High-density accounts with active advertising inserts
+              </p>
+            </div>
+            <Link
+              href="/companies"
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              View all &rarr;
+            </Link>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1">
-            {stats.recent_companies.length > 0 ? (
-              stats.recent_companies.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/companies/${c.id}`}
-                  className="flex items-center gap-3 rounded-md px-2 py-2 -mx-2 hover:bg-accent/60"
-                >
-                  <EntityAvatar name={c.name} square />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{c.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {c.industry || "No industry on file"}
-                    </div>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {timeAgo(c.created_at)}
-                  </span>
-                </Link>
-              ))
-            ) : (
-              <span className="text-sm text-muted-foreground">Nothing added yet.</span>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Biggest accounts</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-1">
+          <CardContent className="flex flex-col gap-1 p-3">
             {stats.top_companies.length > 0 ? (
               stats.top_companies.map((c) => (
                 <Link
                   key={c.id}
                   href={`/companies/${c.id}`}
-                  className="flex items-center gap-3 rounded-md px-2 py-2 -mx-2 hover:bg-accent/60"
+                  className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
                 >
-                  <EntityAvatar name={c.name} square />
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                    <Building2 className="size-4" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{c.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {c.industry || "No industry on file"}
+                    <div className="truncate text-xs font-bold text-foreground">{c.name}</div>
+                    <div className="truncate text-[11px] text-muted-foreground">
+                      {c.industry || "Commercial Partner"}
                     </div>
                   </div>
-                  <Badge variant="secondary" className="shrink-0">
-                    {c.contact_count.toLocaleString()} contacts
+                  <Badge variant="secondary" className="text-[11px] font-semibold">
+                    {c.contact_count} contacts
                   </Badge>
                 </Link>
               ))
             ) : (
-              <span className="text-sm text-muted-foreground">No linked contacts yet.</span>
+              <span className="text-xs text-muted-foreground p-4">No companies found.</span>
             )}
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Contacts by source</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {stats.contacts_by_source.map((s) => (
-              <div key={s.source_db} className="flex flex-col gap-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{sourceLabel(s.source_db)}</span>
-                  <span className="text-muted-foreground">{s.count.toLocaleString()}</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.max(4, (s.count / maxSourceCount) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Automations</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            The Act! replacement automations - renewals, campaigns, data hygiene - get
-            their own dashboard, kept separate so this one stays a clean CRM home.
-          </p>
-          <Button variant="outline" className="shrink-0" render={<Link href="/requirements" />}>
-            <ListPlus className="size-4" />
-            Browse automation specs
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }

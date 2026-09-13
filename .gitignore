@@ -1,8 +1,11 @@
 .DS_Store
 .env
+.env.*
 .venv/
 __pycache__/
 *.pyc
+node_modules/
+.next/
 .claude/
 CREDENTIALS.local.md
 DATA_INSPECTION_REPORT.md

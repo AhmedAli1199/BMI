@@ -1,20 +1,12 @@
 import Link from "next/link";
+import { Search, Sparkles, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/clickable-table-row";
-import { EntityAvatar } from "@/components/entity-avatar";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
+import { InteractiveContactTable } from "@/components/interactive-contact-table";
 
 const PAGE_SIZE = 50;
 
@@ -40,109 +32,107 @@ export default async function ContactsPage({
   };
 
   return (
-    <div className="flex w-full flex-col gap-5 p-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
+      {/* Editorial Title & Quick Actions Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-4">
         <div>
-          <h1 className="text-2xl font-semibold">Contacts</h1>
-          <p className="text-sm text-muted-foreground">
-            {data.total.toLocaleString()} people across every BMI title
+          <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
+            <Users className="size-3.5" />
+            <span>Master Directory</span>
+          </div>
+          <h1 className="editorial-title text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Publishing &amp; Sales Contacts
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {data.total.toLocaleString()} media buyers, advertisers &amp; editorial contributors across all titles
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <form action="/contacts" className="w-72">
-            <Input name="q" placeholder="Search name or email..." defaultValue={q ?? ""} />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <form action="/contacts" className="relative w-64 sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Input
+              name="q"
+              placeholder="Search by name, company, email..."
+              defaultValue={q ?? ""}
+              className="pl-8 h-9 text-xs"
+            />
           </form>
           <ContactFormDialog />
         </div>
       </div>
 
-      {/* Source filter chips - stand in for a real segmentation feature for
-          now, and double as a quick reminder of where the data comes from. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={filterLink(undefined)}>
-          <Badge variant={!source_db ? "default" : "outline"} className="cursor-pointer font-medium">
-            All sources
-          </Badge>
-        </Link>
-        {["onboard", "prospects", "sellingtravel", "manual"].map((s) => (
-          <Link key={s} href={filterLink(s)}>
-            <Badge variant={source_db === s ? "default" : "outline"} className="cursor-pointer font-medium">
-              {sourceLabel(s)}
+      {/* Publication Segmentation Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={filterLink(undefined)}>
+            <Badge
+              variant={!source_db ? "default" : "outline"}
+              className="cursor-pointer text-xs font-medium px-3 py-1"
+            >
+              All Titles
             </Badge>
           </Link>
-        ))}
+          <Link href={filterLink("onboard")}>
+            <Badge
+              variant={source_db === "onboard" ? "default" : "outline"}
+              className={`cursor-pointer text-xs font-medium px-3 py-1 ${
+                source_db === "onboard" ? "bg-blue-600 text-white hover:bg-blue-700" : ""
+              }`}
+            >
+              Onboard Hospitality
+            </Badge>
+          </Link>
+          <Link href={filterLink("sellingtravel")}>
+            <Badge
+              variant={source_db === "sellingtravel" ? "default" : "outline"}
+              className={`cursor-pointer text-xs font-medium px-3 py-1 ${
+                source_db === "sellingtravel" ? "bg-emerald-600 text-white hover:bg-emerald-700" : ""
+              }`}
+            >
+              Selling Travel
+            </Badge>
+          </Link>
+          <Link href={filterLink("prospects")}>
+            <Badge
+              variant={source_db === "prospects" ? "default" : "outline"}
+              className={`cursor-pointer text-xs font-medium px-3 py-1 ${
+                source_db === "prospects" ? "bg-amber-600 text-white hover:bg-amber-700" : ""
+              }`}
+            >
+              Prospects DB
+            </Badge>
+          </Link>
+        </div>
+
+        <span className="text-xs text-muted-foreground">
+          Tip: Click any contact to slide open quick inspection
+        </span>
       </div>
 
-      <div className="overflow-hidden rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Job title</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Source</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.items.map((c) => {
-              const name =
-                c.full_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "(no name)";
-              return (
-                <ClickableTableRow key={c.id} href={`/contacts/${c.id}`}>
-                  <TableCell>
-                    <Link href={`/contacts/${c.id}`} className="flex items-center gap-3">
-                      <EntityAvatar name={name} />
-                      <span className="font-medium hover:underline">{name}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {c.company_id ? (
-                      <Link href={`/companies/${c.company_id}`} className="hover:underline">
-                        {c.company_name}
-                      </Link>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{c.job_title || <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell>{c.primary_email || <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{sourceLabel(c.source_db)}</Badge>
-                  </TableCell>
-                </ClickableTableRow>
-              );
-            })}
-            {data.items.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                  No contacts match this view.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {/* Interactive Contact Table with Slide-Over Drawer */}
+      <InteractiveContactTable items={data.items} />
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
         <span>
-          Page {data.page} of {totalPages.toLocaleString()}
+          Showing page {data.page} of {totalPages.toLocaleString()} ({data.total.toLocaleString()} total contacts)
         </span>
         <div className="flex gap-2">
           {page > 1 && (
             <Link
-              className="rounded border px-3 py-1 hover:bg-muted"
+              className="rounded-md border border-border bg-card px-3 py-1.5 hover:bg-muted font-medium"
               href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), ...(source_db ? { source_db } : {}), page: String(page - 1) })}`}
             >
-              Previous
+              &larr; Previous
             </Link>
           )}
           {page < totalPages && (
             <Link
-              className="rounded border px-3 py-1 hover:bg-muted"
+              className="rounded-md border border-border bg-card px-3 py-1.5 hover:bg-muted font-medium"
               href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), ...(source_db ? { source_db } : {}), page: String(page + 1) })}`}
             >
-              Next
+              Next &rarr;
             </Link>
           )}
         </div>
