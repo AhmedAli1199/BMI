@@ -115,7 +115,21 @@ class IdMap:
         return self._maps.get(kind, {}).get(to_uuid_str(act_id))
 
 
-def bulk_upsert(conn, table, rows: list[dict], constraint: str, label: str):
+def bulk_upsert(conn, table, rows: list[dict], constraint: str, label: str, refresh: bool = False):
+    """refresh=False (default): ON CONFLICT DO NOTHING - safe to re-run,
+    only ever adds rows that aren't there yet, never touches an existing
+    one (so it can't clobber anything edited inside the CRM itself since
+    migration).
+
+    refresh=True: ON CONFLICT DO UPDATE - re-running against a newer Act!
+    .bak also pulls in edits made in Act! to already-migrated rows, not
+    just brand-new ones. Use this for the "catch up the CRM with a week's
+    worth of Act! changes" case - see migration/README.md's "Refreshing
+    after go-live" section. It will overwrite, with whatever Act! says,
+    any change made directly in the CRM to a row that came from Act!
+    (source_db != "manual"); rows created straight in the CRM have no
+    source_act_id match in Act! and are never touched either way.
+    """
     if not rows:
         print(f"  {label}: 0 rows (nothing to insert)")
         return 0
@@ -128,20 +142,32 @@ def bulk_upsert(conn, table, rows: list[dict], constraint: str, label: str):
             for row in rows[start:start + batch_size]
         ]
         stmt = sa.dialects.postgresql.insert(table).values(batch)
-        stmt = stmt.on_conflict_do_nothing(constraint=constraint).returning(table.c.id)
+        if refresh:
+            update_cols = {
+                key: getattr(stmt.excluded, key)
+                for key in batch[0]
+                if key not in ("id", "source_db", "source_act_id")
+            }
+            stmt = stmt.on_conflict_do_update(constraint=constraint, set_=update_cols) if update_cols \
+                else stmt.on_conflict_do_nothing(constraint=constraint)
+        else:
+            stmt = stmt.on_conflict_do_nothing(constraint=constraint)
+        stmt = stmt.returning(table.c.id)
         # .rowcount is unreliable for ON CONFLICT DO NOTHING with some drivers -
         # count the RETURNING rows instead, which always reflects what actually landed.
         inserted += len(conn.execute(stmt).fetchall())
-    print(f"  {label}: {len(rows)} extracted, {inserted} inserted "
-          f"({len(rows) - inserted} already present / skipped)")
+    verb = "upserted" if refresh else "inserted"
+    print(f"  {label}: {len(rows)} extracted, {inserted} {verb} "
+          f"({len(rows) - inserted} unchanged/skipped)")
     return inserted
 
 
 def run(args):
     source_db = args.source_db
     field_maps = CUSTOM_FIELD_MAPS[source_db]
+    refresh = args.refresh
 
-    print(f"=== ETL: {source_db} -> Postgres ===")
+    print(f"=== ETL: {source_db} -> Postgres {'(refresh mode)' if refresh else ''} ===")
     ms = mssql_connect(args)
     cur = ms.cursor()
 
@@ -181,7 +207,7 @@ def run(args):
                 "custom_fields": decode_custom_fields(cust_raw, field_maps["company"]),
                 "act_created_at": r["CREATEDATE"], "act_edited_at": r["EDITDATE"],
             })
-        bulk_upsert(conn, Company.__table__, rows, "uq_companies_source", "companies")
+        bulk_upsert(conn, Company.__table__, rows, "uq_companies_source", "companies", refresh=refresh)
 
         # ---- Groups ----
         cur.execute(
@@ -203,7 +229,7 @@ def run(args):
                 "parent_group_id": ids.get("group", r["PARENTGROUPID"]),
                 "custom_fields": decode_custom_fields(cust_raw, field_maps["group"]),
             })
-        bulk_upsert(conn, Group.__table__, rows, "uq_groups_source", "groups")
+        bulk_upsert(conn, Group.__table__, rows, "uq_groups_source", "groups", refresh=refresh)
 
         # ---- Contacts ----
         cur.execute(
@@ -237,7 +263,7 @@ def run(args):
                 "custom_fields": decode_custom_fields(cust_raw, field_maps["contact"]),
                 "act_created_at": r["CREATEDATE"], "act_edited_at": r["EDITDATE"],
             })
-        bulk_upsert(conn, Contact.__table__, rows, "uq_contacts_source", "contacts")
+        bulk_upsert(conn, Contact.__table__, rows, "uq_contacts_source", "contacts", refresh=refresh)
 
         # ---- Group memberships ----
         cur.execute("SELECT GROUPID, CONTACTID FROM TBL_GROUP_CONTACT")
@@ -256,23 +282,23 @@ def run(args):
                               "line1": r["LINE1"], "line2": r["LINE2"], "line3": r["LINE3"],
                               "city": r["CITY"], "state": r["STATE"], "postal_code": r["POSTALCODE"],
                               "country": r["COUNTRYNAME"], "latitude": r["LATITUDE"], "longitude": r["LONGITUDE"],
-                          }, id_col="ADDRESSID")
+                          }, id_col="ADDRESSID", refresh=refresh)
         _migrate_channel(cur, conn, ids, source_db, "TBL_PHONE", Phone.__table__,
                           "uq_phones_source", "phones",
                           extra_cols="NUMBERDISPLAY, COUNTRYCODE",
                           row_to_extra=lambda r: {"number": r["NUMBERDISPLAY"], "country_code": r["COUNTRYCODE"]},
-                          id_col="PHONEID")
+                          id_col="PHONEID", refresh=refresh)
         _migrate_channel(cur, conn, ids, source_db, "TBL_EMAIL", Email.__table__,
                           "uq_emails_source", "emails",
                           extra_cols="ADDRESS",
                           row_to_extra=lambda r: {"address": r["ADDRESS"]},
-                          id_col="EMAILID")
+                          id_col="EMAILID", refresh=refresh)
 
         # ---- Notes (flattened via junction tables) ----
-        _migrate_notes(cur, conn, ids, source_db)
+        _migrate_notes(cur, conn, ids, source_db, refresh=refresh)
 
         # ---- History (flattened + filtered) ----
-        _migrate_history(cur, conn, ids, source_db)
+        _migrate_history(cur, conn, ids, source_db, refresh=refresh)
 
         # ---- Activities (kept, flat - see activity.py docstring) ----
         cur.execute(
@@ -291,7 +317,7 @@ def run(args):
                 "location": r["LOCATION"], "start_at": r["STARTTIME"], "end_at": r["ENDTIME"],
                 "is_timeless": bool(r["ISTIMELESS"]), "is_cleared": r["ACCESSOR_ACTIVITY_CLEAREDID"] is not None,
             })
-        bulk_upsert(conn, Activity.__table__, rows, "uq_activities_source", "activities")
+        bulk_upsert(conn, Activity.__table__, rows, "uq_activities_source", "activities", refresh=refresh)
 
         # ---- Opportunities (kept, flat) ----
         cur.execute(
@@ -316,12 +342,12 @@ def run(args):
                 "open_at": r["OPENDATE"], "estimated_close_at": r["ESTIMATEDCLOSEDATE"],
                 "actual_close_at": r["ACTUALCLOSEDATE"],
             })
-        bulk_upsert(conn, Opportunity.__table__, rows, "uq_opportunities_source", "opportunities")
+        bulk_upsert(conn, Opportunity.__table__, rows, "uq_opportunities_source", "opportunities", refresh=refresh)
 
     print(f"=== {source_db}: done ===")
 
 
-def _migrate_channel(cur, conn, ids, source_db, table, sa_table, constraint, label, extra_cols, row_to_extra, id_col):
+def _migrate_channel(cur, conn, ids, source_db, table, sa_table, constraint, label, extra_cols, row_to_extra, id_col, refresh=False):
     extra_select = ", ".join(f"c.{col}" for col in extra_cols.split(", "))
     cur.execute(
         f"SELECT c.{id_col}, c.TYPEID, c.CONTACTID, c.COMPANYID, p.NAME AS TYPENAME, {extra_select} "
@@ -351,10 +377,10 @@ def _migrate_channel(cur, conn, ids, source_db, table, sa_table, constraint, lab
         }
         row.update(extra)
         rows.append(row)
-    bulk_upsert(conn, sa_table, rows, constraint, label)
+    bulk_upsert(conn, sa_table, rows, constraint, label, refresh=refresh)
 
 
-def _migrate_notes(cur, conn, ids, source_db):
+def _migrate_notes(cur, conn, ids, source_db, refresh=False):
     cur.execute(
         "SELECT n.NOTEID, n.NOTETEXT, n.ISPRIVATE, n.CREATEDATE, nt.NAME AS TYPENAME, "
         "cn.CONTACTID, cmn.COMPANYID "
@@ -379,10 +405,10 @@ def _migrate_notes(cur, conn, ids, source_db):
             "note_type": r["TYPENAME"], "body": r["NOTETEXT"], "is_private": bool(r["ISPRIVATE"]),
             "act_created_at": r["CREATEDATE"],
         })
-    bulk_upsert(conn, Note.__table__, rows, "uq_notes_source", "notes")
+    bulk_upsert(conn, Note.__table__, rows, "uq_notes_source", "notes", refresh=refresh)
 
 
-def _migrate_history(cur, conn, ids, source_db):
+def _migrate_history(cur, conn, ids, source_db, refresh=False):
     cur.execute(
         "SELECT h.HISTORYID, h.REGARDING, h.DETAILS, h.STARTTIME, h.DURATION, "
         "ht.NAME AS TYPENAME, ch.CONTACTID, cmh.COMPANYID "
@@ -413,7 +439,7 @@ def _migrate_history(cur, conn, ids, source_db):
         })
     print(f"  history_entries: dropped {dropped_noise} rows as Act! system noise "
           f"(type not in HISTORY_TYPES_KEPT), {dropped_unlinked} as unlinked to any migrated contact/company")
-    bulk_upsert(conn, HistoryEntry.__table__, rows, "uq_history_entries_source", "history_entries")
+    bulk_upsert(conn, HistoryEntry.__table__, rows, "uq_history_entries_source", "history_entries", refresh=refresh)
 
 
 if __name__ == "__main__":
@@ -424,4 +450,10 @@ if __name__ == "__main__":
     p.add_argument("--mssql-user", default="sa")
     p.add_argument("--mssql-password", required=True)
     p.add_argument("--pg-url", required=True)
+    p.add_argument(
+        "--refresh", action="store_true",
+        help="ON CONFLICT DO UPDATE instead of DO NOTHING - use when re-running "
+             "against a newer .bak to pull in edits Act! made to already-migrated "
+             "rows (not just new ones). See migration/README.md.",
+    )
     run(p.parse_args())

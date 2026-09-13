@@ -152,6 +152,55 @@ instance from this sandbox. Concretely:
 This only needs to happen once. After that, the CRM's own Postgres is the
 system of record - Act! is retired, per CONTEXT.md.
 
+## Refreshing during the transition week (before Act! is actually retired)
+
+There will normally be a gap between "data migrated" and "everyone has
+actually stopped touching Act!" - e.g. staff keep using Act! as usual for
+a few more days while the CRM is reviewed. Anything entered or edited in
+Act! during that gap is invisible to the CRM until you re-run this ETL
+against a newer `.bak`.
+
+**There is no live/automatic connection to Act! today** - getting a newer
+`.bak` is a manual step (someone with access to the real Act! system
+exports one), same as the original migration. There's no way around a
+person doing that export; what this tooling controls is what happens
+once you have it.
+
+Two things to decide before doing this more than once:
+
+1. **Pick one system of record for the gap.** The safest option is: staff
+   keep using Act! as normal during the transition, and the CRM stays
+   read-only-in-practice (browse/review, don't rely on anyone's edits
+   there yet). That way a refresh can never lose anything. If someone
+   *does* edit a migrated record directly in the CRM during this window,
+   know that a refresh will silently overwrite that edit with whatever
+   Act! says (see point 2) - so either avoid that, or track such edits
+   separately until Act! is actually retired. A brand-new record created
+   straight in the CRM (`source_db="manual"`) is never touched by a
+   refresh either way - it has no Act! counterpart to conflict with.
+
+2. **Re-run with `--refresh` to actually pick up edits, not just new rows.**
+   Without it, `bulk_upsert` uses `ON CONFLICT DO NOTHING` - re-running
+   only adds contacts/companies/notes/etc. created in Act! since the last
+   run; an edit to an *existing* migrated row (a changed phone number, a
+   note added to an old contact, and so on) is silently ignored. Pass
+   `--refresh` and it becomes `ON CONFLICT DO UPDATE`, so those edits land
+   too:
+
+   ```bash
+   python etl.py --source-db onboard --refresh \
+       --mssql-host localhost --mssql-port 1433 --mssql-password '...' \
+       --pg-url postgresql+psycopg://...
+   ```
+
+   Repeat per database, same as the original migration. Safe to run as
+   many times as you like - it's still keyed on `(source_db,
+   source_act_id)`, so it only ever touches rows that came from Act!.
+
+Once everyone has actually stopped using Act! day-to-day, stop doing
+refreshes - from that point the CRM's own edits are the only ones that
+matter, and an old `.bak` would just be a stale copy of the past.
+
 ## Applying the schema (do this before the first ETL run, anywhere)
 
 ```bash
