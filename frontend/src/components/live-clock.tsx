@@ -1,4 +1,7 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect -- ticking clock + the
+   standard hydration-safe "render nothing until mounted" pattern; both are
+   legitimate exceptions to this rule, not accidental prop-mirroring. */
 
 import { useEffect, useState } from "react";
 

@@ -5,6 +5,10 @@ import type { ContactDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ContactFormDialog } from "@/components/contact-form-dialog";
+import { ContactGroupsEditor } from "@/components/contact-groups-editor";
+import { DeleteEntityButton } from "@/components/delete-entity-button";
+import { deleteContact } from "@/lib/actions";
 
 export default async function ContactDetailPage({
   params,
@@ -27,21 +31,36 @@ export default async function ContactDetailPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{name}</h1>
-          <Badge variant="secondary">{contact.source_db}</Badge>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{name}</h1>
+            <Badge variant="secondary">{contact.source_db}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {contact.job_title}
+            {contact.job_title && contact.department ? " · " : ""}
+            {contact.department}
+          </p>
+          {contact.company && (
+            <Link href={`/companies/${contact.company.id}`} className="text-sm hover:underline">
+              {contact.company.name}
+            </Link>
+          )}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {contact.job_title}
-          {contact.job_title && contact.department ? " · " : ""}
-          {contact.department}
-        </p>
-        {contact.company && (
-          <Link href={`/companies/${contact.company.id}`} className="text-sm hover:underline">
-            {contact.company.name}
-          </Link>
-        )}
+        <div className="flex shrink-0 gap-2">
+          <ContactFormDialog
+            existing={{
+              id: contact.id,
+              first_name: contact.first_name,
+              last_name: contact.last_name,
+              job_title: contact.job_title,
+              department: contact.department,
+              company: contact.company ? { id: contact.company.id, name: contact.company.name } : null,
+            }}
+          />
+          <DeleteEntityButton entityLabel={name} id={contact.id} action={deleteContact} redirectTo="/contacts" />
+        </div>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -78,12 +97,8 @@ export default async function ContactDetailPage({
           <CardHeader>
             <CardTitle className="text-base">Groups</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {contact.groups.length > 0 ? (
-              contact.groups.map((g) => <Badge key={g.id}>{g.name}</Badge>)
-            ) : (
-              <span className="text-sm text-muted-foreground">No group memberships.</span>
-            )}
+          <CardContent>
+            <ContactGroupsEditor contactId={contact.id} groups={contact.groups} />
           </CardContent>
         </Card>
       </div>

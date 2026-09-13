@@ -99,6 +99,15 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
 
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  render={<Link href="/groups" />}
+                  isActive={pathname.startsWith("/groups")}
+                >
+                  Groups
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
                   render={<Link href="/requirements" />}
                   isActive={pathname === "/requirements"}
                 >

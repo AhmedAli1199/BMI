@@ -75,3 +75,18 @@ export type CompanyDetail = {
   contacts: ContactListItem[];
   notes: NoteOut[];
 };
+
+export type GroupListItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  member_count: number;
+};
+
+export type GroupDetail = {
+  id: string;
+  name: string;
+  description: string | null;
+  parent_group_id: string | null;
+  members: ContactListItem[];
+};

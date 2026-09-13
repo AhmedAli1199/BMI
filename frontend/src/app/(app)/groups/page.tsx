@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { backendFetch } from "@/lib/backend";
-import type { CompanyListItem, Page } from "@/lib/types";
+import type { GroupListItem, Page } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -10,12 +10,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { CompanyFormDialog } from "@/components/company-form-dialog";
+import { GroupFormDialog } from "@/components/group-form-dialog";
 
 const PAGE_SIZE = 50;
 
-export default async function CompaniesPage({
+export default async function GroupsPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; page?: string }>;
@@ -26,23 +25,23 @@ export default async function CompaniesPage({
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
 
-  const data = await backendFetch<Page<CompanyListItem>>(`/api/companies?${params}`);
+  const data = await backendFetch<Page<GroupListItem>>(`/api/groups?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (
     <div className="flex w-full flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Companies</h1>
+          <h1 className="text-2xl font-semibold">Groups</h1>
           <p className="text-sm text-muted-foreground">
-            {data.total.toLocaleString()} total, across all three source databases
+            {data.total.toLocaleString()} total &middot; segments, lists and tags for contacts
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <form action="/companies" className="w-72">
-            <Input name="q" placeholder="Search company name..." defaultValue={q ?? ""} />
+          <form action="/groups" className="w-72">
+            <Input name="q" placeholder="Search group name..." defaultValue={q ?? ""} />
           </form>
-          <CompanyFormDialog />
+          <GroupFormDialog />
         </div>
       </div>
 
@@ -51,26 +50,29 @@ export default async function CompaniesPage({
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Industry</TableHead>
-              <TableHead>Contacts</TableHead>
-              <TableHead>Source</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Members</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.items.map((c) => (
-              <TableRow key={c.id}>
+            {data.items.map((g) => (
+              <TableRow key={g.id}>
                 <TableCell>
-                  <Link href={`/companies/${c.id}`} className="font-medium hover:underline">
-                    {c.name}
+                  <Link href={`/groups/${g.id}`} className="font-medium hover:underline">
+                    {g.name}
                   </Link>
                 </TableCell>
-                <TableCell>{c.industry || <span className="text-muted-foreground">—</span>}</TableCell>
-                <TableCell>{c.contact_count.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{c.source_db}</Badge>
-                </TableCell>
+                <TableCell>{g.description || <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell>{g.member_count.toLocaleString()}</TableCell>
               </TableRow>
             ))}
+            {data.items.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  No groups yet.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -83,7 +85,7 @@ export default async function CompaniesPage({
           {page > 1 && (
             <Link
               className="rounded border px-3 py-1 hover:bg-muted"
-              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
+              href={`/groups?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
             >
               Previous
             </Link>
@@ -91,7 +93,7 @@ export default async function CompaniesPage({
           {page < totalPages && (
             <Link
               className="rounded border px-3 py-1 hover:bg-muted"
-              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
+              href={`/groups?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
             >
               Next
             </Link>

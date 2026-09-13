@@ -11,7 +11,11 @@ export async function backendFetch<T>(path: string, init?: RequestInit): Promise
     cache: "no-store",
   });
   if (!res.ok) {
-    throw new Error(`Backend request failed: ${res.status} ${path}`);
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Backend request failed: ${res.status} ${path}${detail ? ` - ${detail}` : ""}`);
+  }
+  if (res.status === 204) {
+    return undefined as T;
   }
   return res.json() as Promise<T>;
 }

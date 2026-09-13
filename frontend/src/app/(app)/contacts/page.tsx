@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ContactFormDialog } from "@/components/contact-form-dialog";
 
 const PAGE_SIZE = 50;
 
@@ -37,9 +38,12 @@ export default async function ContactsPage({
             {data.total.toLocaleString()} total, across all three source databases
           </p>
         </div>
-        <form action="/contacts" className="w-72">
-          <Input name="q" placeholder="Search name or email..." defaultValue={q ?? ""} />
-        </form>
+        <div className="flex items-center gap-3">
+          <form action="/contacts" className="w-72">
+            <Input name="q" placeholder="Search name or email..." defaultValue={q ?? ""} />
+          </form>
+          <ContactFormDialog />
+        </div>
       </div>
 
       <div className="rounded-md border">

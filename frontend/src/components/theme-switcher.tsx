@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect -- standard hydration-safe
+   "mounted" flag; the theme is only knowable client-side. */
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
