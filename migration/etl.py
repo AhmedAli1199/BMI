@@ -334,12 +334,22 @@ def _migrate_channel(cur, conn, ids, source_db, table, sa_table, constraint, lab
         company_id = ids.get("company", r["COMPANYID"])
         if not contact_id and not company_id:
             continue  # dangling reference to a contact/company we didn't migrate - skip, don't guess
+        extra = row_to_extra(r)
+        # Act! keeps one TBL_PHONE/TBL_ADDRESS/TBL_EMAIL row per *slot*
+        # (Business, Fax, Mobile, ...) whether or not it was ever filled in,
+        # so most contacts carry several empty rows that only have a
+        # TYPEID/type_label and nothing else. Migrating those verbatim is
+        # what produced "Fax:" / "Mobile:" rows with no value on the
+        # contact page - skip a row with no actual value in any of its
+        # data columns, since a bare type label isn't a fact worth keeping.
+        if not any(str(v).strip() for v in extra.values() if v is not None):
+            continue
         row = {
             "id": uuid.uuid4(), "source_db": source_db, "source_act_id": to_uuid_str(r[id_col]),
             "contact_id": contact_id, "company_id": company_id,
             "type_label": r["TYPENAME"], "is_primary": False,
         }
-        row.update(row_to_extra(r))
+        row.update(extra)
         rows.append(row)
     bulk_upsert(conn, sa_table, rows, constraint, label)
 

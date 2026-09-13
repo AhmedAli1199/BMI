@@ -37,6 +37,10 @@ export type ContactDetail = {
   category: string | null;
   referred_by: string | null;
   birthdate: string | null;
+  last_meet_date: string | null;
+  last_reach_date: string | null;
+  last_attempt_date: string | null;
+  last_letter_date: string | null;
   custom_fields: Record<string, unknown>;
   company: CompanySummary | null;
   addresses: AddressOut[];

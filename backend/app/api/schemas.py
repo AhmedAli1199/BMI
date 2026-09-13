@@ -113,6 +113,10 @@ class ContactDetail(BaseModel):
     category: str | None = None
     referred_by: str | None = None
     birthdate: date | None = None
+    last_meet_date: datetime | None = None
+    last_reach_date: datetime | None = None
+    last_attempt_date: datetime | None = None
+    last_letter_date: datetime | None = None
     custom_fields: dict
     company: CompanySummary | None = None
     addresses: list[AddressOut] = []

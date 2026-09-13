@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { notFound } from "next/navigation";
 import { backendFetch } from "@/lib/backend";
 import type { ContactDetail } from "@/lib/types";
@@ -74,23 +75,32 @@ export default async function ContactDetailPage({
           <CardHeader>
             <CardTitle className="text-base">Contact details</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
+          <CardContent className="flex flex-col gap-2.5 text-sm">
             {contact.emails.map((e) => (
-              <div key={e.id}>
-                <span className="text-muted-foreground">{e.type_label || "Email"}: </span>
-                {e.address}
+              <div key={e.id} className="flex items-start gap-2.5">
+                <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <div>{e.address}</div>
+                  <div className="text-xs text-muted-foreground">{e.type_label || "Email"}</div>
+                </div>
               </div>
             ))}
             {contact.phones.map((p) => (
-              <div key={p.id}>
-                <span className="text-muted-foreground">{p.type_label || "Phone"}: </span>
-                {p.number}
+              <div key={p.id} className="flex items-start gap-2.5">
+                <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <div>{p.number}</div>
+                  <div className="text-xs text-muted-foreground">{p.type_label || "Phone"}</div>
+                </div>
               </div>
             ))}
             {contact.addresses.map((a) => (
-              <div key={a.id}>
-                <span className="text-muted-foreground">{a.type_label || "Address"}: </span>
-                {[a.line1, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(", ")}
+              <div key={a.id} className="flex items-start gap-2.5">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <div>{[a.line1, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(", ")}</div>
+                  <div className="text-xs text-muted-foreground">{a.type_label || "Address"}</div>
+                </div>
               </div>
             ))}
             {contact.emails.length === 0 && contact.phones.length === 0 && contact.addresses.length === 0 && (
@@ -108,6 +118,64 @@ export default async function ContactDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {(contact.category ||
+        contact.referred_by ||
+        contact.birthdate ||
+        contact.last_meet_date ||
+        contact.last_reach_date ||
+        contact.last_attempt_date ||
+        contact.last_letter_date) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Status &amp; activity</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            {contact.category && (
+              <div>
+                <div className="text-xs text-muted-foreground">ID / Status</div>
+                <div>{contact.category}</div>
+              </div>
+            )}
+            {contact.referred_by && (
+              <div>
+                <div className="text-xs text-muted-foreground">Referred by</div>
+                <div>{contact.referred_by}</div>
+              </div>
+            )}
+            {contact.birthdate && (
+              <div>
+                <div className="text-xs text-muted-foreground">Birthdate</div>
+                <div>{new Date(contact.birthdate).toLocaleDateString()}</div>
+              </div>
+            )}
+            {contact.last_meet_date && (
+              <div>
+                <div className="text-xs text-muted-foreground">Last meeting</div>
+                <div>{new Date(contact.last_meet_date).toLocaleDateString()}</div>
+              </div>
+            )}
+            {contact.last_reach_date && (
+              <div>
+                <div className="text-xs text-muted-foreground">Last call reach</div>
+                <div>{new Date(contact.last_reach_date).toLocaleDateString()}</div>
+              </div>
+            )}
+            {contact.last_attempt_date && (
+              <div>
+                <div className="text-xs text-muted-foreground">Last call attempt</div>
+                <div>{new Date(contact.last_attempt_date).toLocaleDateString()}</div>
+              </div>
+            )}
+            {contact.last_letter_date && (
+              <div>
+                <div className="text-xs text-muted-foreground">Last letter sent</div>
+                <div>{new Date(contact.last_letter_date).toLocaleDateString()}</div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {Object.keys(contact.custom_fields).length > 0 && (
         <Card>

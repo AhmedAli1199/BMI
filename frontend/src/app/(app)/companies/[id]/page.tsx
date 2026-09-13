@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Mail, MapPin, Phone } from "lucide-react";
 import { notFound } from "next/navigation";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail } from "@/lib/types";
@@ -72,23 +73,32 @@ export default async function CompanyDetailPage({
           <CardHeader>
             <CardTitle className="text-base">Company details</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
+          <CardContent className="flex flex-col gap-2.5 text-sm">
             {company.emails.map((e) => (
-              <div key={e.id}>
-                <span className="text-muted-foreground">{e.type_label || "Email"}: </span>
-                {e.address}
+              <div key={e.id} className="flex items-start gap-2.5">
+                <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <div>{e.address}</div>
+                  <div className="text-xs text-muted-foreground">{e.type_label || "Email"}</div>
+                </div>
               </div>
             ))}
             {company.phones.map((p) => (
-              <div key={p.id}>
-                <span className="text-muted-foreground">{p.type_label || "Phone"}: </span>
-                {p.number}
+              <div key={p.id} className="flex items-start gap-2.5">
+                <Phone className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <div>{p.number}</div>
+                  <div className="text-xs text-muted-foreground">{p.type_label || "Phone"}</div>
+                </div>
               </div>
             ))}
             {company.addresses.map((a) => (
-              <div key={a.id}>
-                <span className="text-muted-foreground">{a.type_label || "Address"}: </span>
-                {[a.line1, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(", ")}
+              <div key={a.id} className="flex items-start gap-2.5">
+                <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                <div>
+                  <div>{[a.line1, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(", ")}</div>
+                  <div className="text-xs text-muted-foreground">{a.type_label || "Address"}</div>
+                </div>
               </div>
             ))}
             {company.num_employees && (
