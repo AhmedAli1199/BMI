@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
+from app.automations.scheduler import ScheduledJob, register_job
 from app.models import Contact, Email, Note, ReviewQueueItem
 
 
@@ -168,4 +169,33 @@ register(ReviewKind(
         ReviewAction(id="temporary_ignore", label="Just temporary, ignore", style="secondary", outcome="rejected"),
     ],
     handler=_handle_ooo_ambiguous,
+))
+
+
+def scan_mailbox_for_bounces_and_ooo() -> None:
+    """CS-001 + CS-002 producer: reads the shared mailbox via Microsoft
+    Graph, classifies each new bounce/auto-reply with Gemini, and writes a
+    `bounce_uncertain` / `bounce_unmatched` / `ooo_ambiguous` row for
+    anything below the confidence bar for an automatic decision.
+
+    Not implemented yet - the Graph mailbox read and the Gemini
+    classification call are the next piece of work. This function is
+    wired into the scheduler now (see scheduler.py / config.py) so that
+    turning CS-001/002 on later is only ever a matter of filling this
+    body in and flipping AUTOMATIONS_BOUNCE_SCAN_ENABLED=true - no new
+    scheduling, toggle, or deploy plumbing to add at that point.
+    """
+    raise NotImplementedError(
+        "Mailbox scanning for CS-001/CS-002 isn't built yet - "
+        "see scan_mailbox_for_bounces_and_ooo's docstring."
+    )
+
+
+register_job(ScheduledJob(
+    id="cs001_cs002_bounce_ooo_scan",
+    label="Bounce & OOO mailbox scan",
+    description="Scans the shared mailbox for bounces and out-of-office replies (CS-001, CS-002).",
+    cron="*/15 * * * *",  # every 15 minutes, once real - cheap to run often since it's incremental
+    func=scan_mailbox_for_bounces_and_ooo,
+    enabled_flag="automations_bounce_scan_enabled",
 ))

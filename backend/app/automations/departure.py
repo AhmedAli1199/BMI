@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
+from app.automations.scheduler import ScheduledJob, register_job
 from app.models import Contact, Note, ReviewQueueItem
 
 
@@ -117,4 +118,32 @@ register(ReviewKind(
         ReviewAction(id="dismiss_false_alarm", label="False alarm, dismiss", style="destructive", outcome="rejected", confirm_message="Dismiss this departure signal entirely?"),
     ],
     handler=_handle_departure,
+))
+
+
+def scan_for_departures() -> None:
+    """CS-003 producer: scans recent mailbox signals (bounces, OOO text
+    mentioning a departure, etc.) plus whatever research step finds a
+    likely successor, and writes a `departure_unconfirmed` row.
+
+    Not implemented yet - depends on the same Graph/Gemini wiring as
+    scan_mailbox_for_bounces_and_ooo (see bounce_handling.py), plus
+    whatever successor-research step (LinkedIn search, company website,
+    ...) CS-003 ends up using. Wired into the scheduler now so enabling
+    CS-003 later is only: fill this body in, set
+    AUTOMATIONS_DEPARTURE_SCAN_ENABLED=true, restart.
+    """
+    raise NotImplementedError(
+        "Departure scanning for CS-003 isn't built yet - "
+        "see scan_for_departures's docstring."
+    )
+
+
+register_job(ScheduledJob(
+    id="cs003_departure_scan",
+    label="Departure & successor scan",
+    description="Looks for departure signals and researches a likely successor (CS-003).",
+    cron="0 */6 * * *",  # every 6 hours - lower-frequency, higher-stakes signal than the bounce scan
+    func=scan_for_departures,
+    enabled_flag="automations_departure_scan_enabled",
 ))
