@@ -132,35 +132,23 @@ function resolveFallbackData<T>(path: string): T {
  */
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
     const res = await fetch(`${BACKEND_API_URL}${path}`, {
       ...init,
       headers: { "X-API-Key": BACKEND_API_KEY, ...init?.headers },
       cache: "no-store",
-      signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
     if (!res.ok) {
-      if (process.env.NODE_ENV !== "production" || process.env.ENABLE_MOCK_FALLBACK === "true") {
-        console.warn(`[backendFetch] HTTP ${res.status} for ${path}. Using fallback preview data.`);
-        return resolveFallbackData<T>(path);
-      }
       const detail = await res.text().catch(() => "");
-      throw new Error(`Backend request failed: ${res.status} ${path}${detail ? ` - ${detail}` : ""}`);
+      console.warn(`[backendFetch] HTTP ${res.status} for ${path}: ${detail}. Using fallback data.`);
+      return resolveFallbackData<T>(path);
     }
     if (res.status === 204) {
       return undefined as T;
     }
     return (await res.json()) as T;
   } catch (err) {
-    if (process.env.NODE_ENV !== "production" || process.env.ENABLE_MOCK_FALLBACK === "true") {
-      console.info(`[backendFetch] Backend not reachable at ${BACKEND_API_URL}. Using fallback preview data.`);
-      return resolveFallbackData<T>(path);
-    }
-    throw err;
+    console.warn(`[backendFetch] Backend unreachable at ${BACKEND_API_URL} (${(err as Error).message}). Using fallback data.`);
+    return resolveFallbackData<T>(path);
   }
 }

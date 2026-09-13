@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -36,7 +37,9 @@ export default async function AppLayout({
             BMI Publishing
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
-          <PublicationSwitcher />
+          <Suspense fallback={<div className="h-8 w-24 rounded bg-sidebar-accent/40 animate-pulse" />}>
+            <PublicationSwitcher />
+          </Suspense>
           <LiveClock className="ml-auto text-[15px] font-semibold text-sidebar-foreground" />
           <ThemeSwitcher />
         </header>
