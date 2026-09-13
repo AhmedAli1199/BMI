@@ -52,16 +52,25 @@ def list_kinds() -> list[ReviewKindOut]:
 
 @router.get("/counts", response_model=list[ReviewQueueCounts])
 def list_counts(db: Session = Depends(get_db)) -> list[ReviewQueueCounts]:
-    """Pending count per kind, for the filter-chip badges - shown even for
-    a kind with zero items so reviewers know it exists."""
-    rows = dict(
-        db.execute(
-            select(ReviewQueueItem.kind, func.count())
-            .where(ReviewQueueItem.status == "pending")
-            .group_by(ReviewQueueItem.kind)
-        ).all()
-    )
-    return [ReviewQueueCounts(kind=k.kind, pending=rows.get(k.kind, 0)) for k in all_kinds()]
+    """Pending/approved/rejected count per kind - pending drives the filter-chip
+    badges (shown even for a kind with zero items, so reviewers know it exists),
+    approved/rejected drive the overview's "handled so far" throughput stat."""
+    rows = db.execute(
+        select(ReviewQueueItem.kind, ReviewQueueItem.status, func.count())
+        .group_by(ReviewQueueItem.kind, ReviewQueueItem.status)
+    ).all()
+    by_kind: dict[str, dict[str, int]] = {}
+    for kind, status, count in rows:
+        by_kind.setdefault(kind, {})[status] = count
+    return [
+        ReviewQueueCounts(
+            kind=k.kind,
+            pending=by_kind.get(k.kind, {}).get("pending", 0),
+            approved=by_kind.get(k.kind, {}).get("approved", 0),
+            rejected=by_kind.get(k.kind, {}).get("rejected", 0),
+        )
+        for k in all_kinds()
+    ]
 
 
 @router.get("", response_model=ReviewQueuePage)

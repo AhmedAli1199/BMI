@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Inbox } from "lucide-react";
+import { ArrowLeft, PartyPopper, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
+import { styleForKind } from "@/lib/automation-style";
 import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,35 +25,63 @@ export default async function ReviewQueuePage({
   const countFor = (k: string) => counts.find((c) => c.kind === k)?.pending ?? 0;
   const totalPending = counts.reduce((sum, c) => sum + c.pending, 0);
   const kindByName = new Map(kinds.map((k) => [k.kind, k]));
+  const activeStyle = activeKind ? styleForKind(activeKind) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div>
-        <h1 className="text-2xl font-semibold">Review queue</h1>
-        <p className="text-sm text-muted-foreground">
-          {totalPending.toLocaleString()} item{totalPending === 1 ? "" : "s"} waiting across every automation
+        <Link
+          href="/automations"
+          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Automations
+        </Link>
+        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+          <Sparkles className="size-3.5" />
+          <span>Review queue</span>
+        </div>
+        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          {activeKind && kindByName.get(activeKind) ? kindByName.get(activeKind)!.label : "Everything waiting on you"}
+        </h1>
+        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+          {totalPending.toLocaleString()} item{totalPending === 1 ? "" : "s"} waiting
+          {activeKind ? " in this filter" : " across every automation"} - work through them in any order.
         </p>
       </div>
 
       {/* Kind filter strip - built entirely from what's registered, so a
           new automation appears here (even with 0 items) with no frontend
-          change needed. */}
+          change needed. Each chip carries the same icon/color used
+          throughout the automations UI, so the queue and the overview
+          read as one system. */}
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/automations/review">
-          <Badge variant={!activeKind ? "default" : "outline"} className="cursor-pointer text-xs font-medium px-3 py-1">
+          <Badge
+            variant={!activeKind ? "default" : "outline"}
+            className="cursor-pointer gap-1 px-3 py-1.5 text-xs font-semibold transition-colors"
+          >
             All ({totalPending})
           </Badge>
         </Link>
-        {kinds.map((k) => (
-          <Link key={k.kind} href={`/automations/review?kind=${k.kind}`}>
-            <Badge
-              variant={activeKind === k.kind ? "default" : "outline"}
-              className="cursor-pointer text-xs font-medium px-3 py-1"
-            >
-              {k.label} ({countFor(k.kind)})
-            </Badge>
-          </Link>
-        ))}
+        {kinds.map((k) => {
+          const style = styleForKind(k.kind);
+          const Icon = style.icon;
+          const isActive = activeKind === k.kind;
+          return (
+            <Link key={k.kind} href={`/automations/review?kind=${k.kind}`}>
+              <Badge
+                variant={isActive ? "default" : "outline"}
+                className={`cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  isActive ? "" : style.color
+                }`}
+              >
+                <Icon className="size-3.5" />
+                {k.label} ({countFor(k.kind)})
+              </Badge>
+            </Link>
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-4">
@@ -63,11 +92,30 @@ export default async function ReviewQueuePage({
             return <ReviewItemCard key={item.id} item={item} kind={kind} />;
           })
         ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-14 text-center text-sm text-muted-foreground">
-              <Inbox className="size-8 opacity-40" />
-              <p className="font-medium text-foreground">Nothing waiting on you.</p>
-              <p>Every automation is caught up{activeKind ? " for this filter" : ""}.</p>
+          <Card className="editorial-card relative overflow-hidden">
+            <div
+              className={`absolute -right-8 -top-8 size-32 rounded-full blur-3xl ${
+                activeStyle ? activeStyle.chipBg : "bg-primary/10"
+              }`}
+              aria-hidden="true"
+            />
+            <CardContent className="relative flex flex-col items-center gap-2 py-16 text-center">
+              <span className="flex size-14 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-600">
+                <PartyPopper className="size-6" />
+              </span>
+              <p className="mt-1 text-base font-bold text-foreground">All caught up.</p>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Nothing is waiting on you{activeKind ? " for this automation" : ""} right now.
+                New items will show up here the moment a scanner finds one.
+              </p>
+              {activeKind && (
+                <Link
+                  href="/automations/review"
+                  className="mt-2 text-xs font-semibold text-primary hover:underline"
+                >
+                  View every automation &rarr;
+                </Link>
+              )}
             </CardContent>
           </Card>
         )}

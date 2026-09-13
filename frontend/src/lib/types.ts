@@ -191,4 +191,6 @@ export type ReviewQueueItem = {
   created_at: string;
 };
 
-export type ReviewQueueCounts = { kind: string; pending: number };
+export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
+
+export type ScheduledJob = { id: string; label: string; description: string; cron: string; enabled: boolean };

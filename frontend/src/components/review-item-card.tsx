@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, ChevronDown, ChevronUp, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
 import { cleanNoteBody } from "@/lib/notes";
+import { styleForKind } from "@/lib/automation-style";
 import { resolveReviewItem, searchContacts } from "@/lib/actions";
 import type { ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
 
@@ -20,6 +21,26 @@ const STYLE_CLASSES: Record<ReviewAction["style"], string> = {
   secondary: "",
   destructive: "text-destructive hover:text-destructive border-destructive/40 hover:bg-destructive/10",
 };
+
+/** Confidence reads as a color, not just a number - a reviewer scanning a
+ * long queue should be able to tell "safe bet" from "coin flip" at a
+ * glance, before reading a single word of the summary. */
+function confidenceTone(confidence: number): { dot: string; text: string } {
+  if (confidence >= 0.75) return { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" };
+  if (confidence >= 0.45) return { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" };
+  return { dot: "bg-rose-500", text: "text-rose-600 dark:text-rose-400" };
+}
+
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
 
 /**
  * Renders ANY review-queue item, for any automation, from data alone - it
@@ -36,9 +57,21 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   const [fields, setFields] = useState<Record<string, string>>({});
   const [confirmingDestructive, setConfirmingDestructive] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [resolved, setResolved] = useState(false);
+  const [justResolvedLabel, setJustResolvedLabel] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const { payload } = item;
+  const style = styleForKind(kind.kind);
+  const Icon = style.icon;
+
+  useEffect(() => {
+    if (!justResolvedLabel) return;
+    // Brief success flash so an action feels acknowledged, then the card
+    // folds itself away - not an instant pop, which reads as the click
+    // "not registering" for a split second.
+    const t = setTimeout(() => setCollapsed(true), 900);
+    return () => clearTimeout(t);
+  }, [justResolvedLabel]);
 
   function resetInputs() {
     setNote("");
@@ -68,7 +101,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
           fields,
         });
         toast.success(`${action.label} — done`);
-        setResolved(true);
+        setJustResolvedLabel(action.label);
         setExpandedAction(null);
         setConfirmingDestructive(null);
         resetInputs();
@@ -91,60 +124,87 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
     submit(action);
   }
 
-  if (resolved) return null; // Removed from the list the instant it's handled - no stale item lingering.
+  // Removed from the list right after the success flash plays, rather than
+  // instantly - see the useEffect above.
+  if (collapsed) return null;
+
+  if (justResolvedLabel) {
+    return (
+      <Card className="editorial-card overflow-hidden border-emerald-500/30 bg-emerald-500/5">
+        <CardContent className="flex items-center gap-3 p-5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">
+            <CheckCircle2 className="size-5" />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-foreground">{justResolvedLabel}</p>
+            <p className="text-xs text-muted-foreground">Recorded on the CRM. Moving to the next item…</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const confidence = payload.confidence != null ? confidenceTone(payload.confidence) : null;
 
   return (
-    <Card className="editorial-card">
+    <Card className={`editorial-card overflow-hidden transition-shadow hover:shadow-xs`}>
+      <div className={`h-1 w-full bg-gradient-to-r ${style.accent}`} />
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="text-[10px] font-medium">
-              {kind.label}
-            </Badge>
-            {payload.confidence != null && (
-              <span className="text-[11px] text-muted-foreground">
-                {Math.round(payload.confidence * 100)}% confidence
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <span
+            className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border ${style.chipBg} ${style.color}`}
+          >
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                {kind.label}
               </span>
+              {confidence && (
+                <span className={`flex items-center gap-1 text-[11px] font-semibold ${confidence.text}`}>
+                  <span className={`size-1.5 rounded-full ${confidence.dot}`} />
+                  {Math.round(payload.confidence! * 100)}% confidence
+                </span>
+              )}
+              <span className="text-[11px] text-muted-foreground">{timeAgo(item.created_at)}</span>
+            </div>
+            <p className="mt-1 text-sm font-bold text-foreground">{payload.summary || "Needs review"}</p>
+            {item.entity_type && item.entity_id && (
+              <Link
+                href={`/${item.entity_type === "contact" ? "contacts" : "companies"}/${item.entity_id}`}
+                className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                View {item.entity_type} record
+                <ExternalLink className="size-3" />
+              </Link>
             )}
-            <span className="text-[11px] text-muted-foreground">
-              {new Date(item.created_at).toLocaleString()}
-            </span>
           </div>
-          <p className="mt-1.5 text-sm font-semibold text-foreground">
-            {payload.summary || "Needs review"}
-          </p>
-          {item.entity_type && item.entity_id && (
-            <Link
-              href={`/${item.entity_type === "contact" ? "contacts" : "companies"}/${item.entity_id}`}
-              className="mt-0.5 inline-block text-xs text-primary hover:underline"
-            >
-              View {item.entity_type} record &rarr;
-            </Link>
-          )}
         </div>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3 text-sm">
         {payload.details && payload.details.length > 0 && (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 rounded-lg bg-muted/30 p-3 text-xs sm:grid-cols-2">
             {payload.details.map((d, i) => (
-              <div key={d.key ?? i} className="contents">
-                <dt className="text-muted-foreground">{d.label}</dt>
-                <dd className="text-foreground">{d.value}</dd>
+              <div key={d.key ?? i} className="flex items-baseline justify-between gap-2 sm:justify-start">
+                <dt className="shrink-0 text-muted-foreground">{d.label}</dt>
+                <dd className="truncate text-right font-medium text-foreground sm:text-left">{d.value}</dd>
               </div>
             ))}
           </dl>
         )}
 
         {payload.related_entities && payload.related_entities.length > 0 && (
-          <div className="rounded-md border border-border/70 bg-muted/30 p-2.5">
-            <div className="mb-1 text-[11px] font-semibold text-muted-foreground">
+          <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+              <Users className="size-3.5" />
               Every record this affects ({payload.related_entities.length})
             </div>
             <div className="flex flex-wrap gap-1.5">
               {payload.related_entities.map((e) => (
                 <Link key={e.id} href={`/${e.type === "contact" ? "contacts" : "companies"}/${e.id}`}>
-                  <Badge variant="secondary" className="cursor-pointer text-[11px]">
+                  <Badge variant="secondary" className="cursor-pointer text-[11px] hover:bg-secondary/70">
                     {e.label}
                   </Badge>
                 </Link>
@@ -154,32 +214,40 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
         )}
 
         {payload.candidate?.contact_id && (
-          <div className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-xs">
-            <span className="text-muted-foreground">Researched candidate: </span>
-            <Link href={`/contacts/${payload.candidate.contact_id}`} className="font-semibold text-primary hover:underline">
-              {payload.candidate.label || "View candidate"}
-            </Link>
-            {payload.candidate.source && (
-              <span className="text-muted-foreground"> · via {payload.candidate.source}</span>
-            )}
+          <div className="flex items-center gap-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <Users className="size-3.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <span className="text-muted-foreground">Researched candidate: </span>
+              <Link
+                href={`/contacts/${payload.candidate.contact_id}`}
+                className="font-semibold text-primary hover:underline"
+              >
+                {payload.candidate.label || "View candidate"}
+              </Link>
+              {payload.candidate.source && (
+                <span className="text-muted-foreground"> · via {payload.candidate.source}</span>
+              )}
+            </div>
           </div>
         )}
 
         {payload.original_text && (
-          <details className="group rounded-md border border-border/70">
-            <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+          <details className="group rounded-lg border border-border/70">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
               <ChevronDown className="size-3.5 transition-transform group-open:hidden" />
               <ChevronUp className="hidden size-3.5 transition-transform group-open:block" />
               Original message
             </summary>
-            <p className="whitespace-pre-wrap border-t border-border/70 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground">
+            <p className="whitespace-pre-wrap border-t border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
               {cleanNoteBody(payload.original_text)}
             </p>
           </details>
         )}
 
         {/* Action buttons */}
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex flex-wrap gap-2 border-t border-border/70 pt-3">
           {kind.actions.map((action) => (
             <Button
               key={action.id}
@@ -197,8 +265,11 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
         {/* Inline confirm for a no-input destructive/high-stakes action */}
         {confirmingDestructive && (
-          <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-xs">
-            <span>{kind.actions.find((a) => a.id === confirmingDestructive)?.confirm_message}</span>
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs">
+            <span className="flex items-start gap-1.5">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+              {kind.actions.find((a) => a.id === confirmingDestructive)?.confirm_message}
+            </span>
             <div className="flex shrink-0 gap-2">
               <Button size="sm" variant="outline" onClick={() => setConfirmingDestructive(null)}>
                 <X className="size-3.5" />
@@ -267,8 +338,8 @@ function ExpandedActionForm({
   onSubmit: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-primary/30 bg-primary/5 p-3">
-      <span className="text-xs font-semibold text-foreground">{action.label}</span>
+    <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
+      <span className="text-xs font-bold text-foreground">{action.label}</span>
       {action.confirm_message && (
         <span className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" />

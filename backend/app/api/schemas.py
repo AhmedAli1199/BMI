@@ -351,9 +351,19 @@ class ReviewQueueItemOut(BaseModel):
     created_at: datetime
 
 
+class ScheduledJobOut(BaseModel):
+    id: str
+    label: str
+    description: str
+    cron: str
+    enabled: bool
+
+
 class ReviewQueueCounts(BaseModel):
     kind: str
     pending: int
+    approved: int = 0
+    rejected: int = 0
 
 
 class ReviewActionRequest(BaseModel):
