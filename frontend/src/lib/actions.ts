@@ -17,6 +17,9 @@ export type ContactFormInput = {
   last_name?: string;
   job_title?: string;
   department?: string;
+  category?: string;
+  referred_by?: string;
+  birthdate?: string;
   company_id?: string | null;
   email?: string;
   phone?: string;
@@ -69,13 +72,26 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
   revalidatePath(`/groups/${groupId}`);
 }
 
+export async function addContactNote(contactId: string, body: string) {
+  await backendFetch(`/api/contacts/${contactId}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
 // ---- Companies --------------------------------------------------------------
 
 export type CompanyFormInput = {
   name: string;
+  description?: string;
   industry?: string;
   category?: string;
+  territory?: string;
+  region?: string;
   website?: string;
+  num_employees?: number;
 };
 
 export async function createCompany(input: CompanyFormInput) {
@@ -101,6 +117,15 @@ export async function updateCompany(id: string, input: Partial<CompanyFormInput>
 export async function deleteCompany(id: string) {
   await backendFetch<void>(`/api/companies/${id}`, { method: "DELETE" });
   revalidatePath("/companies");
+}
+
+export async function addCompanyNote(companyId: string, body: string) {
+  await backendFetch(`/api/companies/${companyId}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  revalidatePath(`/companies/${companyId}`);
 }
 
 // ---- Groups --------------------------------------------------------------

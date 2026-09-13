@@ -57,6 +57,7 @@ class AddressOut(BaseModel):
     type_label: str | None = None
     line1: str | None = None
     line2: str | None = None
+    line3: str | None = None
     city: str | None = None
     state: str | None = None
     postal_code: str | None = None
@@ -83,6 +84,11 @@ class NoteOut(BaseModel):
     note_type: str | None = None
     body: str | None = None
     act_created_at: datetime | None = None
+
+
+class NoteCreate(BaseModel):
+    body: str = Field(min_length=1)
+    note_type: str = "Note"
 
 
 class HistoryOut(BaseModel):
@@ -186,6 +192,9 @@ class ContactUpdate(BaseModel):
     full_name: str | None = None
     job_title: str | None = None
     department: str | None = None
+    category: str | None = None
+    referred_by: str | None = None
+    birthdate: date | None = None
     company_id: uuid.UUID | None = None
 
 
@@ -198,9 +207,13 @@ class CompanyCreate(BaseModel):
 
 class CompanyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
+    description: str | None = None
     industry: str | None = None
     category: str | None = None
+    territory: str | None = None
+    region: str | None = None
     website: str | None = None
+    num_employees: int | None = None
 
 
 class GroupCreate(BaseModel):

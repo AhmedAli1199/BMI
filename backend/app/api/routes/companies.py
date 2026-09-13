@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -16,6 +17,7 @@ from app.api.schemas import (
     CompanyUpdate,
     ContactListItem,
     EmailOut,
+    NoteCreate,
     NoteOut,
     PhoneOut,
 )
@@ -112,6 +114,26 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
         ],
         notes=[NoteOut.model_validate(n) for n in notes],
     )
+
+
+@router.post("/{company_id}/notes", response_model=NoteOut, status_code=201)
+def add_company_note(company_id: uuid.UUID, payload: NoteCreate, db: Session = Depends(get_db)) -> NoteOut:
+    if not db.get(Company, company_id):
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    note = Note(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),
+        entity_type="company",
+        entity_id=company_id,
+        note_type=payload.note_type,
+        body=payload.body,
+        act_created_at=datetime.now(timezone.utc),
+    )
+    db.add(note)
+    db.commit()
+    return NoteOut.model_validate(note)
 
 
 @router.post("", response_model=CompanyDetail, status_code=201)

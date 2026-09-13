@@ -14,7 +14,7 @@ export type Page<T> = { items: T[]; total: number; page: number; page_size: numb
 
 export type AddressOut = {
   id: string; type_label: string | null;
-  line1: string | null; line2: string | null;
+  line1: string | null; line2: string | null; line3: string | null;
   city: string | null; state: string | null; postal_code: string | null; country: string | null;
 };
 export type PhoneOut = { id: string; type_label: string | null; number: string | null };

@@ -1,18 +1,16 @@
-import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { notFound } from "next/navigation";
 import { backendFetch } from "@/lib/backend";
 import type { ContactDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AddNoteDialog } from "@/components/add-note-dialog";
 import { Separator } from "@/components/ui/separator";
-import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
-import { DeleteEntityButton } from "@/components/delete-entity-button";
-import { deleteContact } from "@/lib/actions";
+import { ContactEditablePanel } from "@/components/contact-editable-panel";
+import { addContactNote } from "@/lib/actions";
 import { cleanNoteBody } from "@/lib/notes";
-import { sourceLabel } from "@/lib/sources";
-import { EntityAvatar } from "@/components/entity-avatar";
+import { AddressBlock } from "@/components/address-block";
 
 export default async function ContactDetailPage({
   params,
@@ -28,47 +26,9 @@ export default async function ContactDetailPage({
     notFound();
   }
 
-  const name =
-    contact.full_name ||
-    [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
-    "(no name)";
-
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <EntityAvatar name={name} className="mt-0.5 size-11 text-sm" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold">{name}</h1>
-              <Badge variant="secondary">{sourceLabel(contact.source_db)}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {contact.job_title}
-              {contact.job_title && contact.department ? " · " : ""}
-              {contact.department}
-            </p>
-            {contact.company && (
-              <Link href={`/companies/${contact.company.id}`} className="text-sm hover:underline">
-                {contact.company.name}
-              </Link>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <ContactFormDialog
-            existing={{
-              id: contact.id,
-              first_name: contact.first_name,
-              last_name: contact.last_name,
-              job_title: contact.job_title,
-              department: contact.department,
-              company: contact.company ? { id: contact.company.id, name: contact.company.name } : null,
-            }}
-          />
-          <DeleteEntityButton entityLabel={name} id={contact.id} action={deleteContact} redirectTo="/contacts" />
-        </div>
-      </div>
+      <ContactEditablePanel contact={contact} />
 
       <div className="grid gap-6 sm:grid-cols-2">
         <Card>
@@ -98,7 +58,7 @@ export default async function ContactDetailPage({
               <div key={a.id} className="flex items-start gap-2.5">
                 <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <div>
-                  <div>{[a.line1, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(", ")}</div>
+                  <AddressBlock address={a} />
                   <div className="text-xs text-muted-foreground">{a.type_label || "Address"}</div>
                 </div>
               </div>
@@ -119,36 +79,15 @@ export default async function ContactDetailPage({
         </Card>
       </div>
 
-      {(contact.category ||
-        contact.referred_by ||
-        contact.birthdate ||
-        contact.last_meet_date ||
+      {(contact.last_meet_date ||
         contact.last_reach_date ||
         contact.last_attempt_date ||
         contact.last_letter_date) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Status &amp; activity</CardTitle>
+            <CardTitle className="text-base">Latest activity</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            {contact.category && (
-              <div>
-                <div className="text-xs text-muted-foreground">ID / Status</div>
-                <div>{contact.category}</div>
-              </div>
-            )}
-            {contact.referred_by && (
-              <div>
-                <div className="text-xs text-muted-foreground">Referred by</div>
-                <div>{contact.referred_by}</div>
-              </div>
-            )}
-            {contact.birthdate && (
-              <div>
-                <div className="text-xs text-muted-foreground">Birthdate</div>
-                <div>{new Date(contact.birthdate).toLocaleDateString()}</div>
-              </div>
-            )}
             {contact.last_meet_date && (
               <div>
                 <div className="text-xs text-muted-foreground">Last meeting</div>
@@ -196,6 +135,9 @@ export default async function ContactDetailPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Notes</CardTitle>
+          <CardAction>
+            <AddNoteDialog id={contact.id} action={addContactNote} />
+          </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm">
           {contact.notes.length > 0 ? (
