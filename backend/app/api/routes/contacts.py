@@ -153,6 +153,7 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         last_reach_date=contact.last_reach_date,
         last_attempt_date=contact.last_attempt_date,
         last_letter_date=contact.last_letter_date,
+        is_unsubscribed=contact.is_unsubscribed,
         custom_fields=contact.custom_fields,
         company=CompanySummary.model_validate(company) if company else None,
         addresses=[AddressOut.model_validate(a) for a in addresses],

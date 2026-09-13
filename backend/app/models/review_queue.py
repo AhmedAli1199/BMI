@@ -32,6 +32,13 @@ class ReviewQueueItem(Base, UUIDPk):
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
+    # The specific action a human clicked (e.g. "confirm_hard_bounce",
+    # "use_fallback") - see app/automations/registry.py. `status` is the
+    # coarse approved/rejected bucket every action declares itself into
+    # (for simple counts/filters); resolved_action is the precise thing
+    # that actually happened, which is what a reviewer or auditor actually
+    # wants to read back later ("what did we do about this one?").
+    resolved_action: Mapped[str | None] = mapped_column(String(64))
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_note: Mapped[str | None] = mapped_column(Text)

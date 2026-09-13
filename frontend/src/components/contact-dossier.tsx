@@ -215,6 +215,11 @@ export function ContactDossier({ contact }: { contact: ContactDetail }) {
               <Badge variant="outline" className={`text-[11px] font-medium ${publicationBadgeStyle(contact.source_db)}`}>
                 {sourceLabel(contact.source_db)}
               </Badge>
+              {contact.is_unsubscribed && (
+                <Badge variant="outline" className="text-[11px] font-medium border-destructive/30 bg-destructive/10 text-destructive">
+                  Unsubscribed
+                </Badge>
+              )}
               {editing ? (
                 <>
                   <Button size="icon-xs" variant="ghost" onClick={cancel} disabled={pending} title="Cancel" className="cursor-pointer">

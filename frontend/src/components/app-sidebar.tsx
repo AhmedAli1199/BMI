@@ -106,6 +106,32 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Automations</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/automations" />}
+                  isActive={pathname === "/automations"}
+                  className={NAV_ITEM}
+                >
+                  Overview
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/automations/review" />}
+                  isActive={pathname.startsWith("/automations/review")}
+                  className={NAV_ITEM}
+                >
+                  Review queue
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* Everything from the original automations planning pass - kept,
             not deleted, but tucked under one collapsed group so it stops
             competing with the actual product for space. Collapsed by

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, companies, contacts, dashboard, groups, health
+import app.automations  # noqa: F401 - import registers every automation's review kinds
+from app.api.routes import auth, companies, contacts, dashboard, groups, health, review_queue
 from app.core.config import settings
 from app.core.security import require_api_key
 
@@ -29,6 +30,7 @@ api_router.include_router(contacts.router)
 api_router.include_router(companies.router)
 api_router.include_router(groups.router)
 api_router.include_router(dashboard.router)
+api_router.include_router(review_queue.router)
 app.include_router(api_router)
 
 

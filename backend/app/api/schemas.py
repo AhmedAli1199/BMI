@@ -144,6 +144,7 @@ class ContactDetail(BaseModel):
     last_reach_date: datetime | None = None
     last_attempt_date: datetime | None = None
     last_letter_date: datetime | None = None
+    is_unsubscribed: bool = False
     custom_fields: dict
     company: CompanySummary | None = None
     addresses: list[AddressOut] = []
@@ -312,3 +313,54 @@ class GroupDetail(BaseModel):
 
 class GroupsPage(Page):
     items: list[GroupListItem]
+
+
+# ---- Automations / review queue --------------------------------------------
+# See app/automations/registry.py for what these fields mean and the
+# payload convention every automation follows.
+
+class ReviewActionOut(BaseModel):
+    id: str
+    label: str
+    style: str
+    outcome: str
+    requires_note: bool
+    requires_contact_picker: bool
+    extra_fields: list[dict]
+    confirm_message: str | None = None
+
+
+class ReviewKindOut(BaseModel):
+    kind: str
+    label: str
+    description: str
+    actions: list[ReviewActionOut]
+
+
+class ReviewQueueItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    kind: str
+    entity_type: str | None = None
+    entity_id: uuid.UUID | None = None
+    payload: dict
+    status: str
+    resolved_action: str | None = None
+    review_note: str | None = None
+    reviewed_at: datetime | None = None
+    created_at: datetime
+
+
+class ReviewQueueCounts(BaseModel):
+    kind: str
+    pending: int
+
+
+class ReviewActionRequest(BaseModel):
+    note: str | None = None
+    contact_id: uuid.UUID | None = None
+    fields: dict[str, str] = {}
+
+
+class ReviewQueuePage(Page):
+    items: list[ReviewQueueItemOut]

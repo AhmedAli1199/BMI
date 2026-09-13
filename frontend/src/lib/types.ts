@@ -41,6 +41,7 @@ export type ContactDetail = {
   last_reach_date: string | null;
   last_attempt_date: string | null;
   last_letter_date: string | null;
+  is_unsubscribed: boolean;
   custom_fields: Record<string, unknown>;
   company: CompanySummary | null;
   addresses: AddressOut[];
@@ -132,3 +133,62 @@ export type DashboardStats = {
   recent_companies: RecentCompany[];
   top_companies: TopCompany[];
 };
+
+// ---- Automations / review queue --------------------------------------------
+// Mirrors backend/app/automations/registry.py - see its docstring for the
+// full contract. The frontend renders entirely from this data, so a new
+// automation kind shows up here with zero frontend code changes.
+
+export type ReviewExtraField = {
+  key: string;
+  label: string;
+  placeholder: string;
+  required: boolean;
+};
+
+export type ReviewAction = {
+  id: string;
+  label: string;
+  style: "primary" | "secondary" | "destructive";
+  outcome: "approved" | "rejected";
+  requires_note: boolean;
+  requires_contact_picker: boolean;
+  extra_fields: ReviewExtraField[];
+  confirm_message: string | null;
+};
+
+export type ReviewKind = {
+  kind: string;
+  label: string;
+  description: string;
+  actions: ReviewAction[];
+};
+
+export type ReviewDetail = { key?: string; label: string; value: string; editable?: boolean };
+export type ReviewRelatedEntity = { type: "contact" | "company"; id: string; label: string };
+export type ReviewCandidate = { contact_id?: string; label?: string; source?: string };
+
+export type ReviewPayload = {
+  summary?: string;
+  details?: ReviewDetail[];
+  original_text?: string;
+  related_entities?: ReviewRelatedEntity[];
+  suggested_contact?: { id: string; label: string } | null;
+  candidate?: ReviewCandidate | null;
+  confidence?: number | null;
+};
+
+export type ReviewQueueItem = {
+  id: string;
+  kind: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: ReviewPayload;
+  status: string;
+  resolved_action: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+};
+
+export type ReviewQueueCounts = { kind: string; pending: number };
