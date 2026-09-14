@@ -8,8 +8,9 @@ import {
   UsersRound,
 } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { DashboardStats } from "@/lib/types";
+import type { DashboardStats, UserPreferences } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { getSession } from "@/lib/session";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -32,8 +33,24 @@ function timeAgo(iso: string): string {
 
 export default async function DashboardPage() {
   const sourceDb = await getPublicationFilter();
+  const session = await getSession();
+
+  // The "Recently Active" sort is a per-user preference (see /settings +
+  // backend/app/preferences.py) - this was the one piece that never
+  // actually got wired up: the setting saved fine, but nothing read it
+  // back and passed it to the stats call, so it silently kept using the
+  // default no matter what was chosen.
+  const recentActivitySort = session
+    ? (await backendFetch<UserPreferences>(`/api/users/${session.sub}/preferences`)).values
+        .recent_activity_sort
+    : undefined;
+
+  const statsParams = new URLSearchParams();
+  if (sourceDb) statsParams.set("source_db", sourceDb);
+  if (recentActivitySort) statsParams.set("recent_activity_sort", recentActivitySort);
+
   const stats = await backendFetch<DashboardStats>(
-    `/api/dashboard/stats${sourceDb ? `?source_db=${sourceDb}` : ""}`
+    `/api/dashboard/stats${statsParams.size ? `?${statsParams}` : ""}`
   );
 
   const KPIS = [
@@ -239,7 +256,9 @@ export default async function DashboardPage() {
                 Recently Active Contacts
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Most recently added or last edited in Act!
+                {recentActivitySort === "engagement"
+                  ? "Most recent note or logged call - see /settings to change"
+                  : "Most recently added or edited in Act! - see /settings to change"}
               </p>
             </div>
             <Link
