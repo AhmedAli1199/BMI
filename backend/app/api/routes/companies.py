@@ -25,6 +25,7 @@ from app.api.schemas import (
     PhoneWrite,
 )
 from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._publications import resolve_source_db
 from app.db.session import get_db
 from app.models import Activity, Company, Contact, Email, HistoryEntry, Note, Opportunity
 from app.models.contact_channel import Address, Phone
@@ -209,7 +210,7 @@ def delete_company_address(company_id: uuid.UUID, address_id: uuid.UUID, db: Ses
 def create_company(payload: CompanyCreate, db: Session = Depends(get_db)) -> CompanyDetail:
     company = Company(
         id=uuid.uuid4(),
-        source_db=MANUAL_SOURCE_DB,
+        source_db=resolve_source_db(db, payload.source_db),
         source_act_id=str(uuid.uuid4()),
         name=payload.name,
         industry=payload.industry,

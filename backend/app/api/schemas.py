@@ -206,6 +206,9 @@ class ContactCreate(BaseModel):
     company_id: uuid.UUID | None = None
     email: str | None = None
     phone: str | None = None
+    # Which "database" (Publication.slug) this belongs to - omit for the
+    # legacy "manual" bucket. See app/api/routes/publications.py.
+    source_db: str | None = None
 
 
 class ContactUpdate(BaseModel):
@@ -225,6 +228,7 @@ class CompanyCreate(BaseModel):
     industry: str | None = None
     category: str | None = None
     website: str | None = None
+    source_db: str | None = None
 
 
 class CompanyUpdate(BaseModel):
@@ -406,3 +410,32 @@ class UserPreferencesOut(BaseModel):
 
 class UserPreferencesUpdate(BaseModel):
     values: dict[str, str]
+
+
+# ---- Publications ("add a new database") -------------------------------
+# See app/models/publication.py - `slug` is exactly what's stored in every
+# other table's source_db column, not a new Postgres database.
+
+PUBLICATION_SLUG_PATTERN = r"^[a-z][a-z0-9-]{1,62}[a-z0-9]$"
+
+
+class PublicationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str | None = None
+    color: str
+    icon: str
+
+
+class PublicationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    # Optional - the route slugifies `name` when omitted. Validated against
+    # PUBLICATION_SLUG_PATTERN when given explicitly (lowercase, digits,
+    # single hyphens, 3-64 chars) since it becomes a permanent source_db
+    # value stamped onto every contact/company created under it.
+    slug: str | None = Field(default=None, max_length=64)
+    description: str | None = Field(default=None, max_length=256)
+    color: str = "slate"
+    icon: str = "newspaper"

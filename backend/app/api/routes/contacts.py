@@ -27,6 +27,7 @@ from app.api.schemas import (
     PhoneWrite,
 )
 from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._publications import resolve_source_db
 from app.db.session import get_db
 from app.models import (
     Activity,
@@ -254,10 +255,11 @@ def delete_contact_address(contact_id: uuid.UUID, address_id: uuid.UUID, db: Ses
 def create_contact(payload: ContactCreate, db: Session = Depends(get_db)) -> ContactDetail:
     if payload.company_id and not db.get(Company, payload.company_id):
         raise HTTPException(status_code=400, detail="company_id does not exist")
+    source_db = resolve_source_db(db, payload.source_db)
 
     contact = Contact(
         id=uuid.uuid4(),
-        source_db=MANUAL_SOURCE_DB,
+        source_db=source_db,
         source_act_id=str(uuid.uuid4()),  # provenance columns are NOT NULL even for manual rows
         first_name=payload.first_name,
         last_name=payload.last_name,
@@ -272,12 +274,12 @@ def create_contact(payload: ContactCreate, db: Session = Depends(get_db)) -> Con
 
     if payload.email:
         db.add(Email(
-            id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+            id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
             contact_id=contact.id, address=payload.email, is_primary=True,
         ))
     if payload.phone:
         db.add(Phone(
-            id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+            id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
             contact_id=contact.id, number=payload.phone, is_primary=True,
         ))
     db.commit()

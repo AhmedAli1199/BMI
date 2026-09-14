@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { listPublications } from "@/lib/actions";
 import {
   Table,
   TableBody,
@@ -27,7 +28,7 @@ export default async function CompaniesPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const source_db = await getPublicationFilter();
+  const [source_db, publications] = await Promise.all([getPublicationFilter(), listPublications()]);
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -49,11 +50,11 @@ export default async function CompaniesPage({
           <form action="/companies" className="w-72">
             <Input name="q" placeholder="Search company name..." defaultValue={q ?? ""} />
           </form>
-          <CompanyFormDialog />
+          <CompanyFormDialog defaultSourceDb={source_db} />
         </div>
       </div>
 
-      <PublicationQuickFilter current={source_db} />
+      <PublicationQuickFilter current={source_db} publications={publications} />
 
       <div className="overflow-hidden rounded-lg border bg-card">
         <Table>

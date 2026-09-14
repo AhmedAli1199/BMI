@@ -35,9 +35,15 @@ class UUIDPk:
 
 
 class ProvenanceMixin:
-    """Where this row came from in Act!. Always set together, always kept."""
+    """Where this row came from in Act!. Always set together, always kept.
 
-    source_db: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    source_db is a Publication.slug (see app/models/publication.py) - 64
+    chars wide to match PUBLICATION_SLUG_PATTERN's max, not just the three
+    original Act! slugs, since "add a new database" lets someone create a
+    longer one directly in the CRM.
+    """
+
+    source_db: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     source_act_id: Mapped[str] = mapped_column(String(64), nullable=False)
 
 

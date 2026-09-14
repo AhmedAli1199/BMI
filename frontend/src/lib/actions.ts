@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
 import { PUBLICATION_COOKIE } from "@/lib/publication";
-import type { CompanyListItem, ContactDetail, ContactListItem, GroupListItem, Page } from "@/lib/types";
+import type { CompanyListItem, ContactDetail, ContactListItem, GroupListItem, Page, Publication } from "@/lib/types";
 
 /** Every CRUD mutation for Contacts/Companies/Groups, callable straight from
  * client components (Next.js server actions run on the server regardless of
@@ -40,6 +40,7 @@ export type ContactFormInput = {
   company_id?: string | null;
   email?: string;
   phone?: string;
+  source_db?: string;
 };
 
 function cleanPayload<T extends Record<string, unknown>>(input: T): Partial<T> {
@@ -208,6 +209,7 @@ export type CompanyFormInput = {
   region?: string;
   website?: string;
   num_employees?: number;
+  source_db?: string;
 };
 
 export async function createCompany(input: CompanyFormInput) {
@@ -337,4 +339,33 @@ export async function updateUserPreferences(userId: string, values: Record<strin
   });
   revalidatePath("/settings");
   revalidatePath("/");
+}
+
+// ---- Publications ("add a new database") -------------------------------
+// See backend/app/models/publication.py - a Publication is a label
+// (source_db value), never an actual new Postgres database.
+
+export async function listPublications(): Promise<Publication[]> {
+  return backendFetch<Publication[]>("/api/publications");
+}
+
+export type PublicationFormInput = {
+  name: string;
+  slug?: string;
+  description?: string;
+  color: string;
+  icon: string;
+};
+
+export async function createPublication(input: PublicationFormInput) {
+  const publication = await backendFetch<Publication>("/api/publications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cleanPayload(input)),
+  });
+  // Every page that shows the publication list/switcher/tiles needs this -
+  // simplest correct thing is to revalidate everywhere it can appear
+  // rather than track each one individually.
+  revalidatePath("/", "layout");
+  return publication;
 }

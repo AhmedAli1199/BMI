@@ -3,6 +3,7 @@ import { CornerDownRight, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { GroupListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { listPublications } from "@/lib/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
@@ -17,7 +18,7 @@ export default async function GroupsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const source_db = await getPublicationFilter();
+  const [source_db, publications] = await Promise.all([getPublicationFilter(), listPublications()]);
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -43,7 +44,7 @@ export default async function GroupsPage({
         </div>
       </div>
 
-      <PublicationQuickFilter current={source_db} />
+      <PublicationQuickFilter current={source_db} publications={publications} />
 
       {/* Act!'s groups are hierarchical (62 top-level groups + 183
           sub-groups in OnBoard alone) - a single indented list makes that

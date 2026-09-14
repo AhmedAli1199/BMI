@@ -6,6 +6,7 @@ import { LiveClock } from "@/components/live-clock";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PublicationSwitcher } from "@/components/publication-switcher";
 import { getPublicationFilter } from "@/lib/publication";
+import { listPublications } from "@/lib/actions";
 
 export default async function AppLayout({
   children,
@@ -13,7 +14,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const publicationFilter = await getPublicationFilter();
+  const [publicationFilter, publications] = await Promise.all([
+    getPublicationFilter(),
+    listPublications(),
+  ]);
 
   return (
     <SidebarProvider>
@@ -26,7 +30,7 @@ export default async function AppLayout({
             BMI Publishing
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
-          <PublicationSwitcher current={publicationFilter} />
+          <PublicationSwitcher current={publicationFilter} publications={publications} />
           <LiveClock className="ml-auto text-[15px] font-semibold text-sidebar-foreground" />
           <ThemeSwitcher />
         </header>

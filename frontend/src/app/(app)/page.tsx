@@ -1,20 +1,16 @@
 import Link from "next/link";
-import {
-  Building2,
-  Compass,
-  Plane,
-  Sparkles,
-  Users,
-  UsersRound,
-} from "lucide-react";
+import { Building2, Sparkles, Users, UsersRound } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { DashboardStats, UserPreferences } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
+import { listPublications } from "@/lib/actions";
+import { iconForKey, styleForColor } from "@/lib/publication-style";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { PublicationTileButton } from "@/components/publication-tile-button";
+import { PublicationFormDialog } from "@/components/publication-form-dialog";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { GroupFormDialog } from "@/components/group-form-dialog";
@@ -32,8 +28,11 @@ function timeAgo(iso: string): string {
 }
 
 export default async function DashboardPage() {
-  const sourceDb = await getPublicationFilter();
-  const session = await getSession();
+  const [sourceDb, session, publications] = await Promise.all([
+    getPublicationFilter(),
+    getSession(),
+    listPublications(),
+  ]);
 
   // The "Recently Active" sort is a per-user preference (see /settings +
   // backend/app/preferences.py) - this was the one piece that never
@@ -104,108 +103,60 @@ export default async function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <ContactFormDialog />
-          <CompanyFormDialog />
+          <ContactFormDialog defaultSourceDb={sourceDb} />
+          <CompanyFormDialog defaultSourceDb={sourceDb} />
           <GroupFormDialog />
         </div>
       </div>
 
       {/* Magazine Title Quick Switcher Cards - clicking one sets the global
           publication filter (persists across every tab) and stays right
-          here, rather than navigating away. */}
+          here, rather than navigating away. Renders entirely from
+          `publications` (fetched from /api/publications) - adding a
+          database via the tile below shows up here immediately, same
+          styling as the three original titles. */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <PublicationTileButton sourceDb="onboard" className="group">
-          <Card
-            className={`editorial-card h-full transition-all hover:border-blue-500/50 hover:shadow-xs ${
-              sourceDb === "onboard" ? "border-blue-500/60 ring-1 ring-blue-500/30" : ""
-            }`}
-          >
-            <CardContent className="flex items-start gap-4 p-5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 group-hover:scale-105 transition-transform">
-                <Plane className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-foreground group-hover:text-blue-600 transition-colors">
-                    Onboard Hospitality
-                  </span>
-                  <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-600">
-                    Lead Title
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                  Inflight retail, catering, WTCE &amp; awards
-                </p>
-                <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span>{contactsFor("onboard").toLocaleString()} Contacts</span>
-                  <span className="text-muted-foreground">&rarr;</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </PublicationTileButton>
+        {publications.map((pub) => {
+          const style = styleForColor(pub.color);
+          const Icon = iconForKey(pub.icon);
+          const isActive = sourceDb === pub.slug;
+          return (
+            <PublicationTileButton key={pub.slug} sourceDb={pub.slug} className="group">
+              <Card
+                className={`editorial-card h-full transition-all hover:shadow-xs hover:border-primary/40 ${
+                  isActive ? "border-primary/50 ring-1 ring-primary/30" : ""
+                }`}
+              >
+                <CardContent className="flex items-start gap-4 p-5">
+                  <div
+                    className={`flex size-11 shrink-0 items-center justify-center rounded-xl border transition-transform group-hover:scale-105 ${style.chipBg}`}
+                  >
+                    <Icon className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-bold text-foreground transition-colors">
+                      {pub.name}
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                      {pub.description || "No description yet"}
+                    </p>
+                    <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <span>{contactsFor(pub.slug).toLocaleString()} Contacts</span>
+                      <span className="text-muted-foreground">&rarr;</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </PublicationTileButton>
+          );
+        })}
 
-        <PublicationTileButton sourceDb="sellingtravel" className="group">
-          <Card
-            className={`editorial-card h-full transition-all hover:border-emerald-500/50 hover:shadow-xs ${
-              sourceDb === "sellingtravel" ? "border-emerald-500/60 ring-1 ring-emerald-500/30" : ""
-            }`}
-          >
-            <CardContent className="flex items-start gap-4 p-5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 group-hover:scale-105 transition-transform">
-                <Compass className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-foreground group-hover:text-emerald-600 transition-colors">
-                    Selling Travel
-                  </span>
-                  <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
-                    Monthly Print
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                  UK travel agents, DMOs &amp; tour operators
-                </p>
-                <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span>{contactsFor("sellingtravel").toLocaleString()} Contacts</span>
-                  <span className="text-muted-foreground">&rarr;</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </PublicationTileButton>
-
-        <PublicationTileButton sourceDb="prospects" className="group">
-          <Card
-            className={`editorial-card h-full transition-all hover:border-amber-500/50 hover:shadow-xs ${
-              sourceDb === "prospects" ? "border-amber-500/60 ring-1 ring-amber-500/30" : ""
-            }`}
-          >
-            <CardContent className="flex items-start gap-4 p-5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 group-hover:scale-105 transition-transform">
-                <Sparkles className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-foreground group-hover:text-amber-600 transition-colors">
-                    Prospects Database
-                  </span>
-                  <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-600">
-                    Unclaimed leads
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                  Unclaimed prospects &amp; automated lead discovery
-                </p>
-                <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <span>{contactsFor("prospects").toLocaleString()} Contacts</span>
-                  <span className="text-muted-foreground">&rarr;</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </PublicationTileButton>
+        {/* "Add a database" - not a separate Postgres database, a new
+            source_db label any contact/company can be filed under (see
+            backend/app/models/publication.py). */}
+        <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
+          <PublicationFormDialog />
+        </Card>
       </div>
 
       {sourceDb && (

@@ -209,3 +209,12 @@ export type PreferenceDef = {
 };
 
 export type UserPreferences = { values: Record<string, string> };
+
+export type Publication = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string;
+};

@@ -3,6 +3,7 @@ import { Search, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { listPublications } from "@/lib/actions";
 import { Input } from "@/components/ui/input";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
@@ -17,7 +18,7 @@ export default async function ContactsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const source_db = await getPublicationFilter();
+  const [source_db, publications] = await Promise.all([getPublicationFilter(), listPublications()]);
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -53,7 +54,7 @@ export default async function ContactsPage({
               className="pl-8 h-9 text-xs"
             />
           </form>
-          <ContactFormDialog />
+          <ContactFormDialog defaultSourceDb={source_db} />
         </div>
       </div>
 
@@ -61,7 +62,7 @@ export default async function ContactsPage({
           switcher (lib/publication.ts); setting it here also applies to
           Companies, Groups and the Dashboard until changed back. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <PublicationQuickFilter current={source_db} />
+        <PublicationQuickFilter current={source_db} publications={publications} />
         <span className="text-xs text-muted-foreground">
           Tip: Click any contact to slide open quick inspection
         </span>

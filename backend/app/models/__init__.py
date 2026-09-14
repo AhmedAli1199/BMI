@@ -6,6 +6,7 @@ from app.models.group import Group, GroupMembership
 from app.models.history import HistoryEntry
 from app.models.note import Note
 from app.models.opportunity import Opportunity
+from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
 from app.models.user import User
 
@@ -21,6 +22,7 @@ __all__ = [
     "Note",
     "Opportunity",
     "Phone",
+    "Publication",
     "ReviewQueueItem",
     "User",
 ]
