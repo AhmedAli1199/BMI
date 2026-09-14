@@ -86,6 +86,8 @@ export type GroupListItem = {
   name: string;
   description: string | null;
   member_count: number;
+  hier_level: number | null;
+  parent_group_id: string | null;
 };
 
 export type GroupDetail = {

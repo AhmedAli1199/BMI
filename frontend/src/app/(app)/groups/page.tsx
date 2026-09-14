@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { CornerDownRight, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { GroupListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
@@ -45,30 +45,43 @@ export default async function GroupsPage({
 
       <PublicationQuickFilter current={source_db} />
 
-      {/* Groups tend to be few and meaningful (a segment, a mailing list) -
-          tiles you can scan read better here than a table with two mostly-
-          empty columns would. */}
+      {/* Act!'s groups are hierarchical (62 top-level groups + 183
+          sub-groups in OnBoard alone) - a single indented list makes that
+          structure legible; a wrapping card grid can't keep a parent and
+          its children visually together. The backend already orders rows
+          by hier_path so a page's rows come out parent-then-children. */}
       {data.items.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.items.map((g) => (
-            <Link key={g.id} href={`/groups/${g.id}`}>
-              <Card className="h-full transition-colors hover:border-primary/40 hover:bg-accent/40">
-                <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
-                  <CardTitle className="text-base font-semibold">{g.name}</CardTitle>
+        <Card className="editorial-card overflow-hidden p-0">
+          <div className="flex flex-col divide-y divide-border/70">
+            {data.items.map((g) => {
+              const isSubgroup = (g.hier_level ?? 0) > 0;
+              return (
+                <Link
+                  key={g.id}
+                  href={`/groups/${g.id}`}
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40"
+                  style={isSubgroup ? { paddingLeft: `${16 + (g.hier_level ?? 1) * 24}px` } : undefined}
+                >
+                  {isSubgroup && (
+                    <CornerDownRight className="size-3.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className={`truncate font-semibold ${isSubgroup ? "text-sm text-foreground/90" : "text-base text-foreground"}`}>
+                      {g.name}
+                    </div>
+                    {g.description && (
+                      <p className="truncate text-xs text-muted-foreground">{g.description}</p>
+                    )}
+                  </div>
                   <span className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
                     <Users className="size-3.5" />
                     {g.member_count.toLocaleString()}
                   </span>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    {g.description || "No description."}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
+        </Card>
       ) : (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">

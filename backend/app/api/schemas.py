@@ -257,6 +257,12 @@ class GroupListItem(BaseModel):
     name: str
     description: str | None = None
     member_count: int = 0
+    # Act!'s group hierarchy (62 top-level groups + 183 sub-groups in
+    # OnBoard alone) - carried through since migration but never surfaced
+    # in the list view until now. hier_level 0 = top-level; parent_group_id
+    # lets the frontend indent/nest without a second request per row.
+    hier_level: int | None = None
+    parent_group_id: uuid.UUID | None = None
 
 
 class SourceBreakdown(BaseModel):

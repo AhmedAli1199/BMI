@@ -43,11 +43,19 @@ def list_groups(
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
-    stmt = stmt.order_by(Group.name.asc()).offset((page - 1) * page_size).limit(page_size)
+    # Order by hier_path (Act!'s own "Parent\Sub" tree path string) rather
+    # than name alone, so a page of results groups every sub-group right
+    # next to its parent instead of scattering them alphabetically -
+    # hier_level then drives the frontend's indentation.
+    stmt = stmt.order_by(Group.hier_path.asc().nulls_first(), Group.name.asc())
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     rows = db.execute(stmt).all()
 
     items = [
-        GroupListItem(id=g.id, source_db=g.source_db, name=g.name, description=g.description, member_count=count)
+        GroupListItem(
+            id=g.id, source_db=g.source_db, name=g.name, description=g.description, member_count=count,
+            hier_level=g.hier_level, parent_group_id=g.parent_group_id,
+        )
         for g, count in rows
     ]
     return GroupsPage(items=items, total=total, page=page, page_size=page_size)
