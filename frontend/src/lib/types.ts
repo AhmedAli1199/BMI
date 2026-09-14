@@ -196,3 +196,16 @@ export type ReviewQueueItem = {
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
 
 export type ScheduledJob = { id: string; label: string; description: string; cron: string; enabled: boolean };
+
+export type PreferenceOption = { value: string; label: string; description: string };
+
+export type PreferenceDef = {
+  key: string;
+  label: string;
+  description: string;
+  group: string;
+  options: PreferenceOption[];
+  default: string;
+};
+
+export type UserPreferences = { values: Record<string, string> };

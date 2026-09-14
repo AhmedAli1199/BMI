@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "bmi_session";
@@ -32,4 +33,29 @@ export async function verifySessionToken(
   } catch {
     return null;
   }
+}
+
+/** Reads + verifies the session cookie for the current request, falling
+ * back to a fixed local-dev identity outside production (or with
+ * LOCAL_BYPASS=true) so the app is usable without running the login flow
+ * locally. Shared by the app layout and any page that needs to know who's
+ * signed in (e.g. /settings, to load/save that user's own preferences) -
+ * keep this the one place that bypass logic lives. Note the bypass
+ * identity's `sub` ("local-dev") is not a real user id; backend routes
+ * keyed by user id treat a non-UUID id as "no user" and fall back to
+ * defaults rather than erroring. */
+export async function getSession(): Promise<SessionPayload | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const verified = token ? await verifySessionToken(token) : null;
+  return (
+    verified ??
+    (process.env.NODE_ENV !== "production" || process.env.LOCAL_BYPASS === "true"
+      ? {
+          sub: "local-dev",
+          email: "publisher@bmipublishing.co.uk",
+          name: "Editorial Team",
+          role: "admin",
+        }
+      : null)
+  );
 }

@@ -1,8 +1,7 @@
-import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { getSession } from "@/lib/session";
 import { LiveClock } from "@/components/live-clock";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PublicationSwitcher } from "@/components/publication-switcher";
@@ -13,19 +12,8 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  const verified = token ? await verifySessionToken(token) : null;
+  const session = await getSession();
   const publicationFilter = await getPublicationFilter();
-  const session =
-    verified ??
-    (process.env.NODE_ENV !== "production" || process.env.LOCAL_BYPASS === "true"
-      ? {
-          sub: "local-dev",
-          email: "publisher@bmipublishing.co.uk",
-          name: "Editorial Team",
-          role: "admin",
-        }
-      : null);
 
   return (
     <SidebarProvider>

@@ -322,3 +322,19 @@ export async function resolveReviewItem(
   revalidatePath("/automations");
   revalidatePath("/automations/review");
 }
+
+// ---- Settings / preferences -------------------------------------------
+
+/** Updates one or more of the current user's preferences (see
+ * backend/app/preferences.py for the registry of what's settable).
+ * Revalidates "/" too since the dashboard is the one place a preference
+ * (recent_activity_sort, today) actually changes what's shown. */
+export async function updateUserPreferences(userId: string, values: Record<string, string>) {
+  await backendFetch(`/api/users/${userId}/preferences`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ values }),
+  });
+  revalidatePath("/settings");
+  revalidatePath("/");
+}

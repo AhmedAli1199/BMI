@@ -13,7 +13,7 @@ from app.api.schemas import (
     TopCompany,
 )
 from app.db.session import get_db
-from app.models import Company, Contact, Group
+from app.models import Company, Contact, Group, HistoryEntry, Note
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -24,6 +24,10 @@ TOP_COMPANIES_LIMIT = 6
 @router.get("/stats", response_model=DashboardStats)
 def get_dashboard_stats(
     source_db: str | None = Query(None, description="Restrict every figure to one publication's data"),
+    recent_activity_sort: str = Query(
+        "record_edit",
+        description="'record_edit' (default) or 'engagement' - see app/preferences.py's recent_activity_sort def",
+    ),
     db: Session = Depends(get_db),
 ) -> DashboardStats:
     contact_filter = [Contact.source_db == source_db] if source_db else []
@@ -53,21 +57,55 @@ def get_dashboard_stats(
         ).all()
     ]
 
-    # "Recently active" has to mean something real. Contact.created_at is
-    # when OUR system ingested the row - for the ~118k contacts that came
-    # in through one bulk ETL run, that's the same instant for nearly all
-    # of them, so ordering by it just returns migration order and every one
-    # shows the same "1 day ago", not genuine recent activity. Act!'s own
-    # act_edited_at/act_created_at carry the real last-touched date for
-    # migrated rows; a manually-created CRM contact has neither, so it
-    # falls back to created_at (which is genuinely "now" for those).
-    contact_activity_at = func.coalesce(Contact.act_edited_at, Contact.act_created_at, Contact.created_at)
-    company_activity_at = func.coalesce(Company.act_edited_at, Company.act_created_at, Company.created_at)
+    # "Recently active" has to mean something real, and there isn't one
+    # universally-right answer - see app/preferences.py's recent_activity_sort
+    # def for the two options this implements:
+    #
+    # "record_edit" (default): Act!'s own act_edited_at/act_created_at,
+    # i.e. when the RECORD ITSELF was last touched in Act! (any field
+    # edit) - not when someone actually engaged with the person. Never
+    # empty (falls back to our own created_at for a manually-created CRM
+    # contact), but can rank a record with zero notes above one with real
+    # history behind it, purely from a data edit.
+    #
+    # "engagement": the latest Note or logged History entry against the
+    # record - genuine engagement, but deliberately has NO fallback: a
+    # contact/company with no notes or history yet simply doesn't appear
+    # here rather than silently reverting to the record-edit date (which
+    # would just re-introduce the same "looks active but isn't" problem).
+    if recent_activity_sort == "engagement":
+        contact_activity_at = func.greatest(
+            select(func.max(Note.act_created_at))
+            .where(Note.entity_type == "contact", Note.entity_id == Contact.id)
+            .correlate(Contact)
+            .scalar_subquery(),
+            select(func.max(HistoryEntry.occurred_at))
+            .where(HistoryEntry.entity_type == "contact", HistoryEntry.entity_id == Contact.id)
+            .correlate(Contact)
+            .scalar_subquery(),
+        )
+        company_activity_at = func.greatest(
+            select(func.max(Note.act_created_at))
+            .where(Note.entity_type == "company", Note.entity_id == Company.id)
+            .correlate(Company)
+            .scalar_subquery(),
+            select(func.max(HistoryEntry.occurred_at))
+            .where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == Company.id)
+            .correlate(Company)
+            .scalar_subquery(),
+        )
+        contact_activity_filter = [contact_activity_at.isnot(None)]
+        company_activity_filter = [company_activity_at.isnot(None)]
+    else:
+        contact_activity_at = func.coalesce(Contact.act_edited_at, Contact.act_created_at, Contact.created_at)
+        company_activity_at = func.coalesce(Company.act_edited_at, Company.act_created_at, Company.created_at)
+        contact_activity_filter = []
+        company_activity_filter = []
 
     recent_contacts_rows = db.execute(
         select(Contact, Company.name.label("company_name"), contact_activity_at.label("activity_at"))
         .outerjoin(Company, Contact.company_id == Company.id)
-        .where(*contact_filter)
+        .where(*contact_filter, *contact_activity_filter)
         .order_by(contact_activity_at.desc())
         .limit(RECENT_LIMIT)
     ).all()
@@ -87,7 +125,7 @@ def get_dashboard_stats(
 
     recent_companies_rows = db.execute(
         select(Company, company_activity_at.label("activity_at"))
-        .where(*company_filter)
+        .where(*company_filter, *company_activity_filter)
         .order_by(company_activity_at.desc())
         .limit(RECENT_LIMIT)
     ).all()

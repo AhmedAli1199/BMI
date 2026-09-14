@@ -380,3 +380,29 @@ class ReviewActionRequest(BaseModel):
 
 class ReviewQueuePage(Page):
     items: list[ReviewQueueItemOut]
+
+
+# ---- Preferences / settings -------------------------------------------
+# See app/preferences.py for the registry these render.
+
+class PreferenceOptionOut(BaseModel):
+    value: str
+    label: str
+    description: str
+
+
+class PreferenceDefOut(BaseModel):
+    key: str
+    label: str
+    description: str
+    group: str
+    options: list[PreferenceOptionOut]
+    default: str
+
+
+class UserPreferencesOut(BaseModel):
+    values: dict[str, str]
+
+
+class UserPreferencesUpdate(BaseModel):
+    values: dict[str, str]

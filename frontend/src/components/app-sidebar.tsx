@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -183,7 +184,20 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                 {session.email}
               </p>
             </div>
-            <LogoutButton className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="icon-sm"
+                variant="outline"
+                title="Settings"
+                render={<Link href="/settings" />}
+                className={`border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+                  pathname === "/settings" ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
+                }`}
+              >
+                <Settings className="size-4" />
+              </Button>
+              <LogoutButton className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+            </div>
           </div>
         )}
       </SidebarFooter>
