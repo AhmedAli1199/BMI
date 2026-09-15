@@ -17,5 +17,15 @@ class Settings(BaseSettings):
     automations_bounce_scan_enabled: bool = False  # CS-001 + CS-002 (bounce classification, OOO mining)
     automations_departure_scan_enabled: bool = False  # CS-003 (departure & successor finding)
 
+    # Microsoft Graph app registration (client-credentials flow, no per-user
+    # login) - used by /api/diagnostics/graph-mailboxes to confirm which of
+    # BMI's mailboxes are actually readable before CS-001/002/003 depend on
+    # them, and later by the real mailbox-scanning jobs themselves. Left
+    # empty by default; the diagnostics route reports "not configured"
+    # rather than crashing when they're unset.
+    graph_tenant_id: str = ""
+    graph_client_id: str = ""
+    graph_client_secret: str = ""
+
 
 settings = Settings()

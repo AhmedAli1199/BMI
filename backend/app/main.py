@@ -10,6 +10,7 @@ from app.api.routes import (
     companies,
     contacts,
     dashboard,
+    diagnostics,
     groups,
     health,
     publications,
@@ -64,6 +65,7 @@ api_router.include_router(review_queue.router)
 api_router.include_router(automations.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)
+api_router.include_router(diagnostics.router)
 app.include_router(api_router)
 
 
