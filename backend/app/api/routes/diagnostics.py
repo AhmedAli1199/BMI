@@ -4,7 +4,7 @@ import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.graph_client import GraphNotConfigured, check_mailbox, get_app_token
+from app.graph_client import GraphNotConfigured, check_mailbox, decode_app_roles, get_app_token
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
 
@@ -30,6 +30,7 @@ class MailboxCheckOut(BaseModel):
 
 class GraphMailboxesOut(BaseModel):
     configured: bool
+    granted_app_roles: list[str] = []
     results: list[MailboxCheckOut]
 
 
@@ -59,5 +60,6 @@ def check_graph_mailboxes() -> GraphMailboxesOut:
     results = [check_mailbox(token, email) for email in CANDIDATE_MAILBOXES]
     return GraphMailboxesOut(
         configured=True,
+        granted_app_roles=decode_app_roles(token),
         results=[MailboxCheckOut(email=r.email, status=r.status, detail=r.detail) for r in results],
     )

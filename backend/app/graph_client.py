@@ -8,6 +8,8 @@ readable mailbox" before anything is built on top of it.
 """
 from __future__ import annotations
 
+import base64
+import json
 from dataclasses import dataclass
 
 import httpx
@@ -50,6 +52,26 @@ def get_app_token() -> str:
     return resp.json()["access_token"]
 
 
+def decode_app_roles(token: str) -> list[str]:
+    """Reads the "roles" claim out of the access token's payload - the
+    application permissions (e.g. "Mail.Read") Azure AD actually put on
+    this token, as granted (with admin consent) on the app registration.
+    No signature verification - we don't need to trust the token's
+    integrity for this, only to read what Azure AD itself already put in
+    it moments ago; this is purely diagnostic, never used for auth
+    decisions. An empty list here (not an absent "Mail.Read") means the
+    app has NO application permissions at all - the most common reason
+    every single mailbox comes back access_denied at once, as opposed to
+    a per-mailbox Application Access Policy problem."""
+    try:
+        payload_segment = token.split(".")[1]
+        padded = payload_segment + "=" * (-len(payload_segment) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+        return payload.get("roles", [])
+    except Exception:
+        return []
+
+
 @dataclass(frozen=True)
 class MailboxCheckResult:
     email: str
@@ -76,10 +98,18 @@ def check_mailbox(token: str, email: str) -> MailboxCheckResult:
     if resp.status_code == 404:
         return MailboxCheckResult(email, "no_mailbox", "Graph reports no mailbox at this address")
     if resp.status_code == 403:
+        graph_code = None
+        graph_message = None
+        try:
+            err = resp.json().get("error", {})
+            graph_code = err.get("code")
+            graph_message = err.get("message")
+        except Exception:
+            pass
         return MailboxCheckResult(
             email, "access_denied",
-            "Mailbox exists but the app registration isn't permitted to read it "
-            "(check the Exchange Application Access Policy covers this address)",
+            f"Mailbox exists but the app isn't permitted to read it - Graph says "
+            f"{graph_code!r}: {graph_message!r}",
         )
     if resp.status_code == 401:
         return MailboxCheckResult(email, "auth_error", "Token rejected - check Mail.Read admin consent")
