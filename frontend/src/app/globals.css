@@ -290,16 +290,33 @@
   border-radius: var(--radius);
 }
 
+/* Vertical connector behind a column of size-8 (32px) node icons with no
+   left padding on the container - center of that column is exactly 16px
+   in, which is what `left` below has to match. The old value (17px) was
+   just a guess that never lined up with the icons, which is what made it
+   look broken. Faded top/bottom via the gradient so a node landing a few
+   px short of the line's exact end is invisible rather than looking cut
+   off; the two-tone shadow gives it a slightly raised, tube-like edge. */
 .timeline-spine {
   position: relative;
 }
 .timeline-spine::before {
   content: "";
   position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 17px;
-  width: 2px;
-  background: var(--border);
+  top: 20px;
+  bottom: 20px;
+  left: 16px;
+  width: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    var(--border) 10%,
+    var(--border) 90%,
+    transparent 100%
+  );
+  box-shadow:
+    1px 0 0 0 rgba(255, 255, 255, 0.05),
+    -1px 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 

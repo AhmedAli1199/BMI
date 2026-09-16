@@ -14,6 +14,7 @@ import {
 import type { NoteOut, HistoryOut } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { cleanNoteBody } from "@/lib/notes";
+import { highlightMatch } from "@/lib/highlight";
 
 type TimelineItem = {
   id: string;
@@ -56,9 +57,15 @@ function categorizeItem(typeStr: string | null, text: string | null): "call" | "
 export function UnifiedActivityTimeline({
   notes = [],
   history = [],
+  searchTerm = "",
 }: {
   notes: NoteOut[];
   history: HistoryOut[];
+  /** When set, narrows to items whose title/body matches (case-insensitive)
+   * and highlights the matched text - the same term driving the Notes and
+   * History tabs, so this timeline stays in sync with them rather than
+   * needing its own separate search box. */
+  searchTerm?: string;
 }) {
   const [filter, setFilter] = useState<"all" | "call" | "meeting" | "note" | "email">("all");
 
@@ -91,9 +98,15 @@ export function UnifiedActivityTimeline({
     }),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
+  const needle = searchTerm.trim().toLowerCase();
   const filteredItems = timelineItems.filter((item) => {
-    if (filter === "all") return true;
-    return item.category === filter;
+    if (filter !== "all" && item.category !== filter) return false;
+    if (!needle) return true;
+    return (
+      item.title.toLowerCase().includes(needle) ||
+      (item.body?.toLowerCase().includes(needle) ?? false) ||
+      (item.badgeLabel?.toLowerCase().includes(needle) ?? false)
+    );
   });
 
   const getIcon = (category: string) => {
@@ -177,16 +190,24 @@ export function UnifiedActivityTimeline({
       {filteredItems.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
           <MessageSquare className="size-8 opacity-40 mb-2" />
-          <p className="font-medium">No activity matching this filter</p>
-          <p className="text-xs">Use the touchpoint bar above to log an interaction.</p>
+          <p className="font-medium">
+            {needle ? `Nothing matches "${searchTerm.trim()}"` : "No activity matching this filter"}
+          </p>
+          <p className="text-xs">
+            {needle
+              ? "Try a shorter or different term."
+              : "Use the touchpoint bar above to log an interaction."}
+          </p>
         </div>
       ) : (
-        <div className="timeline-spine relative flex flex-col gap-5 pl-2 pt-1">
+        <div className="timeline-spine relative flex flex-col gap-5 pt-1">
           {filteredItems.map((item) => (
             <div key={item.id} className="relative flex items-start gap-3.5">
-              {/* Node Icon */}
+              {/* Node Icon - a touch of depth (inset highlight + drop
+                  shadow) so it reads as a raised bead the spine threads
+                  through, not a flat sticker */}
               <div
-                className={`z-10 flex size-8 shrink-0 items-center justify-center rounded-full border shadow-2xs ${getBorderColor(
+                className={`z-10 flex size-8 shrink-0 items-center justify-center rounded-full border shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_1px_3px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_1px_3px_rgba(0,0,0,0.35)] ${getBorderColor(
                   item.category
                 )}`}
               >
@@ -198,7 +219,7 @@ export function UnifiedActivityTimeline({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold tracking-tight text-foreground">
-                      {item.title}
+                      {highlightMatch(item.title, searchTerm)}
                     </span>
                     {item.badgeLabel && (
                       <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
@@ -213,7 +234,7 @@ export function UnifiedActivityTimeline({
 
                 {item.body && (
                   <p className="mt-2 text-xs leading-relaxed text-foreground/85 whitespace-pre-wrap font-sans">
-                    {item.body}
+                    {highlightMatch(item.body, searchTerm)}
                   </p>
                 )}
               </div>

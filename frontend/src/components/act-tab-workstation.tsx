@@ -28,6 +28,7 @@ import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline"
 import { InlineActivityComposer } from "@/components/inline-activity-composer";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { cleanNoteBody } from "@/lib/notes";
+import { highlightMatch } from "@/lib/highlight";
 
 export function ActTabWorkstation({
   contact,
@@ -44,18 +45,23 @@ export function ActTabWorkstation({
     /issue|ad|print|circulation|tier|title|sponsor|expo|wtce/i.test(k)
   );
 
+  // One search box drives all three content tabs (Activities, Notes,
+  // History) at once, rather than each having its own - typing here
+  // narrows and highlights matches everywhere that text lives, so a long-
+  // history contact doesn't force tab-hopping to find one old note.
+  const needle = searchTerm.trim().toLowerCase();
   const filteredNotes = contact.notes.filter(
     (n) =>
-      !searchTerm ||
-      (n.body && n.body.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (n.note_type && n.note_type.toLowerCase().includes(searchTerm.toLowerCase()))
+      !needle ||
+      (n.body && n.body.toLowerCase().includes(needle)) ||
+      (n.note_type && n.note_type.toLowerCase().includes(needle))
   );
 
   const filteredHistory = contact.history.filter(
     (h) =>
-      !searchTerm ||
-      (h.subject && h.subject.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (h.history_type && h.history_type.toLowerCase().includes(searchTerm.toLowerCase()))
+      !needle ||
+      (h.subject && h.subject.toLowerCase().includes(needle)) ||
+      (h.history_type && h.history_type.toLowerCase().includes(needle))
   );
 
   return (
@@ -69,7 +75,13 @@ export function ActTabWorkstation({
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <Calendar className="size-3.5 text-blue-600" />
-              <span>Activities ({contact.notes.filter((n) => /call|meeting/i.test(n.note_type || "")).length})</span>
+              <span>
+                Activities (
+                {needle
+                  ? `${filteredNotes.length + filteredHistory.length} of ${contact.notes.length + contact.history.length}`
+                  : contact.notes.filter((n) => /call|meeting/i.test(n.note_type || "")).length}
+                )
+              </span>
             </TabsTrigger>
 
             <TabsTrigger
@@ -77,7 +89,9 @@ export function ActTabWorkstation({
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <FileText className="size-3.5 text-emerald-600" />
-              <span>Notes ({contact.notes.length})</span>
+              <span>
+                Notes ({needle ? `${filteredNotes.length} of ${contact.notes.length}` : contact.notes.length})
+              </span>
             </TabsTrigger>
 
             <TabsTrigger
@@ -85,7 +99,9 @@ export function ActTabWorkstation({
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <Clock className="size-3.5 text-amber-600" />
-              <span>History ({contact.history.length})</span>
+              <span>
+                History ({needle ? `${filteredHistory.length} of ${contact.history.length}` : contact.history.length})
+              </span>
             </TabsTrigger>
 
             <TabsTrigger
@@ -113,12 +129,15 @@ export function ActTabWorkstation({
             </TabsTrigger>
           </TabsList>
 
-          {/* Quick Sub-Tab Filter Bar */}
+          {/* Searches Activities, Notes and History together (see `needle`
+              above) - not scoped to whichever tab happens to be open, so a
+              match still shows up in the tab counts even before you switch
+              to it. */}
           <div className="flex items-center gap-2 pb-1.5">
-            <div className="relative w-48 sm:w-56">
+            <div className="relative w-56 sm:w-72">
               <Search className="absolute left-2 top-2 size-3 text-muted-foreground" />
               <Input
-                placeholder={`Search in ${activeTab}...`}
+                placeholder="Search this contact's notes & history..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="h-7 pl-7 text-xs"
@@ -136,6 +155,7 @@ export function ActTabWorkstation({
           <UnifiedActivityTimeline
             notes={contact.notes}
             history={contact.history}
+            searchTerm={searchTerm}
           />
         </TabsContent>
 
@@ -156,36 +176,39 @@ export function ActTabWorkstation({
 
             <CardContent className="p-0 divide-y divide-border/60 text-xs">
               {filteredNotes.length > 0 ? (
-                filteredNotes.map((n) => (
-                  <div
-                    key={n.id}
-                    className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3.5 hover:bg-muted/20 transition-colors"
-                  >
-                    <time className="w-28 shrink-0 text-muted-foreground font-mono text-[11px]">
-                      {n.act_created_at
-                        ? new Date(n.act_created_at).toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </time>
-                    <div className="w-24 shrink-0">
-                      <Badge variant="outline" className="text-[10px] py-0 px-1.5">
-                        {n.note_type || "Note"}
-                      </Badge>
+                filteredNotes.map((n) => {
+                  const body = cleanNoteBody(n.body);
+                  return (
+                    <div
+                      key={n.id}
+                      className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3.5 hover:bg-muted/20 transition-colors"
+                    >
+                      <time className="w-28 shrink-0 text-muted-foreground font-mono text-[11px]">
+                        {n.act_created_at
+                          ? new Date(n.act_created_at).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </time>
+                      <div className="w-24 shrink-0">
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                          {highlightMatch(n.note_type || "Note", searchTerm)}
+                        </Badge>
+                      </div>
+                      <p className="flex-1 text-foreground leading-relaxed whitespace-pre-wrap">
+                        {body ? highlightMatch(body, searchTerm) : "No content."}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground shrink-0 uppercase tracking-wider">
+                        Act! Manual
+                      </span>
                     </div>
-                    <p className="flex-1 text-foreground leading-relaxed whitespace-pre-wrap">
-                      {cleanNoteBody(n.body) || "No content."}
-                    </p>
-                    <span className="text-[10px] text-muted-foreground shrink-0 uppercase tracking-wider">
-                      Act! Manual
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No notes match your filter.
+                  {needle ? `Nothing in Notes matches "${searchTerm.trim()}".` : "No notes on file."}
                 </div>
               )}
             </CardContent>
@@ -217,17 +240,17 @@ export function ActTabWorkstation({
                     </time>
                     <div className="w-32 shrink-0">
                       <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
-                        {h.history_type}
+                        {highlightMatch(h.history_type, searchTerm)}
                       </Badge>
                     </div>
                     <span className="flex-1 font-medium text-foreground">
-                      {h.subject || "Event logged"}
+                      {h.subject ? highlightMatch(h.subject, searchTerm) : "Event logged"}
                     </span>
                   </div>
                 ))
               ) : (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No history records on file.
+                  {needle ? `Nothing in History matches "${searchTerm.trim()}".` : "No history records on file."}
                 </div>
               )}
             </CardContent>
