@@ -68,12 +68,6 @@ export default async function CompanyDetailPage({
               {company.name}
             </span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[11px] font-mono">
-              {company.source_act_id || `ID: ${company.id.slice(0, 8)}`}
-            </Badge>
-          </div>
         </div>
 
         {/* Tier 1: ACT! Authentic 3-Column Upper Company Card */}

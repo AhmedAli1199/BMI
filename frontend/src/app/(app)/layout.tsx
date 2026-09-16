@@ -2,7 +2,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { getSession } from "@/lib/session";
-import { LiveClock } from "@/components/live-clock";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PublicationSwitcher } from "@/components/publication-switcher";
 import { getPublicationFilter } from "@/lib/publication";
@@ -31,8 +30,9 @@ export default async function AppLayout({
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
           <PublicationSwitcher current={publicationFilter} publications={publications} />
-          <LiveClock className="ml-auto text-[15px] font-semibold text-sidebar-foreground" />
-          <ThemeSwitcher />
+          <span className="ml-auto">
+            <ThemeSwitcher />
+          </span>
         </header>
         <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
       </SidebarInset>

@@ -5,7 +5,6 @@ import { backendFetch } from "@/lib/backend";
 import type { ContactDetail, GroupListItem, Page } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { canAccessRecord } from "@/lib/access";
-import { Badge } from "@/components/ui/badge";
 import { sourceLabel } from "@/lib/sources";
 import { ActSubbar } from "@/components/act-subbar";
 import { ActContactCard } from "@/components/act-contact-card";
@@ -72,12 +71,6 @@ export default async function ContactDetailPage({
             <span className="text-xs font-bold text-foreground truncate max-w-[240px]">
               {name}
             </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[11px] font-mono">
-              {contact.source_act_id || `ID: ${contact.id.slice(0, 8)}`}
-            </Badge>
           </div>
         </div>
 
