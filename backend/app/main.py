@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import app.automations  # noqa: F401 - import registers every automation's review kinds + producer jobs
 from app.api.routes import (
+    activities,
     auth,
     automations,
     companies,
@@ -68,6 +69,7 @@ api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)
 api_router.include_router(diagnostics.router)
 api_router.include_router(users.router)
+api_router.include_router(activities.router)
 app.include_router(api_router)
 
 

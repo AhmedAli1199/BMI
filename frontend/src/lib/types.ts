@@ -19,8 +19,46 @@ export type AddressOut = {
 };
 export type PhoneOut = { id: string; type_label: string | null; number: string | null };
 export type EmailOut = { id: string; type_label: string | null; address: string | null };
-export type NoteOut = { id: string; note_type: string | null; body: string | null; act_created_at: string | null };
-export type HistoryOut = { id: string; history_type: string; subject: string | null; occurred_at: string };
+export type UserSummary = { id: string; name: string };
+export type NoteOut = {
+  id: string;
+  note_type: string | null;
+  body: string | null;
+  is_private: boolean;
+  act_created_at: string | null;
+  created_by: UserSummary | null;
+};
+export type HistoryOut = {
+  id: string;
+  history_type: string;
+  subject: string | null;
+  details: string | null;
+  duration_minutes: number | null;
+  is_private: boolean;
+  occurred_at: string;
+  created_by: UserSummary | null;
+};
+/** "never" is the only value the UI offers today - see backend's
+ * app/models/activity.py RECURRENCE_VALUES for the other three. */
+export type ActivityRecurrence = "never" | "daily" | "weekly" | "monthly";
+export type ActivityOut = {
+  id: string;
+  activity_type: string | null;
+  subject: string | null;
+  details: string | null;
+  location: string | null;
+  start_at: string;
+  end_at: string | null;
+  is_timeless: boolean;
+  is_cleared: boolean;
+  is_private: boolean;
+  recurrence: ActivityRecurrence;
+  contact_id: string | null;
+  company_id: string | null;
+  contact_name: string | null;
+  company_name: string | null;
+  created_by: UserSummary | null;
+};
 export type GroupOut = { id: string; name: string };
 export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null };
 
@@ -50,6 +88,7 @@ export type ContactDetail = {
   groups: GroupOut[];
   notes: NoteOut[];
   history: HistoryOut[];
+  activities: ActivityOut[];
 };
 
 export type CompanyListItem = {
@@ -79,6 +118,8 @@ export type CompanyDetail = {
   emails: EmailOut[];
   contacts: ContactListItem[];
   notes: NoteOut[];
+  history: HistoryOut[];
+  activities: ActivityOut[];
 };
 
 export type GroupListItem = {
@@ -98,6 +139,8 @@ export type GroupDetail = {
   parent_group_id: string | null;
   members: ContactListItem[];
 };
+
+export type ActivitiesPage = Page<ActivityOut>;
 
 export type SourceBreakdown = { source_db: string; count: number };
 

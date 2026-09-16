@@ -3,18 +3,34 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
+import { getSession } from "@/lib/session";
 import { PUBLICATION_COOKIE } from "@/lib/publication";
 import type {
+  ActivityOut,
+  ActivitiesPage,
+  ActivityRecurrence,
   CompanyListItem,
   ContactDetail,
   ContactListItem,
   GroupListItem,
+  HistoryOut,
   Page,
   Publication,
   RoleDef,
   UserAccessEntry,
   UserAccount,
 } from "@/lib/types";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** session.sub is "local-dev" under the auth bypass (see lib/session.ts) -
+ * never a real user id. The backend's created_by_user_id columns are typed
+ * UUID, so sending that literal string would 422 rather than gracefully
+ * becoming "no user" - filter it out here, the one place every caller in
+ * this file goes through. */
+function currentUserId(sub: string | undefined): string | null {
+  return sub && UUID_RE.test(sub) ? sub : null;
+}
 
 /** Every CRUD mutation for Contacts/Companies/Groups, callable straight from
  * client components (Next.js server actions run on the server regardless of
@@ -104,13 +120,113 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
   revalidatePath(`/groups/${groupId}`);
 }
 
-export async function addContactNote(contactId: string, body: string, note_type: string = "Note") {
+export async function addContactNote(
+  contactId: string,
+  body: string,
+  note_type: string = "Note",
+  is_private: boolean = false
+) {
+  const session = await getSession();
   await backendFetch(`/api/contacts/${contactId}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body, note_type }),
+    body: JSON.stringify({ body, note_type, is_private, created_by_user_id: currentUserId(session?.sub) }),
   });
   revalidatePath(`/contacts/${contactId}`);
+}
+
+export type LogHistoryInput = {
+  history_type: string;
+  subject?: string;
+  details?: string;
+  duration_minutes?: number;
+  is_private?: boolean;
+  occurred_at: string;
+};
+
+export async function logContactHistory(contactId: string, input: LogHistoryInput) {
+  const session = await getSession();
+  const entry = await backendFetch<HistoryOut>(`/api/contacts/${contactId}/history`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, created_by_user_id: currentUserId(session?.sub) }),
+  });
+  revalidatePath(`/contacts/${contactId}`);
+  return entry;
+}
+
+export async function logCompanyHistory(companyId: string, input: LogHistoryInput) {
+  const session = await getSession();
+  const entry = await backendFetch<HistoryOut>(`/api/companies/${companyId}/history`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, created_by_user_id: currentUserId(session?.sub) }),
+  });
+  revalidatePath(`/companies/${companyId}`);
+  return entry;
+}
+
+export type ScheduleActivityInput = {
+  activity_type: string;
+  subject?: string;
+  details?: string;
+  location?: string;
+  start_at: string;
+  end_at?: string;
+  is_timeless?: boolean;
+  is_private?: boolean;
+  recurrence?: ActivityRecurrence;
+  contact_id?: string | null;
+  company_id?: string | null;
+  source_db: string;
+};
+
+export async function createActivity(input: ScheduleActivityInput) {
+  const session = await getSession();
+  const activity = await backendFetch<ActivityOut>("/api/activities", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, created_by_user_id: currentUserId(session?.sub) }),
+  });
+  if (input.contact_id) revalidatePath(`/contacts/${input.contact_id}`);
+  if (input.company_id) revalidatePath(`/companies/${input.company_id}`);
+  revalidatePath("/activities");
+  return activity;
+}
+
+export async function setActivityDone(id: string, is_cleared: boolean, revalidate?: { contactId?: string; companyId?: string }) {
+  await backendFetch<ActivityOut>(`/api/activities/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_cleared }),
+  });
+  if (revalidate?.contactId) revalidatePath(`/contacts/${revalidate.contactId}`);
+  if (revalidate?.companyId) revalidatePath(`/companies/${revalidate.companyId}`);
+  revalidatePath("/activities");
+}
+
+export async function deleteActivity(id: string) {
+  await backendFetch<void>(`/api/activities/${id}`, { method: "DELETE" });
+  revalidatePath("/activities");
+}
+
+export async function listActivities(params: {
+  source_db?: string;
+  assigned_user_id?: string;
+  is_cleared?: boolean;
+  start_after?: string;
+  start_before?: string;
+  page?: number;
+}): Promise<ActivitiesPage> {
+  const q = new URLSearchParams();
+  if (params.source_db) q.set("source_db", params.source_db);
+  if (params.assigned_user_id) q.set("assigned_user_id", params.assigned_user_id);
+  if (params.is_cleared !== undefined) q.set("is_cleared", String(params.is_cleared));
+  if (params.start_after) q.set("start_after", params.start_after);
+  if (params.start_before) q.set("start_before", params.start_before);
+  q.set("page", String(params.page ?? 1));
+  q.set("page_size", "100");
+  return backendFetch<ActivitiesPage>(`/api/activities?${q}`);
 }
 
 // ---- Contact channels (email/phone/address) --------------------------------
@@ -247,11 +363,12 @@ export async function deleteCompany(id: string) {
   revalidatePath("/companies");
 }
 
-export async function addCompanyNote(companyId: string, body: string) {
+export async function addCompanyNote(companyId: string, body: string, is_private: boolean = false) {
+  const session = await getSession();
   await backendFetch(`/api/companies/${companyId}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, is_private, created_by_user_id: currentUserId(session?.sub) }),
   });
   revalidatePath(`/companies/${companyId}`);
 }

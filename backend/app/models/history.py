@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,3 +58,7 @@ class HistoryEntry(Base, UUIDPk, ProvenanceMixin):
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
 
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+
+    # New as of the CRM's own "Log History" UI - null/false on migrated rows.
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

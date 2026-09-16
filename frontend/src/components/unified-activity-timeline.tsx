@@ -3,29 +3,34 @@
 import { useState } from "react";
 import {
   Calendar,
-  FileSpreadsheet,
+  CheckSquare,
   FileText,
   Mail,
   MessageSquare,
-  Phone,
   PhoneCall,
   Sparkles,
 } from "lucide-react";
-import type { NoteOut, HistoryOut } from "@/lib/types";
+import type { NoteOut, HistoryOut, ActivityOut } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { cleanNoteBody } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
 
 type TimelineItem = {
   id: string;
-  kind: "note" | "history";
+  kind: "note" | "history" | "activity";
   date: Date;
   isoString: string;
-  category: "call" | "meeting" | "email" | "note" | "system";
+  category: "call" | "meeting" | "email" | "note" | "task" | "system";
   title: string;
   body?: string | null;
   badgeLabel?: string;
+  isScheduled?: boolean;
+  isCleared?: boolean;
 };
+
+function isFuture(date: Date): boolean {
+  return date.getTime() > Date.now();
+}
 
 function formatRelativeTime(date: Date): string {
   const diffMs = Date.now() - date.getTime();
@@ -45,8 +50,9 @@ function formatRelativeTime(date: Date): string {
   });
 }
 
-function categorizeItem(typeStr: string | null, text: string | null): "call" | "meeting" | "email" | "note" | "system" {
+function categorizeItem(typeStr: string | null, text: string | null): "call" | "meeting" | "email" | "note" | "task" | "system" {
   const lower = `${typeStr || ""} ${text || ""}`.toLowerCase();
+  if (lower.includes("to-do") || lower.includes("todo") || lower.includes("task")) return "task";
   if (lower.includes("call") || lower.includes("phone") || lower.includes("reach") || lower.includes("attempt")) return "call";
   if (lower.includes("meet") || lower.includes("tasting") || lower.includes("visit") || lower.includes("expo")) return "meeting";
   if (lower.includes("mail") || lower.includes("letter") || lower.includes("message")) return "email";
@@ -57,17 +63,19 @@ function categorizeItem(typeStr: string | null, text: string | null): "call" | "
 export function UnifiedActivityTimeline({
   notes = [],
   history = [],
+  activities = [],
   searchTerm = "",
 }: {
   notes: NoteOut[];
   history: HistoryOut[];
+  activities?: ActivityOut[];
   /** When set, narrows to items whose title/body matches (case-insensitive)
    * and highlights the matched text - the same term driving the Notes and
    * History tabs, so this timeline stays in sync with them rather than
    * needing its own separate search box. */
   searchTerm?: string;
 }) {
-  const [filter, setFilter] = useState<"all" | "call" | "meeting" | "note" | "email">("all");
+  const [filter, setFilter] = useState<"all" | "call" | "meeting" | "note" | "email" | "task">("all");
 
   const timelineItems: TimelineItem[] = [
     ...notes.map((n): TimelineItem => {
@@ -92,8 +100,23 @@ export function UnifiedActivityTimeline({
         isoString: d.toISOString(),
         category: categorizeItem(h.history_type, h.subject),
         title: h.subject || h.history_type,
-        body: null,
+        body: h.details ? cleanNoteBody(h.details) : null,
         badgeLabel: h.history_type,
+      };
+    }),
+    ...activities.map((a): TimelineItem => {
+      const d = new Date(a.start_at);
+      return {
+        id: `act-${a.id}`,
+        kind: "activity",
+        date: d,
+        isoString: d.toISOString(),
+        category: categorizeItem(a.activity_type, a.subject),
+        title: a.subject || a.activity_type || "Activity",
+        body: a.details ? cleanNoteBody(a.details) : null,
+        badgeLabel: a.activity_type ?? undefined,
+        isScheduled: true,
+        isCleared: a.is_cleared,
       };
     }),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -119,6 +142,8 @@ export function UnifiedActivityTimeline({
         return <Mail className="size-3.5 text-purple-600 dark:text-purple-400" />;
       case "note":
         return <FileText className="size-3.5 text-emerald-600 dark:text-emerald-400" />;
+      case "task":
+        return <CheckSquare className="size-3.5 text-rose-600 dark:text-rose-400" />;
       default:
         return <Sparkles className="size-3.5 text-primary" />;
     }
@@ -134,6 +159,8 @@ export function UnifiedActivityTimeline({
         return "border-purple-500/30 bg-purple-500/10";
       case "note":
         return "border-emerald-500/30 bg-emerald-500/10";
+      case "task":
+        return "border-rose-500/30 bg-rose-500/10";
       default:
         return "border-primary/30 bg-primary/10";
     }
@@ -178,6 +205,13 @@ export function UnifiedActivityTimeline({
             onClick={() => setFilter("email")}
           >
             Emails
+          </Badge>
+          <Badge
+            variant={filter === "task" ? "default" : "outline"}
+            className="cursor-pointer text-xs font-medium"
+            onClick={() => setFilter("task")}
+          >
+            Tasks
           </Badge>
         </div>
 
@@ -226,9 +260,23 @@ export function UnifiedActivityTimeline({
                         {item.badgeLabel}
                       </Badge>
                     )}
+                    {item.isScheduled && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] py-0 px-1.5 font-normal ${
+                          item.isCleared
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {item.isCleared ? "Done" : "Scheduled"}
+                      </Badge>
+                    )}
                   </div>
                   <time className="text-[11px] font-medium text-muted-foreground">
-                    {formatRelativeTime(item.date)}
+                    {item.isScheduled && isFuture(item.date)
+                      ? item.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                      : formatRelativeTime(item.date)}
                   </time>
                 </div>
 

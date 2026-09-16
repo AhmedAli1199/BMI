@@ -99,17 +99,29 @@ class EmailWrite(BaseModel):
     address: str | None = None
 
 
+class UserSummary(BaseModel):
+    """Just enough to show "who logged this" - never the full UserOut
+    (email, role, access) on a Note/History/Activity payload."""
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+
+
 class NoteOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     note_type: str | None = None
     body: str | None = None
+    is_private: bool = False
     act_created_at: datetime | None = None
+    created_by: UserSummary | None = None
 
 
 class NoteCreate(BaseModel):
     body: str = Field(min_length=1)
     note_type: str = "Note"
+    is_private: bool = False
+    created_by_user_id: uuid.UUID | None = None
 
 
 class HistoryOut(BaseModel):
@@ -117,7 +129,78 @@ class HistoryOut(BaseModel):
     id: uuid.UUID
     history_type: str
     subject: str | None = None
+    details: str | None = None
+    duration_minutes: int | None = None
+    is_private: bool = False
     occurred_at: datetime
+    created_by: UserSummary | None = None
+
+
+class HistoryCreate(BaseModel):
+    # Act!'s dialog splits "History type" (Call/Meeting/...) from a
+    # "Result" dropdown (Call Attempted/Call Completed/...) but stores one
+    # combined string - see app/models/history.py's HISTORY_TYPES_KEPT for
+    # the allowed values, which is exactly Act!'s own Result vocabulary.
+    history_type: str = Field(min_length=1, max_length=64)
+    subject: str | None = None
+    details: str | None = None
+    duration_minutes: int | None = None
+    is_private: bool = False
+    occurred_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+
+
+class ActivityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    activity_type: str | None = None
+    subject: str | None = None
+    details: str | None = None
+    location: str | None = None
+    start_at: datetime
+    end_at: datetime | None = None
+    is_timeless: bool = False
+    is_cleared: bool = False
+    is_private: bool = False
+    recurrence: str = "never"
+    contact_id: uuid.UUID | None = None
+    company_id: uuid.UUID | None = None
+    contact_name: str | None = None
+    company_name: str | None = None
+    created_by: UserSummary | None = None
+
+
+class ActivityCreate(BaseModel):
+    activity_type: str = Field(min_length=1, max_length=128)  # "Call" / "Meeting" / "To-do"
+    subject: str | None = None
+    details: str | None = None
+    location: str | None = None
+    start_at: datetime
+    end_at: datetime | None = None
+    is_timeless: bool = False
+    is_private: bool = False
+    recurrence: str = "never"
+    contact_id: uuid.UUID | None = None
+    company_id: uuid.UUID | None = None
+    source_db: str
+    created_by_user_id: uuid.UUID | None = None
+
+
+class ActivityUpdate(BaseModel):
+    activity_type: str | None = None
+    subject: str | None = None
+    details: str | None = None
+    location: str | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    is_timeless: bool | None = None
+    is_cleared: bool | None = None
+    is_private: bool | None = None
+    recurrence: str | None = None
+
+
+class ActivitiesPage(Page):
+    items: list[ActivityOut]
 
 
 class GroupOut(BaseModel):
@@ -153,6 +236,7 @@ class ContactDetail(BaseModel):
     groups: list[GroupOut] = []
     notes: list[NoteOut] = []
     history: list[HistoryOut] = []
+    activities: list[ActivityOut] = []
 
 
 class CompanyListItem(BaseModel):
@@ -188,6 +272,8 @@ class CompanyDetail(BaseModel):
     emails: list[EmailOut] = []
     contacts: list[ContactListItem] = []
     notes: list[NoteOut] = []
+    history: list[HistoryOut] = []
+    activities: list[ActivityOut] = []
 
 
 # ---- Write schemas (CRUD) --------------------------------------------------

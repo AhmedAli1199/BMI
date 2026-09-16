@@ -11,6 +11,7 @@ from app.api.schemas import (
     MANUAL_SOURCE_DB,
     AddressOut,
     AddressWrite,
+    ActivityOut,
     CompanySummary,
     ContactCreate,
     ContactDetail,
@@ -20,6 +21,7 @@ from app.api.schemas import (
     EmailOut,
     EmailWrite,
     GroupOut,
+    HistoryCreate,
     HistoryOut,
     NoteCreate,
     NoteOut,
@@ -27,6 +29,7 @@ from app.api.schemas import (
     PhoneWrite,
 )
 from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
 from app.db.session import get_db
 from app.models import (
@@ -158,6 +161,28 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         .order_by(HistoryEntry.occurred_at.desc())
         .limit(100)
     ).all()
+    activities = db.scalars(
+        select(Activity).where(Activity.contact_id == contact_id)
+        .order_by(Activity.start_at.desc())
+        .limit(100)
+    ).all()
+
+    creators = resolve_creators(db, [*notes, *history, *activities])
+
+    def _note_out(n: Note) -> NoteOut:
+        out = NoteOut.model_validate(n)
+        out.created_by = creator_summary(n, creators)
+        return out
+
+    def _history_out(h: HistoryEntry) -> HistoryOut:
+        out = HistoryOut.model_validate(h)
+        out.created_by = creator_summary(h, creators)
+        return out
+
+    def _activity_out(a: Activity) -> ActivityOut:
+        out = ActivityOut.model_validate(a)
+        out.created_by = creator_summary(a, creators)
+        return out
 
     return ContactDetail(
         id=contact.id,
@@ -183,8 +208,9 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         phones=[PhoneOut.model_validate(p) for p in phones],
         emails=[EmailOut.model_validate(e) for e in emails],
         groups=[GroupOut.model_validate(g) for g in groups],
-        notes=[NoteOut.model_validate(n) for n in notes],
-        history=[HistoryOut.model_validate(h) for h in history],
+        notes=[_note_out(n) for n in notes],
+        history=[_history_out(h) for h in history],
+        activities=[_activity_out(a) for a in activities],
     )
 
 
@@ -201,11 +227,41 @@ def add_contact_note(contact_id: uuid.UUID, payload: NoteCreate, db: Session = D
         entity_id=contact_id,
         note_type=payload.note_type,
         body=payload.body,
+        is_private=payload.is_private,
         act_created_at=datetime.now(timezone.utc),
+        created_by_user_id=payload.created_by_user_id,
     )
     db.add(note)
     db.commit()
-    return NoteOut.model_validate(note)
+    out = NoteOut.model_validate(note)
+    out.created_by = creator_summary(note, resolve_creators(db, [note]))
+    return out
+
+
+@router.post("/{contact_id}/history", response_model=HistoryOut, status_code=201)
+def add_contact_history(contact_id: uuid.UUID, payload: HistoryCreate, db: Session = Depends(get_db)) -> HistoryOut:
+    if not db.get(Contact, contact_id):
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    entry = HistoryEntry(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),
+        entity_type="contact",
+        entity_id=contact_id,
+        history_type=payload.history_type,
+        subject=payload.subject,
+        details=payload.details,
+        duration_minutes=payload.duration_minutes,
+        is_private=payload.is_private,
+        occurred_at=payload.occurred_at,
+        created_by_user_id=payload.created_by_user_id,
+    )
+    db.add(entry)
+    db.commit()
+    out = HistoryOut.model_validate(entry)
+    out.created_by = creator_summary(entry, resolve_creators(db, [entry]))
+    return out
 
 
 def _require_contact(db: Session, contact_id: uuid.UUID) -> None:

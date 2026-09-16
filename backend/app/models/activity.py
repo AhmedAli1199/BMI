@@ -8,6 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 from app.models.base import ProvenanceMixin, UUIDPk
 
+RECURRENCE_VALUES = ("never", "daily", "weekly", "monthly")
+
 
 class Activity(Base, UUIDPk, ProvenanceMixin):
     """Scheduled/completed tasks and calendar items, migrated as-is from
@@ -36,3 +38,10 @@ class Activity(Base, UUIDPk, ProvenanceMixin):
     end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_timeless: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_cleared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # was it marked done in Act!
+
+    # Everything below is new as of the CRM's own scheduling UI - always
+    # null/false/"never" on migrated rows, since Act! didn't carry a
+    # concept of "which of our users" beyond its own separate user table.
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    recurrence: Mapped[str] = mapped_column(String(20), nullable=False, default="never")

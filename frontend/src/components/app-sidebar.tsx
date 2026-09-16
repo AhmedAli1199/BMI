@@ -99,6 +99,16 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                   Groups
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/activities" />}
+                  isActive={pathname.startsWith("/activities")}
+                  className={NAV_ITEM}
+                >
+                  Calendar &amp; Tasks
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

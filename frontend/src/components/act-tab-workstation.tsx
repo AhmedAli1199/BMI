@@ -1,31 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   BookOpen,
   Calendar,
   Clock,
-  FileSpreadsheet,
   FileText,
-  Filter,
   Layers,
-  Mail,
-  MessageSquare,
-  PhoneCall,
-  Plus,
   Search,
-  Sparkles,
   UsersRound,
 } from "lucide-react";
 import type { ContactDetail } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
-import { InlineActivityComposer } from "@/components/inline-activity-composer";
+import { TouchpointBar } from "@/components/touchpoint-bar";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { cleanNoteBody } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
@@ -64,6 +55,13 @@ export function ActTabWorkstation({
       (h.history_type && h.history_type.toLowerCase().includes(needle))
   );
 
+  const filteredActivities = contact.activities.filter(
+    (a) =>
+      !needle ||
+      (a.subject && a.subject.toLowerCase().includes(needle)) ||
+      (a.activity_type && a.activity_type.toLowerCase().includes(needle))
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {/* Full-Width Sub-Workstation Tabs Ribbon */}
@@ -78,8 +76,8 @@ export function ActTabWorkstation({
               <span>
                 Activities (
                 {needle
-                  ? `${filteredNotes.length + filteredHistory.length} of ${contact.notes.length + contact.history.length}`
-                  : contact.notes.filter((n) => /call|meeting/i.test(n.note_type || "")).length}
+                  ? `${filteredNotes.length + filteredHistory.length + filteredActivities.length} of ${contact.notes.length + contact.history.length + contact.activities.length}`
+                  : contact.notes.length + contact.history.length + contact.activities.length}
                 )
               </span>
             </TabsTrigger>
@@ -148,23 +146,18 @@ export function ActTabWorkstation({
 
         {/* TAB 1: Activities (Combined Touchpoints / Logger) */}
         <TabsContent value="activities" className="mt-4 flex flex-col gap-4">
-          <InlineActivityComposer
-            contactId={contact.id}
-            contactName={contact.full_name || contact.first_name || "Contact"}
-          />
+          <TouchpointBar contactId={contact.id} contactName={contact.full_name || contact.first_name || "Contact"} sourceDb={contact.source_db} />
           <UnifiedActivityTimeline
             notes={contact.notes}
             history={contact.history}
+            activities={contact.activities}
             searchTerm={searchTerm}
           />
         </TabsContent>
 
         {/* TAB 2: Notes (Act! Table & Content View) */}
         <TabsContent value="notes" className="mt-4 flex flex-col gap-4">
-          <InlineActivityComposer
-            contactId={contact.id}
-            contactName={contact.full_name || contact.first_name || "Contact"}
-          />
+          <TouchpointBar contactId={contact.id} contactName={contact.full_name || contact.first_name || "Contact"} sourceDb={contact.source_db} />
 
           <Card className="overflow-hidden border border-border">
             <div className="bg-muted/40 px-4 py-2 border-b flex items-center justify-between text-xs font-semibold text-muted-foreground">

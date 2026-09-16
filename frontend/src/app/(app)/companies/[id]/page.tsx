@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { AddNoteDialog } from "@/components/add-note-dialog";
-import { addCompanyNote } from "@/lib/actions";
+import { TouchpointBar } from "@/components/touchpoint-bar";
+import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
 import { cleanNoteBody } from "@/lib/notes";
 import { sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
@@ -85,6 +85,12 @@ export default async function CompanyDetailPage({
                 <span>Associated Contacts ({company.contacts.length})</span>
               </TabsTrigger>
               <TabsTrigger
+                value="activity"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              >
+                <span>Activity &amp; History ({company.history.length + company.activities.length})</span>
+              </TabsTrigger>
+              <TabsTrigger
                 value="notes"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
               >
@@ -98,8 +104,6 @@ export default async function CompanyDetailPage({
                 <span>User Fields ({customEntries.length})</span>
               </TabsTrigger>
             </TabsList>
-
-            <AddNoteDialog id={company.id} action={addCompanyNote} />
           </div>
 
           {/* TAB 1: Associated Contacts Directory */}
@@ -165,7 +169,13 @@ export default async function CompanyDetailPage({
             )}
           </TabsContent>
 
-          {/* TAB 2: Notes */}
+          {/* TAB 2: Activity & History */}
+          <TabsContent value="activity" className="mt-4 flex flex-col gap-4">
+            <TouchpointBar companyId={company.id} contactName={company.name} sourceDb={company.source_db} />
+            <UnifiedActivityTimeline notes={[]} history={company.history} activities={company.activities} />
+          </TabsContent>
+
+          {/* TAB 3: Notes */}
           <TabsContent value="notes" className="mt-4 flex flex-col gap-3">
             {company.notes.length > 0 ? (
               company.notes.map((n) => (

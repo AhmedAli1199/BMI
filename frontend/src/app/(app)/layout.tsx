@@ -1,9 +1,12 @@
+import { Plus } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/session";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PublicationSwitcher } from "@/components/publication-switcher";
+import { LogInteractionDialog } from "@/components/log-interaction-dialog";
 import { getPublicationFilter } from "@/lib/publication";
 import { listPublications } from "@/lib/actions";
 
@@ -30,6 +33,17 @@ export default async function AppLayout({
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
           <PublicationSwitcher current={publicationFilter} publications={publications} />
+          {session && (
+            <LogInteractionDialog
+              global
+              trigger={
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="size-4" />
+                  <span className="hidden sm:inline">Log or schedule</span>
+                </Button>
+              }
+            />
+          )}
           <span className="ml-auto">
             <ThemeSwitcher />
           </span>

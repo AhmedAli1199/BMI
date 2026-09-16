@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
+    ActivityOut,
     AddressOut,
     AddressWrite,
     CompaniesPage,
@@ -19,12 +20,15 @@ from app.api.schemas import (
     ContactListItem,
     EmailOut,
     EmailWrite,
+    HistoryCreate,
+    HistoryOut,
     NoteCreate,
     NoteOut,
     PhoneOut,
     PhoneWrite,
 )
 from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
 from app.db.session import get_db
 from app.models import Activity, Company, Contact, Email, HistoryEntry, Note, Opportunity
@@ -92,6 +96,33 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
         .order_by(Note.act_created_at.desc().nulls_last())
         .limit(100)
     ).all()
+    history = db.scalars(
+        select(HistoryEntry).where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == company_id)
+        .order_by(HistoryEntry.occurred_at.desc())
+        .limit(100)
+    ).all()
+    activities = db.scalars(
+        select(Activity).where(Activity.company_id == company_id)
+        .order_by(Activity.start_at.desc())
+        .limit(100)
+    ).all()
+
+    creators = resolve_creators(db, [*notes, *history, *activities])
+
+    def _note_out(n: Note) -> NoteOut:
+        out = NoteOut.model_validate(n)
+        out.created_by = creator_summary(n, creators)
+        return out
+
+    def _history_out(h: HistoryEntry) -> HistoryOut:
+        out = HistoryOut.model_validate(h)
+        out.created_by = creator_summary(h, creators)
+        return out
+
+    def _activity_out(a: Activity) -> ActivityOut:
+        out = ActivityOut.model_validate(a)
+        out.created_by = creator_summary(a, creators)
+        return out
 
     return CompanyDetail(
         id=company.id,
@@ -117,7 +148,9 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
             )
             for c in contacts
         ],
-        notes=[NoteOut.model_validate(n) for n in notes],
+        notes=[_note_out(n) for n in notes],
+        history=[_history_out(h) for h in history],
+        activities=[_activity_out(a) for a in activities],
     )
 
 
@@ -134,11 +167,41 @@ def add_company_note(company_id: uuid.UUID, payload: NoteCreate, db: Session = D
         entity_id=company_id,
         note_type=payload.note_type,
         body=payload.body,
+        is_private=payload.is_private,
         act_created_at=datetime.now(timezone.utc),
+        created_by_user_id=payload.created_by_user_id,
     )
     db.add(note)
     db.commit()
-    return NoteOut.model_validate(note)
+    out = NoteOut.model_validate(note)
+    out.created_by = creator_summary(note, resolve_creators(db, [note]))
+    return out
+
+
+@router.post("/{company_id}/history", response_model=HistoryOut, status_code=201)
+def add_company_history(company_id: uuid.UUID, payload: HistoryCreate, db: Session = Depends(get_db)) -> HistoryOut:
+    if not db.get(Company, company_id):
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    entry = HistoryEntry(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),
+        entity_type="company",
+        entity_id=company_id,
+        history_type=payload.history_type,
+        subject=payload.subject,
+        details=payload.details,
+        duration_minutes=payload.duration_minutes,
+        is_private=payload.is_private,
+        occurred_at=payload.occurred_at,
+        created_by_user_id=payload.created_by_user_id,
+    )
+    db.add(entry)
+    db.commit()
+    out = HistoryOut.model_validate(entry)
+    out.created_by = creator_summary(entry, resolve_creators(db, [entry]))
+    return out
 
 
 def _require_company(db: Session, company_id: uuid.UUID) -> None:
