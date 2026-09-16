@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   Calendar,
@@ -27,18 +27,6 @@ export function InlineActivityComposer({
   const [activityType, setActivityType] = useState<ActivityType>("call");
   const [content, setContent] = useState("");
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    function handleQuickAction(e: Event) {
-      const customEvent = e as CustomEvent<{ action: ActivityType }>;
-      if (customEvent.detail?.action) {
-        setActivityType(customEvent.detail.action);
-        setIsOpen(true);
-      }
-    }
-    window.addEventListener("act-quick-action", handleQuickAction);
-    return () => window.removeEventListener("act-quick-action", handleQuickAction);
-  }, []);
 
   function handleSubmit() {
     if (!content.trim()) return;

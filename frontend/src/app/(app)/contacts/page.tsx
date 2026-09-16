@@ -83,11 +83,10 @@ export default async function ContactsPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PublicationQuickFilter current={source_db} publications={publications} />
         <span className="text-xs text-muted-foreground">
-          Tip: Click any contact to slide open quick inspection
+          Tip: Click any contact to open their full record
         </span>
       </div>
 
-      {/* Interactive Contact Table with Slide-Over Drawer */}
       <InteractiveContactTable items={data.items} />
 
       {/* Pagination Controls */}

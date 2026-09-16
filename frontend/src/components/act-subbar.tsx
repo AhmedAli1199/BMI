@@ -1,26 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
-  Calendar,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  FileText,
-  LayoutGrid,
   List,
-  Mail,
-  PhoneCall,
-  Plus,
   User,
   Users,
   Building2,
   UsersRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 export function ActSubbar({
   module = "contacts",
@@ -30,7 +23,6 @@ export function ActSubbar({
   onNext,
   onFirst,
   onLast,
-  onQuickAction,
 }: {
   module?: "contacts" | "companies" | "groups";
   currentRecordIndex?: number;
@@ -39,25 +31,13 @@ export function ActSubbar({
   onNext?: () => void;
   onFirst?: () => void;
   onLast?: () => void;
-  onQuickAction?: (action: "call" | "meeting" | "note" | "email") => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const isDetailView =
     pathname.includes("/contacts/") ||
     pathname.includes("/companies/") ||
     pathname.includes("/groups/");
-
-  const handleQuickAction = (action: "call" | "meeting" | "note" | "email") => {
-    if (onQuickAction) {
-      onQuickAction(action);
-    } else if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("act-quick-action", { detail: { action } })
-      );
-    }
-  };
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card px-4 py-2 text-xs shadow-2xs">
@@ -104,55 +84,7 @@ export function ActSubbar({
         </Link>
       </div>
 
-      {/* 2. ACT! Quick Action Cluster (Call, Meeting, Note, Email) */}
-      <div className="flex items-center gap-1 border-x px-3 border-border/60" role="toolbar" aria-label="Touchpoint Actions">
-        <Button
-          size="xs"
-          variant="ghost"
-          onClick={() => handleQuickAction("call")}
-          className="gap-1.5 font-medium hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer text-muted-foreground transition-colors"
-          title="Log Call"
-          aria-label="Log Call"
-        >
-          <PhoneCall className="size-3.5 text-amber-600 dark:text-amber-400" />
-          <span className="hidden sm:inline">Call</span>
-        </Button>
-        <Button
-          size="xs"
-          variant="ghost"
-          onClick={() => handleQuickAction("meeting")}
-          className="gap-1.5 font-medium hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer text-muted-foreground transition-colors"
-          title="Schedule Meeting"
-          aria-label="Schedule Meeting"
-        >
-          <Calendar className="size-3.5 text-blue-600 dark:text-blue-400" />
-          <span className="hidden sm:inline">Meeting</span>
-        </Button>
-        <Button
-          size="xs"
-          variant="ghost"
-          onClick={() => handleQuickAction("note")}
-          className="gap-1.5 font-medium hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-muted-foreground transition-colors"
-          title="Create Note"
-          aria-label="Create Note"
-        >
-          <FileText className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="hidden sm:inline">Note</span>
-        </Button>
-        <Button
-          size="xs"
-          variant="ghost"
-          onClick={() => handleQuickAction("email")}
-          className="gap-1.5 font-medium hover:bg-purple-500/15 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer text-muted-foreground transition-colors"
-          title="Send E-mail"
-          aria-label="Send E-mail"
-        >
-          <Mail className="size-3.5 text-purple-600 dark:text-purple-400" />
-          <span className="hidden sm:inline">E-mail</span>
-        </Button>
-      </div>
-
-      {/* 3. View Switcher Pills & VCR Stepper */}
+      {/* 2. View Switcher Pills & VCR Stepper */}
       <div className="flex items-center gap-3">
         {/* View Toggle (List View vs Detail View) */}
         <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">

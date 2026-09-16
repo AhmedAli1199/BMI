@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   BookOpen,
@@ -38,23 +38,6 @@ export function ActTabWorkstation({
 }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [searchTerm, setSearchTerm] = useState("");
-
-  useEffect(() => {
-    function handleQuickAction(e: Event) {
-      const customEvent = e as CustomEvent<{ action: string }>;
-      if (customEvent.detail?.action === "note") {
-        setActiveTab("notes");
-      } else if (
-        customEvent.detail?.action === "call" ||
-        customEvent.detail?.action === "meeting" ||
-        customEvent.detail?.action === "email"
-      ) {
-        setActiveTab("activities");
-      }
-    }
-    window.addEventListener("act-quick-action", handleQuickAction);
-    return () => window.removeEventListener("act-quick-action", handleQuickAction);
-  }, []);
 
   const customEntries = Object.entries(contact.custom_fields || {});
   const publishingEntries = customEntries.filter(([k]) =>
