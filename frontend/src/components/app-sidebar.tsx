@@ -174,15 +174,6 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                           Requirements &amp; questions
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton
-                          render={<Link href="/docs/original-spec" />}
-                          isActive={pathname.startsWith("/docs")}
-                          className={NAV_SUBITEM}
-                        >
-                          Original spec (raw)
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
