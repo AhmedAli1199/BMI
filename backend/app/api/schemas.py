@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 # source_db used for anything created directly in the CRM (not migrated
 # from an Act! database). Kept distinct from the three real source
@@ -439,3 +439,53 @@ class PublicationCreate(BaseModel):
     description: str | None = Field(default=None, max_length=256)
     color: str = "slate"
     icon: str = "newspaper"
+
+
+# ---- Users / role-based access ------------------------------------------
+# See app/roles.py (what a role grants) and app/models/user_access.py
+# (per-user database/group scoping).
+
+class RoleDefOut(BaseModel):
+    value: str
+    label: str
+    description: str
+
+
+class UserAccessIn(BaseModel):
+    source_db: str
+    group_id: uuid.UUID | None = None
+
+
+class UserAccessOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    source_db: str
+    group_id: uuid.UUID | None = None
+    group_name: str | None = None
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    name: str
+    role: str
+    is_active: bool
+    access: list[UserAccessOut] = []
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    name: str = Field(min_length=1, max_length=255)
+    password: str = Field(min_length=8)
+    role: str
+    access: list[UserAccessIn] = []
+
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+    password: str | None = Field(default=None, min_length=8)
+    # When provided, replaces the user's entire access list (not a merge) -
+    # the admin UI always submits the full desired set, same as how a
+    # <select multiple> would.
+    access: list[UserAccessIn] | None = None

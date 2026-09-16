@@ -16,6 +16,7 @@ from app.api.routes import (
     publications,
     review_queue,
     settings as settings_routes,
+    users,
 )
 from app.automations.scheduler import start_scheduler, stop_scheduler
 from app.core.config import settings
@@ -66,6 +67,7 @@ api_router.include_router(automations.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)
 api_router.include_router(diagnostics.router)
+api_router.include_router(users.router)
 app.include_router(api_router)
 
 

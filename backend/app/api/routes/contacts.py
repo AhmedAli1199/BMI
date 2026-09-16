@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -50,6 +50,9 @@ def list_contacts(
     q: str | None = Query(None, description="Search by name or email"),
     source_db: str | None = Query(None),
     company_id: uuid.UUID | None = Query(None),
+    group_id: uuid.UUID | None = Query(
+        None, description="Restrict to this group's members plus every descendant subgroup's - used for group-scoped user access, see app/models/user_access.py"
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -78,6 +81,25 @@ def list_contacts(
         stmt = stmt.where(Contact.source_db == source_db)
     if company_id:
         stmt = stmt.where(Contact.company_id == company_id)
+    if group_id:
+        # Groups are hierarchical (see Group.parent_group_id) - a
+        # group-scoped grant covers the whole subtree, not just direct
+        # members, so someone scoped to "BUSINESS" also sees contacts
+        # filed under its subfolders, matching how Act!'s own group view
+        # works.
+        subtree_ids = db.execute(
+            text(
+                "WITH RECURSIVE subtree AS ("
+                "  SELECT id FROM groups WHERE id = :gid"
+                "  UNION ALL"
+                "  SELECT g.id FROM groups g JOIN subtree s ON g.parent_group_id = s.id"
+                ") SELECT id FROM subtree"
+            ),
+            {"gid": str(group_id)},
+        ).scalars().all()
+        stmt = stmt.where(
+            Contact.id.in_(select(GroupMembership.contact_id).where(GroupMembership.group_id.in_(subtree_ids)))
+        )
     if q:
         like = f"%{q}%"
         stmt = stmt.where(

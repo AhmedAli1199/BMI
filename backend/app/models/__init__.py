@@ -9,6 +9,7 @@ from app.models.opportunity import Opportunity
 from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
 from app.models.user import User
+from app.models.user_access import UserAccess
 
 __all__ = [
     "Activity",
@@ -25,4 +26,5 @@ __all__ = [
     "Publication",
     "ReviewQueueItem",
     "User",
+    "UserAccess",
 ]
