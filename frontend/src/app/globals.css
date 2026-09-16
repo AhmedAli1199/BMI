@@ -95,7 +95,7 @@
     radial-gradient(ellipse 260px 180px at 100% 0%, rgba(120, 170, 255, 0.16), transparent 60%);
   --nav-accent: #ffb04a;
   --nav-accent-2: #6fa8ff;
-  --topbar-gradient: linear-gradient(90deg, #1b2033 0%, #262a3c 55%, #3a2f1c 130%);
+  --topbar-gradient: linear-gradient(90deg, #004868 0%, #005b82 50%, #0a3349 100%);
 
   --ok: #157a53;
   --ok-tint: #e5f4ee;

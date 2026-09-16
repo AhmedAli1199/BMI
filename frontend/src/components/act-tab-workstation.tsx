@@ -1,0 +1,350 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  BookOpen,
+  Calendar,
+  Clock,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Layers,
+  Mail,
+  MessageSquare,
+  PhoneCall,
+  Plus,
+  Search,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
+import type { ContactDetail } from "@/lib/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
+import { InlineActivityComposer } from "@/components/inline-activity-composer";
+import { ContactGroupsEditor } from "@/components/contact-groups-editor";
+import { cleanNoteBody } from "@/lib/notes";
+
+export function ActTabWorkstation({
+  contact,
+  defaultTab = "notes",
+}: {
+  contact: ContactDetail;
+  defaultTab?: string;
+}) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    function handleQuickAction(e: Event) {
+      const customEvent = e as CustomEvent<{ action: string }>;
+      if (customEvent.detail?.action === "note") {
+        setActiveTab("notes");
+      } else if (
+        customEvent.detail?.action === "call" ||
+        customEvent.detail?.action === "meeting" ||
+        customEvent.detail?.action === "email"
+      ) {
+        setActiveTab("activities");
+      }
+    }
+    window.addEventListener("act-quick-action", handleQuickAction);
+    return () => window.removeEventListener("act-quick-action", handleQuickAction);
+  }, []);
+
+  const customEntries = Object.entries(contact.custom_fields || {});
+  const publishingEntries = customEntries.filter(([k]) =>
+    /issue|ad|print|circulation|tier|title|sponsor|expo|wtce/i.test(k)
+  );
+
+  const filteredNotes = contact.notes.filter(
+    (n) =>
+      !searchTerm ||
+      (n.body && n.body.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (n.note_type && n.note_type.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const filteredHistory = contact.history.filter(
+    (h) =>
+      !searchTerm ||
+      (h.subject && h.subject.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (h.history_type && h.history_type.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Full-Width Sub-Workstation Tabs Ribbon */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/30 px-3 pt-1">
+          <TabsList className="bg-transparent gap-1 p-0 h-auto flex-wrap">
+            <TabsTrigger
+              value="activities"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              <Calendar className="size-3.5 text-blue-600" />
+              <span>Activities ({contact.notes.filter((n) => /call|meeting/i.test(n.note_type || "")).length})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="notes"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              <FileText className="size-3.5 text-emerald-600" />
+              <span>Notes ({contact.notes.length})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="history"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              <Clock className="size-3.5 text-amber-600" />
+              <span>History ({contact.history.length})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="groups"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              <UsersRound className="size-3.5 text-purple-600" />
+              <span>Groups ({contact.groups.length})</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="commercial"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              <BookOpen className="size-3.5 text-primary" />
+              <span>Magazine &amp; Issues</span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="fields"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+            >
+              <Layers className="size-3.5 text-muted-foreground" />
+              <span>User Fields ({customEntries.length})</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Quick Sub-Tab Filter Bar */}
+          <div className="flex items-center gap-2 pb-1.5">
+            <div className="relative w-48 sm:w-56">
+              <Search className="absolute left-2 top-2 size-3 text-muted-foreground" />
+              <Input
+                placeholder={`Search in ${activeTab}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-7 pl-7 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* TAB 1: Activities (Combined Touchpoints / Logger) */}
+        <TabsContent value="activities" className="mt-4 flex flex-col gap-4">
+          <InlineActivityComposer
+            contactId={contact.id}
+            contactName={contact.full_name || contact.first_name || "Contact"}
+          />
+          <UnifiedActivityTimeline
+            notes={contact.notes}
+            history={contact.history}
+          />
+        </TabsContent>
+
+        {/* TAB 2: Notes (Act! Table & Content View) */}
+        <TabsContent value="notes" className="mt-4 flex flex-col gap-4">
+          <InlineActivityComposer
+            contactId={contact.id}
+            contactName={contact.full_name || contact.first_name || "Contact"}
+          />
+
+          <Card className="overflow-hidden border border-border">
+            <div className="bg-muted/40 px-4 py-2 border-b flex items-center justify-between text-xs font-semibold text-muted-foreground">
+              <span>Date / Time</span>
+              <span>Type</span>
+              <span className="w-1/2">Content</span>
+              <span>Source</span>
+            </div>
+
+            <CardContent className="p-0 divide-y divide-border/60 text-xs">
+              {filteredNotes.length > 0 ? (
+                filteredNotes.map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3.5 hover:bg-muted/20 transition-colors"
+                  >
+                    <time className="w-28 shrink-0 text-muted-foreground font-mono text-[11px]">
+                      {n.act_created_at
+                        ? new Date(n.act_created_at).toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "—"}
+                    </time>
+                    <div className="w-24 shrink-0">
+                      <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                        {n.note_type || "Note"}
+                      </Badge>
+                    </div>
+                    <p className="flex-1 text-foreground leading-relaxed whitespace-pre-wrap">
+                      {cleanNoteBody(n.body) || "No content."}
+                    </p>
+                    <span className="text-[10px] text-muted-foreground shrink-0 uppercase tracking-wider">
+                      Act! Manual
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No notes match your filter.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3: History (Audit Log) */}
+        <TabsContent value="history" className="mt-4 flex flex-col gap-4">
+          <Card className="overflow-hidden border border-border">
+            <div className="bg-muted/40 px-4 py-2 border-b flex items-center justify-between text-xs font-semibold text-muted-foreground">
+              <span>Date</span>
+              <span>History Type</span>
+              <span className="w-2/3">Subject / Summary</span>
+            </div>
+
+            <CardContent className="p-0 divide-y divide-border/60 text-xs">
+              {filteredHistory.length > 0 ? (
+                filteredHistory.map((h) => (
+                  <div
+                    key={h.id}
+                    className="flex items-center justify-between gap-3 p-3 hover:bg-muted/20 transition-colors"
+                  >
+                    <time className="w-28 shrink-0 text-muted-foreground font-mono text-[11px]">
+                      {new Date(h.occurred_at).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </time>
+                    <div className="w-32 shrink-0">
+                      <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
+                        {h.history_type}
+                      </Badge>
+                    </div>
+                    <span className="flex-1 font-medium text-foreground">
+                      {h.subject || "Event logged"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No history records on file.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 4: Groups */}
+        <TabsContent value="groups" className="mt-4">
+          <Card className="p-5 border border-border">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Assigned Groups &amp; Distribution Lists
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Circulation segments, awards panels, and advertising rosters
+                </p>
+              </div>
+            </div>
+            <ContactGroupsEditor contactId={contact.id} groups={contact.groups} />
+          </Card>
+        </TabsContent>
+
+        {/* TAB 5: Magazine & Commercial */}
+        <TabsContent value="commercial" className="mt-4">
+          <Card className="p-5 border border-border">
+            <div className="flex items-center justify-between mb-4 border-b pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Commercial Affiliation &amp; Issue Inserts
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Print circulation copies, media kit requests, and magazine features
+                </p>
+              </div>
+              <Badge variant="outline" className="font-semibold text-xs text-primary">
+                BMI Media Operations
+              </Badge>
+            </div>
+
+            {publishingEntries.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                {publishingEntries.map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="rounded-md border border-border/80 bg-muted/30 p-3"
+                  >
+                    <span className="text-muted-foreground block text-[11px] mb-1">
+                      {k}
+                    </span>
+                    <span className="font-semibold text-foreground text-sm">
+                      {String(v)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground text-xs">
+                No active magazine advertising inserts or issue features recorded for this contact.
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        {/* TAB 6: User Fields / Archive */}
+        <TabsContent value="fields" className="mt-4">
+          <Card className="p-5 border border-border">
+            <div className="flex items-center justify-between mb-3 border-b pb-2">
+              <h3 className="text-sm font-bold text-foreground">
+                Act! Database Custom Fields (user1 .. user15)
+              </h3>
+              <span className="text-xs text-muted-foreground font-mono">
+                {customEntries.length} total attributes
+              </span>
+            </div>
+
+            {customEntries.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+                {customEntries.map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex flex-col justify-center rounded border border-border/60 bg-muted/20 p-2.5"
+                  >
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {key}
+                    </span>
+                    <span className="font-medium text-foreground mt-0.5 truncate">
+                      {String(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                No custom fields recorded.
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
