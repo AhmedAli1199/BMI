@@ -3,7 +3,9 @@ import { Search, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
+import { accessLabel, allowedSourceDbSlugs, resolveScope } from "@/lib/access";
 import { Input } from "@/components/ui/input";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
@@ -18,13 +20,25 @@ export default async function ContactsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const [source_db, publications] = await Promise.all([getPublicationFilter(), listPublications()]);
+  const [rawSourceDb, session, allPublications] = await Promise.all([
+    getPublicationFilter(),
+    getSession(),
+    listPublications(),
+  ]);
+  const scope = resolveScope(session, rawSourceDb);
+  const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
+  const publications = session?.role === "admin"
+    ? allPublications
+    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
   if (source_db) params.set("source_db", source_db);
+  if (scope.group_id) params.set("group_id", scope.group_id);
 
-  const data = await backendFetch<Page<ContactListItem>>(`/api/contacts?${params}`);
+  const data = scope.source_db === "__no_access__"
+    ? { items: [], total: 0, page: 1, page_size: PAGE_SIZE }
+    : await backendFetch<Page<ContactListItem>>(`/api/contacts?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (
@@ -42,6 +56,11 @@ export default async function ContactsPage({
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {data.total.toLocaleString()} contacts across all titles
           </p>
+          {scope.group_name && (
+            <p className="mt-0.5 text-[11px] font-medium text-primary">
+              Showing {accessLabel({ source_db, group_id: scope.group_id, group_name: scope.group_name })} only
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

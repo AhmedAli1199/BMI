@@ -21,7 +21,13 @@ export async function POST(request: Request) {
   });
 
   if (!backendResponse.ok) {
-    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    // Pass the backend's own reason through (e.g. "This account has been
+    // disabled") rather than a blanket message - only real risk of
+    // leaking anything is confirming an email exists, which login forms
+    // already do via "wrong password" vs "no such account" timing/shape
+    // in practice, so this isn't a meaningfully worse disclosure.
+    const detail = await backendResponse.json().catch(() => null);
+    return NextResponse.json({ error: detail?.detail ?? "Invalid email or password" }, { status: 401 });
   }
 
   const user = await backendResponse.json();
@@ -30,6 +36,7 @@ export async function POST(request: Request) {
     email: user.email,
     name: user.name,
     role: user.role,
+    access: user.access ?? [],
   });
 
   const response = NextResponse.json({ ok: true });

@@ -3,11 +3,18 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "bmi_session";
 
+export type SessionAccess = { source_db: string; group_id: string | null; group_name: string | null };
+
 export type SessionPayload = {
   sub: string;
   email: string;
   name: string;
   role: string;
+  // Which database(s) - optionally scoped to one group's subtree within
+  // it - this session may see. Meaningless for role === "admin" (an
+  // admin's access is implicit and unrestricted - see backend/app/roles.py)
+  // and may be empty there even though they can see everything.
+  access: SessionAccess[];
 };
 
 function getSecret() {
@@ -55,6 +62,7 @@ export async function getSession(): Promise<SessionPayload | null> {
           email: "publisher@bmipublishing.co.uk",
           name: "Editorial Team",
           role: "admin",
+          access: [],
         }
       : null)
   );

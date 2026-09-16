@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+import uuid
+
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from fastapi import APIRouter, Depends, Query
@@ -13,7 +15,7 @@ from app.api.schemas import (
     TopCompany,
 )
 from app.db.session import get_db
-from app.models import Company, Contact, Group, HistoryEntry, Note
+from app.models import Company, Contact, Group, GroupMembership, HistoryEntry, Note
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -24,6 +26,9 @@ TOP_COMPANIES_LIMIT = 6
 @router.get("/stats", response_model=DashboardStats)
 def get_dashboard_stats(
     source_db: str | None = Query(None, description="Restrict every figure to one publication's data"),
+    group_id: uuid.UUID | None = Query(
+        None, description="Further restrict contact figures to this group's subtree - for a group-scoped user's session"
+    ),
     recent_activity_sort: str = Query(
         "record_edit",
         description="'record_edit' (default) or 'engagement' - see app/preferences.py's recent_activity_sort def",
@@ -33,6 +38,24 @@ def get_dashboard_stats(
     contact_filter = [Contact.source_db == source_db] if source_db else []
     company_filter = [Company.source_db == source_db] if source_db else []
     group_filter = [Group.source_db == source_db] if source_db else []
+
+    # Companies/groups aren't group-scoped (a group is a contact-level
+    # concept - see app/models/user_access.py's docstring), so a
+    # group-scoped session only tightens the contact-level figures here.
+    if group_id:
+        subtree_ids = db.execute(
+            text(
+                "WITH RECURSIVE subtree AS ("
+                "  SELECT id FROM groups WHERE id = :gid"
+                "  UNION ALL"
+                "  SELECT g.id FROM groups g JOIN subtree s ON g.parent_group_id = s.id"
+                ") SELECT id FROM subtree"
+            ),
+            {"gid": str(group_id)},
+        ).scalars().all()
+        contact_filter.append(
+            Contact.id.in_(select(GroupMembership.contact_id).where(GroupMembership.group_id.in_(subtree_ids)))
+        )
 
     total_contacts = db.scalar(select(func.count()).select_from(Contact).where(*contact_filter)) or 0
     total_companies = db.scalar(select(func.count()).select_from(Company).where(*company_filter)) or 0

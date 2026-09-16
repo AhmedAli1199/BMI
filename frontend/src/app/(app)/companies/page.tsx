@@ -2,7 +2,9 @@ import Link from "next/link";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
+import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
 import {
   Table,
   TableBody,
@@ -28,13 +30,28 @@ export default async function CompaniesPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const [source_db, publications] = await Promise.all([getPublicationFilter(), listPublications()]);
+  const [rawSourceDb, session, allPublications] = await Promise.all([
+    getPublicationFilter(),
+    getSession(),
+    listPublications(),
+  ]);
+  const scope = resolveScope(session, rawSourceDb);
+  // Companies aren't group-scoped (a group is a contact-level concept -
+  // see backend/app/models/user_access.py's docstring) - a group-scoped
+  // session still only sees its assigned database's companies broadly,
+  // not filtered down to the group's own contacts' companies.
+  const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
+  const publications = session?.role === "admin"
+    ? allPublications
+    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
   if (source_db) params.set("source_db", source_db);
 
-  const data = await backendFetch<Page<CompanyListItem>>(`/api/companies?${params}`);
+  const data = scope.source_db === "__no_access__"
+    ? { items: [], total: 0, page: 1, page_size: PAGE_SIZE }
+    : await backendFetch<Page<CompanyListItem>>(`/api/companies?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (
@@ -45,6 +62,12 @@ export default async function CompaniesPage({
           <p className="text-sm text-muted-foreground">
             {data.total.toLocaleString()} accounts across every BMI title
           </p>
+          {scope.group_name && (
+            <p className="mt-0.5 text-[11px] font-medium text-amber-600">
+              Your access is scoped to the &ldquo;{scope.group_name}&rdquo; group of contacts - companies aren&apos;t
+              group-scoped, so this list shows all of {source_db}.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <form action="/companies" className="w-72">

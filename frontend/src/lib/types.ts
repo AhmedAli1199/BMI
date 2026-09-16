@@ -92,6 +92,7 @@ export type GroupListItem = {
 
 export type GroupDetail = {
   id: string;
+  source_db: string;
   name: string;
   description: string | null;
   parent_group_id: string | null;
@@ -217,4 +218,17 @@ export type Publication = {
   description: string | null;
   color: string;
   icon: string;
+};
+
+export type RoleDef = { value: string; label: string; description: string };
+
+export type UserAccessEntry = { source_db: string; group_id: string | null; group_name: string | null };
+
+export type UserAccount = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  is_active: boolean;
+  access: UserAccessEntry[];
 };

@@ -26,7 +26,14 @@ import {
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeMotif } from "@/components/theme-motif";
+import { canUseAutomations } from "@/lib/access";
 import type { SessionPayload } from "@/lib/session";
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Administrator",
+  data_manager: "Data Manager",
+  sales: "Sales",
+};
 
 // Nav items get a deliberately bigger, bolder treatment than shadcn's
 // default text-sm - the client asked for this explicitly ("bigger bolder
@@ -107,31 +114,33 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Automations</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/automations" />}
-                  isActive={pathname === "/automations"}
-                  className={NAV_ITEM}
-                >
-                  Overview
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/automations/review" />}
-                  isActive={pathname.startsWith("/automations/review")}
-                  className={NAV_ITEM}
-                >
-                  Review queue
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {canUseAutomations(session) && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Automations</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1.5">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/automations" />}
+                    isActive={pathname === "/automations"}
+                    className={NAV_ITEM}
+                  >
+                    Overview
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/automations/review" />}
+                    isActive={pathname.startsWith("/automations/review")}
+                    className={NAV_ITEM}
+                  >
+                    Review queue
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Everything from the original automations planning pass - kept,
             not deleted, but tucked under one collapsed group so it stops
@@ -181,7 +190,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{session.name}</p>
               <p className="truncate text-xs text-sidebar-foreground/60">
-                {session.email}
+                {ROLE_LABELS[session.role] ?? session.role}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
