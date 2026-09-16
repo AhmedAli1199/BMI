@@ -80,10 +80,10 @@ export function ActTabWorkstation({
       {/* Full-Width Sub-Workstation Tabs Ribbon */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-muted/30 px-3 pt-1">
-          <TabsList className="bg-transparent gap-1 p-0 h-auto flex-wrap">
+          <TabsList className="bg-transparent gap-1.5 p-0 h-auto flex-wrap">
             <TabsTrigger
               value="activities"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <Calendar className="size-3.5 text-blue-600" />
               <span>Activities ({contact.notes.filter((n) => /call|meeting/i.test(n.note_type || "")).length})</span>
@@ -91,7 +91,7 @@ export function ActTabWorkstation({
 
             <TabsTrigger
               value="notes"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <FileText className="size-3.5 text-emerald-600" />
               <span>Notes ({contact.notes.length})</span>
@@ -99,7 +99,7 @@ export function ActTabWorkstation({
 
             <TabsTrigger
               value="history"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <Clock className="size-3.5 text-amber-600" />
               <span>History ({contact.history.length})</span>
@@ -107,7 +107,7 @@ export function ActTabWorkstation({
 
             <TabsTrigger
               value="groups"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <UsersRound className="size-3.5 text-purple-600" />
               <span>Groups ({contact.groups.length})</span>
@@ -115,7 +115,7 @@ export function ActTabWorkstation({
 
             <TabsTrigger
               value="commercial"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <BookOpen className="size-3.5 text-primary" />
               <span>Magazine &amp; Issues</span>
@@ -123,7 +123,7 @@ export function ActTabWorkstation({
 
             <TabsTrigger
               value="fields"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
               <Layers className="size-3.5 text-muted-foreground" />
               <span>User Fields ({customEntries.length})</span>

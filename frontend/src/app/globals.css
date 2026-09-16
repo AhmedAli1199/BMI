@@ -54,48 +54,48 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ============ MORNING (default) — daybreak: warm ivory, gold + indigo ============ */
+/* ============ MORNING (default) — ACT! Enterprise Navy & Crisp Editorial Canvas ============ */
 :root,
 [data-theme="morning"] {
-  --background: #faf6ee;
-  --foreground: #1c1710;
+  --background: #f4f6f9;
+  --foreground: #0f1c24;
   --card: #ffffff;
-  --card-foreground: #1c1710;
+  --card-foreground: #0f1c24;
   --popover: #ffffff;
-  --popover-foreground: #1c1710;
-  --primary: #c8720f;
-  --primary-foreground: #fffaf3;
-  --secondary: #f1e9d8;
-  --secondary-foreground: #1c1710;
-  --muted: #f1e9d8;
-  --muted-foreground: #6b6152;
-  --accent: #fdead0;
-  --accent-foreground: #8a4e0a;
+  --popover-foreground: #0f1c24;
+  --primary: #005b82;
+  --primary-foreground: #ffffff;
+  --secondary: #e6eef3;
+  --secondary-foreground: #002d40;
+  --muted: #edf2f7;
+  --muted-foreground: #506675;
+  --accent: #dff0f8;
+  --accent-foreground: #004563;
   --destructive: #b3261e;
-  --border: #ead9bd;
-  --input: #ead9bd;
-  --ring: #c8720f;
-  --chart-1: #c8720f;
-  --chart-2: #3a5c8a;
-  --chart-3: #6b6152;
-  --chart-4: #a99a7c;
-  --chart-5: #d8c9a8;
+  --border: #d4e0e8;
+  --input: #d4e0e8;
+  --ring: #007ea7;
+  --chart-1: #005b82;
+  --chart-2: #c8720f;
+  --chart-3: #2e7d32;
+  --chart-4: #506675;
+  --chart-5: #b0c4de;
   --radius: 0.5rem;
 
-  --sidebar: #171a26;
-  --sidebar-foreground: #eef0f8;
-  --sidebar-primary: #ffb04a;
-  --sidebar-primary-foreground: #171a26;
-  --sidebar-accent: #262a3c;
+  /* Harmonized ACT! Chrome: Topbar & Sidebar share continuous deep teal-navy */
+  --sidebar: #002738;
+  --sidebar-foreground: #e4edf2;
+  --sidebar-primary: #009bd6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #003850;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2c3145;
-  --sidebar-ring: #ffb04a;
-  --nav-gradient: linear-gradient(165deg, #1b2033 0%, #232a42 45%, #3a2f1c 100%);
-  --nav-glow: radial-gradient(ellipse 340px 220px at 12% -12%, rgba(255, 176, 74, 0.42), transparent 65%),
-    radial-gradient(ellipse 260px 180px at 100% 0%, rgba(120, 170, 255, 0.16), transparent 60%);
-  --nav-accent: #ffb04a;
-  --nav-accent-2: #6fa8ff;
-  --topbar-gradient: linear-gradient(90deg, #004868 0%, #005b82 50%, #0a3349 100%);
+  --sidebar-border: #00364d;
+  --sidebar-ring: #009bd6;
+  --nav-gradient: linear-gradient(180deg, #002434 0%, #002e42 55%, #001f2e 100%);
+  --nav-glow: none;
+  --nav-accent: #00a8e8;
+  --nav-accent-2: #e5a93c;
+  --topbar-gradient: linear-gradient(90deg, #002738 0%, #003850 50%, #004868 100%);
 
   --ok: #157a53;
   --ok-tint: #e5f4ee;
@@ -105,47 +105,46 @@
   --bad-tint: #fbeaea;
 }
 
-/* ============ EVENING — dusk: rose-taupe, ember + coral ============ */
+/* ============ EVENING — Warm Executive Mahogany & Bronze ============ */
 [data-theme="evening"] {
-  --background: #f6ece9;
-  --foreground: #241512;
-  --card: #fffbfa;
-  --card-foreground: #241512;
-  --popover: #fffbfa;
-  --popover-foreground: #241512;
-  --primary: #b1503a;
-  --primary-foreground: #fff6f3;
-  --secondary: #ecdcd6;
-  --secondary-foreground: #241512;
-  --muted: #ecdcd6;
-  --muted-foreground: #7a5f58;
-  --accent: #f7ddd0;
-  --accent-foreground: #8a3a24;
+  --background: #f7f1ee;
+  --foreground: #221512;
+  --card: #ffffff;
+  --card-foreground: #221512;
+  --popover: #ffffff;
+  --popover-foreground: #221512;
+  --primary: #9b3d28;
+  --primary-foreground: #fff8f6;
+  --secondary: #ede1dc;
+  --secondary-foreground: #221512;
+  --muted: #ede1dc;
+  --muted-foreground: #705852;
+  --accent: #fae4dc;
+  --accent-foreground: #7d2a17;
   --destructive: #a23f32;
-  --border: #e4cec6;
-  --input: #e4cec6;
-  --ring: #b1503a;
-  --chart-1: #b1503a;
+  --border: #dfcfc8;
+  --input: #dfcfc8;
+  --ring: #9b3d28;
+  --chart-1: #9b3d28;
   --chart-2: #8a3b5c;
-  --chart-3: #7a5f58;
+  --chart-3: #705852;
   --chart-4: #bfa199;
   --chart-5: #e0c9c1;
   --radius: 0.5rem;
 
-  --sidebar: #24121c;
-  --sidebar-foreground: #f6e9ee;
-  --sidebar-primary: #ff7a4d;
-  --sidebar-primary-foreground: #24121c;
-  --sidebar-accent: #33182b;
+  --sidebar: #261411;
+  --sidebar-foreground: #f4eae7;
+  --sidebar-primary: #e06043;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #3b1f1a;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #3d1f31;
-  --sidebar-ring: #ff7a4d;
-  --nav-gradient: linear-gradient(165deg, #22101a 0%, #391a2a 45%, #5c2a1b 100%);
-  --nav-glow: radial-gradient(ellipse 360px 240px at 88% -14%, rgba(255, 122, 77, 0.46), transparent 65%),
-    radial-gradient(ellipse 300px 220px at 0% 100%, rgba(210, 90, 150, 0.28), transparent 60%);
-  --nav-accent: #ff7a4d;
-  --nav-accent-2: #e879a8;
-  --topbar-gradient: linear-gradient(90deg, #22101a 0%, #391a2a 55%, #5c2a1b 130%);
+  --sidebar-border: #3b1f1a;
+  --sidebar-ring: #e06043;
+  --nav-gradient: linear-gradient(180deg, #261411 0%, #301a16 55%, #1e100d 100%);
+  --nav-glow: none;
+  --nav-accent: #e06043;
+  --nav-accent-2: #e8a87c;
+  --topbar-gradient: linear-gradient(90deg, #261411 0%, #351c17 50%, #472620 100%);
 
   --ok: #2f7d4f;
   --ok-tint: #e6f0e7;
@@ -155,47 +154,46 @@
   --bad-tint: #f5e6e1;
 }
 
-/* ============ NIGHT — after dark: full dark mode, periwinkle + jade ============ */
+/* ============ NIGHT — Sleek Obsidian & Ice Blue ============ */
 [data-theme="night"] {
-  --background: #0b0d12;
-  --foreground: #e7e9ee;
-  --card: #14161d;
-  --card-foreground: #e7e9ee;
-  --popover: #14161d;
-  --popover-foreground: #e7e9ee;
-  --primary: #8d97ff;
-  --primary-foreground: #0b0d12;
-  --secondary: #1b1e27;
-  --secondary-foreground: #e7e9ee;
-  --muted: #1b1e27;
-  --muted-foreground: #8b90a0;
-  --accent: #1c2036;
-  --accent-foreground: #b4bdff;
+  --background: #090c10;
+  --foreground: #e4e7ec;
+  --card: #11151c;
+  --card-foreground: #e4e7ec;
+  --popover: #11151c;
+  --popover-foreground: #e4e7ec;
+  --primary: #4ea8de;
+  --primary-foreground: #090c10;
+  --secondary: #181d26;
+  --secondary-foreground: #e4e7ec;
+  --muted: #181d26;
+  --muted-foreground: #7d8799;
+  --accent: #152233;
+  --accent-foreground: #8ecae6;
   --destructive: #e0685c;
-  --border: #262933;
-  --input: #262933;
-  --ring: #8d97ff;
-  --chart-1: #8d97ff;
-  --chart-2: #61e0c9;
-  --chart-3: #8b90a0;
-  --chart-4: #565a6b;
-  --chart-5: #34384a;
+  --border: #212733;
+  --input: #212733;
+  --ring: #4ea8de;
+  --chart-1: #4ea8de;
+  --chart-2: #2ec4b6;
+  --chart-3: #7d8799;
+  --chart-4: #4a5568;
+  --chart-5: #2d3748;
   --radius: 0.5rem;
 
-  --sidebar: #06070b;
-  --sidebar-foreground: #dfe2ee;
-  --sidebar-primary: #8d97ff;
-  --sidebar-primary-foreground: #06070b;
-  --sidebar-accent: #12141f;
+  --sidebar: #07090d;
+  --sidebar-foreground: #dce1ea;
+  --sidebar-primary: #4ea8de;
+  --sidebar-primary-foreground: #07090d;
+  --sidebar-accent: #121620;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a1c29;
-  --sidebar-ring: #8d97ff;
-  --nav-gradient: linear-gradient(165deg, #05060a 0%, #0a0c17 55%, #11142b 100%);
-  --nav-glow: radial-gradient(ellipse 300px 200px at 18% -10%, rgba(141, 151, 255, 0.28), transparent 65%),
-    radial-gradient(ellipse 220px 160px at 95% 10%, rgba(120, 200, 255, 0.14), transparent 60%);
-  --nav-accent: #8d97ff;
-  --nav-accent-2: #61e0c9;
-  --topbar-gradient: linear-gradient(90deg, #05060a 0%, #0a0c17 55%, #11142b 130%);
+  --sidebar-border: #181d28;
+  --sidebar-ring: #4ea8de;
+  --nav-gradient: linear-gradient(180deg, #07090d 0%, #0d1017 55%, #05070a 100%);
+  --nav-glow: none;
+  --nav-accent: #4ea8de;
+  --nav-accent-2: #2ec4b6;
+  --topbar-gradient: linear-gradient(90deg, #07090d 0%, #0e121a 50%, #151b26 100%);
 
   --ok: #4ad395;
   --ok-tint: #10251d;
@@ -217,9 +215,7 @@
   }
 }
 
-/* ---- Nav shell: a real gradient (not just the flat bg-sidebar color) via
-   a plain rule, since Tailwind's bg-sidebar utility only carries a solid
-   color. Same DOM every theme - only the token values above change. ---- */
+/* Nav & Topbar Chrome Structure */
 [data-slot="sidebar-inner"] {
   background: var(--nav-gradient);
 }
@@ -227,41 +223,7 @@
   background: var(--topbar-gradient);
 }
 
-.ambient-glow {
-  position: absolute;
-  inset: 0;
-  background: var(--nav-glow);
-  pointer-events: none;
-}
-
-.ambient-stars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  background-image: radial-gradient(1.5px 1.5px at 20px 30px, rgba(255,255,255,0.9), transparent),
-    radial-gradient(1px 1px at 70px 90px, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1.5px 1.5px at 130px 20px, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1px 1px at 170px 70px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 30px 110px, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1.5px 1.5px at 190px 130px, rgba(255,255,255,0.7), transparent);
-  background-repeat: repeat;
-  background-size: 220px 160px;
-}
-[data-theme="night"] .ambient-stars {
-  opacity: 1;
-  animation: twinkle 5s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-theme="night"] .ambient-stars { animation: none; opacity: 0.85; }
-}
-@keyframes twinkle {
-  0%, 100% { opacity: 0.75; }
-  50% { opacity: 1; }
-}
-
-/* Theme motif icon (sun/sunset/moon, rendered in app-sidebar.tsx) */
+/* Theme motif icon (rendered in app-sidebar.tsx) */
 .theme-motif { color: var(--nav-accent); }
 .theme-motif .accent-2 { color: var(--nav-accent-2); }
 

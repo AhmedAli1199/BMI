@@ -49,19 +49,26 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
 
   return (
     <Sidebar>
-      <SidebarHeader className="relative overflow-hidden">
-        <div className="ambient-glow" aria-hidden="true" />
-        <div className="ambient-stars" aria-hidden="true" />
-        <SidebarMenu className="relative">
+      <SidebarHeader className="border-b border-sidebar-border/60 px-4 py-3.5">
+        <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               render={<Link href="/" />}
               isActive={pathname === "/"}
-              className="gap-3"
+              className="gap-3 hover:bg-sidebar-accent/80 transition-colors"
             >
-              <ThemeMotif className="theme-motif size-7 shrink-0" />
-              <span className="text-base font-bold tracking-tight">BMI Sales Brain</span>
+              <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary/15 border border-sidebar-primary/30 text-sidebar-primary font-serif font-black text-sm shadow-xs">
+                BMI
+              </div>
+              <div className="flex flex-col text-left leading-tight">
+                <span className="font-serif font-bold tracking-tight text-sidebar-foreground text-[14px]">
+                  BMI Publishing
+                </span>
+                <span className="text-[10.5px] font-medium text-sidebar-foreground/60">
+                  Sales &amp; Editorial CRM
+                </span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

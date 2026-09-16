@@ -60,15 +60,17 @@ export function ActSubbar({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card/60 backdrop-blur-xs px-4 py-2 text-xs">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-card px-4 py-2 text-xs shadow-2xs">
       {/* 1. Module Sub-Tabs (Contacts | Companies | Groups) */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5" role="tablist" aria-label="CRM Modules">
         <Link
           href="/contacts"
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
+          role="tab"
+          aria-selected={pathname.startsWith("/contacts")}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-all ${
             pathname.startsWith("/contacts")
-              ? "bg-primary/10 text-primary border border-primary/20"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/15 text-primary border border-primary/30 shadow-2xs font-bold"
+              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-transparent"
           }`}
         >
           <Users className="size-3.5" />
@@ -76,10 +78,12 @@ export function ActSubbar({
         </Link>
         <Link
           href="/companies"
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
+          role="tab"
+          aria-selected={pathname.startsWith("/companies")}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-all ${
             pathname.startsWith("/companies")
-              ? "bg-primary/10 text-primary border border-primary/20"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/15 text-primary border border-primary/30 shadow-2xs font-bold"
+              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-transparent"
           }`}
         >
           <Building2 className="size-3.5" />
@@ -87,10 +91,12 @@ export function ActSubbar({
         </Link>
         <Link
           href="/groups"
-          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
+          role="tab"
+          aria-selected={pathname.startsWith("/groups")}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-all ${
             pathname.startsWith("/groups")
-              ? "bg-primary/10 text-primary border border-primary/20"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              ? "bg-primary/15 text-primary border border-primary/30 shadow-2xs font-bold"
+              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground border border-transparent"
           }`}
         >
           <UsersRound className="size-3.5" />
@@ -99,46 +105,50 @@ export function ActSubbar({
       </div>
 
       {/* 2. ACT! Quick Action Cluster (Call, Meeting, Note, Email) */}
-      <div className="hidden sm:flex items-center gap-1 border-x px-3 border-border/60">
+      <div className="flex items-center gap-1 border-x px-3 border-border/60" role="toolbar" aria-label="Touchpoint Actions">
         <Button
           size="xs"
           variant="ghost"
           onClick={() => handleQuickAction("call")}
-          className="gap-1.5 font-medium hover:bg-amber-500/10 hover:text-amber-600 cursor-pointer"
+          className="gap-1.5 font-medium hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer text-muted-foreground transition-colors"
           title="Log Call"
+          aria-label="Log Call"
         >
-          <PhoneCall className="size-3 text-amber-600" />
-          <span>Call</span>
+          <PhoneCall className="size-3.5 text-amber-600 dark:text-amber-400" />
+          <span className="hidden sm:inline">Call</span>
         </Button>
         <Button
           size="xs"
           variant="ghost"
           onClick={() => handleQuickAction("meeting")}
-          className="gap-1.5 font-medium hover:bg-blue-500/10 hover:text-blue-600 cursor-pointer"
+          className="gap-1.5 font-medium hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer text-muted-foreground transition-colors"
           title="Schedule Meeting"
+          aria-label="Schedule Meeting"
         >
-          <Calendar className="size-3 text-blue-600" />
-          <span>Meeting</span>
+          <Calendar className="size-3.5 text-blue-600 dark:text-blue-400" />
+          <span className="hidden sm:inline">Meeting</span>
         </Button>
         <Button
           size="xs"
           variant="ghost"
           onClick={() => handleQuickAction("note")}
-          className="gap-1.5 font-medium hover:bg-emerald-500/10 hover:text-emerald-600 cursor-pointer"
+          className="gap-1.5 font-medium hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer text-muted-foreground transition-colors"
           title="Create Note"
+          aria-label="Create Note"
         >
-          <FileText className="size-3 text-emerald-600" />
-          <span>Note</span>
+          <FileText className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span className="hidden sm:inline">Note</span>
         </Button>
         <Button
           size="xs"
           variant="ghost"
           onClick={() => handleQuickAction("email")}
-          className="gap-1.5 font-medium hover:bg-purple-500/10 hover:text-purple-600 cursor-pointer"
+          className="gap-1.5 font-medium hover:bg-purple-500/15 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer text-muted-foreground transition-colors"
           title="Send E-mail"
+          aria-label="Send E-mail"
         >
-          <Mail className="size-3 text-purple-600" />
-          <span>E-mail</span>
+          <Mail className="size-3.5 text-purple-600 dark:text-purple-400" />
+          <span className="hidden sm:inline">E-mail</span>
         </Button>
       </div>
 

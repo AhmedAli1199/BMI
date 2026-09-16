@@ -379,8 +379,6 @@ export async function listPublications(): Promise<Publication[]> {
         description: "Inflight catering & onboard services",
         color: "blue",
         icon: "plane",
-        contact_count: 0,
-        company_count: 0,
       },
       {
         id: "pub_2",
@@ -389,8 +387,6 @@ export async function listPublications(): Promise<Publication[]> {
         description: "Travel trade & agent distribution",
         color: "emerald",
         icon: "compass",
-        contact_count: 0,
-        company_count: 0,
       },
       {
         id: "pub_3",
@@ -399,8 +395,6 @@ export async function listPublications(): Promise<Publication[]> {
         description: "Global leads & brand directory",
         color: "amber",
         icon: "globe",
-        contact_count: 0,
-        company_count: 0,
       },
     ];
   }
