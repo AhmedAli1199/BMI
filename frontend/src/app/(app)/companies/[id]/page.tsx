@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Layers, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail } from "@/lib/types";
+import { getSession } from "@/lib/session";
+import { allowedSourceDbSlugs } from "@/lib/access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,6 +28,15 @@ export default async function CompanyDetailPage({
   try {
     company = await backendFetch<CompanyDetail>(`/api/companies/${id}`);
   } catch {
+    notFound();
+  }
+
+  // Defense in depth against a guessed/direct URL - companies aren't
+  // group-scoped (see contacts/[id]/page.tsx's comment on why), so
+  // unlike a contact, only the database itself is checked here: any
+  // grant on this database (full or group-scoped) is enough.
+  const session = await getSession();
+  if (session && session.role !== "admin" && !allowedSourceDbSlugs(session).includes(company.source_db)) {
     notFound();
   }
 

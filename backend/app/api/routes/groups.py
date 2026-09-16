@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -24,6 +24,9 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 def list_groups(
     q: str | None = Query(None, description="Search by group name"),
     source_db: str | None = Query(None),
+    root_group_id: uuid.UUID | None = Query(
+        None, description="Restrict to this group plus every descendant subgroup - used for group-scoped user access"
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -38,6 +41,18 @@ def list_groups(
     stmt = select(Group, member_count_subq.label("member_count"))
     if source_db:
         stmt = stmt.where(Group.source_db == source_db)
+    if root_group_id:
+        subtree_ids = db.execute(
+            text(
+                "WITH RECURSIVE subtree AS ("
+                "  SELECT id FROM groups WHERE id = :gid"
+                "  UNION ALL"
+                "  SELECT g.id FROM groups g JOIN subtree s ON g.parent_group_id = s.id"
+                ") SELECT id FROM subtree"
+            ),
+            {"gid": str(root_group_id)},
+        ).scalars().all()
+        stmt = stmt.where(Group.id.in_(subtree_ids))
     if q:
         stmt = stmt.where(Group.name.ilike(f"%{q}%"))
 
@@ -78,6 +93,7 @@ def get_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> GroupDetail
 
     return GroupDetail(
         id=group.id,
+        source_db=group.source_db,
         name=group.name,
         description=group.description,
         parent_group_id=group.parent_group_id,

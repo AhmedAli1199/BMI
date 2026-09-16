@@ -6,6 +6,7 @@ import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
+import { accessLabel, allowedSourceDbSlugs, canAddDatabase, resolveScope } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -28,11 +29,22 @@ function timeAgo(iso: string): string {
 }
 
 export default async function DashboardPage() {
-  const [sourceDb, session, publications] = await Promise.all([
+  const [rawSourceDb, session, allPublications] = await Promise.all([
     getPublicationFilter(),
     getSession(),
     listPublications(),
   ]);
+
+  // Clamps whatever the publication cookie says to what this session is
+  // actually allowed to see (and resolves any group restriction within
+  // it) - see lib/access.ts. Admins pass through untouched.
+  const scope = resolveScope(session, rawSourceDb);
+  const sourceDb = scope.source_db === "__no_access__" ? "" : scope.source_db;
+  // Non-admins only ever see their own allowed titles as tiles/switcher
+  // options - never the other two.
+  const publications = session?.role === "admin"
+    ? allPublications
+    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   // The "Recently Active" sort is a per-user preference (see /settings +
   // backend/app/preferences.py) - this was the one piece that never
@@ -46,11 +58,22 @@ export default async function DashboardPage() {
 
   const statsParams = new URLSearchParams();
   if (sourceDb) statsParams.set("source_db", sourceDb);
+  if (scope.group_id) statsParams.set("group_id", scope.group_id);
   if (recentActivitySort) statsParams.set("recent_activity_sort", recentActivitySort);
 
-  const stats = await backendFetch<DashboardStats>(
-    `/api/dashboard/stats${statsParams.size ? `?${statsParams}` : ""}`
-  );
+  if (scope.source_db === "__no_access__") {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-3 p-6 pt-24 text-center">
+        <h1 className="text-xl font-bold text-foreground">No database access yet</h1>
+        <p className="text-sm text-muted-foreground">
+          Your account doesn&apos;t have any database assigned. Ask an administrator to grant you access under
+          Settings → Team.
+        </p>
+      </div>
+    );
+  }
+
+  const stats = await backendFetch<DashboardStats>(`/api/dashboard/stats${statsParams.size ? `?${statsParams}` : ""}`);
 
   const KPIS = [
     {
@@ -100,6 +123,11 @@ export default async function DashboardPage() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
             Unified audience database, commercial advertising tracking, and circulation management across every BMI media brand.
           </p>
+          {scope.group_name && (
+            <p className="mt-1 text-[11px] font-medium text-primary">
+              Showing {accessLabel({ source_db: sourceDb, group_id: scope.group_id, group_name: scope.group_name })} only
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -153,10 +181,12 @@ export default async function DashboardPage() {
 
         {/* "Add a database" - not a separate Postgres database, a new
             source_db label any contact/company can be filed under (see
-            backend/app/models/publication.py). */}
-        <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
-          <PublicationFormDialog />
-        </Card>
+            backend/app/models/publication.py). Admin-only. */}
+        {canAddDatabase(session) && (
+          <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
+            <PublicationFormDialog />
+          </Card>
+        )}
       </div>
 
       {sourceDb && (

@@ -315,6 +315,7 @@ class DashboardStats(BaseModel):
 class GroupDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
+    source_db: str
     name: str
     description: str | None = None
     parent_group_id: uuid.UUID | None = None

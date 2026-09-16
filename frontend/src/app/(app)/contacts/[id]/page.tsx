@@ -10,7 +10,9 @@ import {
   UserCheck,
 } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { ContactDetail } from "@/lib/types";
+import type { ContactDetail, GroupListItem, Page } from "@/lib/types";
+import { getSession } from "@/lib/session";
+import { canAccessRecord } from "@/lib/access";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,24 @@ export default async function ContactDetailPage({
   try {
     contact = await backendFetch<ContactDetail>(`/api/contacts/${id}`);
   } catch {
+    notFound();
+  }
+
+  // Defense in depth - the list page already only links to contacts
+  // within a session's scope, but a direct/guessed URL must be rejected
+  // too, not just hidden from the list. A group-scoped grant needs the
+  // record's group memberships checked against the grant's subtree, not
+  // just the database - fetched only when actually needed (an admin or
+  // full-database grant never hits this).
+  const session = await getSession();
+  const grant = session?.role === "admin" ? null : session?.access.find((a) => a.source_db === contact.source_db);
+  const needsGroupCheck = grant?.group_id != null;
+  const subtreeGroupIds = needsGroupCheck
+    ? (await backendFetch<Page<GroupListItem>>(
+        `/api/groups?root_group_id=${grant!.group_id}&page_size=500`
+      )).items.map((g) => g.id)
+    : null;
+  if (!canAccessRecord(session, contact.source_db, contact.groups.map((g) => g.id), subtreeGroupIds)) {
     notFound();
   }
 

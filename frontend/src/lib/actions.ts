@@ -4,7 +4,17 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
 import { PUBLICATION_COOKIE } from "@/lib/publication";
-import type { CompanyListItem, ContactDetail, ContactListItem, GroupListItem, Page, Publication } from "@/lib/types";
+import type {
+  CompanyListItem,
+  ContactDetail,
+  ContactListItem,
+  GroupListItem,
+  Page,
+  Publication,
+  RoleDef,
+  UserAccessEntry,
+  UserAccount,
+} from "@/lib/types";
 
 /** Every CRUD mutation for Contacts/Companies/Groups, callable straight from
  * client components (Next.js server actions run on the server regardless of
@@ -295,6 +305,18 @@ export async function searchGroups(q: string): Promise<GroupListItem[]> {
   return page.items;
 }
 
+/** Every group in one database, for the Team access picker's "restrict to
+ * this group" dropdown - unlike searchGroups, scoped to a single
+ * source_db and returns everything (up to 500) rather than a text-search
+ * top-10, since an admin picking an access grant needs to see the whole
+ * tree, not guess a search term. */
+export async function listGroupsForDatabase(source_db: string): Promise<GroupListItem[]> {
+  const page = await backendFetch<Page<GroupListItem>>(
+    `/api/groups?${new URLSearchParams({ source_db, page_size: "500" })}`
+  );
+  return page.items;
+}
+
 export async function searchContacts(q: string): Promise<ContactListItem[]> {
   if (!q.trim()) return [];
   const page = await backendFetch<Page<ContactListItem>>(
@@ -368,4 +390,66 @@ export async function createPublication(input: PublicationFormInput) {
   // rather than track each one individually.
   revalidatePath("/", "layout");
   return publication;
+}
+
+// ---- Team / role-based access -------------------------------------------
+// See backend/app/roles.py (what a role grants) and
+// backend/app/models/user_access.py (per-user database/group scoping).
+// All of these hit admin-only-in-spirit backend routes - the actual
+// enforcement is that /settings/users itself is gated to role === "admin"
+// (see lib/access.ts's canManageUsers), same trust boundary as every
+// other restriction in this app: the backend fully trusts whoever holds
+// the shared API key, which only this Next.js server ever does.
+
+export async function listRoles(): Promise<RoleDef[]> {
+  return backendFetch<RoleDef[]>("/api/roles");
+}
+
+export async function listTeamUsers(): Promise<UserAccount[]> {
+  return backendFetch<UserAccount[]>("/api/users");
+}
+
+export type TeamUserFormInput = {
+  email: string;
+  name: string;
+  password?: string;
+  role: string;
+  access: UserAccessEntry[];
+};
+
+export async function createTeamUser(input: TeamUserFormInput) {
+  const user = await backendFetch<UserAccount>("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: input.email,
+      name: input.name,
+      password: input.password,
+      role: input.role,
+      access: input.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id })),
+    }),
+  });
+  revalidatePath("/settings/users");
+  return user;
+}
+
+export async function updateTeamUser(
+  id: string,
+  input: Partial<Omit<TeamUserFormInput, "email">> & { is_active?: boolean }
+) {
+  const body: Record<string, unknown> = {};
+  if (input.name !== undefined) body.name = input.name;
+  if (input.role !== undefined) body.role = input.role;
+  if (input.is_active !== undefined) body.is_active = input.is_active;
+  if (input.password) body.password = input.password;
+  if (input.access !== undefined) {
+    body.access = input.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id }));
+  }
+  const user = await backendFetch<UserAccount>(`/api/users/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  revalidatePath("/settings/users");
+  return user;
 }

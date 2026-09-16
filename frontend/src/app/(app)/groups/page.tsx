@@ -3,7 +3,9 @@ import { CornerDownRight, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { GroupListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
+import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
+import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
@@ -18,13 +20,27 @@ export default async function GroupsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const [source_db, publications] = await Promise.all([getPublicationFilter(), listPublications()]);
+  const [rawSourceDb, session, allPublications] = await Promise.all([
+    getPublicationFilter(),
+    getSession(),
+    listPublications(),
+  ]);
+  const scope = resolveScope(session, rawSourceDb);
+  const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
+  const publications = session?.role === "admin"
+    ? allPublications
+    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
   if (source_db) params.set("source_db", source_db);
+  // A group-scoped session only ever sees its own group's subtree here
+  // too, not every group in the database.
+  if (scope.group_id) params.set("root_group_id", scope.group_id);
 
-  const data = await backendFetch<Page<GroupListItem>>(`/api/groups?${params}`);
+  const data = scope.source_db === "__no_access__"
+    ? { items: [], total: 0, page: 1, page_size: PAGE_SIZE }
+    : await backendFetch<Page<GroupListItem>>(`/api/groups?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   return (

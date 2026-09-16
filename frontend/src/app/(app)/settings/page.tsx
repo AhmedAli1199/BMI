@@ -1,6 +1,8 @@
-import { Settings as SettingsIcon, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Settings as SettingsIcon, Sparkles, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
+import { canManageUsers } from "@/lib/access";
 import type { PreferenceDef, UserPreferences } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { PreferenceGroup } from "@/components/preference-group";
@@ -46,6 +48,25 @@ export default async function SettingsPage() {
             You&apos;re not signed in, so changes here can&apos;t be saved. Sign in to set your own preferences.
           </CardContent>
         </Card>
+      )}
+
+      {canManageUsers(session) && (
+        <Link href="/settings/users">
+          <Card className="editorial-card transition-colors hover:border-primary/40 hover:bg-accent/30">
+            <CardContent className="flex items-center gap-3 p-4">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                <Users className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-foreground">Team &amp; access</p>
+                <p className="text-xs text-muted-foreground">
+                  Create accounts, assign roles, and control which database each person can see
+                </p>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
       )}
 
       {[...groups.entries()].map(([groupName, groupDefs]) => (

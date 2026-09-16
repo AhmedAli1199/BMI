@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { backendFetch } from "@/lib/backend";
-import type { GroupDetail } from "@/lib/types";
+import type { GroupDetail, GroupListItem, Page } from "@/lib/types";
+import { getSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -28,6 +29,21 @@ export default async function GroupDetailPage({
     group = await backendFetch<GroupDetail>(`/api/groups/${id}`);
   } catch {
     notFound();
+  }
+
+  // Defense in depth against a guessed/direct URL - a group-scoped grant
+  // must only let someone open their own group's subtree, not any group
+  // in the database.
+  const session = await getSession();
+  const grant = session?.role === "admin" ? null : session?.access.find((a) => a.source_db === group.source_db);
+  if (session && session.role !== "admin") {
+    if (!grant) notFound();
+    else if (grant.group_id) {
+      const subtree = await backendFetch<Page<GroupListItem>>(
+        `/api/groups?root_group_id=${grant.group_id}&page_size=500`
+      );
+      if (!subtree.items.some((g) => g.id === group.id)) notFound();
+    }
   }
 
   return (
