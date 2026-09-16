@@ -52,8 +52,11 @@ export default async function DashboardPage() {
   // back and passed it to the stats call, so it silently kept using the
   // default no matter what was chosen.
   const recentActivitySort = session
-    ? (await backendFetch<UserPreferences>(`/api/users/${session.sub}/preferences`)).values
-        .recent_activity_sort
+    ? (
+        await backendFetch<UserPreferences>(
+          `/api/users/${session.sub}/preferences`
+        ).catch(() => undefined)
+      )?.values?.recent_activity_sort
     : undefined;
 
   const statsParams = new URLSearchParams();

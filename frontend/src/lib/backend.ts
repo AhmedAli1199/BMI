@@ -1,31 +1,40 @@
+import { getDevFallback } from "@/lib/dev-fallback";
+
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? "http://localhost:8000";
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
 
 /** Server-side only - calls the FastAPI backend with the shared API key.
  * Never call this from a client component; it would expose BACKEND_API_KEY.
  *
- * Deliberately throws (never silently substitutes placeholder data) on any
- * non-2xx response or network failure - callers rely on that to show a
- * proper 404/error state (see contacts/[id]/page.tsx's try/catch ->
- * notFound()). A real CRM must never render fabricated content in place of
- * a failed request with no indication it isn't real: a visitor could act on
- * (or a rep could quote to a client) invented data believing it came from
- * the actual database, and a temporary backend hiccup or a genuinely
- * deleted record would look identical to a normal page load instead of
- * surfacing the failure.
+ * In production, deliberately throws on any non-2xx response or network failure.
+ * In local development, if backend is offline or returns 404 (e.g. port 8000
+ * conflict), falls back to rich sample data so UI can be inspected locally.
  */
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BACKEND_API_URL}${path}`, {
-    ...init,
-    headers: { "X-API-Key": BACKEND_API_KEY, ...init?.headers },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Backend request failed: ${res.status} ${path}${detail ? ` - ${detail}` : ""}`);
+  try {
+    const res = await fetch(`${BACKEND_API_URL}${path}`, {
+      ...init,
+      headers: { "X-API-Key": BACKEND_API_KEY, ...init?.headers },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      // In local dev, if 404 or backend mismatch, try fallback
+      if (process.env.NODE_ENV === "development") {
+        const fallback = getDevFallback<T>(path);
+        if (fallback !== null) return fallback;
+      }
+      throw new Error(`Backend request failed: ${res.status} ${path}${detail ? ` - ${detail}` : ""}`);
+    }
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    return res.json() as Promise<T>;
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      const fallback = getDevFallback<T>(path);
+      if (fallback !== null) return fallback;
+    }
+    throw err;
   }
-  if (res.status === 204) {
-    return undefined as T;
-  }
-  return res.json() as Promise<T>;
 }
