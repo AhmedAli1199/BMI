@@ -45,19 +45,12 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
               size="lg"
               render={<Link href="/" />}
               isActive={pathname === "/"}
-              className="gap-3 hover:bg-sidebar-accent/80 transition-colors"
+              className="h-auto flex-col items-start gap-0.5 py-2 hover:bg-sidebar-accent/80 transition-colors"
             >
-              <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary/15 border border-sidebar-primary/30 text-sidebar-primary font-serif font-black text-sm shadow-xs">
-                BMI
-              </div>
-              <div className="flex flex-col text-left leading-tight">
-                <span className="font-serif font-bold tracking-tight text-sidebar-foreground text-[14px]">
-                  BMI Publishing
-                </span>
-                <span className="text-[10.5px] font-medium text-sidebar-foreground/60">
-                  Sales &amp; Editorial CRM
-                </span>
-              </div>
+              <span className="bmi-wordmark">BMI</span>
+              <span className="text-[10.5px] font-medium tracking-wide text-sidebar-foreground/55">
+                Publishing &middot; Sales &amp; Editorial CRM
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

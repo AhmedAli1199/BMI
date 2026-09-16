@@ -227,6 +227,40 @@
 .theme-motif { color: var(--nav-accent); }
 .theme-motif .accent-2 { color: var(--nav-accent-2); }
 
+/* Sidebar brand mark - a layered text-shadow "extrusion" gives the
+   letterforms depth without an image asset, themed automatically via
+   --nav-accent since it changes per theme. Widens + lifts on hover
+   (triggered by the parent SidebarMenuItem, not the span itself, so the
+   whole nav row is the hit target). */
+.bmi-wordmark {
+  display: inline-block;
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 800;
+  font-size: 1.55rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--sidebar-foreground);
+  text-shadow:
+    1px 1px 0 var(--nav-accent),
+    2px 2px 0 var(--nav-accent),
+    3px 3px 6px rgba(0, 0, 0, 0.35);
+  transition:
+    letter-spacing 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    text-shadow 0.35s ease;
+  transform-origin: left center;
+}
+
+[data-slot="sidebar-menu-item"]:hover .bmi-wordmark {
+  letter-spacing: 0.1em;
+  transform: translateY(-1px) scale(1.04);
+  text-shadow:
+    1px 1px 0 var(--nav-accent),
+    2px 2px 0 var(--nav-accent),
+    3px 3px 0 var(--nav-accent),
+    4px 5px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* ============ EDITORIAL & CRAFTSMANSHIP DESIGN SYSTEM ============ */
 .font-serif {
   font-family: var(--font-serif), "Newsreader", Georgia, serif;
