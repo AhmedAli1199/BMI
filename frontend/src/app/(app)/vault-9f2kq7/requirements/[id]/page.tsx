@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getSession } from "@/lib/session";
+import { isAdmin } from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -41,8 +43,11 @@ export function generateStaticParams() {
 }
 
 export default async function AutomationDetailPage(
-  props: PageProps<"/requirements/[id]">
+  props: PageProps<"/vault-9f2kq7/requirements/[id]">
 ) {
+  const session = await getSession();
+  if (!isAdmin(session)) notFound();
+
   const { id } = await props.params;
   const automation = automations.find((a) => a.id === id);
   if (!automation) notFound();
@@ -111,7 +116,7 @@ export default async function AutomationDetailPage(
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {dependsOnItems.map((dep) => (
-              <Link key={dep.id} href={`/requirements/${dep.id}`}>
+              <Link key={dep.id} href={`/vault-9f2kq7/requirements/${dep.id}`}>
                 <Badge variant="secondary" className="cursor-pointer">
                   {dep.code ?? dep.name}
                 </Badge>

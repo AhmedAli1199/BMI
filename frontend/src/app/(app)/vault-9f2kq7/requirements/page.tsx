@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getSession } from "@/lib/session";
+import { isAdmin } from "@/lib/access";
 import {
   Card,
   CardDescription,
@@ -24,7 +27,10 @@ const STAGE_ORDER: Exclude<RequirementStage, "overview">[] = [
   "stage4",
 ];
 
-export default function RequirementsPage() {
+export default async function RequirementsPage() {
+  const session = await getSession();
+  if (!isAdmin(session)) notFound();
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 p-8">
       <div>
@@ -43,7 +49,7 @@ export default function RequirementsPage() {
             <h2 className="text-lg font-medium">{STAGE_LABELS[stage]}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {items.map((item) => (
-                <Link key={item.id} href={`/requirements/${item.id}`}>
+                <Link key={item.id} href={`/vault-9f2kq7/requirements/${item.id}`}>
                   <Card className="h-full transition-colors hover:bg-muted/50">
                     <CardHeader>
                       <div className="flex items-center justify-between gap-2">

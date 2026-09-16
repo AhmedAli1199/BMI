@@ -11,10 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-/** Deliberately not linked from anywhere in the app (no sidebar entry, no
- * route in /requirements) - reachable only by an admin who already knows
- * this exact URL. Source text lives outside public/ so it's never served
- * as a static asset either. */
+/** Deliberately not linked from anywhere in the app (no sidebar entry) -
+ * reachable only by an admin who already knows this exact URL. Source
+ * text lives outside public/ so it's never served as a static asset
+ * either. See the sibling vault-9f2kq7/requirements page for the
+ * restructured version - same access model, also unlinked. */
 export default async function BuildSpecArchivePage() {
   const session = await getSession();
   if (!isAdmin(session)) notFound();

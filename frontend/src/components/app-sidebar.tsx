@@ -2,13 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -20,9 +15,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeMotif } from "@/components/theme-motif";
@@ -40,12 +32,9 @@ const ROLE_LABELS: Record<string, string> = {
 // for easy viewing"), applied here rather than in the shared ui/sidebar.tsx
 // primitive so it's specific to this app's nav, not every future sidebar use.
 const NAV_ITEM = "text-[15.5px] font-semibold h-10 [&_svg]:size-[19px]";
-const NAV_SUBITEM = "text-[13.5px] font-medium";
 
 export function AppSidebar({ session }: { session: SessionPayload | null }) {
   const pathname = usePathname();
-
-  const isSpecActive = pathname.startsWith("/requirements") || pathname.startsWith("/docs");
 
   return (
     <Sidebar>
@@ -149,38 +138,6 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
           </SidebarGroup>
         )}
 
-        {/* Everything from the original automations planning pass - kept,
-            not deleted, but tucked under one collapsed group so it stops
-            competing with the actual product for space. Collapsed by
-            default; opens automatically if you're already on one of these
-            pages (e.g. a direct link). */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <Collapsible defaultOpen={isSpecActive} className="group/collapsible">
-                <SidebarMenuItem>
-                  <CollapsibleTrigger render={<SidebarMenuButton className={NAV_ITEM} />}>
-                    Build spec (reference)
-                    <ChevronRight className="ml-auto transition-transform group-data-[panel-open]/collapsible:rotate-90" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton
-                          render={<Link href="/requirements" />}
-                          isActive={pathname === "/requirements"}
-                          className={NAV_SUBITEM}
-                        >
-                          Requirements &amp; questions
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         {session && (
