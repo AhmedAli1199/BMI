@@ -26,8 +26,8 @@ function dayLabel(iso: string): string {
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Tomorrow";
   if (diffDays === -1) return "Yesterday";
-  if (diffDays < 0) return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} (overdue)`;
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  if (diffDays < 0) return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} (overdue)`;
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
 }
 
 export default async function ActivitiesPage({
