@@ -148,7 +148,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
   return (
     <Card className={`editorial-card overflow-hidden transition-shadow hover:shadow-xs`}>
-      <div className={`h-1 w-full bg-gradient-to-r ${style.accent}`} />
+      <div className={`masthead-rule w-full ${style.accent}`} />
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <span

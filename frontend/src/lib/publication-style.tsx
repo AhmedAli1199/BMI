@@ -15,8 +15,8 @@ import {
  * anything, it just falls back gracefully (see COLOR_STYLES/ICONS below). */
 export type PublicationColorStyle = {
   dot: string;
-  chipBg: string; // icon chip background + border + text
-  accent: string; // gradient stop classes for a card's top bar
+  chipBg: string; // outlined icon mark - border + text colour, no fill
+  accent: string; // solid masthead-rule colour for a card's top strip
   activeBadge: string; // solid badge classes when this publication is the active filter
 };
 
@@ -31,54 +31,57 @@ export const COLOR_OPTIONS = [
   "slate",
 ] as const;
 
+/* Solid, print-masthead colours (not Tailwind's default /500 candy hues) -
+   each one is deliberately closer to what you'd actually see on a BMI
+   cover line than a generic SaaS palette swatch. */
 const COLOR_STYLES: Record<string, PublicationColorStyle> = {
   blue: {
-    dot: "bg-blue-500",
-    chipBg: "bg-blue-500/10 border-blue-500/20 text-blue-600",
-    accent: "from-blue-600 to-blue-700",
-    activeBadge: "bg-blue-600 text-white hover:bg-blue-700",
+    dot: "bg-[#0099e5]",
+    chipBg: "border-[#0099e5] text-[#0077b3]",
+    accent: "bg-[#0099e5]",
+    activeBadge: "bg-[#0099e5] text-white hover:bg-[#0084c9]",
   },
   emerald: {
-    dot: "bg-emerald-500",
-    chipBg: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600",
-    accent: "from-emerald-600 to-emerald-700",
-    activeBadge: "bg-emerald-600 text-white hover:bg-emerald-700",
+    dot: "bg-[#1e7a52]",
+    chipBg: "border-[#1e7a52] text-[#1e7a52]",
+    accent: "bg-[#1e7a52]",
+    activeBadge: "bg-[#1e7a52] text-white hover:bg-[#186142]",
   },
   amber: {
-    dot: "bg-amber-500",
-    chipBg: "bg-amber-500/10 border-amber-500/20 text-amber-600",
-    accent: "from-amber-600 to-amber-700",
-    activeBadge: "bg-amber-600 text-white hover:bg-amber-700",
+    dot: "bg-[#b8791a]",
+    chipBg: "border-[#b8791a] text-[#96620f]",
+    accent: "bg-[#b8791a]",
+    activeBadge: "bg-[#b8791a] text-white hover:bg-[#966213]",
   },
   violet: {
-    dot: "bg-violet-500",
-    chipBg: "bg-violet-500/10 border-violet-500/20 text-violet-600",
-    accent: "from-violet-600 to-violet-700",
-    activeBadge: "bg-violet-600 text-white hover:bg-violet-700",
+    dot: "bg-[#5b3e8f]",
+    chipBg: "border-[#5b3e8f] text-[#5b3e8f]",
+    accent: "bg-[#5b3e8f]",
+    activeBadge: "bg-[#5b3e8f] text-white hover:bg-[#4a3273]",
   },
   rose: {
-    dot: "bg-rose-500",
-    chipBg: "bg-rose-500/10 border-rose-500/20 text-rose-600",
-    accent: "from-rose-600 to-rose-700",
-    activeBadge: "bg-rose-600 text-white hover:bg-rose-700",
+    dot: "bg-[#c0392b]",
+    chipBg: "border-[#c0392b] text-[#c0392b]",
+    accent: "bg-[#c0392b]",
+    activeBadge: "bg-[#c0392b] text-white hover:bg-[#a32f23]",
   },
   cyan: {
-    dot: "bg-cyan-500",
-    chipBg: "bg-cyan-500/10 border-cyan-500/20 text-cyan-600",
-    accent: "from-cyan-600 to-cyan-700",
-    activeBadge: "bg-cyan-600 text-white hover:bg-cyan-700",
+    dot: "bg-[#0a7f8c]",
+    chipBg: "border-[#0a7f8c] text-[#0a7f8c]",
+    accent: "bg-[#0a7f8c]",
+    activeBadge: "bg-[#0a7f8c] text-white hover:bg-[#086671]",
   },
   orange: {
-    dot: "bg-orange-500",
-    chipBg: "bg-orange-500/10 border-orange-500/20 text-orange-600",
-    accent: "from-orange-600 to-orange-700",
-    activeBadge: "bg-orange-600 text-white hover:bg-orange-700",
+    dot: "bg-[#c9611e]",
+    chipBg: "border-[#c9611e] text-[#a44f18]",
+    accent: "bg-[#c9611e]",
+    activeBadge: "bg-[#c9611e] text-white hover:bg-[#a44f18]",
   },
   slate: {
-    dot: "bg-slate-500",
-    chipBg: "bg-slate-500/10 border-slate-500/20 text-slate-600",
-    accent: "from-slate-600 to-slate-700",
-    activeBadge: "bg-slate-600 text-white hover:bg-slate-700",
+    dot: "bg-[#132c6b]",
+    chipBg: "border-[#132c6b] text-[#132c6b]",
+    accent: "bg-[#132c6b]",
+    activeBadge: "bg-[#132c6b] text-white hover:bg-[#0e214f]",
   },
 };
 

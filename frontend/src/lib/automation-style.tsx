@@ -22,40 +22,40 @@ export type AutomationStyle = {
 const STYLES: Record<string, AutomationStyle> = {
   bounce_uncertain: {
     icon: MailWarning,
-    color: "text-rose-600 dark:text-rose-400",
-    chipBg: "bg-rose-500/10 border-rose-500/20",
-    accent: "from-rose-600 to-rose-700",
-    ring: "hover:border-rose-500/50",
+    color: "text-[#c0392b]",
+    chipBg: "border-[#c0392b]",
+    accent: "bg-[#c0392b]",
+    ring: "hover:border-[#c0392b]/60",
   },
   bounce_unmatched: {
     icon: MailQuestion,
-    color: "text-orange-600 dark:text-orange-400",
-    chipBg: "bg-orange-500/10 border-orange-500/20",
-    accent: "from-orange-600 to-orange-700",
-    ring: "hover:border-orange-500/50",
+    color: "text-[#c9611e]",
+    chipBg: "border-[#c9611e]",
+    accent: "bg-[#c9611e]",
+    ring: "hover:border-[#c9611e]/60",
   },
   ooo_ambiguous: {
     icon: CalendarClock,
-    color: "text-blue-600 dark:text-blue-400",
-    chipBg: "bg-blue-500/10 border-blue-500/20",
-    accent: "from-blue-600 to-blue-700",
-    ring: "hover:border-blue-500/50",
+    color: "text-[#0099e5]",
+    chipBg: "border-[#0099e5]",
+    accent: "bg-[#0099e5]",
+    ring: "hover:border-[#0099e5]/60",
   },
   departure_unconfirmed: {
     icon: UserMinus,
-    color: "text-violet-600 dark:text-violet-400",
-    chipBg: "bg-violet-500/10 border-violet-500/20",
-    accent: "from-violet-600 to-violet-700",
-    ring: "hover:border-violet-500/50",
+    color: "text-[#5b3e8f]",
+    chipBg: "border-[#5b3e8f]",
+    accent: "bg-[#5b3e8f]",
+    ring: "hover:border-[#5b3e8f]/60",
   },
 };
 
 const FALLBACK: AutomationStyle = {
   icon: Sparkles,
-  color: "text-amber-600 dark:text-amber-400",
-  chipBg: "bg-amber-500/10 border-amber-500/20",
-  accent: "from-amber-600 to-amber-700",
-  ring: "hover:border-amber-500/50",
+  color: "text-[#132c6b]",
+  chipBg: "border-[#132c6b]",
+  accent: "bg-[#132c6b]",
+  ring: "hover:border-[#132c6b]/60",
 };
 
 export function styleForKind(kind: string): AutomationStyle {

@@ -54,54 +54,59 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ============ MORNING (default) — ACT! Enterprise Navy & Crisp Editorial Canvas ============ */
+/* ============ MORNING (default) — BMI Publishing Housestyle ============
+   Pulled directly from BMI's own mastheads: the group logo's navy/bright-
+   blue pairing (#132C6B / #0099E5), and the solid-black nav bar every one
+   of the three titles (Onboard Hospitality, Selling Travel, The Business
+   Travel Magazine) actually ships with - not a generic SaaS teal. */
 :root,
 [data-theme="morning"] {
-  --background: #f4f6f9;
-  --foreground: #0f1c24;
+  --background: #f5f6f8;
+  --foreground: #14171c;
   --card: #ffffff;
-  --card-foreground: #0f1c24;
+  --card-foreground: #14171c;
   --popover: #ffffff;
-  --popover-foreground: #0f1c24;
-  --primary: #005b82;
+  --popover-foreground: #14171c;
+  --primary: #132c6b;
   --primary-foreground: #ffffff;
-  --secondary: #e6eef3;
-  --secondary-foreground: #002d40;
-  --muted: #edf2f7;
-  --muted-foreground: #506675;
-  --accent: #dff0f8;
-  --accent-foreground: #004563;
-  --destructive: #b3261e;
-  --border: #d4e0e8;
-  --input: #d4e0e8;
-  --ring: #007ea7;
-  --chart-1: #005b82;
-  --chart-2: #c8720f;
-  --chart-3: #2e7d32;
-  --chart-4: #506675;
-  --chart-5: #b0c4de;
-  --radius: 0.5rem;
+  --secondary: #e9edf5;
+  --secondary-foreground: #132c6b;
+  --muted: #eef0f4;
+  --muted-foreground: #5b6270;
+  --accent: #e3f1fb;
+  --accent-foreground: #0077b3;
+  --destructive: #c0392b;
+  --border: #dde1e8;
+  --input: #dde1e8;
+  --ring: #0099e5;
+  --chart-1: #132c6b;
+  --chart-2: #0099e5;
+  --chart-3: #c0392b;
+  --chart-4: #5b6270;
+  --chart-5: #9aa6bd;
+  --radius: 0.4rem;
 
-  /* Harmonized ACT! Chrome: Topbar & Sidebar share continuous deep teal-navy */
-  --sidebar: #002738;
-  --sidebar-foreground: #e4edf2;
-  --sidebar-primary: #009bd6;
+  /* Masthead chrome: true black nav bar (matching every BMI title's own
+     site) with the group's bright-blue as the sole live accent. */
+  --sidebar: #0a0b0d;
+  --sidebar-foreground: #e7e9ed;
+  --sidebar-primary: #0099e5;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #003850;
+  --sidebar-accent: #1a1c21;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #00364d;
-  --sidebar-ring: #009bd6;
-  --nav-gradient: linear-gradient(180deg, #002434 0%, #002e42 55%, #001f2e 100%);
+  --sidebar-border: #1e2025;
+  --sidebar-ring: #0099e5;
+  --nav-gradient: #0a0b0d;
   --nav-glow: none;
-  --nav-accent: #00a8e8;
-  --nav-accent-2: #e5a93c;
-  --topbar-gradient: linear-gradient(90deg, #002738 0%, #003850 50%, #004868 100%);
+  --nav-accent: #0099e5;
+  --nav-accent-2: #c0392b;
+  --topbar-gradient: #0a0b0d;
 
   --ok: #157a53;
   --ok-tint: #e5f4ee;
   --warn: #a3660c;
   --warn-tint: #fbf0dd;
-  --bad: #b23a3a;
+  --bad: #c0392b;
   --bad-tint: #fbeaea;
 }
 
@@ -288,6 +293,28 @@
   border: 1px solid var(--border);
   box-shadow: 0 1px 3px 0 rgba(30, 20, 10, 0.04), 0 4px 14px 0 rgba(30, 20, 10, 0.03);
   border-radius: var(--radius);
+}
+
+/* Masthead rule - the solid colour strip every BMI title runs above its
+   content well. Used in place of AI-generic tinted-square icon chips:
+   colour differentiates by title/kind the way it does on the real sites,
+   without a coloured icon "sticker". */
+.masthead-rule {
+  height: 3px;
+  border-radius: 0;
+}
+
+/* Outlined icon treatment - no fill, no tinted square background. Replaces
+   the bg-{color}/10 rounded-square "icon chip" pattern (the single most
+   recognisable AI-dashboard tell) with a plain bordered mark, colour
+   carried by the icon stroke and a thin bottom rule instead of a fill. */
+.brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
 }
 
 /* Vertical connector behind a column of size-8 (32px) node icons with no

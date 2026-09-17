@@ -85,8 +85,8 @@ export default async function DashboardPage() {
       value: stats.total_contacts,
       icon: Users,
       href: "/contacts",
-      color: "text-amber-600 dark:text-amber-400",
-      accent: "from-amber-600 to-amber-700",
+      color: "text-[#132c6b]",
+      accent: "bg-[#132c6b]",
     },
     {
       label: "Companies",
@@ -94,8 +94,8 @@ export default async function DashboardPage() {
       value: stats.total_companies,
       icon: Building2,
       href: "/companies",
-      color: "text-blue-600 dark:text-blue-400",
-      accent: "from-blue-600 to-blue-700",
+      color: "text-[#0099e5]",
+      accent: "bg-[#0099e5]",
     },
     {
       label: "Groups",
@@ -103,8 +103,8 @@ export default async function DashboardPage() {
       value: stats.total_groups,
       icon: UsersRound,
       href: "/groups",
-      color: "text-emerald-600 dark:text-emerald-400",
-      accent: "from-emerald-600 to-emerald-700",
+      color: "text-[#c0392b]",
+      accent: "bg-[#c0392b]",
     },
   ];
 
@@ -154,15 +154,16 @@ export default async function DashboardPage() {
           return (
             <PublicationTileButton key={pub.slug} sourceDb={pub.slug} className="group">
               <Card
-                className={`editorial-card h-full transition-all hover:shadow-xs hover:border-primary/40 ${
+                className={`editorial-card h-full overflow-hidden transition-all hover:shadow-xs hover:border-primary/40 ${
                   isActive ? "border-primary/50 ring-1 ring-primary/30" : ""
                 }`}
               >
+                <div className={`masthead-rule w-full ${style.accent}`} />
                 <CardContent className="flex items-start gap-4 p-5">
                   <div
-                    className={`flex size-11 shrink-0 items-center justify-center rounded-xl border transition-transform group-hover:scale-105 ${style.chipBg}`}
+                    className={`brand-icon size-10 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg}`}
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-4.5" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="text-sm font-bold text-foreground transition-colors">
@@ -208,7 +209,7 @@ export default async function DashboardPage() {
         {KPIS.map((k) => (
           <Link key={k.label} href={k.href} className="group">
             <Card className="editorial-card h-full overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs">
-              <div className={`h-1 w-full bg-gradient-to-r ${k.accent}`} />
+              <div className={`masthead-rule w-full ${k.accent}`} />
               <CardContent className="flex items-center justify-between p-6">
                 <div>
                   <div className="editorial-stat text-3xl sm:text-4xl font-serif font-bold text-foreground tracking-tight">
@@ -221,8 +222,8 @@ export default async function DashboardPage() {
                     {k.sublabel}
                   </div>
                 </div>
-                <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted/60 ${k.color} border border-border`}>
-                  <k.icon className="size-6" />
+                <span className={`brand-icon size-11 shrink-0 ${k.color}`}>
+                  <k.icon className="size-5" />
                 </span>
               </CardContent>
             </Card>
@@ -310,7 +311,7 @@ export default async function DashboardPage() {
                   href={`/companies/${c.id}`}
                   className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
                 >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  <div className="brand-icon size-9 shrink-0 text-primary">
                     <Building2 className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">

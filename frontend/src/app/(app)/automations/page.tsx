@@ -144,14 +144,14 @@ export default async function AutomationsPage() {
                 <Card
                   className={`editorial-card h-full overflow-hidden transition-all hover:shadow-xs ${style.ring}`}
                 >
-                  <div className={`h-1 w-full bg-gradient-to-r ${style.accent}`} />
+                  <div className={`masthead-rule w-full ${style.accent}`} />
                   <CardContent className="flex flex-col gap-3 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <span
-                          className={`flex size-11 shrink-0 items-center justify-center rounded-xl border transition-transform group-hover:scale-105 ${style.chipBg} ${style.color}`}
+                          className={`brand-icon size-10 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg} ${style.color}`}
                         >
-                          <Icon className="size-5" />
+                          <Icon className="size-4.5" />
                         </span>
                         <div>
                           <div className="text-sm font-bold text-foreground">{k.label}</div>
