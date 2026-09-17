@@ -56,12 +56,60 @@ CUST_COMPANY_COLS: set[str] = set()
 CUST_GROUP_COLS: set[str] = set()
 
 
-def mssql_connect(args) -> pymssql.Connection:
-    return pymssql.connect(
-        server=args.mssql_host, port=str(args.mssql_port),
-        user=args.mssql_user, password=args.mssql_password,
-        database=MSSQL_DB_NAMES[args.source_db], as_dict=True,
-    )
+class DictCursorWrapper:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def execute(self, *args, **kwargs):
+        if args and len(args) > 0 and isinstance(args[0], str):
+            sql = args[0].replace("%s", "?")
+            return self._cursor.execute(sql, *args[1:], **kwargs)
+        return self._cursor.execute(*args, **kwargs)
+
+    def fetchall(self):
+        desc = [c[0] for c in self._cursor.description] if self._cursor.description else []
+        return [{name: val for name, val in zip(desc, row)} for row in self._cursor.fetchall()]
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        if not row:
+            return None
+        desc = [c[0] for c in self._cursor.description]
+        return {name: val for name, val in zip(desc, row)}
+
+
+class PyOdbcConnWrapper:
+    def __init__(self, raw_conn):
+        self._conn = raw_conn
+
+    def cursor(self):
+        return DictCursorWrapper(self._conn.cursor())
+
+    def close(self):
+        return self._conn.close()
+
+
+def mssql_connect(args):
+    if getattr(args, "use_odbc", False) or not args.mssql_password:
+        import pyodbc
+        db = MSSQL_DB_NAMES[args.source_db]
+        server = args.mssql_host if args.mssql_host not in ("localhost", "127.0.0.1") else "."
+        conn_str = f"Driver={{ODBC Driver 17 for SQL Server}};Server={server};Database={db};Trusted_Connection=yes;"
+        return PyOdbcConnWrapper(pyodbc.connect(conn_str))
+    try:
+        import pymssql
+        return pymssql.connect(
+            server=args.mssql_host, port=str(args.mssql_port),
+            user=args.mssql_user, password=args.mssql_password,
+            database=MSSQL_DB_NAMES[args.source_db], as_dict=True,
+        )
+    except Exception:
+        import pyodbc
+        db = MSSQL_DB_NAMES[args.source_db]
+        server = args.mssql_host if args.mssql_host not in ("localhost", "127.0.0.1") else "."
+        conn_str = f"Driver={{ODBC Driver 17 for SQL Server}};Server={server};Database={db};Trusted_Connection=yes;"
+        return PyOdbcConnWrapper(pyodbc.connect(conn_str))
+
 
 
 def discover_custom_columns(cur, table: str) -> list[str]:
@@ -235,7 +283,10 @@ def run(args):
     ms = mssql_connect(args)
     cur = ms.cursor()
 
-    pg = create_engine(args.pg_url)
+    pg_url = args.pg_url
+    if "postgresql+psycopg://" in pg_url:
+        pg_url = pg_url.replace("postgresql+psycopg://", "postgresql+psycopg2://")
+    pg = create_engine(pg_url)
     ids = IdMap()
 
     contact_cust_cols = discover_custom_columns(cur, "TBL_CONTACT")
@@ -601,10 +652,11 @@ def _upsert_activities_update_links(conn, rows: list[dict]):
                 "company_id": stmt.excluded.company_id,
                 "duration_minutes": stmt.excluded.duration_minutes,
                 "organized_by_name": stmt.excluded.organized_by_name,
+                "priority": stmt.excluded.priority,
             },
         ).returning(Activity.__table__.c.id)
         updated += len(conn.execute(stmt).fetchall())
-    print(f"  activities: {len(rows)} extracted, {updated} updated with links/duration/organizer")
+    print(f"  activities: {len(rows)} extracted, {updated} updated with links/duration/organizer/priority")
     return updated
 
 
@@ -612,11 +664,14 @@ def _migrate_activities_full(cur, conn, ids, source_db, organizer_name_expr, inv
     cur.execute(
         "SELECT a.ACTIVITYID, a.REGARDING, a.DETAILS, a.LOCATION, a.STARTTIME, a.ENDTIME, "
         "a.ISTIMELESS, a.DURATION, t.NAME AS TYPENAME, ac.ACCESSOR_ACTIVITY_CLEAREDID, "
-        f"{organizer_name_expr} AS ORGNAME "
+        f"{organizer_name_expr} AS ORGNAME, "
+        "ap.NAME AS PRIORITYNAME "
         "FROM TBL_ACTIVITY a "
         "LEFT JOIN TBL_ACTIVITYTYPE t ON t.ACTIVITYTYPEID = a.ACTIVITYTYPEID "
         "LEFT JOIN TBL_ACCESSOR_ACTIVITY_CLEARED ac ON ac.ACTIVITYID = a.ACTIVITYID "
-        "LEFT JOIN TBL_ACCESSOR org ON org.ACCESSORID = a.ORGANIZEUSERID"
+        "LEFT JOIN TBL_ACCESSOR org ON org.ACCESSORID = a.ORGANIZEUSERID "
+        "LEFT JOIN TBL_ACCESSOR_ACTIVITY aa ON aa.ACTIVITYID = a.ACTIVITYID AND aa.ACCESSORID = a.ORGANIZEUSERID "
+        "LEFT JOIN TBL_ACTIVITYPRIORITY ap ON ap.ACTIVITYPRIORITYID = aa.ACTIVITYPRIORITYID"
     )
     activity_rows = cur.fetchall()
     for r in activity_rows:
@@ -642,6 +697,13 @@ def _migrate_activities_full(cur, conn, ids, source_db, organizer_name_expr, inv
         linked_companies = act_companies.get(act_id_str, [])
         backfill_contact_id = linked_contacts[0] if len(linked_contacts) == 1 and not linked_companies else None
         backfill_company_id = linked_companies[0] if len(linked_companies) == 1 and not linked_contacts else None
+        pname = (r.get("PRIORITYNAME") or "").strip().lower()
+        if "high" in pname:
+            priority = "high"
+        elif "low" in pname:
+            priority = "low"
+        else:
+            priority = "normal"
         rows.append({
             "id": ids.get("activity", r["ACTIVITYID"]), "source_db": source_db,
             "source_act_id": to_uuid_str(r["ACTIVITYID"]),
@@ -650,6 +712,7 @@ def _migrate_activities_full(cur, conn, ids, source_db, organizer_name_expr, inv
             "location": r["LOCATION"], "start_at": r["STARTTIME"], "end_at": r["ENDTIME"],
             "is_timeless": bool(r["ISTIMELESS"]), "is_cleared": r["ACCESSOR_ACTIVITY_CLEAREDID"] is not None,
             "duration_minutes": r["DURATION"], "organized_by_name": r["ORGNAME"],
+            "priority": priority,
         })
     if update_existing and not refresh:
         _upsert_activities_update_links(conn, rows)
@@ -753,7 +816,8 @@ if __name__ == "__main__":
     p.add_argument("--mssql-host", default="localhost")
     p.add_argument("--mssql-port", default=1433, type=int)
     p.add_argument("--mssql-user", default="sa")
-    p.add_argument("--mssql-password", required=True)
+    p.add_argument("--mssql-password", default="", help="SQL Server password (leave blank for Windows Auth via ODBC)")
+    p.add_argument("--use-odbc", action="store_true", help="Use ODBC with Windows Integrated Authentication")
     p.add_argument("--pg-url", required=True)
     p.add_argument(
         "--only", choices=["activities", "all"], default="all",
