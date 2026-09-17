@@ -94,13 +94,13 @@ export default async function ReviewQueuePage({
         ) : (
           <Card className="editorial-card relative overflow-hidden">
             <div
-              className={`absolute -right-8 -top-8 size-32 rounded-full blur-3xl ${
-                activeStyle ? activeStyle.chipBg : "bg-primary/10"
+              className={`absolute -right-8 -top-8 size-32 rounded-full opacity-10 blur-3xl ${
+                activeStyle ? activeStyle.accent : "bg-primary"
               }`}
               aria-hidden="true"
             />
             <CardContent className="relative flex flex-col items-center gap-2 py-16 text-center">
-              <span className="flex size-14 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-600">
+              <span className="brand-icon size-14 rounded-full! border-[var(--ok)] text-[var(--ok)]">
                 <PartyPopper className="size-6" />
               </span>
               <p className="mt-1 text-base font-bold text-foreground">All caught up.</p>

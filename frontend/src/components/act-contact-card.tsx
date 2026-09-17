@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { sourceLabel } from "@/lib/sources";
+import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 import { updateContact } from "@/lib/actions";
 
 export function ActContactCard({
@@ -88,18 +88,6 @@ export function ActContactCard({
     setEditing(false);
   }
 
-  const publicationBadgeStyle = (source: string) => {
-    switch (source) {
-      case "onboard":
-        return "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400";
-      case "sellingtravel":
-        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-      case "prospects":
-        return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-      default:
-        return "border-border bg-muted text-muted-foreground";
-    }
-  };
 
   const primaryAddress = contact.addresses[0];
   const primaryPhone = contact.phones[0]?.number;

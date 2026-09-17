@@ -54,7 +54,7 @@ export default async function SettingsPage() {
         <Link href="/settings/users">
           <Card className="editorial-card transition-colors hover:border-primary/40 hover:bg-accent/30">
             <CardContent className="flex items-center gap-3 p-4">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+              <span className="brand-icon size-9 shrink-0 text-primary">
                 <Users className="size-4" />
               </span>
               <div className="min-w-0 flex-1">

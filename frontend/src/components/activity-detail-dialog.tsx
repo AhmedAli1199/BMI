@@ -59,7 +59,7 @@ export function ActivityDetailDialog({
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline" className="text-xs">{item.activity_type}</Badge>
             {item.is_cleared && (
-              <Badge variant="outline" className="text-xs border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Badge variant="outline" className="text-xs border-[var(--ok)] text-[var(--ok)]">
                 Done
               </Badge>
             )}

@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { sourceLabel } from "@/lib/sources";
+import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 import { updateCompany } from "@/lib/actions";
 
 export function ActCompanyCard({ company }: { company: CompanyDetail }) {
@@ -79,19 +79,6 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
     setEditing(false);
   }
 
-  const publicationBadgeStyle = (source: string) => {
-    switch (source) {
-      case "onboard":
-        return "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400";
-      case "sellingtravel":
-        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-      case "prospects":
-        return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-      default:
-        return "border-border bg-muted text-muted-foreground";
-    }
-  };
-
   const primaryAddress = company.addresses[0];
   const primaryPhone = company.phones[0]?.number;
   const primaryEmail = company.emails[0]?.address;
@@ -101,7 +88,7 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
       {/* Identity Header Bar */}
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/80 bg-muted/20 px-5 py-3">
         <div className="flex items-center gap-3.5">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
+          <div className="brand-icon size-11 text-primary">
             <Building2 className="size-5" />
           </div>
           <div>
