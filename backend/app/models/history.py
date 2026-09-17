@@ -35,18 +35,22 @@ HISTORY_TYPES_KEPT = {
     "Attachment",
 }
 
-HISTORY_ENTITY_TYPES = ("contact", "company")
+HISTORY_ENTITY_TYPES = ("contact", "company", "group", "opportunity")
 
 
 class HistoryEntry(Base, UUIDPk, ProvenanceMixin):
-    """Flattened from TBL_CONTACT_HISTORY / TBL_COMPANY_HISTORY, same
-    reasoning and same simplification as Note (see note.py).
+    """Flattened from TBL_CONTACT_HISTORY / TBL_COMPANY_HISTORY /
+    TBL_GROUP_HISTORY / TBL_OPPORTUNITY_HISTORY, same reasoning and same
+    simplification as Note (see note.py) - group/opportunity added since
+    they're real data the original migration dropped, not Act! plumbing.
     """
 
     __tablename__ = "history_entries"
     __table_args__ = (
         UniqueConstraint("source_db", "source_act_id", name="uq_history_entries_source"),
-        CheckConstraint("entity_type IN ('contact', 'company')", name="ck_history_entity_type"),
+        CheckConstraint(
+            "entity_type IN ('contact', 'company', 'group', 'opportunity')", name="ck_history_entity_type"
+        ),
     )
 
     entity_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)

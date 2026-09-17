@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,6 +49,20 @@ class Contact(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     last_reach_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_attempt_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_letter_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_email_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Act!'s free-text company name (COMPANYNAME) - distinct from company_id
+    # above (the linked Company row). Many contacts carry one and not the
+    # other; kept as-is rather than guessed into a link.
+    company_name_freetext: Mapped[str | None] = mapped_column(String(256))
+    last_results: Mapped[str | None] = mapped_column(String(256))  # Act!'s "Last Results" picklist value
+
+    # Act! Marketing Automation fields - directly relevant to the CS-001
+    # bounce-handling automation (app/automations/bounce_handling.py), which
+    # currently has no historical bounce signal to start from.
+    is_email_opted_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    has_bounced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    engagement_score: Mapped[int | None] = mapped_column(Integer)  # Act!'s AMA_SCORE
 
     # Decoded custom fields, keyed by real label - see Company.custom_fields
     # docstring for the same rule. This is where bmi_notes, print_subscription,
@@ -57,3 +71,20 @@ class Contact(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
 
     act_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     act_edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ContactCompanyLink(Base, UUIDPk):
+    """Contact <-> Company, flattened from Act!'s TBL_COMPANY_CONTACT -
+    SEPARATE from Contact.company_id above. Act! lets one contact belong to
+    several companies (a board member, a consultant working two accounts);
+    company_id only ever holds one. 7,959 of these in Prospects alone, so
+    genuinely more than an edge case there. row_source records whether Act!
+    made the link automatically or a user did.
+    """
+
+    __tablename__ = "contact_company_links"
+    __table_args__ = (UniqueConstraint("contact_id", "company_id", name="uq_contact_company_links"),)
+
+    contact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=False, index=True)
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False, index=True)
+    row_source: Mapped[str | None] = mapped_column(String(1))

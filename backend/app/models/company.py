@@ -31,6 +31,10 @@ class Company(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     website: Mapped[str | None] = mapped_column(String(256))
     referred_by: Mapped[str | None] = mapped_column(String(128))
     is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Selected by the ETL from day one but never actually written to the
+    # row dict until now - a straightforward bug fix, not new scope.
+    ticker_symbol: Mapped[str | None] = mapped_column(String(32))
+    sic_code: Mapped[str | None] = mapped_column(String(32))
 
     # Act!'s own company hierarchy (a company can be a subsidiary of another
     # company in the SAME source database - cross-database parents can't
