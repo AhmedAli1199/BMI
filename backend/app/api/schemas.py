@@ -51,6 +51,18 @@ class ContactsPage(Page):
     items: list[ContactListItem]
 
 
+class ContactPosition(BaseModel):
+    """Powers the record-stepper (VCR arrows) on the contact detail page -
+    where this record sits within whatever filtered/sorted list the user
+    navigated in from, and the neighbouring ids to step to."""
+    position: int | None = None
+    total: int
+    prev_id: uuid.UUID | None = None
+    next_id: uuid.UUID | None = None
+    first_id: uuid.UUID | None = None
+    last_id: uuid.UUID | None = None
+
+
 class AddressOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -251,6 +263,16 @@ class CompanyListItem(BaseModel):
 
 class CompaniesPage(Page):
     items: list[CompanyListItem]
+
+
+class CompanyPosition(BaseModel):
+    """See ContactPosition - same idea, for the company record stepper."""
+    position: int | None = None
+    total: int
+    prev_id: uuid.UUID | None = None
+    next_id: uuid.UUID | None = None
+    first_id: uuid.UUID | None = None
+    last_id: uuid.UUID | None = None
 
 
 class CompanyDetail(BaseModel):

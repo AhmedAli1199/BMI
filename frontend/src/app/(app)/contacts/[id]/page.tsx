@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { ContactDetail, GroupListItem, Page } from "@/lib/types";
+import type { ContactDetail, GroupListItem, Page, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { canAccessRecord } from "@/lib/access";
 import { sourceLabel } from "@/lib/sources";
@@ -12,10 +12,13 @@ import { ActTabWorkstation } from "@/components/act-tab-workstation";
 
 export default async function ContactDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string; source_db?: string; group_id?: string }>;
 }) {
   const { id } = await params;
+  const navParams = await searchParams;
 
   let contact: ContactDetail;
   try {
@@ -23,6 +26,20 @@ export default async function ContactDetailPage({
   } catch {
     notFound();
   }
+
+  // Record-stepper (VCR arrows) - walks the same filtered/sorted list the
+  // user navigated in from (carried via the query string, see
+  // InteractiveContactTable's `queryString` prop), not some other order.
+  // Best-effort: if it fails, the stepper just shows disabled arrows.
+  const posParams = new URLSearchParams();
+  if (navParams.q) posParams.set("q", navParams.q);
+  if (navParams.source_db) posParams.set("source_db", navParams.source_db);
+  if (navParams.group_id) posParams.set("group_id", navParams.group_id);
+  const position = await backendFetch<RecordPosition>(
+    `/api/contacts/${id}/position?${posParams}`
+  ).catch(() => undefined);
+  const navSuffix = posParams.toString() ? `?${posParams}` : "";
+  const hrefFor = (recordId: string | null) => (recordId ? `/contacts/${recordId}${navSuffix}` : null);
 
   // Defense in depth - the list page already only links to contacts
   // within a session's scope, but a direct/guessed URL must be rejected
@@ -50,7 +67,17 @@ export default async function ContactDetailPage({
   return (
     <div className="flex w-full flex-col">
       {/* ACT! Sub-header Navigation & Action Ribbon */}
-      <ActSubbar module="contacts" />
+      <ActSubbar
+        module="contacts"
+        currentRecordIndex={position?.position ?? undefined}
+        totalRecords={position?.total}
+        firstHref={position && position.position && position.position > 1 ? hrefFor(position.first_id) : null}
+        prevHref={hrefFor(position?.prev_id ?? null)}
+        nextHref={hrefFor(position?.next_id ?? null)}
+        lastHref={
+          position && position.position && position.position < position.total ? hrefFor(position.last_id) : null
+        }
+      />
 
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
         {/* Editorial Breadcrumb & Status */}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Layers, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { CompanyDetail } from "@/lib/types";
+import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { allowedSourceDbSlugs } from "@/lib/access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,10 +20,13 @@ import { ActCompanyCard } from "@/components/act-company-card";
 
 export default async function CompanyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string; source_db?: string }>;
 }) {
   const { id } = await params;
+  const navParams = await searchParams;
 
   let company: CompanyDetail;
   try {
@@ -31,6 +34,17 @@ export default async function CompanyDetailPage({
   } catch {
     notFound();
   }
+
+  // Record-stepper (VCR arrows) - same idea as the contact detail page,
+  // walks the filtered/sorted list the user navigated in from.
+  const posParams = new URLSearchParams();
+  if (navParams.q) posParams.set("q", navParams.q);
+  if (navParams.source_db) posParams.set("source_db", navParams.source_db);
+  const position = await backendFetch<RecordPosition>(
+    `/api/companies/${id}/position?${posParams}`
+  ).catch(() => undefined);
+  const navSuffix = posParams.toString() ? `?${posParams}` : "";
+  const hrefFor = (recordId: string | null) => (recordId ? `/companies/${recordId}${navSuffix}` : null);
 
   // Defense in depth against a guessed/direct URL - companies aren't
   // group-scoped (see contacts/[id]/page.tsx's comment on why), so
@@ -46,7 +60,17 @@ export default async function CompanyDetailPage({
   return (
     <div className="flex w-full flex-col">
       {/* ACT! Sub-header Navigation Ribbon */}
-      <ActSubbar module="companies" />
+      <ActSubbar
+        module="companies"
+        currentRecordIndex={position?.position ?? undefined}
+        totalRecords={position?.total}
+        firstHref={position && position.position && position.position > 1 ? hrefFor(position.first_id) : null}
+        prevHref={hrefFor(position?.prev_id ?? null)}
+        nextHref={hrefFor(position?.next_id ?? null)}
+        lastHref={
+          position && position.position && position.position < position.total ? hrefFor(position.last_id) : null
+        }
+      />
 
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
         {/* Top Editorial Breadcrumb */}

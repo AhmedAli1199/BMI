@@ -16,6 +16,7 @@ from app.api.schemas import (
     ContactCreate,
     ContactDetail,
     ContactListItem,
+    ContactPosition,
     ContactsPage,
     ContactUpdate,
     EmailOut,
@@ -48,38 +49,17 @@ from app.models.contact_channel import Address, Phone
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
-@router.get("", response_model=ContactsPage)
-def list_contacts(
-    q: str | None = Query(None, description="Search by name or email"),
-    source_db: str | None = Query(None),
-    company_id: uuid.UUID | None = Query(None),
-    group_id: uuid.UUID | None = Query(
-        None, description="Restrict to this group's members plus every descendant subgroup's - used for group-scoped user access, see app/models/user_access.py"
-    ),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db),
-) -> ContactsPage:
-    # Primary email per contact, via a scalar subquery - cheap correlated
-    # lookup, fine at this row count (~118k contacts across all sources).
-    primary_email_subq = (
-        select(Email.address)
-        .where(Email.contact_id == Contact.id)
-        .order_by(Email.is_primary.desc())
-        .limit(1)
-        .correlate(Contact)
-        .scalar_subquery()
-    )
-
-    stmt = (
-        select(
-            Contact,
-            Company.name.label("company_name"),
-            primary_email_subq.label("primary_email"),
-        )
-        .outerjoin(Company, Contact.company_id == Company.id)
-    )
-
+def _apply_contact_filters(
+    db: Session,
+    stmt,
+    q: str | None,
+    source_db: str | None,
+    company_id: uuid.UUID | None,
+    group_id: uuid.UUID | None,
+):
+    """Shared by list_contacts and get_contact_position - same filters, same
+    row set, so record-navigation (prev/next) walks exactly what the list
+    view that got you here was showing, not some other, unfiltered order."""
     if source_db:
         stmt = stmt.where(Contact.source_db == source_db)
     if company_id:
@@ -113,6 +93,41 @@ def list_contacts(
                 Contact.id.in_(select(Email.contact_id).where(Email.address.ilike(like))),
             )
         )
+    return stmt
+
+
+@router.get("", response_model=ContactsPage)
+def list_contacts(
+    q: str | None = Query(None, description="Search by name or email"),
+    source_db: str | None = Query(None),
+    company_id: uuid.UUID | None = Query(None),
+    group_id: uuid.UUID | None = Query(
+        None, description="Restrict to this group's members plus every descendant subgroup's - used for group-scoped user access, see app/models/user_access.py"
+    ),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> ContactsPage:
+    # Primary email per contact, via a scalar subquery - cheap correlated
+    # lookup, fine at this row count (~118k contacts across all sources).
+    primary_email_subq = (
+        select(Email.address)
+        .where(Email.contact_id == Contact.id)
+        .order_by(Email.is_primary.desc())
+        .limit(1)
+        .correlate(Contact)
+        .scalar_subquery()
+    )
+
+    stmt = (
+        select(
+            Contact,
+            Company.name.label("company_name"),
+            primary_email_subq.label("primary_email"),
+        )
+        .outerjoin(Company, Contact.company_id == Company.id)
+    )
+    stmt = _apply_contact_filters(db, stmt, q, source_db, company_id, group_id)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
@@ -135,6 +150,43 @@ def list_contacts(
         for contact, company_name, primary_email in rows
     ]
     return ContactsPage(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/{contact_id}/position", response_model=ContactPosition)
+def get_contact_position(
+    contact_id: uuid.UUID,
+    q: str | None = Query(None),
+    source_db: str | None = Query(None),
+    company_id: uuid.UUID | None = Query(None),
+    group_id: uuid.UUID | None = Query(None),
+    db: Session = Depends(get_db),
+) -> ContactPosition:
+    """Powers the VCR-style record stepper on the contact detail page - same
+    filters as whatever list view the user came from, so Next/Previous
+    walks that exact set in that exact order rather than a different one."""
+    stmt = select(Contact.id).order_by(Contact.last_name.asc().nulls_last(), Contact.first_name.asc().nulls_last())
+    stmt = _apply_contact_filters(db, stmt, q, source_db, company_id, group_id)
+    ids = [str(row) for row in db.scalars(stmt).all()]
+
+    first_id = ids[0] if ids else None
+    last_id = ids[-1] if ids else None
+
+    try:
+        index = ids.index(str(contact_id))
+    except ValueError:
+        # The record itself doesn't match the current filters (e.g. the
+        # filter changed since navigating here) - report just the total so
+        # the UI can still show a count, with no prev/next to step to.
+        return ContactPosition(position=None, total=len(ids), prev_id=None, next_id=None, first_id=first_id, last_id=last_id)
+
+    return ContactPosition(
+        position=index + 1,
+        total=len(ids),
+        prev_id=ids[index - 1] if index > 0 else None,
+        next_id=ids[index + 1] if index < len(ids) - 1 else None,
+        first_id=first_id,
+        last_id=last_id,
+    )
 
 
 @router.get("/{contact_id}", response_model=ContactDetail)

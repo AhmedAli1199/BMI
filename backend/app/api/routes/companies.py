@@ -16,6 +16,7 @@ from app.api.schemas import (
     CompanyCreate,
     CompanyDetail,
     CompanyListItem,
+    CompanyPosition,
     CompanyUpdate,
     ContactListItem,
     EmailOut,
@@ -75,6 +76,39 @@ def list_companies(
         for company, contact_count in rows
     ]
     return CompaniesPage(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/{company_id}/position", response_model=CompanyPosition)
+def get_company_position(
+    company_id: uuid.UUID,
+    q: str | None = Query(None),
+    source_db: str | None = Query(None),
+    db: Session = Depends(get_db),
+) -> CompanyPosition:
+    """Powers the VCR-style record stepper on the company detail page - see
+    contacts.py's get_contact_position for the same idea."""
+    stmt = select(Company.id).order_by(Company.name.asc())
+    if source_db:
+        stmt = stmt.where(Company.source_db == source_db)
+    if q:
+        stmt = stmt.where(Company.name.ilike(f"%{q}%"))
+    ids = [str(row) for row in db.scalars(stmt).all()]
+    first_id = ids[0] if ids else None
+    last_id = ids[-1] if ids else None
+
+    try:
+        index = ids.index(str(company_id))
+    except ValueError:
+        return CompanyPosition(position=None, total=len(ids), prev_id=None, next_id=None, first_id=first_id, last_id=last_id)
+
+    return CompanyPosition(
+        position=index + 1,
+        total=len(ids),
+        prev_id=ids[index - 1] if index > 0 else None,
+        next_id=ids[index + 1] if index < len(ids) - 1 else None,
+        first_id=first_id,
+        last_id=last_id,
+    )
 
 
 @router.get("/{company_id}", response_model=CompanyDetail)

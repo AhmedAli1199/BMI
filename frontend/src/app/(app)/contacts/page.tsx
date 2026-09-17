@@ -41,6 +41,15 @@ export default async function ContactsPage({
     : await backendFetch<Page<ContactListItem>>(`/api/contacts?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
+  // Same filters as the list query above, minus pagination - carried onto
+  // each row's link so the detail page's prev/next stepper walks this
+  // exact filtered set (see InteractiveContactTable's `queryString` prop).
+  const rowQuery = new URLSearchParams();
+  if (q) rowQuery.set("q", q);
+  if (source_db) rowQuery.set("source_db", source_db);
+  if (scope.group_id) rowQuery.set("group_id", scope.group_id);
+  const rowQueryString = rowQuery.toString();
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
       {/* Editorial Title & Quick Actions Header */}
@@ -87,7 +96,7 @@ export default async function ContactsPage({
         </span>
       </div>
 
-      <InteractiveContactTable items={data.items} />
+      <InteractiveContactTable items={data.items} queryString={rowQueryString} />
 
       {/* Pagination Controls */}
       <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">

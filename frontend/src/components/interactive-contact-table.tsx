@@ -18,7 +18,17 @@ import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/so
  * no in-between preview step. The columns here already carry everything a
  * preview panel used to show (title, company, email, publication), so
  * there's nothing extra to surface before the click. */
-export function InteractiveContactTable({ items }: { items: ContactListItem[] }) {
+export function InteractiveContactTable({
+  items,
+  queryString,
+}: {
+  items: ContactListItem[];
+  /** Current q/source_db/group_id filters, carried onto each row's link so
+   * the detail page's record-stepper (prev/next) can walk this exact
+   * filtered/sorted list instead of losing context on click-through. */
+  queryString?: string;
+}) {
+  const suffix = queryString ? `?${queryString}` : "";
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card shadow-2xs">
       <Table>
@@ -40,11 +50,11 @@ export function InteractiveContactTable({ items }: { items: ContactListItem[] })
             return (
               <ClickableTableRow
                 key={c.id}
-                href={`/contacts/${c.id}`}
+                href={`/contacts/${c.id}${suffix}`}
                 className="group hover:bg-accent/40"
               >
                 <TableCell className="py-3">
-                  <Link href={`/contacts/${c.id}`} className="flex items-center gap-3">
+                  <Link href={`/contacts/${c.id}${suffix}`} className="flex items-center gap-3">
                     <EntityAvatar
                       name={name}
                       className="size-8.5 text-xs font-medium border border-border shrink-0"

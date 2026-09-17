@@ -19,18 +19,18 @@ export function ActSubbar({
   module = "contacts",
   currentRecordIndex,
   totalRecords,
-  onPrevious,
-  onNext,
-  onFirst,
-  onLast,
+  firstHref,
+  prevHref,
+  nextHref,
+  lastHref,
 }: {
   module?: "contacts" | "companies" | "groups";
   currentRecordIndex?: number;
   totalRecords?: number;
-  onPrevious?: () => void;
-  onNext?: () => void;
-  onFirst?: () => void;
-  onLast?: () => void;
+  firstHref?: string | null;
+  prevHref?: string | null;
+  nextHref?: string | null;
+  lastHref?: string | null;
 }) {
   const pathname = usePathname();
 
@@ -111,53 +111,56 @@ export function ActSubbar({
           </span>
         </div>
 
-        {/* VCR Record Stepper (Act! classic record navigator) */}
+        {/* VCR Record Stepper (Act! classic record navigator) - each arrow
+            is a real link to the neighbouring record within whatever
+            filtered/sorted list the user is browsing (see the detail
+            page's `position` fetch), not a decorative no-op. */}
         {isDetailView && (
           <div className="flex items-center gap-1 text-muted-foreground">
             <Button
               size="icon-xs"
               variant="ghost"
-              onClick={onFirst}
-              disabled={!onFirst}
+              disabled={!firstHref}
               title="First Record"
-              className="size-6 cursor-pointer"
+              className="size-6 cursor-pointer disabled:pointer-events-none"
+              render={firstHref ? <Link href={firstHref} /> : undefined}
             >
               <ChevronsLeft className="size-3.5" />
             </Button>
             <Button
               size="icon-xs"
               variant="ghost"
-              onClick={onPrevious}
-              disabled={!onPrevious}
+              disabled={!prevHref}
               title="Previous Record"
-              className="size-6 cursor-pointer"
+              className="size-6 cursor-pointer disabled:pointer-events-none"
+              render={prevHref ? <Link href={prevHref} /> : undefined}
             >
               <ChevronLeft className="size-3.5" />
             </Button>
 
             <span className="text-[11px] font-mono px-1">
               {currentRecordIndex
-                ? `${currentRecordIndex} of ${totalRecords?.toLocaleString() ?? "118k"}`
+                ? `${currentRecordIndex.toLocaleString()} of ${totalRecords?.toLocaleString() ?? "?"}`
                 : "Record"}
             </span>
 
             <Button
               size="icon-xs"
               variant="ghost"
-              onClick={onNext}
-              disabled={!onNext}
+              disabled={!nextHref}
               title="Next Record"
-              className="size-6 cursor-pointer"
+              className="size-6 cursor-pointer disabled:pointer-events-none"
+              render={nextHref ? <Link href={nextHref} /> : undefined}
             >
               <ChevronRight className="size-3.5" />
             </Button>
             <Button
               size="icon-xs"
               variant="ghost"
-              onClick={onLast}
-              disabled={!onLast}
+              disabled={!lastHref}
               title="Last Record"
-              className="size-6 cursor-pointer"
+              className="size-6 cursor-pointer disabled:pointer-events-none"
+              render={lastHref ? <Link href={lastHref} /> : undefined}
             >
               <ChevronsRight className="size-3.5" />
             </Button>

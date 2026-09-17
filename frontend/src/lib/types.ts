@@ -12,6 +12,15 @@ export type ContactListItem = {
 
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number };
 
+export type RecordPosition = {
+  position: number | null;
+  total: number;
+  prev_id: string | null;
+  next_id: string | null;
+  first_id: string | null;
+  last_id: string | null;
+};
+
 export type AddressOut = {
   id: string; type_label: string | null;
   line1: string | null; line2: string | null; line3: string | null;

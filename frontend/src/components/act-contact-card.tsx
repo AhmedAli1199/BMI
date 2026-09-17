@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
-import { updateContact } from "@/lib/actions";
+import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress } from "@/lib/actions";
 
 export function ActContactCard({
   contact,
@@ -45,6 +45,20 @@ export function ActContactCard({
   const [referredBy, setReferredBy] = useState(contact.referred_by ?? "");
   const [birthdate, setBirthdate] = useState(contact.birthdate ?? "");
 
+  // Phone/mobile/email/address live in separate child tables (a contact can
+  // have several of each) - the header/business-card view only ever shows
+  // the first of each as "the" primary one, so editing here just upserts
+  // that first row (or creates one if none exists yet).
+  const [phone, setPhone] = useState(contact.phones[0]?.number ?? "");
+  const [mobile, setMobile] = useState(contact.phones[1]?.number ?? "");
+  const [email, setEmail] = useState(contact.emails[0]?.address ?? "");
+  const [addrLine1, setAddrLine1] = useState(contact.addresses[0]?.line1 ?? "");
+  const [addrLine2, setAddrLine2] = useState(contact.addresses[0]?.line2 ?? "");
+  const [addrCity, setAddrCity] = useState(contact.addresses[0]?.city ?? "");
+  const [addrState, setAddrState] = useState(contact.addresses[0]?.state ?? "");
+  const [addrPostal, setAddrPostal] = useState(contact.addresses[0]?.postal_code ?? "");
+  const [addrCountry, setAddrCountry] = useState(contact.addresses[0]?.country ?? "");
+
   const name =
     contact.full_name ||
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
@@ -60,15 +74,42 @@ export function ActContactCard({
   function handleSave() {
     startTransition(async () => {
       try {
-        await updateContact(contact.id, {
-          first_name: firstName,
-          last_name: lastName,
-          job_title: jobTitle,
-          department,
-          category,
-          referred_by: referredBy,
-          birthdate,
-        });
+        await Promise.all([
+          updateContact(contact.id, {
+            first_name: firstName,
+            last_name: lastName,
+            job_title: jobTitle,
+            department,
+            category,
+            referred_by: referredBy,
+            birthdate,
+          }),
+          phone !== (contact.phones[0]?.number ?? "")
+            ? saveContactPhone(contact.id, contact.phones[0]?.id, { type_label: "Business", number: phone })
+            : Promise.resolve(),
+          mobile !== (contact.phones[1]?.number ?? "")
+            ? saveContactPhone(contact.id, contact.phones[1]?.id, { type_label: "Mobile", number: mobile })
+            : Promise.resolve(),
+          email !== (contact.emails[0]?.address ?? "")
+            ? saveContactEmail(contact.id, contact.emails[0]?.id, { type_label: "Business", address: email })
+            : Promise.resolve(),
+          addrLine1 !== (contact.addresses[0]?.line1 ?? "") ||
+          addrLine2 !== (contact.addresses[0]?.line2 ?? "") ||
+          addrCity !== (contact.addresses[0]?.city ?? "") ||
+          addrState !== (contact.addresses[0]?.state ?? "") ||
+          addrPostal !== (contact.addresses[0]?.postal_code ?? "") ||
+          addrCountry !== (contact.addresses[0]?.country ?? "")
+            ? saveContactAddress(contact.id, contact.addresses[0]?.id, {
+                type_label: "Business",
+                line1: addrLine1,
+                line2: addrLine2,
+                city: addrCity,
+                state: addrState,
+                postal_code: addrPostal,
+                country: addrCountry,
+              })
+            : Promise.resolve(),
+        ]);
         toast.success("Contact record updated");
         setEditing(false);
       } catch {
@@ -85,6 +126,15 @@ export function ActContactCard({
     setCategory(contact.category ?? "");
     setReferredBy(contact.referred_by ?? "");
     setBirthdate(contact.birthdate ?? "");
+    setPhone(contact.phones[0]?.number ?? "");
+    setMobile(contact.phones[1]?.number ?? "");
+    setEmail(contact.emails[0]?.address ?? "");
+    setAddrLine1(contact.addresses[0]?.line1 ?? "");
+    setAddrLine2(contact.addresses[0]?.line2 ?? "");
+    setAddrCity(contact.addresses[0]?.city ?? "");
+    setAddrState(contact.addresses[0]?.state ?? "");
+    setAddrPostal(contact.addresses[0]?.postal_code ?? "");
+    setAddrCountry(contact.addresses[0]?.country ?? "");
     setEditing(false);
   }
 
@@ -255,7 +305,14 @@ export function ActContactCard({
           {/* Phone */}
           <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
             <span className="w-24 shrink-0 text-muted-foreground">Phone:</span>
-            {primaryPhone ? (
+            {editing ? (
+              <Input
+                className="h-7 text-xs flex-1"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Business phone"
+              />
+            ) : primaryPhone ? (
               <div className="flex items-center gap-1.5">
                 <a href={`tel:${primaryPhone}`} className="font-medium text-foreground hover:text-primary">
                   {primaryPhone}
@@ -266,7 +323,7 @@ export function ActContactCard({
                   className="text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   {copiedKey === "phone-main" ? (
-                    <Check className="size-3 text-emerald-600" />
+                    <Check className="size-3 text-[var(--ok)]" />
                   ) : (
                     <Copy className="size-3" />
                   )}
@@ -280,7 +337,14 @@ export function ActContactCard({
           {/* Mobile */}
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">Mobile:</span>
-            {mobilePhone ? (
+            {editing ? (
+              <Input
+                className="h-7 text-xs flex-1"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="Mobile phone"
+              />
+            ) : mobilePhone ? (
               <div className="flex items-center gap-1.5">
                 <a href={`tel:${mobilePhone}`} className="font-medium text-foreground hover:text-primary">
                   {mobilePhone}
@@ -291,7 +355,7 @@ export function ActContactCard({
                   className="text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   {copiedKey === "phone-mob" ? (
-                    <Check className="size-3 text-emerald-600" />
+                    <Check className="size-3 text-[var(--ok)]" />
                   ) : (
                     <Copy className="size-3" />
                   )}
@@ -305,7 +369,14 @@ export function ActContactCard({
           {/* E-mail */}
           <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
             <span className="w-24 shrink-0 text-muted-foreground">E-mail:</span>
-            {primaryEmail ? (
+            {editing ? (
+              <Input
+                className="h-7 text-xs flex-1"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Business email"
+              />
+            ) : primaryEmail ? (
               <div className="flex items-center gap-1.5 max-w-[200px] truncate">
                 <a href={`mailto:${primaryEmail}`} className="font-mono text-[11px] text-foreground hover:text-primary truncate">
                   {primaryEmail}
@@ -316,7 +387,7 @@ export function ActContactCard({
                   className="text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
                 >
                   {copiedKey === "email-main" ? (
-                    <Check className="size-3 text-emerald-600" />
+                    <Check className="size-3 text-[var(--ok)]" />
                   ) : (
                     <Copy className="size-3" />
                   )}
@@ -348,44 +419,68 @@ export function ActContactCard({
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">Address 1:</span>
-            <span className="font-medium text-foreground truncate flex-1 text-right">
-              {primaryAddress?.line1 || "—"}
-            </span>
+            {editing ? (
+              <Input className="h-7 text-xs flex-1" value={addrLine1} onChange={(e) => setAddrLine1(e.target.value)} />
+            ) : (
+              <span className="font-medium text-foreground truncate flex-1 text-right">
+                {primaryAddress?.line1 || "—"}
+              </span>
+            )}
           </div>
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">Address 2:</span>
-            <span className="font-medium text-foreground truncate flex-1 text-right">
-              {primaryAddress?.line2 || "—"}
-            </span>
+            {editing ? (
+              <Input className="h-7 text-xs flex-1" value={addrLine2} onChange={(e) => setAddrLine2(e.target.value)} />
+            ) : (
+              <span className="font-medium text-foreground truncate flex-1 text-right">
+                {primaryAddress?.line2 || "—"}
+              </span>
+            )}
           </div>
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">City:</span>
-            <span className="font-medium text-foreground truncate flex-1 text-right">
-              {primaryAddress?.city || "—"}
-            </span>
+            {editing ? (
+              <Input className="h-7 text-xs flex-1" value={addrCity} onChange={(e) => setAddrCity(e.target.value)} />
+            ) : (
+              <span className="font-medium text-foreground truncate flex-1 text-right">
+                {primaryAddress?.city || "—"}
+              </span>
+            )}
           </div>
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">State / County:</span>
-            <span className="font-medium text-foreground truncate flex-1 text-right">
-              {primaryAddress?.state || "—"}
-            </span>
+            {editing ? (
+              <Input className="h-7 text-xs flex-1" value={addrState} onChange={(e) => setAddrState(e.target.value)} />
+            ) : (
+              <span className="font-medium text-foreground truncate flex-1 text-right">
+                {primaryAddress?.state || "—"}
+              </span>
+            )}
           </div>
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">Postal Code:</span>
-            <span className="font-mono font-medium text-foreground truncate flex-1 text-right">
-              {primaryAddress?.postal_code || "—"}
-            </span>
+            {editing ? (
+              <Input className="h-7 text-xs flex-1 font-mono" value={addrPostal} onChange={(e) => setAddrPostal(e.target.value)} />
+            ) : (
+              <span className="font-mono font-medium text-foreground truncate flex-1 text-right">
+                {primaryAddress?.postal_code || "—"}
+              </span>
+            )}
           </div>
 
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">Country:</span>
-            <span className="font-medium text-foreground truncate flex-1 text-right">
-              {primaryAddress?.country || "—"}
-            </span>
+            {editing ? (
+              <Input className="h-7 text-xs flex-1" value={addrCountry} onChange={(e) => setAddrCountry(e.target.value)} />
+            ) : (
+              <span className="font-medium text-foreground truncate flex-1 text-right">
+                {primaryAddress?.country || "—"}
+              </span>
+            )}
           </div>
 
           {/* Web Site */}

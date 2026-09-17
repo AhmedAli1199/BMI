@@ -140,58 +140,59 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Magazine Title Quick Switcher Cards - clicking one sets the global
-          publication filter (persists across every tab) and stays right
-          here, rather than navigating away. Renders entirely from
-          `publications` (fetched from /api/publications) - adding a
-          database via the tile below shows up here immediately, same
-          styling as the three original titles. */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {publications.map((pub) => {
-          const style = styleForColor(pub.color);
-          const Icon = iconForKey(pub.icon);
-          const isActive = sourceDb === pub.slug;
-          return (
-            <PublicationTileButton key={pub.slug} sourceDb={pub.slug} className="group">
-              <Card
-                className={`editorial-card h-full overflow-hidden transition-all hover:shadow-xs hover:border-primary/40 ${
-                  isActive ? "border-primary/50 ring-1 ring-primary/30" : ""
-                }`}
-              >
-                <div className={`masthead-rule w-full ${style.accent}`} />
-                <CardContent className="flex items-start gap-4 p-5">
-                  <div
-                    className={`brand-icon size-10 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg}`}
-                  >
-                    <Icon className="size-4.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-bold text-foreground transition-colors">
-                      {pub.name}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                      {pub.description || "No description yet"}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                      <span>{contactsFor(pub.slug).toLocaleString()} Contacts</span>
-                      <span className="text-muted-foreground">&rarr;</span>
+      {/* Magazine Title Quick Switcher Cards - only shown on "All Titles"
+          (no sourceDb filter). Once a specific title is selected, showing
+          the other two titles' "0 Contacts" tiles here is just clutter -
+          nothing on this page reads them at that point, the single-line
+          "Showing X only" strip below already says which title is active.
+          Clicking one sets the global publication filter (persists across
+          every tab) and stays right here, rather than navigating away.
+          Renders entirely from `publications` (fetched from
+          /api/publications) - adding a database via the tile below shows
+          up here immediately, same styling as the three original titles. */}
+      {!sourceDb && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {publications.map((pub) => {
+            const style = styleForColor(pub.color);
+            const Icon = iconForKey(pub.icon);
+            return (
+              <PublicationTileButton key={pub.slug} sourceDb={pub.slug} className="group">
+                <Card className="editorial-card h-full overflow-hidden transition-all hover:shadow-xs hover:border-primary/40">
+                  <div className={`masthead-rule w-full ${style.accent}`} />
+                  <CardContent className="flex items-start gap-4 p-5">
+                    <div
+                      className={`brand-icon size-10 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg}`}
+                    >
+                      <Icon className="size-4.5" />
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </PublicationTileButton>
-          );
-        })}
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-bold text-foreground transition-colors">
+                        {pub.name}
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {pub.description || "No description yet"}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                        <span>{contactsFor(pub.slug).toLocaleString()} Contacts</span>
+                        <span className="text-muted-foreground">&rarr;</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </PublicationTileButton>
+            );
+          })}
 
-        {/* "Add a database" - not a separate Postgres database, a new
-            source_db label any contact/company can be filed under (see
-            backend/app/models/publication.py). Admin-only. */}
-        {canAddDatabase(session) && (
-          <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
-            <PublicationFormDialog />
-          </Card>
-        )}
-      </div>
+          {/* "Add a database" - not a separate Postgres database, a new
+              source_db label any contact/company can be filed under (see
+              backend/app/models/publication.py). Admin-only. */}
+          {canAddDatabase(session) && (
+            <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
+              <PublicationFormDialog />
+            </Card>
+          )}
+        </div>
+      )}
 
       {sourceDb && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -199,7 +200,7 @@ export default async function DashboardPage() {
             Showing <span className="font-semibold text-foreground">{sourceDb}</span> only.
           </span>
           <PublicationTileButton sourceDb="">
-            <span className="font-semibold text-primary hover:underline">Clear filter</span>
+            <span className="font-semibold text-primary hover:underline">Show all titles</span>
           </PublicationTileButton>
         </div>
       )}
