@@ -5,6 +5,7 @@ import { getPublicationFilter } from "@/lib/publication";
 import { listActivities, listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
 import { ActivityDoneToggle } from "@/components/activity-done-toggle";
+import { ActivityDetailDialog } from "@/components/activity-detail-dialog";
 import { Badge } from "@/components/ui/badge";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 import type { ActivityOut } from "@/lib/types";
@@ -141,11 +142,6 @@ export default async function ActivitiesPage({
               <div className="overflow-hidden rounded-lg border border-border bg-card">
                 {items.map((item) => {
                   const who = item.contact_name || item.company_name;
-                  const link = item.contact_id
-                    ? `/contacts/${item.contact_id}`
-                    : item.company_id
-                      ? `/companies/${item.company_id}`
-                      : null;
                   return (
                     <div
                       key={item.id}
@@ -158,36 +154,32 @@ export default async function ActivitiesPage({
                         companyId={item.company_id}
                       />
                       {typeIcon(item.activity_type)}
-                      <div className="min-w-0 flex-1">
-                        <div className={`truncate text-sm font-medium ${item.is_cleared ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                          {item.subject || item.activity_type || "Activity"}
+                      <ActivityDetailDialog item={item}>
+                        <div className="min-w-0 flex-1 cursor-pointer">
+                          <div className={`truncate text-sm font-medium ${item.is_cleared ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                            {item.subject || item.activity_type || "Activity"}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                            {who ? <span>{who}</span> : null}
+                            {item.is_private && (
+                              <span className="inline-flex items-center gap-0.5">
+                                <Lock className="size-2.5" /> Private
+                              </span>
+                            )}
+                            {item.created_by && <span>· logged by {item.created_by.name}</span>}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                          {who && link ? (
-                            <Link href={link} className="font-medium text-primary hover:underline">
-                              {who}
-                            </Link>
-                          ) : who ? (
-                            <span>{who}</span>
-                          ) : null}
-                          {item.is_private && (
-                            <span className="inline-flex items-center gap-0.5">
-                              <Lock className="size-2.5" /> Private
-                            </span>
-                          )}
-                          {item.created_by && <span>· logged by {item.created_by.name}</span>}
+                        <div className="flex shrink-0 items-center gap-2 cursor-pointer">
+                          <Badge variant="outline" className="text-[10px]">
+                            {item.activity_type}
+                          </Badge>
+                          <time className="text-[11px] font-mono text-muted-foreground">
+                            {item.is_timeless
+                              ? "No time"
+                              : new Date(item.start_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                          </time>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">
-                          {item.activity_type}
-                        </Badge>
-                        <time className="text-[11px] font-mono text-muted-foreground">
-                          {item.is_timeless
-                            ? "No time"
-                            : new Date(item.start_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                        </time>
-                      </div>
+                      </ActivityDetailDialog>
                     </div>
                   );
                 })}
