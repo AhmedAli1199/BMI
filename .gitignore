@@ -12,4 +12,5 @@ DATA_INSPECTION_REPORT.md
 etl-onboard.log
 DESIGN.md
 PRODUCT.md
-.gemini/
+.gemini/
+*.bak

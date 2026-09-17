@@ -264,6 +264,15 @@ def run(args):
             if n:
                 print(f"  preloaded {n} existing {kind} id(s) for {source_db}")
 
+        if args.only == "activities":
+            print(f"  [Targeted run: activities, associations, invitees & attachments only]")
+            _migrate_activities_full(
+                cur, conn, ids, source_db, organizer_name_expr, invitee_name_expr,
+                refresh=refresh, update_existing=True,
+            )
+            print(f"=== {source_db}: done (activities only) ===")
+            return
+
         # ---- Companies (parents before children: order by HIERLEVEL) ----
         cur.execute(
             "SELECT COMPANYID, NAME, DESCRIPTION, CATEGORY, REFERREDBY, TICKERSYMBOL, "
@@ -415,65 +424,10 @@ def run(args):
         _migrate_history(cur, conn, ids, source_db, refresh=refresh)
 
         # ---- Activities (kept, flat - see activity.py docstring) ----
-        cur.execute(
-            "SELECT a.ACTIVITYID, a.REGARDING, a.DETAILS, a.LOCATION, a.STARTTIME, a.ENDTIME, "
-            "a.ISTIMELESS, a.DURATION, t.NAME AS TYPENAME, ac.ACCESSOR_ACTIVITY_CLEAREDID, "
-            f"{organizer_name_expr} AS ORGNAME "
-            "FROM TBL_ACTIVITY a "
-            "LEFT JOIN TBL_ACTIVITYTYPE t ON t.ACTIVITYTYPEID = a.ACTIVITYTYPEID "
-            "LEFT JOIN TBL_ACCESSOR_ACTIVITY_CLEARED ac ON ac.ACTIVITYID = a.ACTIVITYID "
-            "LEFT JOIN TBL_ACCESSOR org ON org.ACCESSORID = a.ORGANIZEUSERID"
+        _migrate_activities_full(
+            cur, conn, ids, source_db, organizer_name_expr, invitee_name_expr,
+            refresh=refresh, update_existing=False,
         )
-        activity_rows = cur.fetchall()
-        for r in activity_rows:
-            ids.get_or_create("activity", r["ACTIVITYID"])
-
-        # Pre-fetch the contact/company junctions to backfill the single
-        # primary link on Activity itself (see activity.py's docstring -
-        # only when unambiguous; the full many-to-many picture always goes
-        # into activity_contacts/activity_companies via _migrate_activity_links
-        # below, regardless of whether it backfills here).
-        cur.execute("SELECT ACTIVITYID, CONTACTID FROM TBL_CONTACT_ACTIVITY")
-        act_contacts: dict[str, list] = {}
-        for r in cur.fetchall():
-            cid = ids.get("contact", r["CONTACTID"])
-            if cid:
-                act_contacts.setdefault(to_uuid_str(r["ACTIVITYID"]), []).append(cid)
-        cur.execute("SELECT ACTIVITYID, COMPANYID FROM TBL_COMPANY_ACTIVITY")
-        act_companies: dict[str, list] = {}
-        for r in cur.fetchall():
-            coid = ids.get("company", r["COMPANYID"])
-            if coid:
-                act_companies.setdefault(to_uuid_str(r["ACTIVITYID"]), []).append(coid)
-
-        rows = []
-        for r in activity_rows:
-            act_id_str = to_uuid_str(r["ACTIVITYID"])
-            linked_contacts = act_contacts.get(act_id_str, [])
-            linked_companies = act_companies.get(act_id_str, [])
-            # Backfill the single primary link only when totally unambiguous
-            # (exactly one link total, on one side) - the CheckConstraint
-            # requires contact_id/company_id to be mutually exclusive, and a
-            # guess would be worse than leaving it to the full junction data.
-            backfill_contact_id = linked_contacts[0] if len(linked_contacts) == 1 and not linked_companies else None
-            backfill_company_id = linked_companies[0] if len(linked_companies) == 1 and not linked_contacts else None
-            rows.append({
-                "id": ids.get("activity", r["ACTIVITYID"]), "source_db": source_db,
-                "source_act_id": to_uuid_str(r["ACTIVITYID"]),
-                "contact_id": backfill_contact_id, "company_id": backfill_company_id,
-                "activity_type": r["TYPENAME"], "subject": r["REGARDING"], "details": r["DETAILS"],
-                "location": r["LOCATION"], "start_at": r["STARTTIME"], "end_at": r["ENDTIME"],
-                "is_timeless": bool(r["ISTIMELESS"]), "is_cleared": r["ACCESSOR_ACTIVITY_CLEAREDID"] is not None,
-                "duration_minutes": r["DURATION"], "organized_by_name": r["ORGNAME"],
-            })
-        bulk_upsert(conn, Activity.__table__, rows, "uq_activities_source", "activities", refresh=refresh)
-
-        # ---- Activity <-> contact/company/group associations + invitees +
-        # attachments - real Act! junction data the original migration
-        # never queried at all (see activity_link.py's module docstring) ----
-        _migrate_activity_links(cur, conn, ids, source_db)
-        _migrate_activity_invitees(cur, conn, ids, source_db, invitee_name_expr)
-        _migrate_attachments(cur, conn, ids, source_db, refresh=refresh)
 
         # ---- Opportunities (kept, flat) ----
         cur.execute(
@@ -628,6 +582,85 @@ def _migrate_history(cur, conn, ids, source_db, refresh=False):
     bulk_upsert(conn, HistoryEntry.__table__, rows, "uq_history_entries_source", "history_entries", refresh=refresh)
 
 
+def _upsert_activities_update_links(conn, rows: list[dict]):
+    if not rows:
+        print("  activities: 0 rows")
+        return 0
+    batch_size = 500
+    updated = 0
+    for start in range(0, len(rows), batch_size):
+        batch = [
+            {key: remove_nul_bytes(value) for key, value in row.items()}
+            for row in rows[start:start + batch_size]
+        ]
+        stmt = sa.dialects.postgresql.insert(Activity.__table__).values(batch)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_activities_source",
+            set_={
+                "contact_id": stmt.excluded.contact_id,
+                "company_id": stmt.excluded.company_id,
+                "duration_minutes": stmt.excluded.duration_minutes,
+                "organized_by_name": stmt.excluded.organized_by_name,
+            },
+        ).returning(Activity.__table__.c.id)
+        updated += len(conn.execute(stmt).fetchall())
+    print(f"  activities: {len(rows)} extracted, {updated} updated with links/duration/organizer")
+    return updated
+
+
+def _migrate_activities_full(cur, conn, ids, source_db, organizer_name_expr, invitee_name_expr, refresh=False, update_existing=False):
+    cur.execute(
+        "SELECT a.ACTIVITYID, a.REGARDING, a.DETAILS, a.LOCATION, a.STARTTIME, a.ENDTIME, "
+        "a.ISTIMELESS, a.DURATION, t.NAME AS TYPENAME, ac.ACCESSOR_ACTIVITY_CLEAREDID, "
+        f"{organizer_name_expr} AS ORGNAME "
+        "FROM TBL_ACTIVITY a "
+        "LEFT JOIN TBL_ACTIVITYTYPE t ON t.ACTIVITYTYPEID = a.ACTIVITYTYPEID "
+        "LEFT JOIN TBL_ACCESSOR_ACTIVITY_CLEARED ac ON ac.ACTIVITYID = a.ACTIVITYID "
+        "LEFT JOIN TBL_ACCESSOR org ON org.ACCESSORID = a.ORGANIZEUSERID"
+    )
+    activity_rows = cur.fetchall()
+    for r in activity_rows:
+        ids.get_or_create("activity", r["ACTIVITYID"])
+
+    cur.execute("SELECT ACTIVITYID, CONTACTID FROM TBL_CONTACT_ACTIVITY")
+    act_contacts: dict[str, list] = {}
+    for r in cur.fetchall():
+        cid = ids.get("contact", r["CONTACTID"])
+        if cid:
+            act_contacts.setdefault(to_uuid_str(r["ACTIVITYID"]), []).append(cid)
+    cur.execute("SELECT ACTIVITYID, COMPANYID FROM TBL_COMPANY_ACTIVITY")
+    act_companies: dict[str, list] = {}
+    for r in cur.fetchall():
+        coid = ids.get("company", r["COMPANYID"])
+        if coid:
+            act_companies.setdefault(to_uuid_str(r["ACTIVITYID"]), []).append(coid)
+
+    rows = []
+    for r in activity_rows:
+        act_id_str = to_uuid_str(r["ACTIVITYID"])
+        linked_contacts = act_contacts.get(act_id_str, [])
+        linked_companies = act_companies.get(act_id_str, [])
+        backfill_contact_id = linked_contacts[0] if len(linked_contacts) == 1 and not linked_companies else None
+        backfill_company_id = linked_companies[0] if len(linked_companies) == 1 and not linked_contacts else None
+        rows.append({
+            "id": ids.get("activity", r["ACTIVITYID"]), "source_db": source_db,
+            "source_act_id": to_uuid_str(r["ACTIVITYID"]),
+            "contact_id": backfill_contact_id, "company_id": backfill_company_id,
+            "activity_type": r["TYPENAME"], "subject": r["REGARDING"], "details": r["DETAILS"],
+            "location": r["LOCATION"], "start_at": r["STARTTIME"], "end_at": r["ENDTIME"],
+            "is_timeless": bool(r["ISTIMELESS"]), "is_cleared": r["ACCESSOR_ACTIVITY_CLEAREDID"] is not None,
+            "duration_minutes": r["DURATION"], "organized_by_name": r["ORGNAME"],
+        })
+    if update_existing and not refresh:
+        _upsert_activities_update_links(conn, rows)
+    else:
+        bulk_upsert(conn, Activity.__table__, rows, "uq_activities_source", "activities", refresh=refresh)
+
+    _migrate_activity_links(cur, conn, ids, source_db)
+    _migrate_activity_invitees(cur, conn, ids, source_db, invitee_name_expr)
+    _migrate_attachments(cur, conn, ids, source_db, refresh=refresh)
+
+
 def _migrate_activity_links(cur, conn, ids, source_db):
     """Activity <-> contact/company/group, from TBL_CONTACT_ACTIVITY,
     TBL_COMPANY_ACTIVITY, TBL_GROUP_ACTIVITY - the full many-to-many
@@ -722,6 +755,10 @@ if __name__ == "__main__":
     p.add_argument("--mssql-user", default="sa")
     p.add_argument("--mssql-password", required=True)
     p.add_argument("--pg-url", required=True)
+    p.add_argument(
+        "--only", choices=["activities", "all"], default="all",
+        help="Target only a specific subset: 'activities' only runs activities, associations, invitees, and attachments.",
+    )
     p.add_argument(
         "--refresh", action="store_true",
         help="ON CONFLICT DO UPDATE instead of DO NOTHING - use when re-running "
