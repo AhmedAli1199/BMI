@@ -1,43 +1,40 @@
 import Link from "next/link";
-import { CalendarDays, PhoneCall, Calendar as CalendarIcon, CheckSquare, Lock } from "lucide-react";
+import { CalendarDays, Search, Plus, Filter, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getPublicationFilter } from "@/lib/publication";
 import { listActivities, listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
-import { ActivityDoneToggle } from "@/components/activity-done-toggle";
-import { ActivityDetailDialog } from "@/components/activity-detail-dialog";
-import { Badge } from "@/components/ui/badge";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
+import { InteractiveActivityTable } from "@/components/interactive-activity-table";
+import { LogInteractionDialog } from "@/components/log-interaction-dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { ActivityOut } from "@/lib/types";
 
-type Status = "open" | "done" | "all";
-
-function typeIcon(type: string | null) {
-  const t = (type || "").toLowerCase();
-  if (t.includes("call")) return <PhoneCall className="size-3.5 text-amber-600 dark:text-amber-400" />;
-  if (t.includes("meet")) return <CalendarIcon className="size-3.5 text-blue-600 dark:text-blue-400" />;
-  return <CheckSquare className="size-3.5 text-rose-600 dark:text-rose-400" />;
-}
-
-function dayLabel(iso: string): string {
-  const d = new Date(iso);
-  const today = new Date();
-  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diffDays = Math.round((startOfDay(d) - startOfDay(today)) / 86400000);
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Tomorrow";
-  if (diffDays === -1) return "Yesterday";
-  if (diffDays < 0) return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} (overdue)`;
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
-}
+type Status = "open" | "overdue" | "done" | "all";
 
 export default async function ActivitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; mine?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    mine?: string;
+    type?: string;
+    priority?: string;
+    q?: string;
+  }>;
 }) {
-  const { status: statusParam, mine } = await searchParams;
-  const status: Status = statusParam === "done" || statusParam === "all" ? statusParam : "open";
+  const { status: statusParam, mine, type: typeParam, priority: priorityParam, q: qParam } =
+    await searchParams;
+
+  const status: Status =
+    statusParam === "overdue" || statusParam === "done" || statusParam === "all"
+      ? statusParam
+      : "open";
+
+  const selectedType = typeParam && typeParam !== "all" ? typeParam : undefined;
+  const selectedPriority = priorityParam && priorityParam !== "all" ? priorityParam : undefined;
+  const searchQuery = qParam?.trim() || undefined;
 
   const [rawSourceDb, session, allPublications] = await Promise.all([
     getPublicationFilter(),
@@ -46,148 +43,246 @@ export default async function ActivitiesPage({
   ]);
   const scope = resolveScope(session, rawSourceDb);
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
-  const publications = session?.role === "admin"
-    ? allPublications
-    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
+  const publications =
+    session?.role === "admin"
+      ? allPublications
+      : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
-  const data = scope.source_db === "__no_access__"
-    ? { items: [] as ActivityOut[], total: 0, page: 1, page_size: 100 }
-    : await listActivities({
-        source_db: source_db || undefined,
-        is_cleared: status === "all" ? undefined : status === "done",
-        assigned_user_id: mine === "1" && session ? session.sub : undefined,
-      });
+  const isCleared =
+    status === "done" ? true : status === "open" || status === "overdue" ? false : undefined;
 
-  const groups = new Map<string, ActivityOut[]>();
-  for (const item of data.items) {
-    const label = dayLabel(item.start_at);
-    if (!groups.has(label)) groups.set(label, []);
-    groups.get(label)!.push(item);
+  const data =
+    scope.source_db === "__no_access__"
+      ? { items: [] as ActivityOut[], total: 0, page: 1, page_size: 100 }
+      : await listActivities({
+          source_db: source_db || undefined,
+          is_cleared: isCleared,
+          priority: selectedPriority,
+          activity_type: selectedType,
+          q: searchQuery,
+          assigned_user_id: mine === "1" && session ? session.sub : undefined,
+        });
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  // If status is "overdue", further ensure start_at < today
+  let displayItems = data.items;
+  if (status === "overdue") {
+    displayItems = displayItems.filter(
+      (item) => !item.is_cleared && new Date(item.start_at).getTime() < todayStart.getTime()
+    );
   }
 
-  const tabHref = (s: Status) => {
+  // Count overdues in the fetched set for the tab badge
+  const overdueCount = data.items.filter(
+    (item) => !item.is_cleared && new Date(item.start_at).getTime() < todayStart.getTime()
+  ).length;
+
+  const createFilterHref = (updates: Record<string, string | undefined | null>) => {
     const p = new URLSearchParams();
-    if (s !== "open") p.set("status", s);
-    if (mine === "1") p.set("mine", "1");
-    const qs = p.toString();
-    return `/activities${qs ? `?${qs}` : ""}`;
-  };
-  const mineHref = () => {
-    const p = new URLSearchParams();
-    if (status !== "open") p.set("status", status);
-    if (mine !== "1") p.set("mine", "1");
+    const current: Record<string, string | undefined> = {
+      status: status !== "open" ? status : undefined,
+      mine: mine === "1" ? "1" : undefined,
+      type: selectedType,
+      priority: selectedPriority,
+      q: searchQuery,
+    };
+
+    const merged = { ...current, ...updates };
+    for (const [k, v] of Object.entries(merged)) {
+      if (v) p.set(k, v);
+    }
     const qs = p.toString();
     return `/activities${qs ? `?${qs}` : ""}`;
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6">
-      <div className="border-b border-border/80 pb-4">
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <CalendarDays className="size-3.5" />
-          <span>Calendar &amp; Task List</span>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
+      {/* Header & Quick Action */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-4">
+        <div>
+          <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+            <CalendarDays className="size-3.5" />
+            <span>Calendar &amp; Task List</span>
+          </div>
+          <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Calendar &amp; Tasks
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            High-density schedule and activities data grid across all contacts, companies and cadences.
+          </p>
         </div>
-        <h1 className="editorial-title text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-          What&apos;s scheduled
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Every call, meeting and to-do logged from a contact or company page, or scheduled directly
-          from the &ldquo;Log or schedule&rdquo; button up top.
-        </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Quick Search */}
+          <form action="/activities" className="relative w-64 sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Input
+              name="q"
+              placeholder="Search regarding, details, names..."
+              defaultValue={searchQuery ?? ""}
+              className="h-9 pl-8 text-xs"
+            />
+            {status !== "open" && <input type="hidden" name="status" value={status} />}
+            {selectedType && <input type="hidden" name="type" value={selectedType} />}
+            {selectedPriority && <input type="hidden" name="priority" value={selectedPriority} />}
+            {mine === "1" && <input type="hidden" name="mine" value="1" />}
+          </form>
+
+          {/* Log or schedule dialog trigger */}
+          <LogInteractionDialog
+            global={true}
+            sourceDb={source_db || undefined}
+            trigger={
+              <Button size="sm" className="h-9 gap-1.5 text-xs font-semibold shadow-xs">
+                <Plus className="size-3.5" />
+                <span>Log or schedule</span>
+              </Button>
+            }
+          />
+        </div>
       </div>
 
-      <PublicationQuickFilter current={source_db} publications={publications} />
-
+      {/* Publication Segmentation Strip */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          {(["open", "done", "all"] as Status[]).map((s) => (
-            <Link
-              key={s}
-              href={tabHref(s)}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
-                status === s
-                  ? "bg-primary/15 text-primary border border-primary/30"
-                  : "text-muted-foreground hover:bg-muted border border-transparent"
-              }`}
-            >
-              {s === "open" ? "Open" : s === "done" ? "Done" : "All"}
-            </Link>
-          ))}
-        </div>
-        {session && (
+        <PublicationQuickFilter current={source_db} publications={publications} />
+        <span className="text-xs text-muted-foreground">
+          Tip: Click any subject or row to open full activity details &amp; notes
+        </span>
+      </div>
+
+      {/* Filter Control Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-muted/20 p-2.5">
+        {/* Status Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <Link
-            href={mineHref()}
+            href={createFilterHref({ status: null })}
             className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-              mine === "1"
-                ? "bg-primary/15 text-primary border border-primary/30"
-                : "text-muted-foreground hover:bg-muted border border-transparent"
+              status === "open"
+                ? "border border-primary/40 bg-primary/15 text-primary"
+                : "border border-transparent text-muted-foreground hover:bg-muted"
             }`}
           >
-            {mine === "1" ? "Showing: mine only" : "Show mine only"}
+            Open
           </Link>
-        )}
+          <Link
+            href={createFilterHref({ status: "overdue" })}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              status === "overdue"
+                ? "border border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400"
+                : "border border-transparent text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <span>Overdue</span>
+            {overdueCount > 0 && (
+              <span className="rounded-full bg-red-500/20 px-1.5 py-0.2 text-[10px] font-bold text-red-700 dark:text-red-300">
+                {overdueCount}
+              </span>
+            )}
+          </Link>
+          <Link
+            href={createFilterHref({ status: "done" })}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              status === "done"
+                ? "border border-[var(--ok)]/40 bg-[var(--ok)]/15 text-[var(--ok)]"
+                : "border border-transparent text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            Done
+          </Link>
+          <Link
+            href={createFilterHref({ status: "all" })}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              status === "all"
+                ? "border border-primary/40 bg-primary/15 text-primary"
+                : "border border-transparent text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            All
+          </Link>
+        </div>
+
+        {/* Secondary filters: Type, Priority, Mine */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* Type Filter */}
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-medium text-muted-foreground">Type:</span>
+            {(["all", "call", "meeting", "to-do"] as const).map((t) => {
+              const active = (!selectedType && t === "all") || selectedType === t;
+              return (
+                <Link
+                  key={t}
+                  href={createFilterHref({ type: t === "all" ? null : t })}
+                  className={`rounded px-2 py-1 text-[11px] font-medium capitalize transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {t === "to-do" ? "To-do" : t}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="h-4 w-px bg-border/80" />
+
+          {/* Priority Filter */}
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-medium text-muted-foreground">Priority:</span>
+            {(["all", "high", "normal", "low"] as const).map((p) => {
+              const active = (!selectedPriority && p === "all") || selectedPriority === p;
+              return (
+                <Link
+                  key={p}
+                  href={createFilterHref({ priority: p === "all" ? null : p })}
+                  className={`rounded px-2 py-1 text-[11px] font-medium capitalize transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {p}
+                </Link>
+              );
+            })}
+          </div>
+
+          {session && (
+            <>
+              <div className="h-4 w-px bg-border/80" />
+              <Link
+                href={createFilterHref({ mine: mine === "1" ? null : "1" })}
+                className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                  mine === "1"
+                    ? "border border-primary/40 bg-primary/15 text-primary"
+                    : "border border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {mine === "1" ? "Showing mine only" : "Mine only"}
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
-      {data.items.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
-          <CheckSquare className="mx-auto mb-2 size-8 opacity-40" />
-          <p className="font-medium">Nothing here.</p>
-          <p className="text-xs mt-1">Use &ldquo;Log or schedule&rdquo; up top to add a call, meeting or to-do.</p>
+      {/* Main High-Density Act! Data Grid Table */}
+      <InteractiveActivityTable items={displayItems} />
+
+      {/* Bottom Summary Strip */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          Showing {displayItems.length} {displayItems.length === 1 ? "activity" : "activities"}
+          {searchQuery ? ` matching "${searchQuery}"` : ""}
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="inline-flex items-center gap-1">
+            <Clock className="size-3 text-primary" />
+            <span>Times in London / BST</span>
+          </span>
         </div>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {[...groups.entries()].map(([label, items]) => (
-            <div key={label} className="flex flex-col gap-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</h2>
-              <div className="overflow-hidden rounded-lg border border-border bg-card">
-                {items.map((item) => {
-                  const who = item.contact_name || item.company_name;
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 border-b border-border/60 p-3 last:border-b-0 hover:bg-muted/20"
-                    >
-                      <ActivityDoneToggle
-                        id={item.id}
-                        isCleared={item.is_cleared}
-                        contactId={item.contact_id}
-                        companyId={item.company_id}
-                      />
-                      {typeIcon(item.activity_type)}
-                      <ActivityDetailDialog item={item}>
-                        <div className="min-w-0 flex-1 cursor-pointer">
-                          <div className={`truncate text-sm font-medium ${item.is_cleared ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                            {item.subject || item.activity_type || "Activity"}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                            {who ? <span>{who}</span> : null}
-                            {item.is_private && (
-                              <span className="inline-flex items-center gap-0.5">
-                                <Lock className="size-2.5" /> Private
-                              </span>
-                            )}
-                            {item.created_by && <span>· logged by {item.created_by.name}</span>}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2 cursor-pointer">
-                          <Badge variant="outline" className="text-[10px]">
-                            {item.activity_type}
-                          </Badge>
-                          <time className="text-[11px] font-mono text-muted-foreground">
-                            {item.is_timeless
-                              ? "No time"
-                              : new Date(item.start_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                          </time>
-                        </div>
-                      </ActivityDetailDialog>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

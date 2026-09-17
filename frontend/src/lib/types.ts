@@ -50,6 +50,8 @@ export type HistoryOut = {
 /** "never" is the only value the UI offers today - see backend's
  * app/models/activity.py RECURRENCE_VALUES for the other three. */
 export type ActivityRecurrence = "never" | "daily" | "weekly" | "monthly";
+export type ActivityPriority = "high" | "normal" | "low";
+
 export type ActivityOut = {
   id: string;
   activity_type: string | null;
@@ -61,6 +63,10 @@ export type ActivityOut = {
   is_timeless: boolean;
   is_cleared: boolean;
   is_private: boolean;
+  priority?: ActivityPriority | string;
+  duration_minutes?: number | null;
+  organized_by_name?: string | null;
+  has_attachments?: boolean;
   recurrence: ActivityRecurrence;
   contact_id: string | null;
   company_id: string | null;
@@ -68,6 +74,7 @@ export type ActivityOut = {
   company_name: string | null;
   created_by: UserSummary | null;
 };
+
 export type GroupOut = { id: string; name: string };
 export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null };
 

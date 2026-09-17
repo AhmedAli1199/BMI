@@ -214,18 +214,25 @@ export async function listActivities(params: {
   source_db?: string;
   assigned_user_id?: string;
   is_cleared?: boolean;
+  priority?: string;
+  activity_type?: string;
+  q?: string;
   start_after?: string;
   start_before?: string;
   page?: number;
+  page_size?: number;
 }): Promise<ActivitiesPage> {
   const q = new URLSearchParams();
   if (params.source_db) q.set("source_db", params.source_db);
   if (params.assigned_user_id) q.set("assigned_user_id", params.assigned_user_id);
   if (params.is_cleared !== undefined) q.set("is_cleared", String(params.is_cleared));
+  if (params.priority) q.set("priority", params.priority);
+  if (params.activity_type) q.set("activity_type", params.activity_type);
+  if (params.q) q.set("q", params.q);
   if (params.start_after) q.set("start_after", params.start_after);
   if (params.start_before) q.set("start_before", params.start_before);
   q.set("page", String(params.page ?? 1));
-  q.set("page_size", "100");
+  q.set("page_size", String(params.page_size ?? 100));
   return backendFetch<ActivitiesPage>(`/api/activities?${q}`);
 }
 

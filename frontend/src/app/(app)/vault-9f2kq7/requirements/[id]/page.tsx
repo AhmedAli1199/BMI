@@ -42,13 +42,15 @@ export function generateStaticParams() {
   return automations.map((a) => ({ id: a.id }));
 }
 
-export default async function AutomationDetailPage(
-  props: PageProps<"/vault-9f2kq7/requirements/[id]">
-) {
+export default async function AutomationDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const session = await getSession();
   if (!isAdmin(session)) notFound();
 
-  const { id } = await props.params;
+  const { id } = await params;
   const automation = automations.find((a) => a.id === id);
   if (!automation) notFound();
 

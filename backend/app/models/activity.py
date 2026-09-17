@@ -61,9 +61,9 @@ class Activity(Base, UUIDPk, ProvenanceMixin):
     # this column.
     organized_by_name: Mapped[str | None] = mapped_column(String(256))
 
-    # Everything below is new as of the CRM's own scheduling UI - always
-    # null/false/"never" on migrated rows, since Act! didn't carry a
-    # concept of "which of our users" beyond its own separate user table.
+    # Priority: "high", "normal", "low" (default: "normal") - native CRM field
+    priority: Mapped[str] = mapped_column(String(32), nullable=False, default="normal")
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     recurrence: Mapped[str] = mapped_column(String(20), nullable=False, default="never")
+

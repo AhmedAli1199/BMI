@@ -52,6 +52,7 @@ def upgrade() -> None:
     # ---- Activities: duration + organizer, plus real association data ----
     op.add_column("activities", sa.Column("duration_minutes", sa.Integer(), nullable=True))
     op.add_column("activities", sa.Column("organized_by_name", sa.String(length=256), nullable=True))
+    op.add_column("activities", sa.Column("priority", sa.String(length=32), nullable=False, server_default="normal"))
 
     op.create_table(
         "activity_contacts",
@@ -184,5 +185,6 @@ def downgrade() -> None:
     op.drop_table("activity_groups")
     op.drop_table("activity_companies")
     op.drop_table("activity_contacts")
+    op.drop_column("activities", "priority")
     op.drop_column("activities", "organized_by_name")
     op.drop_column("activities", "duration_minutes")

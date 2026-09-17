@@ -49,6 +49,9 @@ def list_activities(
     start_after: datetime | None = Query(None, description="Only activities starting on/after this instant"),
     start_before: datetime | None = Query(None, description="Only activities starting on/before this instant"),
     is_cleared: bool | None = Query(None, description="Filter to done (true) or not-yet-done (false) items"),
+    priority: str | None = Query(None, description="Filter by priority: high, normal, low"),
+    activity_type: str | None = Query(None, description="Filter by activity type"),
+    q: str | None = Query(None, description="Search subject or details"),
     contact_id: uuid.UUID | None = Query(None),
     company_id: uuid.UUID | None = Query(None),
     page: int = Query(1, ge=1),
@@ -66,6 +69,13 @@ def list_activities(
         stmt = stmt.where(Activity.start_at <= start_before)
     if is_cleared is not None:
         stmt = stmt.where(Activity.is_cleared == is_cleared)
+    if priority:
+        stmt = stmt.where(Activity.priority == priority)
+    if activity_type:
+        stmt = stmt.where(Activity.activity_type.ilike(f"%{activity_type}%"))
+    if q:
+        search = f"%{q.strip()}%"
+        stmt = stmt.where((Activity.subject.ilike(search)) | (Activity.details.ilike(search)))
     if contact_id:
         stmt = stmt.where(Activity.contact_id == contact_id)
     if company_id:
@@ -109,6 +119,9 @@ def create_activity(payload: ActivityCreate, db: Session = Depends(get_db)) -> A
         end_at=payload.end_at,
         is_timeless=payload.is_timeless,
         is_private=payload.is_private,
+        priority=payload.priority or "normal",
+        duration_minutes=payload.duration_minutes,
+        organized_by_name=payload.organized_by_name,
         recurrence=payload.recurrence,
         created_by_user_id=payload.created_by_user_id,
     )
@@ -116,6 +129,7 @@ def create_activity(payload: ActivityCreate, db: Session = Depends(get_db)) -> A
     db.commit()
     contacts, companies = _resolve_names(db, [activity])
     return _out(activity, resolve_creators(db, [activity]), contacts, companies)
+
 
 
 @router.patch("/{activity_id}", response_model=ActivityOut)

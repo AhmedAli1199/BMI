@@ -174,6 +174,10 @@ class ActivityOut(BaseModel):
     is_timeless: bool = False
     is_cleared: bool = False
     is_private: bool = False
+    priority: str = "normal"
+    duration_minutes: int | None = None
+    organized_by_name: str | None = None
+    has_attachments: bool = False
     recurrence: str = "never"
     contact_id: uuid.UUID | None = None
     company_id: uuid.UUID | None = None
@@ -191,6 +195,9 @@ class ActivityCreate(BaseModel):
     end_at: datetime | None = None
     is_timeless: bool = False
     is_private: bool = False
+    priority: str = "normal"
+    duration_minutes: int | None = None
+    organized_by_name: str | None = None
     recurrence: str = "never"
     contact_id: uuid.UUID | None = None
     company_id: uuid.UUID | None = None
@@ -208,11 +215,15 @@ class ActivityUpdate(BaseModel):
     is_timeless: bool | None = None
     is_cleared: bool | None = None
     is_private: bool | None = None
+    priority: str | None = None
+    duration_minutes: int | None = None
+    organized_by_name: str | None = None
     recurrence: str | None = None
 
 
 class ActivitiesPage(Page):
     items: list[ActivityOut]
+
 
 
 class GroupOut(BaseModel):

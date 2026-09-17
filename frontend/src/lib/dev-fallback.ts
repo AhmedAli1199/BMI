@@ -434,5 +434,202 @@ export function getDevFallback<T>(path: string): T | null {
     } as unknown as T;
   }
 
+  // Activities & Tasks List
+  if (path.startsWith("/api/activities")) {
+    const url = new URL(`http://localhost${path}`);
+    const isClearedParam = url.searchParams.get("is_cleared");
+    const priorityParam = url.searchParams.get("priority");
+    const typeParam = url.searchParams.get("activity_type")?.toLowerCase();
+    const qParam = url.searchParams.get("q")?.toLowerCase();
+    const now = new Date();
+
+    const sampleActivities = [
+      {
+        id: "act_101",
+        activity_type: "Call",
+        subject: "Call Eleanor Vance re: WTCE 2026 stand reservation & page proofs",
+        details: "Review preliminary page proofs for April issue and confirm stand 4B location at WTCE Hamburg.",
+        location: "Phone (+44 20 8738 5100)",
+        start_at: new Date(now.getTime() - 2 * 86400000).toISOString(), // 2 days ago (overdue if not cleared)
+        end_at: new Date(now.getTime() - 2 * 86400000 + 15 * 60000).toISOString(),
+        is_timeless: false,
+        is_cleared: false,
+        is_private: false,
+        priority: "high",
+        duration_minutes: 15,
+        organized_by_name: "Clare Hunter",
+        has_attachments: true,
+        recurrence: "never",
+        contact_id: "cnt_01h8x1",
+        company_id: "cmp_01h8x1",
+        contact_name: "Eleanor Vance",
+        company_name: "British Airways",
+        created_by: { id: "usr_1", name: "Clare Hunter", email: "clare@bmipublishing.co.uk", role: "admin" },
+      },
+      {
+        id: "act_102",
+        activity_type: "Meeting",
+        subject: "Q3 Ad rates & Taste of Travel sponsorship pitch",
+        details: "Meeting at Gate Gourmet European HQ to discuss double-page spread ad rates and Taste of Travel sponsorship.",
+        location: "Gate Gourmet Europe HQ, Zurich / Teams",
+        start_at: new Date(now.getTime() + 3600000).toISOString(), // 1 hour from now today
+        end_at: new Date(now.getTime() + 7200000).toISOString(),
+        is_timeless: false,
+        is_cleared: false,
+        is_private: false,
+        priority: "high",
+        duration_minutes: 60,
+        organized_by_name: "Craig Kelly",
+        has_attachments: true,
+        recurrence: "never",
+        contact_id: "cnt_02h8x2",
+        company_id: "cmp_02h8x2",
+        contact_name: "Marcus Thorne",
+        company_name: "Gate Gourmet Europe",
+        created_by: { id: "usr_2", name: "Craig Kelly", email: "craig@bmipublishing.co.uk", role: "rep" },
+      },
+      {
+        id: "act_103",
+        activity_type: "To-do",
+        subject: "Send Selling Travel 2026 media kit & editorial calendar",
+        details: "Email Clara the updated rate card and editorial themes for the California special supplement.",
+        location: null,
+        start_at: new Date(now.getTime() + 4 * 3600000).toISOString(), // Later today
+        end_at: null,
+        is_timeless: true,
+        is_cleared: false,
+        is_private: false,
+        priority: "normal",
+        duration_minutes: 30,
+        organized_by_name: "Ahmed Ali",
+        has_attachments: false,
+        recurrence: "never",
+        contact_id: "cnt_03h8x3",
+        company_id: "cmp_03h8x3",
+        contact_name: "Clara Higgins",
+        company_name: "Visit California UK",
+        created_by: { id: "usr_3", name: "Ahmed Ali", email: "ahmed@cybix.ai", role: "rep" },
+      },
+      {
+        id: "act_104",
+        activity_type: "Call",
+        subject: "Follow up with Virgin Atlantic Inflight retail buyer",
+        details: "Quarterly check-in on onboard retail tender submissions.",
+        location: "Direct phone",
+        start_at: new Date(now.getTime() + 86400000 + 2 * 3600000).toISOString(), // Tomorrow
+        end_at: new Date(now.getTime() + 86400000 + 2.5 * 3600000).toISOString(),
+        is_timeless: false,
+        is_cleared: false,
+        is_private: false,
+        priority: "normal",
+        duration_minutes: 30,
+        organized_by_name: "Clare Hunter",
+        has_attachments: false,
+        recurrence: "weekly",
+        contact_id: null,
+        company_id: "cmp_01h8x1",
+        contact_name: null,
+        company_name: "Virgin Atlantic",
+        created_by: { id: "usr_1", name: "Clare Hunter", email: "clare@bmipublishing.co.uk", role: "admin" },
+      },
+      {
+        id: "act_105",
+        activity_type: "Meeting",
+        subject: "Onboard Hospitality Awards 2026 - Judging Panel briefing",
+        details: "Briefing call for category judges on scoring deadlines and product sample testing logistics.",
+        location: "Microsoft Teams",
+        start_at: new Date(now.getTime() + 3 * 86400000).toISOString(), // in 3 days
+        end_at: new Date(now.getTime() + 3 * 86400000 + 3600000).toISOString(),
+        is_timeless: false,
+        is_cleared: false,
+        is_private: false,
+        priority: "high",
+        duration_minutes: 60,
+        organized_by_name: "Clare Hunter",
+        has_attachments: true,
+        recurrence: "never",
+        contact_id: "cnt_01h8x1",
+        company_id: "cmp_01h8x1",
+        contact_name: "Eleanor Vance",
+        company_name: "British Airways",
+        created_by: { id: "usr_1", name: "Clare Hunter", email: "clare@bmipublishing.co.uk", role: "admin" },
+      },
+      {
+        id: "act_106",
+        activity_type: "To-do",
+        subject: "Audit Q1 bounced email list for Onboard distribution",
+        details: "Clean 42 bounced records reported by Mailchimp/AEM.",
+        location: null,
+        start_at: new Date(now.getTime() - 4 * 86400000).toISOString(),
+        end_at: null,
+        is_timeless: true,
+        is_cleared: true, // completed
+        is_private: false,
+        priority: "low",
+        duration_minutes: 45,
+        organized_by_name: "Ahmed Ali",
+        has_attachments: false,
+        recurrence: "never",
+        contact_id: null,
+        company_id: null,
+        contact_name: null,
+        company_name: null,
+        created_by: { id: "usr_3", name: "Ahmed Ali", email: "ahmed@cybix.ai", role: "rep" },
+      },
+      {
+        id: "act_107",
+        activity_type: "Call",
+        subject: "Confirmed Singapore Airlines WTCE meeting",
+        details: "Spoke with regional procurement lead, confirmed booth visit on Tuesday 14:00.",
+        location: "Phone",
+        start_at: new Date(now.getTime() - 1 * 86400000).toISOString(),
+        end_at: new Date(now.getTime() - 1 * 86400000 + 900000).toISOString(),
+        is_timeless: false,
+        is_cleared: true, // completed
+        is_private: false,
+        priority: "normal",
+        duration_minutes: 15,
+        organized_by_name: "Craig Kelly",
+        has_attachments: false,
+        recurrence: "never",
+        contact_id: null,
+        company_id: null,
+        contact_name: "Liam Tan",
+        company_name: "Singapore Airlines",
+        created_by: { id: "usr_2", name: "Craig Kelly", email: "craig@bmipublishing.co.uk", role: "rep" },
+      },
+    ];
+
+    let filtered = sampleActivities;
+    if (isClearedParam !== null) {
+      const isCleared = isClearedParam === "true";
+      filtered = filtered.filter((a) => a.is_cleared === isCleared);
+    }
+    if (priorityParam) {
+      filtered = filtered.filter((a) => a.priority === priorityParam);
+    }
+    if (typeParam) {
+      filtered = filtered.filter((a) => a.activity_type?.toLowerCase().includes(typeParam));
+    }
+    if (qParam) {
+      filtered = filtered.filter(
+        (a) =>
+          a.subject?.toLowerCase().includes(qParam) ||
+          a.details?.toLowerCase().includes(qParam) ||
+          a.contact_name?.toLowerCase().includes(qParam) ||
+          a.company_name?.toLowerCase().includes(qParam)
+      );
+    }
+
+    return {
+      items: filtered,
+      total: filtered.length,
+      page: 1,
+      page_size: 50,
+      pages: 1,
+    } as unknown as T;
+  }
+
   return null;
 }
+
