@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     # on; no code change or redeploy needed for that switch alone.
     automations_bounce_scan_enabled: bool = False  # CS-001 + CS-002 (bounce classification, OOO mining)
     automations_departure_scan_enabled: bool = False  # CS-003 (departure & successor finding)
+    automations_followup_scan_enabled: bool = False  # Follow-up Engine + Morning Queue (SALES-005/012/013)
+
+    # OpenAI - used only by app/automations/llm.py to draft follow-up text
+    # (and any future automation that needs generated prose). Left empty by
+    # default; llm.py falls back to a plain templated draft (no AI) rather
+    # than crashing when this is unset, so the follow-up scan still works -
+    # just without AI-personalized wording - until a key is added. See
+    # llm.py's docstring for exactly where this is read.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
 
     # Microsoft Graph app registration (client-credentials flow, no per-user
     # login) - used by /api/diagnostics/graph-mailboxes to confirm which of
