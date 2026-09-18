@@ -13,6 +13,8 @@ import { humanizeCron, styleForKind } from "@/lib/automation-style";
 import type { ReviewKind, ReviewQueueCounts, ScheduledJob } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PhotoUploadDialog } from "@/components/photo-upload-dialog";
+import { SOURCE_LABELS } from "@/lib/sources";
 
 export default async function AutomationsPage() {
   const [kinds, counts, jobs] = await Promise.all([
@@ -26,6 +28,7 @@ export default async function AutomationsPage() {
   const totalPending = counts.reduce((sum, c) => sum + c.pending, 0);
   const totalHandled = counts.reduce((sum, c) => sum + c.approved + c.rejected, 0);
   const jobsLive = jobs.filter((j) => j.enabled).length;
+  const publications = Object.keys(SOURCE_LABELS).filter((p) => p !== "manual");
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
@@ -125,6 +128,26 @@ export default async function AutomationsPage() {
             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/60 text-blue-600 dark:text-blue-400">
               <Timer className="size-6" />
             </span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Photo intake - the two upload-triggered automations (SALES-001/002
+          business cards, CS-005 returned copies) have nothing to scan for,
+          so instead of a cron row they get an explicit "upload a photo"
+          entry point right here. */}
+      <div>
+        <h2 className="editorial-heading mb-3 text-lg font-bold text-foreground">Photo intake</h2>
+        <Card className="editorial-card">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+            <p className="max-w-md text-xs text-muted-foreground">
+              Upload a photo straight from the field - a rep&apos;s trade-show cards or a returned-mail
+              label from the post room. Each one gets read, matched, and dropped into your review queue.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <PhotoUploadDialog kind="business-card" publications={publications} />
+              <PhotoUploadDialog kind="returned-copy" publications={publications} />
+            </div>
           </CardContent>
         </Card>
       </div>

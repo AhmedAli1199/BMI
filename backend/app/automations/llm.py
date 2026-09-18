@@ -1,7 +1,8 @@
-"""Thin OpenAI wrapper, used today by the Follow-up Engine
-(followup_queue.py) to draft follow-up text, and written generically
-enough for any later automation (Template Library, meeting-notes-to-pitch,
-...) to reuse without its own client-setup code.
+"""Thin OpenAI wrapper, used by the Follow-up Engine (followup_queue.py)
+to draft follow-up text and by the vision-based intake automations
+(business_card.py, returned_copy.py, via vision_intake.py) to read a
+photographed card or mailing label - written generically enough for any
+later automation to reuse without its own client-setup code.
 
 WHERE TO PUT THE API KEY: set the OPENAI_API_KEY environment variable
 wherever this backend actually runs (its .env file locally, or the
@@ -81,4 +82,47 @@ def draft_text(system_prompt: str, user_prompt: str, *, max_tokens: int = 400) -
         return text or None
     except Exception:
         logger.exception("OpenAI draft_text call failed - falling back to templated text.")
+        return None
+
+
+def extract_json_from_image(
+    system_prompt: str, image_data_url: str, *, max_tokens: int = 1000
+) -> dict | list | None:
+    """Vision extraction: sends one image + an instruction to return
+    structured JSON, and returns it parsed - or None if no key is
+    configured, the call fails, or the reply isn't valid JSON. Used by the
+    business-card and returned-copy intake automations, which must always
+    have a "couldn't read this, flag for manual review" path rather than
+    guessing - see their modules for how they handle a None return.
+
+    `image_data_url` is a full data: URL (e.g. "data:image/jpeg;base64,...")
+    - see vision_intake.py's encode_image_data_url() for building one from
+    uploaded file bytes.
+    """
+    client = _get_client()
+    if client is None:
+        return None
+    try:
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            max_tokens=max_tokens,
+            temperature=0.1,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                    ],
+                },
+            ],
+        )
+        text = (response.choices[0].message.content or "").strip()
+        if not text:
+            return None
+        import json
+        return json.loads(text)
+    except Exception:
+        logger.exception("OpenAI extract_json_from_image call failed.")
         return None

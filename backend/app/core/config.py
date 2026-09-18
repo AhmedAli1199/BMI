@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     automations_bounce_scan_enabled: bool = False  # CS-001 + CS-002 (bounce classification, OOO mining)
     automations_departure_scan_enabled: bool = False  # CS-003 (departure & successor finding)
     automations_followup_scan_enabled: bool = False  # Follow-up Engine + Morning Queue (SALES-005/012/013)
+    automations_dedupe_scan_enabled: bool = False  # CS-004 (duplicate/moved-person merge)
+
+    # CS-004 tuning - see app/automations/dedupe.py.
+    dedupe_max_per_run: int = 30
+    dedupe_confidence_floor: float = 0.55  # below this, don't even suggest it - see MATCH_THRESHOLD-style gating elsewhere
 
     # How far the follow-up scan looks for "due" Activities - see
     # app/automations/followup_queue.py's module docstring for why this is
