@@ -18,6 +18,17 @@ class Settings(BaseSettings):
     automations_departure_scan_enabled: bool = False  # CS-003 (departure & successor finding)
     automations_followup_scan_enabled: bool = False  # Follow-up Engine + Morning Queue (SALES-005/012/013)
 
+    # How far the follow-up scan looks for "due" Activities - see
+    # app/automations/followup_queue.py's module docstring for why this is
+    # bounded rather than "every incomplete activity ever". Configurable
+    # since the right window depends on how forward-looking your actual
+    # data is - freshly-migrated historical data may need a much wider
+    # lookback to surface anything at all, vs. a CRM in daily live use
+    # where a narrow "due this week" window is exactly right.
+    followup_lookback_days: int = 14
+    followup_lookahead_days: int = 1
+    followup_max_per_run: int = 40
+
     # OpenAI - used only by app/automations/llm.py to draft follow-up text
     # (and any future automation that needs generated prose). Left empty by
     # default; llm.py falls back to a plain templated draft (no AI) rather

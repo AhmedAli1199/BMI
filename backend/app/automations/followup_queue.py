@@ -29,22 +29,21 @@ from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.llm import draft_text, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import Activity, Company, Contact, HistoryEntry, ReviewQueueItem
 
-# How far back/forward to look for "due" activities. Deliberately bounded,
-# not "every incomplete Act! activity ever" - the migrated backlog goes
-# back years (see BACKLOG.md's note on the Calendar & Task List's
-# unbounded Open tab), and nobody wants an AI-drafted follow-up for a
-# to-do from 2019. Only activities that are due soon or went overdue
-# recently are genuinely "due for a follow-up today" - anything older is
-# stale backlog to triage separately, not a live queue candidate.
-LOOKBACK_DAYS = 14
-LOOKAHEAD_DAYS = 1
-# Hard cap per scan run - keeps a first run against the full migrated
-# backlog from firing hundreds of OpenAI calls at once. Anything past the
-# cap is picked up on the next scheduled run instead of all at once.
-MAX_PER_RUN = 40
+# How far back/forward to look for "due" activities, and how many to draft
+# per run - configurable via FOLLOWUP_LOOKBACK_DAYS/FOLLOWUP_LOOKAHEAD_DAYS/
+# FOLLOWUP_MAX_PER_RUN (see app/core/config.py), deliberately bounded by
+# default rather than "every incomplete Act! activity ever" - the migrated
+# backlog goes back years (see BACKLOG.md's note on the Calendar & Task
+# List's unbounded Open tab), and nobody wants an AI-drafted follow-up for
+# a to-do from 2019 by default. Only activities that are due soon or went
+# overdue recently are genuinely "due for a follow-up today" - anything
+# older is stale backlog to triage separately, not a live queue candidate.
+# Widen these (env var + restart, no code change) if your data is mostly
+# historical rather than forward-looking, same as right after a migration.
 
 
 def _entity_label(contact: Contact | None, company: Company | None) -> str:
@@ -154,8 +153,9 @@ def scan_for_due_followups() -> None:
     queues a `followup_due` review item - unless one's already pending for
     that same activity."""
     now = datetime.now(timezone.utc)
-    window_start = now - timedelta(days=LOOKBACK_DAYS)
-    window_end = now + timedelta(days=LOOKAHEAD_DAYS)
+    window_start = now - timedelta(days=settings.followup_lookback_days)
+    window_end = now + timedelta(days=settings.followup_lookahead_days)
+    max_per_run = settings.followup_max_per_run
 
     db = SessionLocal()
     try:
@@ -177,12 +177,12 @@ def scan_for_due_followups() -> None:
                 Activity.contact_id.isnot(None) | Activity.company_id.isnot(None),
             )
             .order_by(Activity.start_at.asc())
-            .limit(MAX_PER_RUN * 3)  # headroom for the already-queued rows we'll filter out below
+            .limit(max_per_run * 3)  # headroom for the already-queued rows we'll filter out below
         ).all()
 
         queued_count = 0
         for activity in candidates:
-            if queued_count >= MAX_PER_RUN:
+            if queued_count >= max_per_run:
                 break
             if activity.id in already_queued:
                 continue
