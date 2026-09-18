@@ -6,6 +6,43 @@ delete them once actually done (and note it in the relevant commit instead).
 
 ---
 
+## Performance / scalability pass — parked (2026-09-18)
+
+Discussed but deliberately deferred to focus on automations. Concrete,
+already-diagnosed findings to act on later, not vague "make it faster":
+
+- [ ] **`cache: "no-store"` is hardcoded on every single backend fetch**
+      (`frontend/src/lib/backend.ts`) — zero use of Next.js's Data Cache
+      or time-based revalidation anywhere. This is almost certainly the
+      actual cause of "feels slow navigating cold" more than anything
+      DB-side. Fix: scope `no-store` to genuinely-always-live endpoints
+      only; give read-heavy/rarely-changing ones (publications, groups,
+      dashboard stats, contact/company detail) a `next: { revalidate: N }`
+      and lean on the `revalidatePath` calls already in `lib/actions.ts`
+      for precise invalidation on write — that plumbing already exists,
+      it's just not paired with any cache to invalidate.
+- [ ] **Missing composite indexes** on the actual filter+sort patterns in
+      use: `contacts(source_db, last_name, first_name)` (used by
+      `list_contacts`'s `ORDER BY` at ~118k rows, currently unindexed) and
+      `companies(source_db, name)`.
+- [ ] **Search can't use a normal index** — `ILIKE '%term%'` (leading
+      wildcard) is structurally un-indexable by a plain btree. Fix:
+      `pg_trgm` extension + a GIN trigram index on the searched columns.
+      Small, standard, boring — the correct fix at this scale, not a
+      separate search service.
+- [ ] `dashboard.py`'s `get_dashboard_stats` runs ~6 sequential DB round
+      trips per load — fine today, candidate for batching or (once the
+      table sizes actually justify it) a scheduled-refresh materialized
+      view, reusing the existing APScheduler infra from the automations
+      work rather than adding new infrastructure.
+- [ ] Standing habit going forward: every new FK gets an index (already
+      mostly done reflexively), every new sort/filter column gets one
+      matched to the real query shape, not just individually.
+- [ ] Longer-term, only once row counts justify it: keyset/cursor
+      pagination instead of offset-based for anything approaching
+      infinite-scroll or bulk export; connection pool sizing check once
+      concurrent usage is real.
+
 ## Next Up: Act!-Style "Add Activity" Modal & Full Creation Flow
 
 Target: Replace the basic scheduling tab in `log-interaction-dialog.tsx` with a dedicated, high-fidelity **"Add activity" modal** matching Act!'s desktop/web experience as shown in the Act! specification screenshot.
