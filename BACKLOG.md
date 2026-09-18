@@ -6,54 +6,92 @@ delete them once actually done (and note it in the relevant commit instead).
 
 ---
 
-## "Nothing missed" gap-fill pass — CODE WRITTEN 2026-09-17, not yet run
+## Next Up: Act!-Style "Add Activity" Modal & Full Creation Flow
 
-Full plan + code written (models, Alembic migration `0011`, ETL updates) to
-close the gap between what Act!'s `.bak` actually has and what we migrated.
-**Not yet applied/run against a real .bak or Postgres — no live DB in this
-environment, verified via syntax check, full module import, and Alembic
-offline SQL generation only.** Run `alembic upgrade head` then re-run
-`migration/etl.py` per source database against the real `.bak` to backfill.
+Target: Replace the basic scheduling tab in `log-interaction-dialog.tsx` with a dedicated, high-fidelity **"Add activity" modal** matching Act!'s desktop/web experience as shown in the Act! specification screenshot.
 
-Implemented:
-- Activity ↔ contact/company/group associations + invitees (fixes the
-  `contact_id`/`company_id = NULL` on all 2,131 activities — turned out
-  `TBL_CONTACT_ACTIVITY`/`TBL_COMPANY_ACTIVITY` DO have real data, 2,333
-  links in Prospects alone; the original "no reliable link" claim in
-  `migration/etl.py`/README was wrong, corrected in both places).
-- Attachments (file metadata from `TBL_ATTACHMENT` — not the actual files,
-  those live on Act!'s old file share).
-- `Activity.duration_minutes` (Act!'s real `DURATION` column) +
-  `organized_by_name` (denormalized display name via `TBL_ACCESSOR` — NOT
-  a `users` FK, see below).
-- Notes/History widened to also cover Group and Opportunity entities
-  (`TBL_GROUP_NOTE`/`TBL_GROUP_HISTORY`/`TBL_OPPORTUNITY_HISTORY` — ~1,200
-  rows previously dropped on the floor).
-- `Company.ticker_symbol`/`sic_code` — bug fix, these were selected by the
-  ETL from day one but never actually written into the row dict.
-- `Contact`: `company_name_freetext`, `last_results`, `is_email_opted_out`,
-  `has_bounced`, `engagement_score`, `last_email_date` — the AEM/bounce
-  fields directly feed the CS-001 bounce-handling automation, which
-  currently has zero historical bounce signal to start from.
-- `Phone.extension` (Act!'s `SUFFIX` — was being dropped on ~167k rows).
-- `Opportunity.custom_fields` (USER1-8, never discovered before) +
-  `stage_name` now actually populated (joins `TBL_STAGE`).
-- `contact_company_links` (`TBL_COMPANY_CONTACT`) — a contact can belong to
-  several companies in Act!; `Contact.company_id` only ever holds one.
-  7,959 extra links in Prospects alone.
-- **Fixed a real bug in the migration script itself**: `IdMap` minted a
-  fresh random UUID for every row on every run, which is only correct for
-  genuinely new rows — re-running against already-migrated data (exactly
-  what this gap-fill pass needs to do) would've generated new junction
-  rows pointing at the WRONG ids for anything migrated before. Added
-  `IdMap.preload()`, seeding the map from what's already in Postgres for
-  that `source_db` before any `get_or_create()` call. This is the answer
-  to "how do we handle linking to already-existing records" — it's easy
-  *with* this fix, and silently wrong without it (would fail loud on a FK
-  violation, not corrupt data, but still wrong and now fixed properly).
+### 1. UI / Layout Specification (`components/add-activity-dialog.tsx`)
+Modal Header: "Add activity" title with top-right action buttons (`Save` [primary brand blue], `Cancel` [outline]).
 
-Still parked for cutover (needs the Act!-accessor → our-user identity
-mapping, a human decision, OR needs a live-DB column check first):
+- **Section 1: 🕒 SCHEDULING**
+  - **Activity type**: Dropdown (`Meeting`, `Call`, `To-do`, `Appointment`, `Personal activity`, `Vacation`).
+  - **Title / Regarding**: Combobox / input with preset recent subjects or free text.
+  - **Make activity private**: Checkbox (`is_private: boolean`).
+  - **Duration**: Dropdown (`10 Mins`, `15 Mins`, `30 Mins`, `45 Mins`, `1 Hour`, `2 Hours`, `Half Day`, `All Day`). Automatically synchronizes `end_at = start_at + duration`.
+  - **Start date/time**: Date picker (`DD/MM/YYYY`) + Time picker (`HH:MM`).
+  - **End date/time**: Date picker + Time picker (auto-adjusted when start time or duration changes).
+  - **Scheduling toggles**:
+    - `[ ] All day activity`: Toggles full-day duration.
+    - `[ ] Timeless`: Toggles `is_timeless`, disabling specific hour/minute selection.
+  - **Recurrence**: Dropdown (`Never`, `Daily`, `Weekly`, `Monthly`, `Yearly`).
+  - **Priority**: Dropdown (`High`, `Normal`, `Low`).
+
+- **Section 2: 👥 CONTACTS**
+  - **Organizer**: Dropdown with info icon (defaults to current user / `BMI Administrator`).
+  - **Invite**: Tag-based multi-autocomplete input ("Start typing") for internal team members + **"User availability"** button.
+  - **Associate with**:
+    - Entity selector dropdown (`Contacts`, `Companies`, `Groups`, `Opportunities`).
+    - Multi-select autocomplete tag input ("Start typing") with debounce against `/api/contacts/search`, `/api/companies/search`, etc.
+  - **Create separate activity for each contact**: Checkbox (`split_per_contact: boolean`). When checked, creates independent activity records for each selected contact instead of one shared activity.
+
+- **Section 3: 📍 ADDITIONAL DETAILS**
+  - **Location**: Free-text input for physical venue, room, or dial-in link.
+  - **Resources**: Dropdown for conference rooms or equipment.
+  - **Description**: Rich-text / formatted editor toolbar (Font family, font size, text color, bold, italic, underline, strikethrough, alignment, bulleted/numbered lists).
+  - **Attachment**: Drag-and-drop file upload zone ("Drag and Drop file here") with "Select file" button.
+
+### 2. Backend Schemas & Route Enhancements
+- **Schema (`backend/app/api/schemas.py`)**:
+  - Update `ActivityCreate` to accept:
+    - `activity_type: str`, `subject: str`, `details: Optional[str]`, `location: Optional[str]`
+    - `start_at: Optional[datetime]`, `end_at: Optional[datetime]`, `duration_minutes: Optional[int]`
+    - `is_timeless: bool = False`, `is_private: bool = False`, `priority: str = "normal"`, `recurrence: Optional[str] = "Never"`
+    - `organized_by_name: Optional[str]`
+    - `contact_ids: list[UUID] = []`, `company_ids: list[UUID] = []`, `group_ids: list[UUID] = []`, `invitee_names: list[str] = []`
+    - `split_per_contact: bool = False`
+- **Route (`backend/app/api/routes/activities.py`)**:
+  - Update `POST /api/activities`:
+    - Handle transactionally: if `split_per_contact` is true and multiple `contact_ids` are passed, loop and insert an `Activity` per contact.
+    - Otherwise, insert one `Activity` and bulk insert into `activity_contacts`, `activity_companies`, `activity_groups`, and `activity_invitees`.
+  - Add attachment metadata endpoint `POST /api/activities/{id}/attachments`.
+
+### 3. Frontend Actions & Integration
+- Update `createActivity` in `frontend/src/lib/actions.ts` with full payload typing.
+- Replace the "Log or schedule" action button in `frontend/src/app/(app)/activities/page.tsx` and navbar with `AddActivityDialog`.
+
+---
+
+## Act! Calendar & Tasks Revamp & Database Migration — COMPLETED (2026-09-17 / 2026-09-18)
+
+Successfully implemented Step 1 (Frontend), Step 2 (Backend), and Step 3 (Targeted Database ETL):
+
+1. **Step 1: Frontend Act!-Style Calendar & Task List Table View**:
+   - Built full-width, 12-column high-density data grid in `components/interactive-activity-table.tsx`:
+     Done checkbox, Type icon, Date (with Overdue badge), Time/Timeless, Priority badge, Subject/Details, Contact link, Company link, Duration, Location, Attachments clip, Scheduled For.
+   - Added Status filter pills (Open, Overdue [with counter], Done, All), Type filter, Priority filter, and quick text search.
+   - Built enhanced detail modal in `components/activity-detail-dialog.tsx`.
+   - Updated `lib/types.ts` and `lib/actions.ts`.
+
+2. **Step 2: Backend Models & API Alignment**:
+   - Added `priority` column (`"high"`, `"normal"`, `"low"`) to `Activity` model and Alembic migration `0011`.
+   - Exposed `priority`, `duration_minutes`, `organized_by_name` on `ActivityOut`.
+   - Added query filters for `priority`, `activity_type`, and search `q` on `GET /api/activities`.
+
+3. **Step 3: Database ETL & Act! Backup Backfill (Live on Remote Postgres `169.58.1.97:55432`)**:
+   - Restored Act! backups into native Windows SQL Server 2022 via ODBC (`migration/restore_bak.py`):
+     - `OnBoard` (57 activities)
+     - `SellingTravel` (3 activities, restored in 3.3s)
+     - `Prospects` (14.6 GB BAK, 2,071 activities, restored in 70.4s)
+   - Extracted true Act! priorities from `TBL_ACCESSOR_ACTIVITY` + `TBL_ACTIVITYPRIORITY`.
+   - Backfilled all 2,131 activities with their primary contact/company links, organizers, durations, and priorities.
+   - **Postgres Staging Final Live Counts**:
+     - Activities: **2,131** (100% enriched)
+     - Activity Contact Links: **2,412**
+     - Activity Company Links: **931**
+     - Activity Group Links: **2**
+     - Activity Invitees: **2,157**
+     - Attachments Manifests: **217**
+     - Priorities Breakdown: **High: 91 | Low: 1,557 | Normal: 483**
 - [ ] **Record ownership as a real FK** — `Activity.created_by_user_id`
       (`ORGANIZEUSERID`), and the equivalent `CREATEUSERID`/`EDITUSERID`/
       `MANAGEUSERID` fields on Contact/Company/Group/History/Note, all
