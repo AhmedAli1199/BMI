@@ -1,26 +1,36 @@
 """Review kinds for CS-001 (bounce classification) and CS-002 (out-of-office
 replacement mining) - see docs/build-spec.txt for the full automation spec.
 
-The mail-scanning job that actually reads mailboxes and populates these
-review items doesn't exist yet (that's the next piece of work - Microsoft
-Graph wiring + a Gemini classification call). What's here is the half that
-*is* real end to end: once a review item of one of these kinds exists (for
-now, seeded by hand for testing), acting on it makes a genuine CRM write
-through the same Contact/Note/Email models and logic every other part of
-the app already uses.
+scan_mailbox_for_bounces_and_ooo() at the bottom is the real producer: it
+reads each configured mailbox via Microsoft Graph (app-only, see
+graph_client.py), classifies each new message with cheap heuristics first
+(mail_parsing.py) and an OpenAI call only when heuristics alone aren't
+enough to decide, then writes one of the three review kinds below.
+Nothing here ever unsubscribes a contact or sends anything on its own -
+every message that looks bounce/OOO-shaped becomes a queued suggestion,
+same "draft, never dispatch" contract as every other automation.
 """
 from __future__ import annotations
 
+import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations.llm import extract_json
+from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
+from app.automations.state import get_state, set_state
+from app.core.config import settings
+from app.db.session import SessionLocal
+from app.graph_client import GraphRequestError, list_messages_since
 from app.models import Contact, Email, Note, ReviewQueueItem
+
+logger = logging.getLogger("app.automations.bounce_handling")
 
 
 def _add_note(db: Session, contact: Contact, note_type: str, body: str) -> None:
@@ -172,23 +182,243 @@ register(ReviewKind(
 ))
 
 
-def scan_mailbox_for_bounces_and_ooo() -> None:
-    """CS-001 + CS-002 producer: reads the shared mailbox via Microsoft
-    Graph, classifies each new bounce/auto-reply with Gemini, and writes a
-    `bounce_uncertain` / `bounce_unmatched` / `ooo_ambiguous` row for
-    anything below the confidence bar for an automatic decision.
+def _scan_mailboxes() -> list[str]:
+    raw = settings.graph_scan_mailboxes.strip()
+    return [m.strip() for m in raw.split(",") if m.strip()]
 
-    Not implemented yet - the Graph mailbox read and the Gemini
-    classification call are the next piece of work. This function is
-    wired into the scheduler now (see scheduler.py / config.py) so that
-    turning CS-001/002 on later is only ever a matter of filling this
-    body in and flipping AUTOMATIONS_BOUNCE_SCAN_ENABLED=true - no new
-    scheduling, toggle, or deploy plumbing to add at that point.
-    """
-    raise NotImplementedError(
-        "Mailbox scanning for CS-001/CS-002 isn't built yet - "
-        "see scan_mailbox_for_bounces_and_ooo's docstring."
+
+def _find_contact_by_email(db: Session, email: str | None) -> Contact | None:
+    """Only returns a match when it's unambiguous - two different contacts
+    sharing one email address (a shared team inbox, a couple with the same
+    address on file) is real in this data, and guessing wrong here means
+    silently unsubscribing or CC'ing the wrong person. Ambiguous or
+    zero-match both come back None; callers route that to the
+    "unmatched, pick manually" review kind instead of the confident one."""
+    if not email:
+        return None
+    matches = db.scalars(
+        select(Contact)
+        .join(Email, Email.contact_id == Contact.id)
+        .where(func.lower(Email.address) == email.lower())
+        .distinct()
+    ).all()
+    return matches[0] if len(matches) == 1 else None
+
+
+_BOUNCE_SEVERITY_PROMPT = (
+    "You classify automated email bounce/delivery-failure notifications. Given the subject and body "
+    "of one such message, decide whether the failure is PERMANENT (\"hard\" - address doesn't exist, "
+    "domain not found, mailbox disabled/closed - safe to stop emailing this address) or TEMPORARY "
+    "(\"soft\" - mailbox full, server busy, greylisting, rate limited - worth retrying later, not a "
+    "reason to unsubscribe anyone). Return JSON of the exact shape: "
+    '{"severity": "hard" or "soft", "confidence": a number from 0.0 to 1.0}.'
+)
+
+_OOO_EXTRACTION_PROMPT = (
+    "You read out-of-office / automatic-reply emails. Extract who, if anyone, the sender named as a "
+    "replacement or alternative point of contact while they're away. Use null for anything not "
+    "mentioned - never invent a name or address. Return JSON of the exact shape: "
+    '{"replacement_name": string or null, "replacement_email": string or null}.'
+)
+
+
+def _classify_bounce_severity(msg: ParsedMessage) -> tuple[str, float]:
+    result = extract_json(_BOUNCE_SEVERITY_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
+    if result and result.get("severity") in ("hard", "soft"):
+        try:
+            return result["severity"], max(0.0, min(1.0, float(result.get("confidence", 0.5))))
+        except (TypeError, ValueError):
+            pass
+    # No AI configured, or the call failed/returned something unusable - an
+    # NDR-shaped subject already matched to get here, so default to "hard"
+    # but at a confidence too low to look any more certain than a guess,
+    # since severity still decides only wording here, not any auto-action.
+    return "hard", 0.4
+
+
+def _extract_ooo_replacement(msg: ParsedMessage) -> tuple[str | None, str | None]:
+    result = extract_json(_OOO_EXTRACTION_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
+    if not result:
+        return None, None
+    name = (result.get("replacement_name") or "").strip() or None
+    email = (result.get("replacement_email") or "").strip() or None
+    return name, email
+
+
+def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
+    """Queues a review item for a message that looks like a delivery-failure
+    notification. Always queues - even a maximally-confident hard bounce
+    still needs a human to click "confirm & unsubscribe" (see
+    _handle_bounce_uncertain above); nothing here writes to Contact
+    directly. Returns True if something was queued."""
+    failed_address = msg.failed_recipients[0] if msg.failed_recipients else msg.from_address
+    contact = _find_contact_by_email(db, failed_address)
+    severity, confidence = _classify_bounce_severity(msg)
+
+    if contact:
+        db.add(ReviewQueueItem(
+            id=uuid.uuid4(), kind="bounce_uncertain",
+            entity_type="contact", entity_id=contact.id,
+            payload={
+                "summary": f"{'Hard' if severity == 'hard' else 'Soft'} bounce for "
+                           f"{contact.full_name or failed_address or '(unknown address)'}",
+                "details": [
+                    {"key": "address", "label": "Failed address", "value": failed_address or "-"},
+                    {"key": "subject", "label": "Original subject", "value": msg.subject},
+                    {"key": "severity", "label": "Classified as", "value": severity},
+                ],
+                "related_entities": [
+                    {"type": "contact", "id": str(contact.id), "label": contact.full_name or failed_address or "contact"}
+                ],
+                "original_text": msg.body_text,
+                "message_id": msg.message_id,
+                "confidence": confidence,
+            },
+        ))
+    else:
+        db.add(ReviewQueueItem(
+            id=uuid.uuid4(), kind="bounce_unmatched",
+            entity_type=None, entity_id=None,
+            payload={
+                "summary": f"Bounce for {failed_address or '(unknown address)'} - no contact match",
+                "details": [
+                    {"key": "address", "label": "Failed address", "value": failed_address or "-"},
+                    {"key": "subject", "label": "Original subject", "value": msg.subject},
+                    {"key": "severity", "label": "Classified as", "value": severity},
+                ],
+                "original_text": msg.body_text,
+                "message_id": msg.message_id,
+                "confidence": confidence,
+            },
+        ))
+    return True
+
+
+def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
+    """Queues a review item for a message that looks like an out-of-office
+    / auto-reply, but only when the sender is someone already in the CRM -
+    an auto-reply from an address we have no contact for isn't something a
+    reviewer can act on. Returns True if something was queued."""
+    original = _find_contact_by_email(db, msg.from_address)
+    if not original:
+        return False
+
+    replacement_name, replacement_email = _extract_ooo_replacement(msg)
+    replacement_contact = _find_contact_by_email(db, replacement_email)
+    suggested_contact = (
+        {"id": str(replacement_contact.id), "label": replacement_contact.full_name or replacement_email}
+        if replacement_contact else None
     )
+
+    db.add(ReviewQueueItem(
+        id=uuid.uuid4(), kind="ooo_ambiguous",
+        entity_type="contact", entity_id=original.id,
+        payload={
+            "summary": (
+                f"{original.full_name or original.first_name or 'A contact'} is out of office"
+                + (f" - possible replacement: {replacement_name}" if replacement_name else "")
+            ),
+            "details": [
+                {"key": "subject", "label": "Subject", "value": msg.subject},
+                {"key": "replacement_name", "label": "Named replacement", "value": replacement_name or "-"},
+                {"key": "replacement_email", "label": "Replacement email", "value": replacement_email or "-"},
+            ],
+            "related_entities": [
+                {"type": "contact", "id": str(original.id), "label": original.full_name or msg.from_address or "contact"}
+            ],
+            "suggested_contact": suggested_contact,
+            "original_text": msg.body_text,
+            "message_id": msg.message_id,
+            "confidence": 0.65 if replacement_contact else 0.4,
+        },
+    ))
+    return True
+
+
+def scan_mailbox_for_bounces_and_ooo() -> None:
+    """CS-001 + CS-002 producer: reads every mailbox in GRAPH_SCAN_MAILBOXES
+    via Microsoft Graph, classifies each new message, and writes a
+    `bounce_uncertain` / `bounce_unmatched` / `ooo_ambiguous` row for
+    anything that looks actionable. A genuine human reply, or anything that
+    doesn't look like a bounce or an auto-reply, is left alone entirely -
+    this scan only ever adds a suggestion, never reads for its own sake.
+
+    Incremental per mailbox: remembers the newest message it already
+    processed (app.automations.state, keyed "bounce_scan:{mailbox}") so a
+    15-minute scan only asks Graph for what's new since last time, not the
+    whole inbox. One mailbox failing (bad permissions, Graph outage) is
+    logged and skipped - it never aborts the other mailboxes' scans.
+    """
+    mailboxes = _scan_mailboxes()
+    if not mailboxes:
+        logger.info("bounce_ooo scan: GRAPH_SCAN_MAILBOXES not configured - nothing to scan.")
+        return
+
+    now = datetime.now(timezone.utc)
+    db = SessionLocal()
+    try:
+        existing_message_ids = set(
+            db.scalars(
+                select(ReviewQueueItem.payload["message_id"].astext).where(
+                    ReviewQueueItem.kind.in_(["bounce_uncertain", "bounce_unmatched", "ooo_ambiguous"]),
+                    ReviewQueueItem.status == "pending",
+                )
+            ).all()
+        )
+
+        total_queued = 0
+        for mailbox in mailboxes:
+            cursor_key = f"bounce_scan:{mailbox}"
+            state = get_state(db, cursor_key)
+            last_processed_at = state.get("last_processed_at")
+            skip_ids = set(state.get("last_message_ids", []))
+            since_dt = (
+                datetime.fromisoformat(last_processed_at)
+                if last_processed_at
+                else now - timedelta(minutes=settings.bounce_scan_initial_lookback_minutes)
+            )
+            since_iso = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            try:
+                raw_messages = list_messages_since(mailbox, since_iso)
+            except GraphRequestError as exc:
+                logger.error("bounce_ooo scan: mailbox %s failed (HTTP %s): %s", mailbox, exc.status_code, exc)
+                continue
+
+            parsed = [parse_message(m) for m in raw_messages if m.get("id") not in skip_ids]
+            queued_this_mailbox = 0
+
+            for msg in parsed:
+                if msg.message_id in existing_message_ids:
+                    continue
+                if looks_like_bounce(msg):
+                    queued = _handle_candidate_bounce(db, msg)
+                elif looks_like_ooo(msg):
+                    queued = _handle_candidate_ooo(db, msg)
+                else:
+                    queued = False
+                if queued:
+                    existing_message_ids.add(msg.message_id)
+                    queued_this_mailbox += 1
+
+            if parsed:
+                max_ts = max(m.received_at for m in parsed)
+                ids_at_max = [m.message_id for m in parsed if m.received_at == max_ts]
+                set_state(db, cursor_key, {"last_processed_at": max_ts.isoformat(), "last_message_ids": ids_at_max})
+
+            logger.info(
+                "bounce_ooo scan: mailbox %s - %d message(s) read, %d queued",
+                mailbox, len(parsed), queued_this_mailbox,
+            )
+            total_queued += queued_this_mailbox
+
+        db.commit()
+        logger.info(
+            "bounce_ooo scan finished: %d total item(s) queued across %d mailbox(es)",
+            total_queued, len(mailboxes),
+        )
+    finally:
+        db.close()
 
 
 register_job(ScheduledJob(

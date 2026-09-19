@@ -85,6 +85,39 @@ def draft_text(system_prompt: str, user_prompt: str, *, max_tokens: int = 400) -
         return None
 
 
+def extract_json(system_prompt: str, user_prompt: str, *, max_tokens: int = 400) -> dict | None:
+    """Same idea as extract_json_from_image() but for plain text - used by
+    the bounce/OOO mailbox scan (bounce_handling.py) to classify a message
+    it couldn't confidently place with cheap heuristics alone (see
+    mail_parsing.py's looks_like_bounce/looks_like_ooo), and to pull a
+    named replacement contact out of an out-of-office reply's body text.
+    Returns None on any failure - callers must queue the item for manual
+    review rather than guess when this comes back empty, same fail-soft
+    contract as every other AI helper here."""
+    client = _get_client()
+    if client is None:
+        return None
+    try:
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            max_tokens=max_tokens,
+            temperature=0.1,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        text = (response.choices[0].message.content or "").strip()
+        if not text:
+            return None
+        import json
+        return json.loads(text)
+    except Exception:
+        logger.exception("OpenAI extract_json call failed.")
+        return None
+
+
 def extract_json_from_image(
     system_prompt: str, image_data_url: str, *, max_tokens: int = 1000
 ) -> dict | list | None:

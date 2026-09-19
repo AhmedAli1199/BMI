@@ -53,5 +53,19 @@ class Settings(BaseSettings):
     graph_client_id: str = ""
     graph_client_secret: str = ""
 
+    # Comma-separated mailbox addresses the CS-001/002 scan actually reads
+    # (app/automations/bounce_handling.py) - separate from diagnostics.py's
+    # own hardcoded probe list, since which mailboxes are worth continuously
+    # scanning is an operational choice that may end up narrower (or wider)
+    # than "every address IT confirmed is readable". Empty by default - the
+    # scan logs and does nothing rather than guessing which mailboxes matter.
+    graph_scan_mailboxes: str = ""
+
+    # How far back the bounce/OOO scan looks the very first time it runs
+    # for a given mailbox (before it has its own cursor to resume from) -
+    # see app/automations/state.py. Every run after that only asks for what
+    # arrived since the previous run, however often the job fires.
+    bounce_scan_initial_lookback_minutes: int = 1440
+
 
 settings = Settings()
