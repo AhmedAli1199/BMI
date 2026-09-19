@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     dedupe_max_per_run: int = 30
     dedupe_confidence_floor: float = 0.55  # below this, don't even suggest it - see MATCH_THRESHOLD-style gating elsewhere
 
+    # How many contacts the scan examines as match candidates per run -
+    # NOT the same thing as dedupe_max_per_run (which caps queued output).
+    # This bounds the actual query cost, which scales with how many
+    # contacts get driven through the trigram lookup, not with how many
+    # pairs end up confident enough to queue - see dedupe.py's
+    # scan_for_duplicates() docstring for why that distinction matters at
+    # real contact-table scale.
+    dedupe_batch_size: int = 500
+
     # How far the follow-up scan looks for "due" Activities - see
     # app/automations/followup_queue.py's module docstring for why this is
     # bounded rather than "every incomplete activity ever". Configurable

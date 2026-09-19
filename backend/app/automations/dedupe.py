@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
+from app.automations.state import get_state, set_state
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import (
@@ -153,10 +154,30 @@ register(ReviewKind(
 ))
 
 
+_DEDUPE_CURSOR_KEY = "dedupe_scan_cursor"
+
+
 def scan_for_duplicates() -> None:
     """Producer job: fuzzy-matches contact names within each source_db via
     pg_trgm, corroborates with shared company/activity links, and queues
-    the strongest candidates above the confidence floor."""
+    the strongest candidates above the confidence floor.
+
+    The outer side of the match is paginated by contact id (cursor stored
+    via app.automations.state, wrapping back to the start once it reaches
+    the end) rather than scanning every contact on every run. This matters
+    a lot in practice: the LATERAL join below uses the GIN trigram index
+    correctly on its *inner* side, but the query planner still has to
+    drive that lookup once per *outer* row - with no cap there, cost scales
+    with total contact count, not with dedupe_max_per_run, and a real
+    contact table (tens of thousands of rows) can turn "every candidate
+    pair" into a query that runs for minutes and gets killed by the
+    database's own statement timeout - which surfaces as a bare "job
+    failed" with nothing more specific in the logs. DEDUPE_BATCH_SIZE
+    caps that outer side to a fixed, predictable amount of work per run
+    regardless of how large contacts grows over time; the weekly cron
+    just takes more runs to sweep the whole table, which is fine for a
+    non-urgent, human-reviewed suggestion queue.
+    """
     db = SessionLocal()
     try:
         already_queued_pairs: set[frozenset[str]] = set()
@@ -167,27 +188,55 @@ def scan_for_duplicates() -> None:
             if len(ids) == 2:
                 already_queued_pairs.add(frozenset(ids))
 
-        # Top-3 nearest-by-trigram-similarity match per contact, using the
-        # GIN trigram index (the `%` operator) rather than a full O(n^2)
-        # self-join - see migration 0012's docstring on why a plain btree
-        # can't do this. LIMIT keeps this bounded on a first run against
-        # ~118k contacts, same principle as the follow-up scan's cap.
-        rows = db.execute(
+        cursor = get_state(db, _DEDUPE_CURSOR_KEY).get("last_contact_id")
+
+        # Fetch this run's page of "a" contacts first, as a plain id list -
+        # a fast, single-index lookup (id > cursor, ORDER BY id LIMIT n).
+        # This is what actually bounds the work below: everything after
+        # this touches at most DEDUPE_BATCH_SIZE "a" contacts, however big
+        # `contacts` grows over time, instead of scanning the whole table
+        # every run (see this function's docstring for why that mattered).
+        page_ids = db.execute(
             text(
-                "SELECT a.id AS a_id, b.id AS b_id, similarity(a.full_name, b.full_name) AS sim, "
-                "a.company_id AS a_company, b.company_id AS b_company "
-                "FROM contacts a "
-                "JOIN LATERAL ("
-                "  SELECT b.id, b.full_name, b.company_id, similarity(a.full_name, b.full_name) AS sim "
-                "  FROM contacts b "
-                "  WHERE b.source_db = a.source_db AND b.id <> a.id AND b.full_name % a.full_name"
-                "    AND NOT (b.custom_fields ? '_merged_into')"
-                "  ORDER BY sim DESC LIMIT 3"
-                ") b ON true "
-                "WHERE a.id < b.id AND NOT (a.custom_fields ? '_merged_into') "
-                f"ORDER BY sim DESC LIMIT {settings.dedupe_max_per_run * 3}"
-            )
-        ).all()
+                "SELECT id FROM contacts WHERE NOT (custom_fields ? '_merged_into') "
+                "AND (CAST(:cursor AS uuid) IS NULL OR id > CAST(:cursor AS uuid)) "
+                "ORDER BY id LIMIT :batch_size"
+            ),
+            {"cursor": cursor, "batch_size": settings.dedupe_batch_size},
+        ).scalars().all()
+
+        # Advance (or wrap) the cursor now, based on the page itself - not
+        # on how many candidate pairs it produced, so a quiet page of
+        # contacts still moves the sweep forward next run rather than
+        # getting stuck re-scanning it forever.
+        set_state(db, _DEDUPE_CURSOR_KEY, {"last_contact_id": str(max(page_ids)) if page_ids else None})
+
+        rows = []
+        if page_ids:
+            # Top-3 nearest-by-trigram-similarity match per contact, using
+            # the GIN trigram index (the `%` operator) rather than a full
+            # O(n^2) self-join - see migration 0012's docstring on why a
+            # plain btree can't do this. The inner side still scans all of
+            # `contacts` per outer row (that's what the index is for); only
+            # the outer side (`page_ids`, capped above) bounds the total
+            # work.
+            rows = db.execute(
+                text(
+                    "SELECT a.id AS a_id, b.id AS b_id, similarity(a.full_name, b.full_name) AS sim, "
+                    "a.company_id AS a_company, b.company_id AS b_company "
+                    "FROM contacts a "
+                    "JOIN LATERAL ("
+                    "  SELECT b.id, b.full_name, b.company_id, similarity(a.full_name, b.full_name) AS sim "
+                    "  FROM contacts b "
+                    "  WHERE b.source_db = a.source_db AND b.id <> a.id AND b.full_name % a.full_name"
+                    "    AND NOT (b.custom_fields ? '_merged_into')"
+                    "  ORDER BY sim DESC LIMIT 3"
+                    ") b ON true "
+                    "WHERE a.id = ANY(:page_ids) "
+                    f"ORDER BY sim DESC LIMIT {settings.dedupe_max_per_run * 3}"
+                ),
+                {"page_ids": page_ids},
+            ).all()
 
         # Corroborating signal: do these two contacts share an activity?
         shared_activity_pairs: set[frozenset[str]] = set()
