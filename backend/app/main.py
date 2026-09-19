@@ -1,7 +1,15 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Without this, the root logger defaults to WARNING and every logger.info()
+# call anywhere in the app (every automation's scan progress, in
+# particular) is silently dropped - only uvicorn's own access/error logs
+# show up. Set once, as early as possible, so it's in effect before any
+# automation module logs anything at import or run time.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 import app.automations  # noqa: F401 - import registers every automation's review kinds + producer jobs
 from app.api.routes import (
