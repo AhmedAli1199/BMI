@@ -2,10 +2,16 @@
 data already in Postgres - no mailbox, no AI required, unblocked from day
 one. Finds likely-duplicate contacts within the same source_db (contacts
 are deliberately kept separate per title - see contact.py's docstring, so
-a merge never crosses that boundary) using trigram name similarity,
-corroborated by the real activity/company association data from the
-2026-09-18 backfill (two contacts sharing an activity or a company link is
-much stronger evidence than name similarity alone).
+a merge never crosses that boundary) using trigram name similarity to
+generate candidate pairs, then scores each pair on as many comparable
+fields as both sides actually have data for (see _score_pair /
+_FIELD_WEIGHTS): company, email, phone, postcode/city, plus whether they
+share an activity. A perfect name match alone deliberately cannot reach
+100% confidence - matching names is real evidence, but on its own it
+isn't proof of the same person (shared names happen; two duplicate
+records can also have a name that only fuzzy-matches), and reporting
+"100% confident" from name alone would mislead a reviewer into thinking
+every field matched when only one did.
 
 Every merge is queued for a human to confirm - there is no auto-merge
 path. A false merge is effectively irreversible (child records get
@@ -21,10 +27,12 @@ lost.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.automations.registry import ReviewAction, ReviewKind, register
@@ -50,6 +58,152 @@ from app.models.contact_channel import Address
 
 def _label(contact: Contact) -> str:
     return contact.full_name or " ".join(filter(None, [contact.first_name, contact.last_name])) or "(no name)"
+
+
+# How much each comparable field contributes to overall confidence. These
+# always sum to 1.0 - the point being that NO single field, however
+# perfectly it matches, can push confidence past its own weight. A
+# perfect name match alone tops out at 0.40, never 100% - matching names
+# is real evidence, but two different people can share a name, and two
+# duplicate records can have a name that only fuzzy-matches (a nickname,
+# a typo) - name similarity earning the whole score, on its own, is
+# exactly the misleading "100% confident" result this is designed not to
+# produce. A field neither contact has data for contributes 0, same as an
+# outright mismatch - "we don't know" is not evidence of a match, so it's
+# never treated as one.
+_FIELD_WEIGHTS = {
+    "name": 0.40,
+    "company": 0.20,
+    "email": 0.15,
+    "phone": 0.15,
+    "location": 0.10,
+}
+
+
+def _normalize_phone(number: str | None) -> str | None:
+    """Compares the last 9 digits only, so "+44 20 7946 0958", "020 7946
+    0958" and "02079460958" all match despite different formatting/country
+    prefixes - exact string equality would treat all of those as different
+    phone numbers, which they aren't."""
+    if not number:
+        return None
+    digits = re.sub(r"\D", "", number)
+    return digits[-9:] if len(digits) >= 9 else (digits or None)
+
+
+def _text_similarity(a: str | None, b: str | None) -> float | None:
+    if not a or not b:
+        return None
+    return SequenceMatcher(None, a.strip().lower(), b.strip().lower()).ratio()
+
+
+def _fetch_contact_details(db: Session, contact_ids: set[uuid.UUID]) -> dict[uuid.UUID, dict]:
+    """One batched fetch of the fields the confidence score needs -
+    primary email, primary phone, primary address's postal code/city -
+    for a bounded set of candidate contact ids (never the whole page;
+    scan_for_duplicates only calls this with the handful of pairs that
+    survived the trigram match). Deliberately not folded into the earlier
+    raw-SQL query - that query's whole job is cheaply narrowing tens of
+    thousands of contacts down to a short candidate list; the more
+    detailed field comparison only ever needs to run on that short list."""
+    if not contact_ids:
+        return {}
+    ids = list(contact_ids)
+    result: dict[uuid.UUID, dict] = {cid: {} for cid in ids}
+
+    for cid, address, is_primary in db.execute(
+        select(Email.contact_id, Email.address, Email.is_primary).where(Email.contact_id.in_(ids))
+    ).all():
+        if "email" not in result[cid] or is_primary:
+            result[cid]["email"] = address
+
+    for cid, number, is_primary in db.execute(
+        select(Phone.contact_id, Phone.number, Phone.is_primary).where(Phone.contact_id.in_(ids))
+    ).all():
+        if "phone" not in result[cid] or is_primary:
+            result[cid]["phone"] = number
+
+    for cid, postal, city, is_primary in db.execute(
+        select(Address.contact_id, Address.postal_code, Address.city, Address.is_primary)
+        .where(Address.contact_id.in_(ids))
+    ).all():
+        if "postal_code" not in result[cid] or is_primary:
+            result[cid]["postal_code"] = postal
+            result[cid]["city"] = city
+
+    return result
+
+
+def _score_pair(
+    name_similarity: float,
+    survivor: Contact,
+    candidate: Contact,
+    survivor_details: dict,
+    candidate_details: dict,
+    shares_activity: bool,
+) -> tuple[float, list[dict]]:
+    """Weighted multi-field confidence, 0.0-1.0 - see _FIELD_WEIGHTS. Also
+    returns the per-field breakdown shown on the review card, so a
+    reviewer sees exactly why a pair scored what it did (which field(s)
+    corroborated, which couldn't be compared) rather than one opaque
+    number."""
+    scores: dict[str, float] = {"name": name_similarity}
+    details: list[dict] = [
+        {"key": "name_similarity", "label": "Name similarity", "value": f"{name_similarity:.0%}"}
+    ]
+
+    if survivor.company_id and candidate.company_id:
+        scores["company"] = 1.0 if survivor.company_id == candidate.company_id else 0.0
+        details.append({"key": "same_company", "label": "Same company", "value": "Yes" if scores["company"] else "No"})
+    else:
+        company_sim = _text_similarity(survivor.company_name_freetext, candidate.company_name_freetext)
+        if company_sim is not None:
+            scores["company"] = company_sim
+            details.append({"key": "same_company", "label": "Similar company name", "value": f"{company_sim:.0%}"})
+        else:
+            details.append({"key": "same_company", "label": "Same company", "value": "Unknown - no data"})
+
+    survivor_email = (survivor_details.get("email") or "").strip().lower()
+    candidate_email = (candidate_details.get("email") or "").strip().lower()
+    if survivor_email and candidate_email:
+        scores["email"] = 1.0 if survivor_email == candidate_email else 0.0
+        details.append({"key": "same_email", "label": "Same email", "value": "Yes" if scores["email"] else "No"})
+    else:
+        details.append({"key": "same_email", "label": "Same email", "value": "Unknown - no data"})
+
+    survivor_phone = _normalize_phone(survivor_details.get("phone"))
+    candidate_phone = _normalize_phone(candidate_details.get("phone"))
+    if survivor_phone and candidate_phone:
+        scores["phone"] = 1.0 if survivor_phone == candidate_phone else 0.0
+        details.append({"key": "same_phone", "label": "Same phone", "value": "Yes" if scores["phone"] else "No"})
+    else:
+        details.append({"key": "same_phone", "label": "Same phone", "value": "Unknown - no data"})
+
+    survivor_postal = (survivor_details.get("postal_code") or "").strip().lower()
+    candidate_postal = (candidate_details.get("postal_code") or "").strip().lower()
+    if survivor_postal and candidate_postal:
+        scores["location"] = 1.0 if survivor_postal == candidate_postal else 0.0
+        details.append({"key": "same_location", "label": "Same postcode", "value": "Yes" if scores["location"] else "No"})
+    else:
+        survivor_city = (survivor_details.get("city") or "").strip().lower()
+        candidate_city = (candidate_details.get("city") or "").strip().lower()
+        if survivor_city and candidate_city:
+            scores["location"] = 1.0 if survivor_city == candidate_city else 0.0
+            details.append({"key": "same_location", "label": "Same city", "value": "Yes" if scores["location"] else "No"})
+        else:
+            details.append({"key": "same_location", "label": "Same postcode/city", "value": "Unknown - no data"})
+
+    confidence = sum(_FIELD_WEIGHTS[field] * value for field, value in scores.items())
+
+    # Shared-activity is corroboration on top of the field comparison
+    # above, not one of the weighted fields itself (it's a relationship
+    # signal, not a property either contact "has" to compare) - a small
+    # bonus, still capped at 1.0 overall.
+    if shares_activity:
+        confidence = min(1.0, confidence + 0.05)
+    details.append({"key": "shared_activity", "label": "Shares an activity", "value": "Yes" if shares_activity else "No"})
+
+    return confidence, details
 
 
 def _reassign_simple(db: Session, model, fk_col: str, loser_id: uuid.UUID, survivor_id: uuid.UUID) -> None:
@@ -222,11 +376,10 @@ def scan_for_duplicates() -> None:
             # work.
             rows = db.execute(
                 text(
-                    "SELECT a.id AS a_id, b.id AS b_id, similarity(a.full_name, b.full_name) AS sim, "
-                    "a.company_id AS a_company, b.company_id AS b_company "
+                    "SELECT a.id AS a_id, b.id AS b_id, similarity(a.full_name, b.full_name) AS sim "
                     "FROM contacts a "
                     "JOIN LATERAL ("
-                    "  SELECT b.id, b.full_name, b.company_id, similarity(a.full_name, b.full_name) AS sim "
+                    "  SELECT b.id, b.full_name, similarity(a.full_name, b.full_name) AS sim "
                     "  FROM contacts b "
                     "  WHERE b.source_db = a.source_db AND b.id <> a.id AND b.full_name % a.full_name"
                     "    AND NOT (b.custom_fields ? '_merged_into')"
@@ -259,6 +412,13 @@ def scan_for_duplicates() -> None:
                             if x != y:
                                 shared_activity_pairs.add(frozenset({x, y}))
 
+        # Batch-fetch the extra fields the multi-field score needs, for
+        # only the contacts actually involved in a surviving candidate
+        # pair - never the whole page, see _fetch_contact_details.
+        all_ids = {row.a_id for row in rows} | {row.b_id for row in rows}
+        contacts_by_id = {c.id: c for c in db.query(Contact).filter(Contact.id.in_(all_ids))} if all_ids else {}
+        details_by_id = _fetch_contact_details(db, all_ids)
+
         queued = 0
         for row in rows:
             if queued >= settings.dedupe_max_per_run:
@@ -268,17 +428,20 @@ def scan_for_duplicates() -> None:
                 continue
             already_queued_pairs.add(pair)
 
-            confidence = float(row.sim)
-            if row.a_company and row.a_company == row.b_company:
-                confidence = min(1.0, confidence + 0.15)
-            if pair in shared_activity_pairs:
-                confidence = min(1.0, confidence + 0.1)
-            if confidence < settings.dedupe_confidence_floor:
+            survivor = contacts_by_id.get(row.a_id)
+            candidate_contact = contacts_by_id.get(row.b_id)
+            if not survivor or not candidate_contact:
                 continue
 
-            survivor = db.get(Contact, row.a_id)
-            candidate_contact = db.get(Contact, row.b_id)
-            if not survivor or not candidate_contact:
+            confidence, details = _score_pair(
+                float(row.sim),
+                survivor,
+                candidate_contact,
+                details_by_id.get(row.a_id, {}),
+                details_by_id.get(row.b_id, {}),
+                pair in shared_activity_pairs,
+            )
+            if confidence < settings.dedupe_confidence_floor:
                 continue
 
             db.add(ReviewQueueItem(
@@ -287,12 +450,8 @@ def scan_for_duplicates() -> None:
                 entity_type="contact",
                 entity_id=survivor.id,
                 payload={
-                    "summary": f"\"{_label(survivor)}\" and \"{_label(candidate_contact)}\" look like the same person",
-                    "details": [
-                        {"key": "name_similarity", "label": "Name similarity", "value": f"{row.sim:.0%}"},
-                        {"key": "same_company", "label": "Same company", "value": "Yes" if row.a_company == row.b_company and row.a_company else "No"},
-                        {"key": "shared_activity", "label": "Shares an activity", "value": "Yes" if pair in shared_activity_pairs else "No"},
-                    ],
+                    "summary": f"\"{_label(survivor)}\" and \"{_label(candidate_contact)}\" might be the same person",
+                    "details": details,
                     "related_entities": [
                         {"type": "contact", "id": str(survivor.id), "label": f"{_label(survivor)} (keep this one)"},
                         {"type": "contact", "id": str(candidate_contact.id), "label": f"{_label(candidate_contact)} (would be retired)"},
