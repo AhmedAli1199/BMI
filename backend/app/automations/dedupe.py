@@ -269,10 +269,17 @@ def _merge_contacts(db: Session, survivor: Contact, loser: Contact) -> None:
 
 def _handle_duplicate(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
     candidate = item.payload.get("candidate") or {}
-    loser_id = candidate.get("contact_id")
-    survivor_id = str(item.entity_id) if item.entity_id else None
-    if not loser_id or not survivor_id:
+    pair_ids = {str(item.entity_id) if item.entity_id else None, candidate.get("contact_id")} - {None}
+    if len(pair_ids) != 2:
         raise ValueError("This review item is missing one of the two contact records - can't act on it.")
+
+    # Which contact survives is the reviewer's call (requires_related_entity_choice
+    # on "merge", below) - default to the automation's original guess
+    # (item.entity_id) only for items queued before this choice existed,
+    # so nothing already in the queue breaks.
+    chosen = input_data.get("chosen_entity_id")
+    survivor_id = chosen if chosen in pair_ids else (str(item.entity_id) if item.entity_id else None)
+    loser_id = next(iter(pair_ids - {survivor_id}))
 
     survivor = db.get(Contact, uuid.UUID(survivor_id))
     loser = db.get(Contact, uuid.UUID(loser_id))
@@ -291,16 +298,17 @@ register(ReviewKind(
     kind="duplicate_contact",
     label="Possible duplicate contact",
     description=(
-        "Two contact records in the same database look like the same person. Merging moves every "
-        "note, history entry, activity, and group membership from the older record onto the one you "
-        "keep, then retires the other - it never deletes anything outright, but it can't be undone "
+        "Two contact records in the same database look like the same person. Pick which one to keep, "
+        "then merging moves every note, history entry, activity, and group membership from the other "
+        "onto it and retires that one - it never deletes anything outright, but it can't be undone "
         "from this screen, so double-check before confirming."
     ),
     actions=[
         ReviewAction(
             id="merge", label="Merge - same person", style="primary", outcome="approved",
+            requires_related_entity_choice=True,
             confirm_message="This moves every note, history, activity and group membership from the "
-                             "older record onto the one shown as the survivor, then retires the other. Continue?",
+                             "other record onto the one you picked to keep, then retires the other. Continue?",
         ),
         ReviewAction(id="not_duplicate", label="Not a duplicate", style="destructive", outcome="rejected"),
     ],
@@ -452,9 +460,13 @@ def scan_for_duplicates() -> None:
                 payload={
                     "summary": f"\"{_label(survivor)}\" and \"{_label(candidate_contact)}\" might be the same person",
                     "details": details,
+                    # Plain labels, deliberately no "(keep this one)"/"(would be
+                    # retired)" - which one survives is the reviewer's choice
+                    # at action time (merge's requires_related_entity_choice),
+                    # not something this scan should presume.
                     "related_entities": [
-                        {"type": "contact", "id": str(survivor.id), "label": f"{_label(survivor)} (keep this one)"},
-                        {"type": "contact", "id": str(candidate_contact.id), "label": f"{_label(candidate_contact)} (would be retired)"},
+                        {"type": "contact", "id": str(survivor.id), "label": _label(survivor)},
+                        {"type": "contact", "id": str(candidate_contact.id), "label": _label(candidate_contact)},
                     ],
                     "candidate": {"contact_id": str(candidate_contact.id), "label": _label(candidate_contact)},
                     "confidence": round(confidence, 2),

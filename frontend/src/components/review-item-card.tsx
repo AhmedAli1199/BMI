@@ -55,6 +55,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   const [note, setNote] = useState("");
   const [contact, setContact] = useState<{ id: string; label: string } | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
+  const [chosenEntityId, setChosenEntityId] = useState<string | null>(null);
   const [confirmingDestructive, setConfirmingDestructive] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [justResolvedLabel, setJustResolvedLabel] = useState<string | null>(null);
@@ -77,15 +78,22 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
     setNote("");
     setContact(null);
     setFields({});
+    setChosenEntityId(null);
   }
 
   function actionNeedsInput(action: ReviewAction): boolean {
-    return action.requires_note || action.requires_contact_picker || action.extra_fields.length > 0;
+    return (
+      action.requires_note ||
+      action.requires_contact_picker ||
+      action.requires_related_entity_choice ||
+      action.extra_fields.length > 0
+    );
   }
 
   function canSubmit(action: ReviewAction): boolean {
     if (action.requires_note && !note.trim()) return false;
     if (action.requires_contact_picker && !contact) return false;
+    if (action.requires_related_entity_choice && !chosenEntityId) return false;
     for (const f of action.extra_fields) {
       if (f.required && !(fields[f.key] ?? "").trim()) return false;
     }
@@ -99,6 +107,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
           note: note.trim() || undefined,
           contact_id: contact?.id,
           fields,
+          chosen_entity_id: chosenEntityId ?? undefined,
         });
         toast.success(`${action.label} — done`);
         setJustResolvedLabel(action.label);
@@ -298,6 +307,9 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
             setContact={setContact}
             fields={fields}
             setFields={setFields}
+            relatedEntities={payload.related_entities ?? []}
+            chosenEntityId={chosenEntityId}
+            setChosenEntityId={setChosenEntityId}
             pending={pending}
             canSubmit={canSubmit(kind.actions.find((a) => a.id === expandedAction)!)}
             onCancel={() => {
@@ -320,6 +332,9 @@ function ExpandedActionForm({
   setContact,
   fields,
   setFields,
+  relatedEntities,
+  chosenEntityId,
+  setChosenEntityId,
   pending,
   canSubmit,
   onCancel,
@@ -332,11 +347,16 @@ function ExpandedActionForm({
   setContact: (v: { id: string; label: string } | null) => void;
   fields: Record<string, string>;
   setFields: (v: Record<string, string>) => void;
+  relatedEntities: { type: "contact" | "company"; id: string; label: string }[];
+  chosenEntityId: string | null;
+  setChosenEntityId: (v: string | null) => void;
   pending: boolean;
   canSubmit: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }) {
+  const choiceOptions = relatedEntities.filter((e) => e.type === "contact");
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
       <span className="text-xs font-bold text-foreground">{action.label}</span>
@@ -345,6 +365,39 @@ function ExpandedActionForm({
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
           {action.confirm_message}
         </span>
+      )}
+
+      {action.requires_related_entity_choice && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs">Which one do you want to keep?</Label>
+          <div className="flex flex-col gap-1.5">
+            {choiceOptions.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => setChosenEntityId(e.id)}
+                className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors ${
+                  chosenEntityId === e.id
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <span>{e.label}</span>
+                {chosenEntityId === e.id && (
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
+                    <Check className="size-3.5" />
+                    Keep this one
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {choiceOptions.length > 0 && !chosenEntityId && (
+            <span className="text-[11px] text-muted-foreground">
+              The other record will be retired (kept, just marked merged - never deleted).
+            </span>
+          )}
+        </div>
       )}
 
       {action.requires_contact_picker && (

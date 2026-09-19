@@ -458,6 +458,7 @@ class ReviewActionOut(BaseModel):
     requires_contact_picker: bool
     extra_fields: list[dict]
     confirm_message: str | None = None
+    requires_related_entity_choice: bool = False
 
 
 class ReviewKindOut(BaseModel):
@@ -500,6 +501,12 @@ class ReviewActionRequest(BaseModel):
     note: str | None = None
     contact_id: uuid.UUID | None = None
     fields: dict[str, str] = {}
+    # Which of this item's own related_entities the reviewer picked, for an
+    # action with requires_related_entity_choice=True (e.g. CS-004's merge -
+    # which contact survives) - kept separate from contact_id, which is for
+    # picking an unrelated contact via search (e.g. "match this bounce to
+    # someone"), a different kind of choice with a different UI.
+    chosen_entity_id: uuid.UUID | None = None
 
 
 class ReviewQueuePage(Page):

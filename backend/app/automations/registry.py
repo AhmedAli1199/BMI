@@ -82,6 +82,12 @@ class ReviewAction:
     requires_contact_picker: bool = False
     # Arbitrary additional text inputs this action needs - see ExtraField.
     extra_fields: list[ExtraField] = field(default_factory=list)
+    # If set, the UI must collect a choice among this item's own
+    # payload["related_entities"] (contacts only) before the action can be
+    # submitted, and sends it as chosen_entity_id - e.g. CS-004's merge
+    # action uses this to let the reviewer pick which of the two contacts
+    # survives, rather than the automation guessing.
+    requires_related_entity_choice: bool = False
     # If set, shown in a confirm step before the action fires - use for
     # anything that writes to multiple records or can't be undone from
     # the UI (a merge, a multi-record successor update).

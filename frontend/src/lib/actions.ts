@@ -460,13 +460,22 @@ export async function searchContacts(q: string): Promise<ContactListItem[]> {
 export async function resolveReviewItem(
   itemId: string,
   actionId: string,
-  input: { note?: string; contact_id?: string; fields?: Record<string, string> }
+  input: { note?: string; contact_id?: string; fields?: Record<string, string>; chosen_entity_id?: string }
 ) {
   await backendFetch(`/api/review-queue/${itemId}/actions/${actionId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+  revalidatePath("/automations");
+  revalidatePath("/automations/review");
+}
+
+/** Puts a rejected review item back to pending - see backend's
+ * POST /api/review-queue/{id}/reopen for why this only works on a
+ * rejected item, never an approved one. */
+export async function reopenReviewItem(itemId: string) {
+  await backendFetch(`/api/review-queue/${itemId}/reopen`, { method: "POST" });
   revalidatePath("/automations");
   revalidatePath("/automations/review");
 }

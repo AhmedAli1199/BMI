@@ -217,6 +217,7 @@ export type ReviewAction = {
   requires_contact_picker: boolean;
   extra_fields: ReviewExtraField[];
   confirm_message: string | null;
+  requires_related_entity_choice: boolean;
 };
 
 export type ReviewKind = {

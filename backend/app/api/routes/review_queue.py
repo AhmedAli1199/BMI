@@ -42,6 +42,7 @@ def list_kinds() -> list[ReviewKindOut]:
                         for f in a.extra_fields
                     ],
                     confirm_message=a.confirm_message,
+                    requires_related_entity_choice=a.requires_related_entity_choice,
                 )
                 for a in k.actions
             ],
@@ -128,6 +129,10 @@ def resolve_review_item(
         raise HTTPException(status_code=400, detail="This action requires a note.")
     if action.requires_contact_picker and not payload.contact_id:
         raise HTTPException(status_code=400, detail="This action requires picking a contact.")
+    if action.requires_related_entity_choice:
+        related_ids = {e.get("id") for e in item.payload.get("related_entities", []) if e.get("type") == "contact"}
+        if not payload.chosen_entity_id or str(payload.chosen_entity_id) not in related_ids:
+            raise HTTPException(status_code=400, detail="Pick which record this action applies to.")
     for f in action.extra_fields:
         if f.required and not (payload.fields.get(f.key) or "").strip():
             raise HTTPException(status_code=400, detail=f"{f.label} is required.")
@@ -137,6 +142,8 @@ def resolve_review_item(
         input_data["note"] = payload.note
     if payload.contact_id:
         input_data["contact_id"] = payload.contact_id
+    if payload.chosen_entity_id:
+        input_data["chosen_entity_id"] = str(payload.chosen_entity_id)
 
     try:
         kind_def.handler(db, item, action_id, input_data)
@@ -148,6 +155,38 @@ def resolve_review_item(
     item.resolved_action = action_id
     item.review_note = payload.note
     item.reviewed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(item)
+    return ReviewQueueItemOut.model_validate(item)
+
+
+@router.post("/{item_id}/reopen", response_model=ReviewQueueItemOut)
+def reopen_review_item(item_id: uuid.UUID, db: Session = Depends(get_db)) -> ReviewQueueItemOut:
+    """Puts a rejected item back into the pending queue - the safety net
+    for "I dismissed a batch of these too quickly and want a second look
+    at one." Deliberately rejected-only: an *approved* item's handler
+    already made a real CRM write (a merge, an unsubscribe, a new
+    contact), and reopening it wouldn't undo that - it would just let
+    someone approve it again and potentially run the write a second time.
+    A rejected item's handler never writes anything (see e.g.
+    dedupe.py's "not_duplicate": pass), so putting it back to pending is
+    completely safe - nothing to undo, nothing that could double-apply."""
+    item = db.get(ReviewQueueItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item.status != "rejected":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only a rejected item can be reopened - an approved one already made its CRM "
+                "change, and reopening it wouldn't undo that."
+            ),
+        )
+
+    item.status = "pending"
+    item.resolved_action = None
+    item.review_note = None
+    item.reviewed_at = None
     db.commit()
     db.refresh(item)
     return ReviewQueueItemOut.model_validate(item)
