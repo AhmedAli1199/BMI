@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+import logging
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ScheduledJobOut
@@ -8,6 +10,8 @@ from app.automations.business_card import process_business_card_photo
 from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled
 from app.db.session import get_db
+
+logger = logging.getLogger("app.api.automations")
 
 router = APIRouter(prefix="/automations", tags=["automations"])
 
@@ -29,6 +33,40 @@ def list_jobs() -> list[ScheduledJobOut]:
         )
         for j in all_jobs()
     ]
+
+
+@router.post("/jobs/{job_id}/run")
+def run_job_now(job_id: str) -> dict:
+    """Fires one registered producer job immediately, out of band from its
+    cron schedule - for testing a scan without waiting for it (or without
+    temporarily hacking the cron string + restarting). Runs synchronously
+    and inline: every job body is a fast, bounded scan (a handful of
+    mailbox/DB reads), not a long-running task, so there's no need for a
+    background queue here.
+
+    Deliberately ignores the job's enabled_flag - "run this once, right
+    now, so I can see what it finds" is exactly the point when you're
+    testing a scan you haven't flipped on for real yet. It does NOT change
+    whether the job runs on its own schedule; that's still the env-var
+    toggle. Every job function already fails soft internally (catches its
+    own errors so a bad mailbox message can't lose the rest of a batch),
+    so a raised exception here means something genuinely broke, not "0
+    found" - which is why it's surfaced as a 500 with the real message
+    rather than swallowed.
+    """
+    job = next((j for j in all_jobs() if j.id == job_id), None)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"No registered job with id {job_id!r}")
+
+    logger.info("manual run requested for automation job: %s", job.id)
+    try:
+        job.func()
+    except Exception as exc:
+        logger.exception("manual run failed for automation job: %s", job.id)
+        raise HTTPException(status_code=500, detail=f"{job.id} failed: {exc}") from exc
+
+    logger.info("manual run finished for automation job: %s", job.id)
+    return {"ok": True, "job_id": job.id, "message": "Ran to completion - check the review queue and logs for what it found."}
 
 
 @router.post("/business-cards/upload")

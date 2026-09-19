@@ -14,6 +14,7 @@ import type { ReviewKind, ReviewQueueCounts, ScheduledJob } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PhotoUploadDialog } from "@/components/photo-upload-dialog";
+import { RunJobButton } from "@/components/run-job-button";
 import { SOURCE_LABELS } from "@/lib/sources";
 
 export default async function AutomationsPage() {
@@ -225,8 +226,9 @@ export default async function AutomationsPage() {
         <Card className="editorial-card">
           <CardHeader className="border-b pb-3">
             <p className="text-xs text-muted-foreground">
-              These run on a schedule to find new items for the automations above. Both start
-              switched off until mailbox access is wired in and someone deliberately turns them on.
+              These run on a schedule to find new items for the automations above. &quot;Run now&quot;
+              fires one immediately for testing, regardless of whether it&apos;s switched on - the
+              schedule itself stays an env-var + restart decision, deliberately outside this screen.
             </p>
           </CardHeader>
           <CardContent className="flex flex-col divide-y divide-border/70 p-0">
@@ -261,6 +263,7 @@ export default async function AutomationsPage() {
                   >
                     {j.enabled ? "LIVE" : "OFF"}
                   </Badge>
+                  <RunJobButton jobId={j.id} />
                 </div>
               </div>
             ))}
