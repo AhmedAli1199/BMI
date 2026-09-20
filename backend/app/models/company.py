@@ -43,6 +43,14 @@ class Company(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True, index=True
     )
 
+    # Act!'s MANAGEUSERID ("Record Manager") - see Contact.owner_user_id's
+    # docstring for the exact same reasoning (only set for a name that
+    # resolves to a current CRM login; the raw Act! name is always kept in
+    # custom_fields["_original_record_manager"] regardless).
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
+
     # Every custom field (CUST_*, USER1-10) that wasn't important enough to
     # get its own column, keyed by its decoded Act! label (via
     # TBL_SYSCOLUMN.DISPLAYNAME), not its raw CUST_*_<digits> column name.

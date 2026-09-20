@@ -25,6 +25,17 @@ class Contact(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True, index=True
     )
 
+    # Act!'s MANAGEUSERID ("Record Manager") backfilled from the source .bak
+    # (see migration/backfill_owner.py) - only set when that Act! user
+    # resolves to a real, current CRM login; for anyone else (a former
+    # employee, a shared/system account), custom_fields["_original_record_manager"]
+    # still carries the raw Act! name for context, but this stays null - a
+    # dangling owner pointing at nobody would be worse than no owner at all
+    # for anything that filters/ranks by it (e.g. the morning follow-up queue).
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
+
     first_name: Mapped[str | None] = mapped_column(String(128))
     middle_name: Mapped[str | None] = mapped_column(String(128))
     last_name: Mapped[str | None] = mapped_column(String(256))
