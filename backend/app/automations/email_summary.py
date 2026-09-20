@@ -52,16 +52,38 @@ _SIGNAL_EXTRACTION_PROMPT = (
     "You read one real email exchange between a salesperson and a client/prospect. Extract any of the "
     "following that this message (in light of the conversation summary so far) actually establishes - "
     "never invent one that isn't clearly there:\n"
-    "- budget_window: a month/quarter mentioned for a future spend decision\n"
-    "- renewal_date: a contract or ad-placement renewal date\n"
+    "- budget_window: ONLY when a specific figure, spend amount, or explicit budget/spend commitment is "
+    "mentioned (e.g. \"has a budget of £4,000\", \"an extra £6k for Q4\"). A month/quarter/deadline date "
+    "mentioned on its own - a webinar date, a press/print deadline, an event date - is NOT a budget_window "
+    "unless money or spend is explicitly tied to it. When in doubt, don't extract it.\n"
+    "- renewal_date: a contract or ad-placement renewal date with an actual client/customer - NEVER an "
+    "internal BMI staffing, appointment, promotion, or payroll matter (those aren't renewals, skip them "
+    "entirely even if a date is mentioned).\n"
     "- promised_callback: a specific date the salesperson said they'd follow up\n"
-    "- personal_touchpoint: an occasion mentioned in passing (leave, a holiday, an anniversary) worth "
-    "a personal note later\n\n"
+    "- personal_touchpoint: a light, positive-or-neutral personal occasion mentioned in passing (leave, a "
+    "holiday, a birthday, an anniversary) worth a friendly note later. NEVER extract a bereavement, death, "
+    "serious illness, or other sensitive/difficult personal matter as a personal_touchpoint - those need a "
+    "human's own judgement, not an automated note, so leave them out entirely.\n\n"
     "Return JSON of the exact shape: {\"signals\": [{\"type\": one of the four above, "
     "\"due_date\": \"YYYY-MM-DD\" or null, \"summary\": \"one sentence\"}], "
     "\"thread_summary\": \"one or two sentences on where this conversation stands\"}. "
     "Return {\"signals\": [], \"thread_summary\": \"...\"} if nothing above is actually established."
 )
+
+# Belt-and-suspenders safety net for the personal_touchpoint prompt
+# instruction above - never rely on the LLM alone to keep a sensitive
+# matter out of an automated note. Any personal_touchpoint whose summary
+# hits one of these is dropped rather than stored, regardless of what the
+# model returned.
+_SENSITIVE_TOUCHPOINT_KEYWORDS = (
+    "bereavement", "passed away", "passing", "death", "died", "funeral", "condolence",
+    "terminal", "cancer", "serious illness", "hospice", "miscarriage",
+)
+
+
+def _is_sensitive_touchpoint(summary: str) -> bool:
+    lowered = summary.lower()
+    return any(keyword in lowered for keyword in _SENSITIVE_TOUCHPOINT_KEYWORDS)
 
 
 def _scan_mailboxes(db: Session) -> list[str]:
@@ -147,6 +169,9 @@ def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, ex
             continue
         summary = (signal.get("summary") or "").strip()
         if not summary:
+            continue
+        if signal_type == "personal_touchpoint" and _is_sensitive_touchpoint(summary):
+            logger.info("email_summary: dropped a sensitive personal_touchpoint (thread %s) - needs a human, not an automated note", thread_id)
             continue
         due_date = None
         raw_date = signal.get("due_date")
