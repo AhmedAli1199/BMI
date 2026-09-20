@@ -54,6 +54,7 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine, text
+from psycopg2.extras import execute_values
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -127,15 +128,23 @@ def _backfill_table(conn, pg_table: str, rows: list[dict], user_emails: dict[str
         })
 
     if updates:
-        conn.execute(
-            text(
-                f"UPDATE {pg_table} SET "
-                "owner_user_id = COALESCE(CAST(:owner_id AS uuid), owner_user_id), "
-                "custom_fields = custom_fields || jsonb_build_object('_original_record_manager', CAST(:raw_name AS text)) "
-                "WHERE source_db = :source_db AND source_act_id = :source_act_id"
-            ),
-            updates,
-        )
+        batch_size = 1000
+        raw_conn = conn.connection.dbapi_connection
+        cur = raw_conn.cursor()
+        sql = f"""
+        UPDATE {pg_table} AS t
+        SET owner_user_id = COALESCE(v.owner_id::uuid, t.owner_user_id),
+            custom_fields = t.custom_fields || jsonb_build_object('_original_record_manager', v.raw_name::text)
+        FROM (VALUES %s) AS v(source_db, source_act_id, owner_id, raw_name)
+        WHERE t.source_db = v.source_db AND t.source_act_id = v.source_act_id;
+        """
+        for start in range(0, len(updates), batch_size):
+            batch = [
+                (u["source_db"], u["source_act_id"], u["owner_id"], u["raw_name"])
+                for u in updates[start:start + batch_size]
+            ]
+            execute_values(cur, sql, batch, page_size=batch_size)
+        cur.close()
     return stats
 
 
