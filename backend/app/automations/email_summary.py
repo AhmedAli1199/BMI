@@ -100,7 +100,23 @@ def _looks_like_real_conversation(db: Session, msg: ParsedMessage) -> bool:
 def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, extracted: dict) -> int:
     """Insert-or-update by (source_thread_id, signal_type) - a thread's Nth
     message about the same renewal date refines the existing row, it never
-    creates a duplicate. Returns how many rows were written."""
+    creates a duplicate. Returns how many rows were written.
+
+    The LLM can (and does) return more than one signal of the same type in
+    a single response - e.g. two separate budget_window mentions in one
+    message. Since the DB constraint is one row per (thread, type), those
+    have to be merged in Python before either hits the session: a DB
+    lookup alone isn't enough, because the *second* one in the same call
+    would still see no existing row (nothing's flushed yet) and try to
+    INSERT a second row for the same key, which is exactly what produced
+    the UniqueViolation this docstring is now warning about. `existing_by_type`
+    is fetched once up front and mutated in place for the rest of this call
+    so every same-type signal after the first updates the one row instead."""
+    existing_by_type: dict[str, EmailSignal] = {
+        row.signal_type: row
+        for row in db.query(EmailSignal).filter_by(source_thread_id=thread_id).all()
+    }
+
     written = 0
     for signal in extracted.get("signals") or []:
         signal_type = signal.get("type")
@@ -117,19 +133,21 @@ def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, ex
             except ValueError:
                 pass
 
-        existing = db.query(EmailSignal).filter_by(source_thread_id=thread_id, signal_type=signal_type).first()
+        existing = existing_by_type.get(signal_type)
         if existing:
             existing.summary = summary
             existing.due_date = due_date
             existing.source_message_id = message_id
             existing.status = "open"  # a fresh mention re-opens a signal a rep may have already actioned/dismissed
         else:
-            db.add(EmailSignal(
+            new_row = EmailSignal(
                 id=uuid.uuid4(), contact_id=contact_id, signal_type=signal_type,
                 due_date=due_date, summary=summary,
                 source_thread_id=thread_id, source_message_id=message_id,
                 confidence=0.6,
-            ))
+            )
+            db.add(new_row)
+            existing_by_type[signal_type] = new_row
         written += 1
     return written
 

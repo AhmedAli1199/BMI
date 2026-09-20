@@ -20,7 +20,13 @@ export function RunJobButton({ jobId }: { jobId: string }) {
         const res = await fetch(`/api/automations/jobs/${jobId}/run`, { method: "POST" });
         const result = await res.json().catch(() => ({}));
         if (!res.ok) {
-          toast.error(result.detail ?? "That job failed - check the backend logs");
+          // Defense in depth: the backend already caps how much detail it
+          // sends back for a failed run, but a toast is never the right
+          // place for a raw stack trace or a multi-line SQL dump - cap and
+          // flatten to one line no matter what actually comes back.
+          const raw = typeof result.detail === "string" ? result.detail : "That job failed - check the backend logs";
+          const message = raw.replace(/\s+/g, " ").trim().slice(0, 300);
+          toast.error(message);
           return;
         }
         toast.success(`${jobId} ran - check the review queue for what it found`);

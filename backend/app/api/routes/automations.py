@@ -66,8 +66,17 @@ def run_job_now(job_id: str) -> dict:
     try:
         job.func()
     except Exception as exc:
+        # The full logs.exception() call below still carries the complete
+        # traceback (and, for a SQLAlchemy error, the compiled SQL +
+        # every bound parameter) - exactly what you want when debugging
+        # from the logs. None of that belongs in an HTTP response a
+        # frontend toast renders verbatim: str(exc) on a SQLAlchemy error
+        # is a multi-line dump, easily thousands of characters, so only
+        # its first line (the actual driver error message) and a hard
+        # length cap ever reach the client.
         logger.exception("manual run failed for automation job: %s", job.id)
-        raise HTTPException(status_code=500, detail=f"{job.id} failed: {exc}") from exc
+        short_reason = str(exc).splitlines()[0][:300] if str(exc) else exc.__class__.__name__
+        raise HTTPException(status_code=500, detail=f"{job.id} failed: {short_reason} (see backend logs for the full error)") from exc
 
     logger.info("manual run finished for automation job: %s", job.id)
     return {"ok": True, "job_id": job.id, "message": "Ran to completion - check the review queue and logs for what it found."}
