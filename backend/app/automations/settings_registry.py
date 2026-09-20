@@ -129,6 +129,33 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="Comma-separated BMI-owned email domains. A thread is dropped when both the sender and the matched contact are on one of these - staff-to-staff mail, not a client conversation.",
         group="Email exchange summary", type="csv",
     ),
+
+    # ---- SALES-011 - inbound contact capture ----
+    AutomationSettingDef(
+        key="automations_inbound_capture_scan_enabled", label="Scan enabled",
+        description="Whether the inbound contact capture scan runs on its schedule.",
+        group="Inbound contact capture", type="bool",
+    ),
+    AutomationSettingDef(
+        key="graph_inbound_capture_mailboxes", label="Mailboxes to scan (mailbox:source_db)",
+        description="Comma-separated \"mailbox:source_db\" pairs, e.g. enquiries@bmipublishing.co.uk:prospects - which Act! database a lead from that mailbox should be matched/suggested against.",
+        group="Inbound contact capture", type="csv",
+    ),
+    AutomationSettingDef(
+        key="inbound_capture_max_recipients", label="Max recipients",
+        description="Drop any thread with more people on it than this - a group thread, not a genuine new enquiry.",
+        group="Inbound contact capture", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="inbound_capture_min_body_chars", label="Min body length (characters)",
+        description="Drop messages shorter than this - too little to be a real enquiry.",
+        group="Inbound contact capture", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="inbound_capture_initial_lookback_minutes", label="Initial lookback (minutes)",
+        description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
+        group="Inbound contact capture", type="int", min=1,
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}

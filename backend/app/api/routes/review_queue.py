@@ -38,7 +38,10 @@ def list_kinds() -> list[ReviewKindOut]:
                     id=a.id, label=a.label, style=a.style, outcome=a.outcome,
                     requires_note=a.requires_note, requires_contact_picker=a.requires_contact_picker,
                     extra_fields=[
-                        {"key": f.key, "label": f.label, "placeholder": f.placeholder, "required": f.required}
+                        {
+                            "key": f.key, "label": f.label, "placeholder": f.placeholder,
+                            "required": f.required, "field_type": f.field_type,
+                        }
                         for f in a.extra_fields
                     ],
                     confirm_message=a.confirm_message,
@@ -134,6 +137,8 @@ def resolve_review_item(
         if not payload.chosen_entity_id or str(payload.chosen_entity_id) not in related_ids:
             raise HTTPException(status_code=400, detail="Pick which record this action applies to.")
     for f in action.extra_fields:
+        if f.field_type == "bool":
+            continue  # unchecked is a valid answer, not a missing one
         if f.required and not (payload.fields.get(f.key) or "").strip():
             raise HTTPException(status_code=400, detail=f"{f.label} is required.")
 

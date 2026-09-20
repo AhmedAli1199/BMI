@@ -94,5 +94,19 @@ class Settings(BaseSettings):
     # never a real client conversation. Comma-separated, case-insensitive.
     email_summary_internal_domains: str = "bmipublishing.co.uk,onboardhospitality.com,sellingtravel.com"
 
+    # SALES-011 (Inbound Contact Capture) - see
+    # app/automations/inbound_capture.py. A distinct mailbox list from both
+    # of the above: this scan wants a shared enquiry/enquiries-style inbox
+    # that receives genuinely new senders, not a salesperson's personal
+    # mailbox or the bounce-handling shared inbox.
+    automations_inbound_capture_scan_enabled: bool = False
+    # Each entry is "mailbox:source_db" - which Act! database's companies/
+    # groups a lead from that mailbox should be matched/suggested against
+    # (a business mapping, not something derivable from the address alone).
+    graph_inbound_capture_mailboxes: str = ""
+    inbound_capture_max_recipients: int = 3
+    inbound_capture_min_body_chars: int = 30
+    inbound_capture_initial_lookback_minutes: int = 1440
+
 
 settings = Settings()

@@ -53,13 +53,18 @@ ActionOutcome = Literal["approved", "rejected"]
 class ExtraField:
     """One additional input the UI must collect before this action can be
     submitted, beyond the note/contact-picker shortcuts below - e.g. a
-    name+email pair for "create this as a new contact". Rendered as a
-    plain text input in the generic review card; `required` blocks
-    submission until it's non-empty."""
+    name+email pair for "create this as a new contact". `field_type`
+    "text" (default) renders a plain text input in the generic review
+    card; `required` blocks submission until it's non-empty. "bool"
+    renders a checkbox instead (e.g. SALES-011's "subscribe to
+    newsletter" toggle) and submits "true"/"false" as the field's string
+    value - `required` has no effect on it, since an unchecked box is a
+    valid answer, not a missing one."""
     key: str
     label: str
     placeholder: str = ""
     required: bool = True
+    field_type: Literal["text", "bool"] = "text"
 
 
 @dataclass(frozen=True)

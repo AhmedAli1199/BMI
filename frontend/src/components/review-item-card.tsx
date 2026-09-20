@@ -419,20 +419,32 @@ function ExpandedActionForm({
         </div>
       )}
 
-      {action.extra_fields.map((f) => (
-        <div key={f.key} className="flex flex-col gap-1.5">
-          <Label className="text-xs">
+      {action.extra_fields.map((f) =>
+        f.field_type === "bool" ? (
+          <label key={f.key} className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              className="size-3.5 rounded border-border"
+              checked={fields[f.key] === "true"}
+              onChange={(e) => setFields({ ...fields, [f.key]: e.target.checked ? "true" : "false" })}
+            />
             {f.label}
-            {f.required && <span className="text-destructive"> *</span>}
-          </Label>
-          <Input
-            className="h-8 text-sm"
-            placeholder={f.placeholder}
-            value={fields[f.key] ?? ""}
-            onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
-          />
-        </div>
-      ))}
+          </label>
+        ) : (
+          <div key={f.key} className="flex flex-col gap-1.5">
+            <Label className="text-xs">
+              {f.label}
+              {f.required && <span className="text-destructive"> *</span>}
+            </Label>
+            <Input
+              className="h-8 text-sm"
+              placeholder={f.placeholder}
+              value={fields[f.key] ?? ""}
+              onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+            />
+          </div>
+        )
+      )}
 
       {action.requires_note && (
         <div className="flex flex-col gap-1.5">

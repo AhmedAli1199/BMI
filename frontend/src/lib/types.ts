@@ -206,6 +206,7 @@ export type ReviewExtraField = {
   label: string;
   placeholder: string;
   required: boolean;
+  field_type: "text" | "bool";
 };
 
 export type ReviewAction = {
