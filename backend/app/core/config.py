@@ -87,6 +87,12 @@ class Settings(BaseSettings):
     email_summary_max_recipients: int = 3  # drop anything with more people on the thread - group mail, not 1:1 sales talk
     email_summary_min_body_chars: int = 40  # drop pure one-line acks ("Thanks!") - nothing there to extract
     email_summary_initial_lookback_minutes: int = 1440
+    # BMI's own email domains - a thread where BOTH the sender and the
+    # matched contact are on one of these is staff-to-staff internal mail
+    # that happened to match a legacy/duplicate Contact row (e.g. a record
+    # manager who also has their own contact record from the Act! import),
+    # never a real client conversation. Comma-separated, case-insensitive.
+    email_summary_internal_domains: str = "bmipublishing.co.uk,onboardhospitality.com,sellingtravel.com"
 
 
 settings = Settings()

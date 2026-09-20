@@ -44,7 +44,7 @@ from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
-from app.models import Contact, EmailSignal
+from app.models import Contact, Email, EmailSignal
 
 logger = logging.getLogger("app.automations.email_summary")
 
@@ -82,6 +82,29 @@ def _thread_contact(db: Session, msg: ParsedMessage) -> Contact | None:
         if contact:
             return contact
     return None
+
+
+def _domain(address: str | None) -> str:
+    if not address or "@" not in address:
+        return ""
+    return address.rsplit("@", 1)[-1].strip().lower()
+
+
+def _is_internal_thread(db: Session, msg: ParsedMessage, contact: Contact) -> bool:
+    """True when both the mailbox's counterpart on this thread and the
+    matched contact sit on a BMI-owned domain - i.e. this is staff writing
+    to staff, not a client conversation, even though the recipient matched
+    a real Contact row (a record manager who also has a legacy/duplicate
+    contact record from the Act! import - see David Wilcox, caught in
+    review: an internal appointment/salary email got extracted as a
+    "renewal_date" because his own contact record matched)."""
+    internal_domains = {d.strip().lower() for d in runtime_settings.get_csv(db, "email_summary_internal_domains") if d.strip()}
+    if not internal_domains:
+        return False
+    contact_email = db.query(Email.address).filter(Email.contact_id == contact.id).filter(Email.address.isnot(None)).first()
+    contact_domain = _domain(contact_email[0] if contact_email else None)
+    other_party_domains = {_domain(msg.from_address), *[_domain(a) for a in msg.to_addresses]}
+    return contact_domain in internal_domains and bool(other_party_domains & internal_domains)
 
 
 def _looks_like_real_conversation(db: Session, msg: ParsedMessage) -> bool:
@@ -199,6 +222,8 @@ def scan_email_exchanges() -> None:
                 if not contact:
                     continue
                 if (contact.custom_fields or {}).get("_ai_email_summary_excluded"):
+                    continue
+                if _is_internal_thread(db, msg, contact):
                     continue
                 thread_id = msg.conversation_id or msg.internet_message_id or msg.message_id
                 threads.setdefault(thread_id, []).append((msg, contact))

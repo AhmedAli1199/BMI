@@ -124,6 +124,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
         group="Email exchange summary", type="int", min=1,
     ),
+    AutomationSettingDef(
+        key="email_summary_internal_domains", label="Internal domains",
+        description="Comma-separated BMI-owned email domains. A thread is dropped when both the sender and the matched contact are on one of these - staff-to-staff mail, not a client conversation.",
+        group="Email exchange summary", type="csv",
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}
