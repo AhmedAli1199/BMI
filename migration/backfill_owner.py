@@ -62,10 +62,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from etl import discover_accessor_name_expr, mssql_connect, to_uuid_str  # noqa: E402
 from app.models.base import SOURCE_DBS  # noqa: E402
 
-# CONFIRMED real addresses (already used elsewhere in this codebase).
-# GUESSED addresses follow the same firstname.lastname@bmipublishing.co.uk
-# pattern but have not been independently verified - confirm these four
-# with BMI before trusting the backfill for their contacts/companies.
+# Every address below is confirmed directly from BMI's own user roster -
+# see the module docstring for how the two ambiguous "Sue"/"Susan" names
+# got resolved and why "BMI Administrator" stays deliberately unmapped.
 ACCESSOR_NAME_TO_EMAIL: dict[str, str] = {
     "kay fisher": "kay.fisher@bmipublishing.co.uk",
     "shani kunar": "shani.kunar@bmipublishing.co.uk",
