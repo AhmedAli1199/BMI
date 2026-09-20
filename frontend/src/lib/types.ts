@@ -256,7 +256,14 @@ export type ReviewQueueItem = {
 
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
 
-export type ScheduledJob = { id: string; label: string; description: string; cron: string; enabled: boolean };
+export type ScheduledJob = {
+  id: string;
+  label: string;
+  description: string;
+  cron: string;
+  enabled: boolean;
+  has_cursor: boolean;
+};
 
 export type AutomationSettingType = "bool" | "int" | "float" | "csv";
 

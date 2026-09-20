@@ -250,4 +250,5 @@ register_job(ScheduledJob(
     cron="0 */4 * * *",  # every 4 hours - less urgent than bounce, more expensive per run (an LLM call per updated thread)
     func=scan_email_exchanges,
     enabled_flag="automations_email_summary_scan_enabled",
+    cursor_prefix="email_summary_scan:",
 ))

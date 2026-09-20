@@ -13,7 +13,7 @@ from app.automations.scheduler import all_jobs, is_enabled
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import Contact, EmailSignal
+from app.models import AutomationState, Contact, EmailSignal
 
 logger = logging.getLogger("app.api.automations")
 
@@ -34,6 +34,7 @@ def list_jobs() -> list[ScheduledJobOut]:
             description=j.description,
             cron=j.cron,
             enabled=is_enabled(j),
+            has_cursor=j.cursor_prefix is not None,
         )
         for j in all_jobs()
     ]
@@ -80,6 +81,33 @@ def run_job_now(job_id: str) -> dict:
 
     logger.info("manual run finished for automation job: %s", job.id)
     return {"ok": True, "job_id": job.id, "message": "Ran to completion - check the review queue and logs for what it found."}
+
+
+@router.post("/jobs/{job_id}/reset-cursor")
+def reset_job_cursor(job_id: str, db: Session = Depends(get_db)) -> dict:
+    """Deletes a job's remembered "since last run" position (see
+    app/automations/state.py), so its next run treats every mailbox it
+    scans as brand new - bounded only by that job's own initial-lookback
+    setting, not by whatever it already processed. For pulling in a bigger
+    sample to judge extraction quality against, without waiting for the
+    cursor to naturally sweep back that far (or, for the mailbox scans,
+    ever - a cursor only moves forward). Does not touch anything it
+    already wrote (existing review-queue items, email_signals rows) -
+    only the pointer for what counts as "new" next time."""
+    job = next((j for j in all_jobs() if j.id == job_id), None)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"No registered job with id {job_id!r}")
+    if not job.cursor_prefix:
+        raise HTTPException(status_code=400, detail=f"{job.id} has no cursor to reset.")
+
+    deleted = (
+        db.query(AutomationState)
+        .filter(AutomationState.key.like(f"{job.cursor_prefix}%"))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    logger.info("cursor reset for automation job: %s (%d state row(s) cleared)", job.id, deleted)
+    return {"ok": True, "job_id": job.id, "cleared": deleted}
 
 
 @router.post("/business-cards/upload")

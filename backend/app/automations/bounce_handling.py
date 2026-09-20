@@ -410,4 +410,5 @@ register_job(ScheduledJob(
     cron="*/15 * * * *",  # every 15 minutes, once real - cheap to run often since it's incremental
     func=scan_mailbox_for_bounces_and_ooo,
     enabled_flag="automations_bounce_scan_enabled",
+    cursor_prefix="bounce_scan:",
 ))

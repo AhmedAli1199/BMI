@@ -44,6 +44,14 @@ class ScheduledJob:
     # (rather than passing the bool directly) so toggling the env var and
     # restarting is enough; nothing needs re-importing.
     enabled_flag: str
+    # Prefix of this job's AutomationState cursor key(s), if it has one -
+    # e.g. "bounce_scan:" (one row per mailbox) or "dedupe_scan_cursor"
+    # (a single row). Lets the UI offer "reset & rescan" without each job
+    # needing its own reset endpoint - see automations.py's
+    # /jobs/{id}/reset-cursor route. None for a job with no cursor to reset
+    # (nothing to gain from resetting followup_engine_scan, which windows
+    # off dates, not a remembered position).
+    cursor_prefix: str | None = None
 
 
 _JOBS: list[ScheduledJob] = []

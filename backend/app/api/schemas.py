@@ -488,6 +488,7 @@ class ScheduledJobOut(BaseModel):
     description: str
     cron: str
     enabled: bool
+    has_cursor: bool = False
 
 
 class AutomationSettingOut(BaseModel):

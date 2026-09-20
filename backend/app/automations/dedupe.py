@@ -492,4 +492,5 @@ register_job(ScheduledJob(
     cron="0 3 * * 0",  # weekly, Sunday 3am UTC - low-frequency, non-urgent, and avoids competing with daytime jobs
     func=scan_for_duplicates,
     enabled_flag="automations_dedupe_scan_enabled",
+    cursor_prefix=_DEDUPE_CURSOR_KEY,
 ))

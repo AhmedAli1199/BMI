@@ -278,7 +278,7 @@ export default async function AutomationsPage() {
                   >
                     {j.enabled ? "LIVE" : "OFF"}
                   </Badge>
-                  <RunJobButton jobId={j.id} />
+                  <RunJobButton jobId={j.id} hasCursor={j.has_cursor} />
                 </div>
               </div>
             ))}
