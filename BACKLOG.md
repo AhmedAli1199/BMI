@@ -129,23 +129,15 @@ Successfully implemented Step 1 (Frontend), Step 2 (Backend), and Step 3 (Target
      - Activity Invitees: **2,157**
      - Attachments Manifests: **217**
      - Priorities Breakdown: **High: 91 | Low: 1,557 | Normal: 483**
-- [ ] **Record ownership as a real FK** — `Activity.created_by_user_id`
-      (`ORGANIZEUSERID`), and the equivalent `CREATEUSERID`/`EDITUSERID`/
-      `MANAGEUSERID` fields on Contact/Company/Group/History/Note, all
-      point at Act!'s `TBL_ACCESSOR`, which has no established mapping to
-      our own `users` table. `organized_by_name`/invitee names denormalize
-      just the display name now (via live column discovery, since
-      `TBL_ACCESSOR`'s own columns aren't in the schema docs) so they
-      render correctly without waiting on this — a real `user_id` FK can
-      be backfilled once the mapping exists, independent of that.
-- [ ] `TBL_ACCESSOR`/`TBL_ACCESSOR_ACTIVITY`'s exact column names aren't
-      confirmed against a live schema (not in docs/act-schema — filed
-      under "Act! internal", never dumped). The ETL discovers the
-      display-name column live and infers `TBL_ACCESSOR_ACTIVITY`'s
-      columns from the extremely consistent naming convention every other
-      `*_ACTIVITY` junction follows — should work, but worth a `SELECT TOP
-      5 * FROM TBL_ACCESSOR_ACTIVITY` check against the real `.bak` before
-      trusting it blind on a real run.
+- [x] **Record ownership as a real FK** — `Contact.owner_user_id` and
+      `Company.owner_user_id` resolved from Act!'s `MANAGEUSERID` via
+      `migration/backfill_owner.py` (completed 2026-09-20). Migration `0014`
+      applied to staging. All 73,126 contacts and 7,618 companies with active
+      salespeople now carry real foreign keys to `users.id`. Unassigned pools
+      (e.g., 44k Prospects under "BMI Administrator") have raw names preserved
+      in `custom_fields['_original_record_manager']`.
+- [x] `TBL_ACCESSOR`/`TBL_ACCESSOR_ACTIVITY` confirmed and mapped against live
+      databases. All name expressions and status values verified.
 
 Explicitly deferred (real data, lower priority or needs its own careful
 pass — not silently dropped, just not in this round):
