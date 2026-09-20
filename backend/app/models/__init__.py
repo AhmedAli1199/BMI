@@ -4,6 +4,7 @@ from app.models.automation_state import AutomationState
 from app.models.company import Company
 from app.models.contact import Contact, ContactCompanyLink
 from app.models.contact_channel import Address, Email, Phone
+from app.models.email_signal import EmailSignal
 from app.models.group import Group, GroupMembership
 from app.models.history import HistoryEntry
 from app.models.note import Note
@@ -26,6 +27,7 @@ __all__ = [
     "Contact",
     "ContactCompanyLink",
     "Email",
+    "EmailSignal",
     "Group",
     "GroupMembership",
     "HistoryEntry",

@@ -16,10 +16,11 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations.contact_match import find_contact_by_email
 from app.automations.llm import extract_json
 from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
@@ -187,24 +188,6 @@ def _scan_mailboxes() -> list[str]:
     return [m.strip() for m in raw.split(",") if m.strip()]
 
 
-def _find_contact_by_email(db: Session, email: str | None) -> Contact | None:
-    """Only returns a match when it's unambiguous - two different contacts
-    sharing one email address (a shared team inbox, a couple with the same
-    address on file) is real in this data, and guessing wrong here means
-    silently unsubscribing or CC'ing the wrong person. Ambiguous or
-    zero-match both come back None; callers route that to the
-    "unmatched, pick manually" review kind instead of the confident one."""
-    if not email:
-        return None
-    matches = db.scalars(
-        select(Contact)
-        .join(Email, Email.contact_id == Contact.id)
-        .where(func.lower(Email.address) == email.lower())
-        .distinct()
-    ).all()
-    return matches[0] if len(matches) == 1 else None
-
-
 _BOUNCE_SEVERITY_PROMPT = (
     "You classify automated email bounce/delivery-failure notifications. Given the subject and body "
     "of one such message, decide whether the failure is PERMANENT (\"hard\" - address doesn't exist, "
@@ -252,7 +235,7 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
     _handle_bounce_uncertain above); nothing here writes to Contact
     directly. Returns True if something was queued."""
     failed_address = msg.failed_recipients[0] if msg.failed_recipients else msg.from_address
-    contact = _find_contact_by_email(db, failed_address)
+    contact = find_contact_by_email(db, failed_address)
     severity, confidence = _classify_bounce_severity(msg)
 
     if contact:
@@ -299,12 +282,12 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
     / auto-reply, but only when the sender is someone already in the CRM -
     an auto-reply from an address we have no contact for isn't something a
     reviewer can act on. Returns True if something was queued."""
-    original = _find_contact_by_email(db, msg.from_address)
+    original = find_contact_by_email(db, msg.from_address)
     if not original:
         return False
 
     replacement_name, replacement_email = _extract_ooo_replacement(msg)
-    replacement_contact = _find_contact_by_email(db, replacement_email)
+    replacement_contact = find_contact_by_email(db, replacement_email)
     suggested_contact = (
         {"id": str(replacement_contact.id), "label": replacement_contact.full_name or replacement_email}
         if replacement_contact else None

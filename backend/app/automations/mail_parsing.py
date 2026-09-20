@@ -28,6 +28,9 @@ class ParsedMessage:
     body_text: str  # plain text, truncated to a sane length for prompts/storage
     headers: dict[str, str] = field(default_factory=dict)  # lower-cased header names -> value
     failed_recipients: list[str] = field(default_factory=list)  # addresses a bounce NDR says it couldn't deliver to
+    to_addresses: list[str] = field(default_factory=list)  # who the message was sent to - used to find "the contact side" on an outbound message
+    recipient_count: int = 0  # len(to) + len(cc) - lets a caller drop a group thread without a second Graph call
+    conversation_id: str | None = None  # Graph's own thread id - a top-level field, not a header
 
 
 _MAX_BODY_CHARS = 4000
@@ -96,6 +99,13 @@ def parse_message(raw: dict) -> ParsedMessage:
     received_raw = raw.get("receivedDateTime")
     received_at = datetime.fromisoformat(received_raw.replace("Z", "+00:00")) if received_raw else datetime.now()
 
+    to_recipients = raw.get("toRecipients") or []
+    cc_recipients = raw.get("ccRecipients") or []
+    to_addresses = [
+        addr for r in to_recipients
+        if (addr := (r.get("emailAddress") or {}).get("address"))
+    ]
+
     return ParsedMessage(
         message_id=raw["id"],
         internet_message_id=raw.get("internetMessageId"),
@@ -105,6 +115,9 @@ def parse_message(raw: dict) -> ParsedMessage:
         received_at=received_at,
         body_text=body_text,
         headers=headers,
+        to_addresses=[a.strip().lower() for a in to_addresses],
+        recipient_count=len(to_recipients) + len(cc_recipients),
+        conversation_id=raw.get("conversationId"),
         failed_recipients=failed_recipients,
     )
 

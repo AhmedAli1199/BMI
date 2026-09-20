@@ -179,13 +179,15 @@ def check_mailbox(token: str, email: str) -> MailboxCheckResult:
     return MailboxCheckResult(email, "error", f"Unexpected Graph response: {resp.status_code} {resp.text[:200]}")
 
 
-# Fields the bounce/OOO scan actually reads (see mail_parsing.py) - kept
-# minimal rather than the default "everything", since a shared inbox can
-# easily hold large HTML bodies and there's no reason to pull attachments,
-# categories, etc. over the wire for a classification job that never opens
-# an attachment.
+# Fields the bounce/OOO scan and the email-summary scan actually read (see
+# mail_parsing.py) - kept minimal rather than the default "everything",
+# since a mailbox can easily hold large HTML bodies and there's no reason
+# to pull attachments, categories, etc. over the wire for a job that never
+# opens one. ccRecipients is here so email_summary.py can drop anything
+# with too many people on a thread (a group thread, not a 1:1 conversation)
+# without a second round trip.
 _MESSAGE_SELECT = (
-    "id,internetMessageId,subject,from,toRecipients,receivedDateTime,"
+    "id,internetMessageId,subject,from,toRecipients,ccRecipients,receivedDateTime,"
     "bodyPreview,body,internetMessageHeaders,conversationId"
 )
 
