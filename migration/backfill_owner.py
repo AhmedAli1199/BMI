@@ -18,19 +18,33 @@ omit --mssql-password to use Windows Integrated Auth, matching how you ran
 the earlier TBL_ACCESSOR query.)
 
 WHY A HAND-WRITTEN NAME->EMAIL MAP, NOT AUTO-MATCHING: TBL_ACCESSOR has no
-email column, only a plain-text NAME ("Kay Fisher") - see the query output
-that led to this script. With only 8 active (STATUSNUM=0, TYPENUM=0)
-accessors, guessing a firstname.lastname@bmipublishing.co.uk pattern and
-silently trusting it risks quietly attributing a contact to the wrong
-person's login if the guess is off. So ACCESSOR_NAME_TO_EMAIL below is
-filled in by hand (with best-guess defaults for you to confirm), and the
-script only ever sets owner_user_id when BOTH (a) the name has an explicit
-entry here AND (b) that email already exists as a real row in this CRM's
-own `users` table - never a blind guess trusted at write time. Two of these
-(Kay Fisher, Shani Kunar) are already confirmed real addresses - they're
-used elsewhere in the codebase (see backend/app/api/routes/diagnostics.py's
-CANDIDATE_MAILBOXES). The rest are unconfirmed guesses - check them (or ask
-BMI) before relying on this backfill for those four people.
+email column, only a plain-text NAME ("Kay Fisher"). Guessing at a pattern
+and silently trusting it risks quietly attributing a contact to the wrong
+person's login. So every entry in ACCESSOR_NAME_TO_EMAIL below is confirmed
+directly from BMI's own user roster (not a guess), and the script only ever
+sets owner_user_id when BOTH (a) the name has an explicit entry here AND
+(b) that email already exists as a real row in this CRM's own `users` table
+- never trusted blindly at write time even for a confirmed address, since
+the CRM login might not have been created yet.
+
+Two names needed disambiguating before this list could be trusted: a
+grouped-by-manager query against the real data (see BACKLOG.md/session
+notes) showed "Sue Williams" (OnBoard only) and "Sue Thompson"/"Susan
+Thompson" (SellingTravel only) as separate high-volume accessors that could
+easily have been the same person under two names (a plausible maiden/married
+name change in a 20-year-old database) - BMI's roster confirms they are in
+fact two different people, at two different email domains
+(sue.williams@onboardhospitality.com vs. susan.thompson@bmipublishing.co.uk).
+Merging them under one guessed identity would have been exactly the kind of
+silent misattribution this whole approach is designed to avoid.
+
+NOT resolved by BMI's roster, still an open question: "BMI Administrator" -
+a generic/system Act! login, not a real person - owns 57% of Prospects
+contacts and 67% of Prospects companies (an unassigned pool, not anyone's
+personal book). Deliberately left unmapped here rather than guessing it
+should route to whichever person currently administers the CRM - that's a
+real product decision (does BMI want those routed to someone, or genuinely
+treated as unassigned in this CRM too?), not a data-resolution one.
 """
 from __future__ import annotations
 
@@ -52,14 +66,27 @@ from app.models.base import SOURCE_DBS  # noqa: E402
 # pattern but have not been independently verified - confirm these four
 # with BMI before trusting the backfill for their contacts/companies.
 ACCESSOR_NAME_TO_EMAIL: dict[str, str] = {
-    "kay fisher": "kay.fisher@bmipublishing.co.uk",       # confirmed
-    "shani kunar": "shani.kunar@bmipublishing.co.uk",     # confirmed
-    "david wilcox": "david.wilcox@bmipublishing.co.uk",   # GUESSED - confirm
-    "kirsty hicks": "kirsty.hicks@bmipublishing.co.uk",   # GUESSED - confirm
-    "sally parker": "sally.parker@bmipublishing.co.uk",   # GUESSED - confirm
-    "steven thompson": "steven.thompson@bmipublishing.co.uk",  # GUESSED - confirm
-    # "BMI Administrator" and "TBTC Delegate" deliberately excluded - shared/
-    # system accounts, not a real salesperson to attribute ownership to.
+    "kay fisher": "kay.fisher@bmipublishing.co.uk",
+    "shani kunar": "shani.kunar@bmipublishing.co.uk",
+    "kirsty hicks": "kirsty.hicks@bmipublishing.co.uk",
+    "neil dargie": "neil.dargie@bmipublishing.co.uk",
+    "steven thompson": "steven.thompson@bmipublishing.co.uk",
+    "sally parker": "sally.parker@bmipublishing.co.uk",
+    "david wilcox": "david.wilcox@bmipublishing.co.uk",
+    # Two different people, two different domains - see the module
+    # docstring for why this needed BMI's roster to disambiguate rather
+    # than being guessed as the same person under two names.
+    "sue thompson": "susan.thompson@bmipublishing.co.uk",
+    "susan thompson": "susan.thompson@bmipublishing.co.uk",
+    "sue williams": "sue.williams@onboardhospitality.com",
+    "sue wiliams": "sue.williams@onboardhospitality.com",  # one-off Act! typo (Prospects, 1 row)
+    "craig mcquinn": "craig.mcquinn@bmipublishing.co.uk",
+    "clare hunter": "clare.hunter@bmipublishing.co.uk",
+    # "BMI Administrator" deliberately excluded - a generic/system Act!
+    # login (57% of Prospects contacts, 67% of its companies), not a real
+    # person to attribute ownership to; see the module docstring's "NOT
+    # resolved" note. "TBTC Delegate" and "ACT! System" excluded for the
+    # same reason - shared/system accounts, not salespeople.
 }
 
 
