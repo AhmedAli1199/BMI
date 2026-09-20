@@ -1,5 +1,6 @@
 from app.models.activity import Activity
 from app.models.activity_link import ActivityCompany, ActivityContact, ActivityGroup, ActivityInvitee, Attachment
+from app.models.automation_setting import AutomationSetting
 from app.models.automation_state import AutomationState
 from app.models.company import Company
 from app.models.contact import Contact, ContactCompanyLink
@@ -22,6 +23,7 @@ __all__ = [
     "ActivityInvitee",
     "Address",
     "Attachment",
+    "AutomationSetting",
     "AutomationState",
     "Company",
     "Contact",

@@ -23,10 +23,10 @@ from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.contact_match import find_contact_by_email
 from app.automations.llm import extract_json
 from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
+from app.automations import runtime_settings
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
-from app.core.config import settings
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
 from app.models import Contact, Email, Note, ReviewQueueItem
@@ -183,9 +183,8 @@ register(ReviewKind(
 ))
 
 
-def _scan_mailboxes() -> list[str]:
-    raw = settings.graph_scan_mailboxes.strip()
-    return [m.strip() for m in raw.split(",") if m.strip()]
+def _scan_mailboxes(db: Session) -> list[str]:
+    return runtime_settings.get_csv(db, "graph_scan_mailboxes")
 
 
 _BOUNCE_SEVERITY_PROMPT = (
@@ -332,14 +331,14 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
     whole inbox. One mailbox failing (bad permissions, Graph outage) is
     logged and skipped - it never aborts the other mailboxes' scans.
     """
-    mailboxes = _scan_mailboxes()
-    if not mailboxes:
-        logger.info("bounce_ooo scan: GRAPH_SCAN_MAILBOXES not configured - nothing to scan.")
-        return
-
     now = datetime.now(timezone.utc)
     db = SessionLocal()
     try:
+        mailboxes = _scan_mailboxes(db)
+        if not mailboxes:
+            logger.info("bounce_ooo scan: no mailboxes configured (GRAPH_SCAN_MAILBOXES / Automations Settings) - nothing to scan.")
+            return
+
         existing_message_ids = set(
             db.scalars(
                 select(ReviewQueueItem.payload["message_id"].astext).where(
@@ -358,7 +357,7 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
             since_dt = (
                 datetime.fromisoformat(last_processed_at)
                 if last_processed_at
-                else now - timedelta(minutes=settings.bounce_scan_initial_lookback_minutes)
+                else now - timedelta(minutes=runtime_settings.get_int(db, "bounce_scan_initial_lookback_minutes"))
             )
             since_iso = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 

@@ -480,6 +480,27 @@ export async function reopenReviewItem(itemId: string) {
   revalidatePath("/automations/review");
 }
 
+/** Sets (or replaces) a runtime override for an automation tunable - see
+ * backend's PUT /api/automations/settings/{key}. Takes effect on that
+ * setting's next read (a scan's next tick, or the next "Run now" click),
+ * never a restart. */
+export async function updateAutomationSetting(key: string, value: boolean | number | string) {
+  await backendFetch(`/api/automations/settings/${key}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  revalidatePath("/automations/settings");
+  revalidatePath("/automations");
+}
+
+/** Clears a stored override, reverting a setting to its env var default. */
+export async function resetAutomationSetting(key: string) {
+  await backendFetch(`/api/automations/settings/${key}`, { method: "DELETE" });
+  revalidatePath("/automations/settings");
+  revalidatePath("/automations");
+}
+
 // ---- Settings / preferences -------------------------------------------
 
 /** Updates one or more of the current user's preferences (see

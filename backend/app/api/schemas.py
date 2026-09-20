@@ -490,6 +490,23 @@ class ScheduledJobOut(BaseModel):
     enabled: bool
 
 
+class AutomationSettingOut(BaseModel):
+    key: str
+    label: str
+    description: str
+    group: str
+    type: str  # "bool" | "int" | "float" | "csv"
+    value: object  # the effective value right now - a stored override if one exists, else the env default
+    default: object  # what it would be with no override - lets the UI show "(default)" or offer a reset
+    is_overridden: bool
+    min: float | None = None
+    max: float | None = None
+
+
+class AutomationSettingUpdate(BaseModel):
+    value: object
+
+
 class ReviewQueueCounts(BaseModel):
     kind: str
     pending: int

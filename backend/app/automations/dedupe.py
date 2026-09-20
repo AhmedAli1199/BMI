@@ -35,10 +35,10 @@ from difflib import SequenceMatcher
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from app.automations import runtime_settings
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
-from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import (
     Activity,
@@ -342,6 +342,10 @@ def scan_for_duplicates() -> None:
     """
     db = SessionLocal()
     try:
+        dedupe_batch_size = runtime_settings.get_int(db, "dedupe_batch_size")
+        dedupe_max_per_run = runtime_settings.get_int(db, "dedupe_max_per_run")
+        dedupe_confidence_floor = runtime_settings.get_float(db, "dedupe_confidence_floor")
+
         already_queued_pairs: set[frozenset[str]] = set()
         for item in db.query(ReviewQueueItem).filter(
             ReviewQueueItem.kind == "duplicate_contact", ReviewQueueItem.status == "pending"
@@ -364,7 +368,7 @@ def scan_for_duplicates() -> None:
                 "AND (CAST(:cursor AS uuid) IS NULL OR id > CAST(:cursor AS uuid)) "
                 "ORDER BY id LIMIT :batch_size"
             ),
-            {"cursor": cursor, "batch_size": settings.dedupe_batch_size},
+            {"cursor": cursor, "batch_size": dedupe_batch_size},
         ).scalars().all()
 
         # Advance (or wrap) the cursor now, based on the page itself - not
@@ -394,7 +398,7 @@ def scan_for_duplicates() -> None:
                     "  ORDER BY sim DESC LIMIT 3"
                     ") b ON true "
                     "WHERE a.id = ANY(:page_ids) "
-                    f"ORDER BY sim DESC LIMIT {settings.dedupe_max_per_run * 3}"
+                    f"ORDER BY sim DESC LIMIT {dedupe_max_per_run * 3}"
                 ),
                 {"page_ids": page_ids},
             ).all()
@@ -429,7 +433,7 @@ def scan_for_duplicates() -> None:
 
         queued = 0
         for row in rows:
-            if queued >= settings.dedupe_max_per_run:
+            if queued >= dedupe_max_per_run:
                 break
             pair = frozenset({str(row.a_id), str(row.b_id)})
             if pair in already_queued_pairs:
@@ -449,7 +453,7 @@ def scan_for_duplicates() -> None:
                 details_by_id.get(row.b_id, {}),
                 pair in shared_activity_pairs,
             )
-            if confidence < settings.dedupe_confidence_floor:
+            if confidence < dedupe_confidence_floor:
                 continue
 
             db.add(ReviewQueueItem(

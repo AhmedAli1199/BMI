@@ -13,13 +13,12 @@ click through in a platform dashboard, nothing to remember to recreate
 on the next migration.
 
 Every job defaults OFF (see Settings.automations_* flags in
-app/core/config.py). Flip one on by setting its env var to true and
-restarting the container - no code change and no redeploy needed for
-that switch, only for adding or editing a job itself. This is the
-"easily switch on later" mechanism: the schedule and the job body are
-code (reviewed, versioned, identical across environments); only the
-on/off bit is environment-specific config, exactly like API_KEY or
-DATABASE_URL already are.
+app/core/config.py). Flip one on either via its env var (needs a restart)
+or from the Automations Settings UI (app/automations/runtime_settings.py) -
+every job is always registered into APScheduler at startup, and
+is_enabled() is checked fresh at *fire time* inside _run_guarded, not just
+once at boot, so a UI toggle takes effect on the job's very next scheduled
+tick with no restart needed.
 """
 from __future__ import annotations
 
@@ -29,8 +28,6 @@ from typing import Callable
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-
-from app.core.config import settings
 
 logger = logging.getLogger("app.automations.scheduler")
 
@@ -63,7 +60,19 @@ def all_jobs() -> list[ScheduledJob]:
 
 
 def is_enabled(job: ScheduledJob) -> bool:
-    return bool(getattr(settings, job.enabled_flag))
+    """Effective enabled state - a stored override (set via the
+    Automations Settings UI) if there is one, else the env var default.
+    Opens its own short-lived session rather than taking one as an
+    argument, since this is called from both a request (which has a db
+    session already) and the scheduler thread (which doesn't)."""
+    from app.automations.runtime_settings import get_bool
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        return get_bool(db, job.enabled_flag)
+    finally:
+        db.close()
 
 
 _scheduler: BackgroundScheduler | None = None
@@ -71,7 +80,14 @@ _scheduler: BackgroundScheduler | None = None
 
 def _run_guarded(job: ScheduledJob) -> None:
     """Wraps every job body so one automation's bug can't crash the
-    scheduler thread (or take every other job down with it)."""
+    scheduler thread (or take every other job down with it). Also the
+    runtime enabled-check: every job is always scheduled into APScheduler
+    (see start_scheduler), so a UI toggle to "off" takes effect here, on
+    the very next tick, without needing to touch or restart the scheduler
+    itself."""
+    if not is_enabled(job):
+        logger.info("automation job skipped (disabled): %s", job.id)
+        return
     logger.info("automation job starting: %s", job.id)
     try:
         job.func()
@@ -82,19 +98,14 @@ def _run_guarded(job: ScheduledJob) -> None:
 
 
 def start_scheduler() -> BackgroundScheduler:
-    """Called once at app startup. Builds the scheduler fresh from
-    whatever is currently registered + currently enabled, so the running
-    set always matches the current env vars at boot."""
+    """Called once at app startup. Every registered job is scheduled
+    unconditionally - enabled/disabled is checked at fire time (see
+    _run_guarded), not here, so flipping a job on or off from the
+    Automations Settings UI takes effect on its next tick without a
+    restart."""
     global _scheduler
     scheduler = BackgroundScheduler(timezone="UTC")
     for job in _JOBS:
-        if not is_enabled(job):
-            logger.info(
-                "automation job registered but OFF: %s (set %s=true to enable)",
-                job.id,
-                job.enabled_flag.upper(),
-            )
-            continue
         scheduler.add_job(
             _run_guarded,
             CronTrigger.from_crontab(job.cron, timezone="UTC"),
@@ -102,7 +113,8 @@ def start_scheduler() -> BackgroundScheduler:
             id=job.id,
             replace_existing=True,
         )
-        logger.info("automation job scheduled: %s (%s)", job.id, job.cron)
+        logger.info("automation job scheduled: %s (%s) - currently %s",
+                     job.id, job.cron, "ON" if is_enabled(job) else "OFF")
     scheduler.start()
     _scheduler = scheduler
     return scheduler

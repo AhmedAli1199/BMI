@@ -1,0 +1,133 @@
+"""Every automation tunable the UI can edit at runtime - same plug-in shape
+as app/preferences.py, deliberately: adding a new editable setting later
+means adding one AutomationSettingDef below, nothing in the frontend (it
+renders entirely from GET /api/automations/settings).
+
+A setting's *code* default always comes from app/core/config.py's Settings
+class (the env var) - this registry only adds the metadata needed to show
+and edit it (label, description, type, valid range), and
+runtime_settings.py layers a DB override on top of that default. Removing
+an override (not covered here - see the DELETE route) just falls back to
+the env var again, never leaves the setting in an undefined state.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+SettingType = Literal["bool", "int", "float", "csv"]
+
+
+@dataclass(frozen=True)
+class AutomationSettingDef:
+    key: str  # matches a field name on app.core.config.Settings
+    label: str
+    description: str
+    group: str  # which automation this belongs to, for the UI to section by
+    type: SettingType
+    min: float | None = None
+    max: float | None = None
+
+
+AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
+    # ---- CS-001 / CS-002 - bounce & OOO mailbox scan ----
+    AutomationSettingDef(
+        key="automations_bounce_scan_enabled", label="Scan enabled",
+        description="Whether the bounce/OOO mailbox scan runs on its schedule.",
+        group="Bounce & OOO scan", type="bool",
+    ),
+    AutomationSettingDef(
+        key="graph_scan_mailboxes", label="Mailboxes to scan",
+        description="Comma-separated mailbox addresses this scan reads for bounces and out-of-office replies.",
+        group="Bounce & OOO scan", type="csv",
+    ),
+    AutomationSettingDef(
+        key="bounce_scan_initial_lookback_minutes", label="Initial lookback (minutes)",
+        description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
+        group="Bounce & OOO scan", type="int", min=1,
+    ),
+
+    # ---- CS-003 - departure scan ----
+    AutomationSettingDef(
+        key="automations_departure_scan_enabled", label="Scan enabled",
+        description="Whether the departure/successor scan runs on its schedule.",
+        group="Departure scan", type="bool",
+    ),
+
+    # ---- CS-004 - duplicate contact scan ----
+    AutomationSettingDef(
+        key="automations_dedupe_scan_enabled", label="Scan enabled",
+        description="Whether the duplicate-contact scan runs on its schedule.",
+        group="Duplicate contact scan", type="bool",
+    ),
+    AutomationSettingDef(
+        key="dedupe_confidence_floor", label="Confidence floor",
+        description="Minimum multi-field match confidence (0-1) before a pair is queued for review.",
+        group="Duplicate contact scan", type="float", min=0.0, max=1.0,
+    ),
+    AutomationSettingDef(
+        key="dedupe_max_per_run", label="Max queued per run",
+        description="Caps how many candidate pairs get queued in one run.",
+        group="Duplicate contact scan", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="dedupe_batch_size", label="Contacts examined per run",
+        description="Bounds real query cost - how many contacts the scan drives through matching per run, independent of how many get queued.",
+        group="Duplicate contact scan", type="int", min=1,
+    ),
+
+    # ---- Follow-up engine ----
+    AutomationSettingDef(
+        key="automations_followup_scan_enabled", label="Scan enabled",
+        description="Whether the follow-up due scan runs on its schedule.",
+        group="Follow-up engine", type="bool",
+    ),
+    AutomationSettingDef(
+        key="followup_lookback_days", label="Lookback (days)",
+        description="How many days in the past the scan looks for overdue follow-ups.",
+        group="Follow-up engine", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="followup_lookahead_days", label="Lookahead (days)",
+        description="How many days ahead the scan looks for upcoming follow-ups.",
+        group="Follow-up engine", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="followup_max_per_run", label="Max queued per run",
+        description="Caps how many follow-up drafts get queued in one run.",
+        group="Follow-up engine", type="int", min=1,
+    ),
+
+    # ---- SALES-010-lite - email exchange summary ----
+    AutomationSettingDef(
+        key="automations_email_summary_scan_enabled", label="Scan enabled",
+        description="Whether the email exchange summary scan runs on its schedule.",
+        group="Email exchange summary", type="bool",
+    ),
+    AutomationSettingDef(
+        key="graph_email_summary_mailboxes", label="Mailboxes to scan",
+        description="Comma-separated salesperson mailboxes this scan reads for real client conversations.",
+        group="Email exchange summary", type="csv",
+    ),
+    AutomationSettingDef(
+        key="email_summary_max_recipients", label="Max recipients",
+        description="Drop any thread with more people on it than this - a group thread, not a 1:1 sales conversation.",
+        group="Email exchange summary", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="email_summary_min_body_chars", label="Min body length (characters)",
+        description="Drop messages shorter than this - a bare \"Thanks!\" has nothing to extract.",
+        group="Email exchange summary", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="email_summary_initial_lookback_minutes", label="Initial lookback (minutes)",
+        description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
+        group="Email exchange summary", type="int", min=1,
+    ),
+]
+
+_BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}
+
+
+def get_def(key: str) -> AutomationSettingDef | None:
+    return _BY_KEY.get(key)

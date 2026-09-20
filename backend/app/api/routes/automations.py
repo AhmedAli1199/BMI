@@ -5,10 +5,13 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.api.schemas import ScheduledJobOut
+from app.api.schemas import AutomationSettingOut, AutomationSettingUpdate, ScheduledJobOut
+from app.automations import runtime_settings
 from app.automations.business_card import process_business_card_photo
 from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled
+from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
+from app.core.config import settings
 from app.db.session import get_db
 
 logger = logging.getLogger("app.api.automations")
@@ -19,10 +22,10 @@ router = APIRouter(prefix="/automations", tags=["automations"])
 @router.get("/jobs", response_model=list[ScheduledJobOut])
 def list_jobs() -> list[ScheduledJobOut]:
     """Status of every registered producer job (see
-    app/automations/scheduler.py) - purely informational, so the overview
-    screen can show "what's live vs. still switched off" without exposing
-    any way to flip it from here. Toggling stays an env-var + restart
-    decision, deliberately outside the app's own reach."""
+    app/automations/scheduler.py). Reflects the *effective* enabled state -
+    a stored override from the Settings tab below if there is one, else
+    the env var default - and a toggle made there takes effect on the
+    job's next scheduled tick with no restart needed."""
     return [
         ScheduledJobOut(
             id=j.id,
@@ -101,3 +104,58 @@ async def upload_returned_copy(
     image_bytes = await file.read()
     result = process_returned_copy_photo(db, image_bytes, file.content_type or "image/jpeg", source_db=source_db)
     return result
+
+
+@router.get("/settings", response_model=list[AutomationSettingOut])
+def list_automation_settings(db: Session = Depends(get_db)) -> list[AutomationSettingOut]:
+    """Every editable automation tunable, with its current effective value
+    and whether that's a stored override or just the env var default - the
+    Automations Settings UI renders entirely from this, so a new setting
+    (settings_registry.py) shows up with zero frontend changes."""
+    out = []
+    for d in AUTOMATION_SETTING_DEFS:
+        value = runtime_settings.effective_value(db, d.key)
+        default = getattr(settings, d.key)
+        out.append(AutomationSettingOut(
+            key=d.key, label=d.label, description=d.description, group=d.group, type=d.type,
+            value=value, default=default, is_overridden=(value != default),
+            min=d.min, max=d.max,
+        ))
+    return out
+
+
+@router.put("/settings/{key}", response_model=AutomationSettingOut)
+def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Session = Depends(get_db)) -> AutomationSettingOut:
+    """Sets (or replaces) a runtime override - takes effect on that
+    setting's next read, which for a scan job means its next scheduled
+    tick or "Run now" click, never requiring a restart."""
+    d = get_def(key)
+    if not d:
+        raise HTTPException(status_code=404, detail=f"No editable automation setting {key!r}")
+    try:
+        runtime_settings.set_override(db, key, payload.value)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    value = runtime_settings.effective_value(db, key)
+    default = getattr(settings, key)
+    return AutomationSettingOut(
+        key=d.key, label=d.label, description=d.description, group=d.group, type=d.type,
+        value=value, default=default, is_overridden=(value != default), min=d.min, max=d.max,
+    )
+
+
+@router.delete("/settings/{key}", response_model=AutomationSettingOut)
+def reset_automation_setting(key: str, db: Session = Depends(get_db)) -> AutomationSettingOut:
+    """Removes a stored override, reverting the setting to its env var
+    default - the "reset to default" action in the UI."""
+    d = get_def(key)
+    if not d:
+        raise HTTPException(status_code=404, detail=f"No editable automation setting {key!r}")
+    runtime_settings.clear_override(db, key)
+    db.commit()
+    value = runtime_settings.effective_value(db, key)
+    return AutomationSettingOut(
+        key=d.key, label=d.label, description=d.description, group=d.group, type=d.type,
+        value=value, default=value, is_overridden=False, min=d.min, max=d.max,
+    )

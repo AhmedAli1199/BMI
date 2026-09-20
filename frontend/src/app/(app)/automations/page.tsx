@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Power,
+  Settings2,
   ShieldCheck,
   Sparkles,
   Timer,
@@ -48,16 +49,24 @@ export default async function AutomationsPage() {
             merges a record, or reassigns an account without you confirming it first.
           </p>
         </div>
-        <Link href="/automations/review">
-          <Badge
-            variant={totalPending > 0 ? "default" : "outline"}
-            className="cursor-pointer gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-xs"
-          >
-            <ClipboardCheck className="size-3.5" />
-            {totalPending.toLocaleString()} waiting for you
-            <ArrowRight className="size-3.5" />
-          </Badge>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/automations/settings">
+            <Badge variant="outline" className="cursor-pointer gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-xs">
+              <Settings2 className="size-3.5" />
+              Settings
+            </Badge>
+          </Link>
+          <Link href="/automations/review">
+            <Badge
+              variant={totalPending > 0 ? "default" : "outline"}
+              className="cursor-pointer gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-xs"
+            >
+              <ClipboardCheck className="size-3.5" />
+              {totalPending.toLocaleString()} waiting for you
+              <ArrowRight className="size-3.5" />
+            </Badge>
+          </Link>
+        </div>
       </div>
 
       {/* Trust banner - the human-in-the-loop promise, made visually central

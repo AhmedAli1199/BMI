@@ -258,6 +258,21 @@ export type ReviewQueueCounts = { kind: string; pending: number; approved: numbe
 
 export type ScheduledJob = { id: string; label: string; description: string; cron: string; enabled: boolean };
 
+export type AutomationSettingType = "bool" | "int" | "float" | "csv";
+
+export type AutomationSetting = {
+  key: string;
+  label: string;
+  description: string;
+  group: string;
+  type: AutomationSettingType;
+  value: boolean | number | string;
+  default: boolean | number | string;
+  is_overridden: boolean;
+  min: number | null;
+  max: number | null;
+};
+
 export type PreferenceOption = { value: string; label: string; description: string };
 
 export type PreferenceDef = {

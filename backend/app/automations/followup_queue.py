@@ -26,10 +26,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations import runtime_settings
 from app.automations.llm import draft_text, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
-from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import Activity, Company, Contact, HistoryEntry, ReviewQueueItem
 
@@ -153,12 +153,12 @@ def scan_for_due_followups() -> None:
     queues a `followup_due` review item - unless one's already pending for
     that same activity."""
     now = datetime.now(timezone.utc)
-    window_start = now - timedelta(days=settings.followup_lookback_days)
-    window_end = now + timedelta(days=settings.followup_lookahead_days)
-    max_per_run = settings.followup_max_per_run
-
     db = SessionLocal()
     try:
+        window_start = now - timedelta(days=runtime_settings.get_int(db, "followup_lookback_days"))
+        window_end = now + timedelta(days=runtime_settings.get_int(db, "followup_lookahead_days"))
+        max_per_run = runtime_settings.get_int(db, "followup_max_per_run")
+
         already_queued = set(
             db.scalars(
                 select(ReviewQueueItem.entity_id).where(

@@ -36,12 +36,12 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.automations import runtime_settings
 from app.automations.contact_match import find_contact_by_email
 from app.automations.llm import extract_json
 from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
 from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
-from app.core.config import settings
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
 from app.models import Contact, EmailSignal
@@ -64,9 +64,8 @@ _SIGNAL_EXTRACTION_PROMPT = (
 )
 
 
-def _scan_mailboxes() -> list[str]:
-    raw = settings.graph_email_summary_mailboxes.strip()
-    return [m.strip() for m in raw.split(",") if m.strip()]
+def _scan_mailboxes(db: Session) -> list[str]:
+    return runtime_settings.get_csv(db, "graph_email_summary_mailboxes")
 
 
 def _thread_contact(db: Session, msg: ParsedMessage) -> Contact | None:
@@ -85,15 +84,15 @@ def _thread_contact(db: Session, msg: ParsedMessage) -> Contact | None:
     return None
 
 
-def _looks_like_real_conversation(msg: ParsedMessage) -> bool:
-    if msg.recipient_count > settings.email_summary_max_recipients:
+def _looks_like_real_conversation(db: Session, msg: ParsedMessage) -> bool:
+    if msg.recipient_count > runtime_settings.get_int(db, "email_summary_max_recipients"):
         return False
     if looks_like_bounce(msg) or looks_like_ooo(msg):
         return False
     list_unsubscribe = msg.headers.get("list-unsubscribe", "")
     if list_unsubscribe:
         return False
-    if len(msg.body_text.strip()) < settings.email_summary_min_body_chars:
+    if len(msg.body_text.strip()) < runtime_settings.get_int(db, "email_summary_min_body_chars"):
         return False
     return True
 
@@ -142,14 +141,14 @@ def scan_email_exchanges() -> None:
     thread. Same incremental-cursor and per-mailbox-failure-isolation
     pattern as the bounce/OOO scan.
     """
-    mailboxes = _scan_mailboxes()
-    if not mailboxes:
-        logger.info("email_summary scan: GRAPH_EMAIL_SUMMARY_MAILBOXES not configured - nothing to scan.")
-        return
-
     now = datetime.now(timezone.utc)
     db = SessionLocal()
     try:
+        mailboxes = _scan_mailboxes(db)
+        if not mailboxes:
+            logger.info("email_summary scan: no mailboxes configured (GRAPH_EMAIL_SUMMARY_MAILBOXES / Automations Settings) - nothing to scan.")
+            return
+
         total_signals = 0
         for mailbox in mailboxes:
             cursor_key = f"email_summary_scan:{mailbox}"
@@ -159,7 +158,7 @@ def scan_email_exchanges() -> None:
             since_dt = (
                 datetime.fromisoformat(last_processed_at)
                 if last_processed_at
-                else now - timedelta(minutes=settings.email_summary_initial_lookback_minutes)
+                else now - timedelta(minutes=runtime_settings.get_int(db, "email_summary_initial_lookback_minutes"))
             )
             since_iso = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -176,7 +175,7 @@ def scan_email_exchanges() -> None:
             # LLM call this run, however many new messages it got.
             threads: dict[str, list[tuple[ParsedMessage, Contact]]] = {}
             for msg in parsed:
-                if not _looks_like_real_conversation(msg):
+                if not _looks_like_real_conversation(db, msg):
                     continue
                 contact = _thread_contact(db, msg)
                 if not contact:
