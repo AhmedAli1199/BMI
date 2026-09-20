@@ -56,6 +56,12 @@ export default async function AutomationsPage() {
               Settings
             </Badge>
           </Link>
+          {/* THROWAWAY link - see automations/signals/page.tsx's own comment */}
+          <Link href="/automations/signals">
+            <Badge variant="outline" className="cursor-pointer gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-xs">
+              Email signals (temp)
+            </Badge>
+          </Link>
           <Link href="/automations/review">
             <Badge
               variant={totalPending > 0 ? "default" : "outline"}

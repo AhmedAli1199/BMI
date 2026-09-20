@@ -13,6 +13,7 @@ from app.automations.scheduler import all_jobs, is_enabled
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
 from app.core.config import settings
 from app.db.session import get_db
+from app.models import Contact, EmailSignal
 
 logger = logging.getLogger("app.api.automations")
 
@@ -159,3 +160,33 @@ def reset_automation_setting(key: str, db: Session = Depends(get_db)) -> Automat
         key=d.key, label=d.label, description=d.description, group=d.group, type=d.type,
         value=value, default=value, is_overridden=False, min=d.min, max=d.max,
     )
+
+
+@router.get("/email-signals")
+def list_email_signals(db: Session = Depends(get_db)) -> list[dict]:
+    """THROWAWAY - a quick read-only visibility view into what
+    email_summary.py's scan has actually extracted, so it can be judged on
+    real output before SALES-012/013 get built on top of it. Not meant to
+    survive as a real feature; delete once that decision's made."""
+    rows = (
+        db.query(EmailSignal, Contact)
+        .join(Contact, Contact.id == EmailSignal.contact_id)
+        .order_by(EmailSignal.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    return [
+        {
+            "id": str(signal.id),
+            "contact_id": str(contact.id),
+            "contact_name": contact.full_name or "(no name)",
+            "signal_type": signal.signal_type,
+            "due_date": signal.due_date.isoformat() if signal.due_date else None,
+            "summary": signal.summary,
+            "confidence": signal.confidence,
+            "status": signal.status,
+            "created_at": signal.created_at.isoformat(),
+            "updated_at": signal.updated_at.isoformat(),
+        }
+        for signal, contact in rows
+    ]
