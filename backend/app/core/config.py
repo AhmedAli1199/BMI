@@ -62,7 +62,14 @@ class Settings(BaseSettings):
     # is read.
     vision_provider: str = "openai"
     gemini_api_key: str = ""
-    gemini_vision_model: str = "gemini-2.0-flash"
+    # gemini-2.0-flash was retired - Google's own 404 response when it was
+    # first tried against a real key explicitly named this as the
+    # replacement ("models/gemini-2.0-flash is no longer available...use
+    # models/gemini-3.6-flash"), so this is taken directly from that
+    # response, not guessed. If Google retires this one too, the error
+    # will name its replacement the same way - update this default (or
+    # just set GEMINI_VISION_MODEL directly, no code change needed) then.
+    gemini_vision_model: str = "gemini-3.6-flash"
 
     # Microsoft Graph app registration (client-credentials flow, no per-user
     # login) - used by /api/diagnostics/graph-mailboxes to confirm which of
