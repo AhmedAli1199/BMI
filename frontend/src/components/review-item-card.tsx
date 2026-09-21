@@ -198,7 +198,11 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
             {payload.details.map((d, i) => (
               <div key={d.key ?? i} className="flex items-baseline justify-between gap-2 sm:justify-start">
                 <dt className="shrink-0 text-muted-foreground">{d.label}</dt>
-                <dd className="truncate text-right font-medium text-foreground sm:text-left">{d.value}</dd>
+                {/* No truncation - a long extracted summary getting cut to
+                    "...the eNewsletter Banner place…" hides exactly the
+                    detail (a figure, a date) the rep needs to judge the
+                    signal, which defeats the point of showing it. */}
+                <dd className="whitespace-pre-wrap break-words text-right font-medium text-foreground sm:text-left">{d.value}</dd>
               </div>
             ))}
           </dl>

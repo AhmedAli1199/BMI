@@ -13,11 +13,16 @@ actually worth a rep's attention - two ways, since the real data has both:
      instant re-notification of something a rep just read.
 
 Same "draft, never dispatch" contract as every other automation here:
-this only ever queues a review item - "Draft follow-up" writes a Note
-flagging the contact for outreach, never sends anything. Every signal is
-triggered at most once while it has a pending review item open; "Not
-relevant" permanently dismisses it (status="dismissed"), "Draft
-follow-up" marks it actioned - either way it never re-triggers on its own.
+this only ever queues a review item. A real follow-up note (AI-drafted
+when configured, a plain template otherwise - see _draft_followup_text)
+is generated once at queue time and shown in the review card's expandable
+"Original message" section, so the reviewer sees exactly what "Draft
+follow-up" will write to the contact's record before deciding, not an
+opaque button with no visible outcome. Nothing is ever sent - this writes
+an internal Note only. Every signal is triggered at most once while it
+has a pending review item open; "Not relevant" permanently dismisses it
+(status="dismissed"), "Draft follow-up" marks it actioned - either way it
+never re-triggers on its own.
 """
 from __future__ import annotations
 
@@ -30,6 +35,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations import runtime_settings
+from app.automations.llm import draft_text, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.db.session import SessionLocal
@@ -48,6 +54,36 @@ _TRIGGERABLE_TYPES = ("budget_window", "renewal_date", "promised_callback")
 _SIGNAL_TYPE_LABELS = {
     "budget_window": "Budget window", "renewal_date": "Renewal date", "promised_callback": "Promised callback",
 }
+
+
+def _draft_followup_text(signal: EmailSignal, contact_label: str) -> tuple[str, bool]:
+    """Returns (draft_text, was_ai_generated) - same contract as
+    followup_queue.py's _draft_followup_text, and deliberately generated
+    once at QUEUE time (not when the reviewer clicks) so what the rep sees
+    in the review card before deciding is exactly what gets written to the
+    contact's record if they approve it - no surprise gap between preview
+    and outcome."""
+    label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
+    due = f" (due {signal.due_date.isoformat()})" if signal.due_date else ""
+
+    if is_configured():
+        ai_text = draft_text(
+            system_prompt=(
+                "You are drafting a short internal follow-up note for a BMI Publishing salesperson, based on "
+                "one fact their own email correspondence with a client already established. Write 1-3 plain "
+                "sentences: what was established, and a concrete suggested next step (e.g. \"reach out to "
+                "confirm/discuss X\"). Never invent facts beyond what's given - if the context is thin, keep "
+                "the suggested action general rather than fabricating detail. No greeting, no signoff, no "
+                "subject line - this is an internal note, not an email to the client."
+            ),
+            user_prompt=(
+                f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}"
+            ),
+        )
+        if ai_text:
+            return ai_text, True
+
+    return f"{label} follow-up{due}: {signal.summary}", False
 
 
 def _add_note(db: Session, contact: Contact, body: str) -> None:
@@ -72,9 +108,12 @@ def _handle_signal_trigger(db: Session, item: ReviewQueueItem, action_id: str, i
         contact = db.get(Contact, signal.contact_id)
         if not contact:
             raise ValueError("The contact this signal belongs to no longer exists.")
-        label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
-        due = f" (due {signal.due_date.isoformat()})" if signal.due_date else ""
-        _add_note(db, contact, f"{label} follow-up{due}: {signal.summary}")
+        # Write exactly what the reviewer already saw in the card (see
+        # scan_signal_triggers) - drafted once at queue time, not
+        # re-derived here, so there's never a gap between preview and
+        # what actually lands on the contact's record.
+        draft = item.payload.get("original_text") or signal.summary
+        _add_note(db, contact, draft)
         signal.status = "actioned"
     elif action_id == "dismiss":
         signal.status = "dismissed"
@@ -147,6 +186,7 @@ def scan_signal_triggers() -> None:
 
             label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
             contact_label = contact.full_name or contact.first_name or "a contact"
+            draft, was_ai = _draft_followup_text(signal, contact_label)
             db.add(ReviewQueueItem(
                 id=uuid.uuid4(), kind="signal_trigger",
                 entity_type="contact", entity_id=contact.id,
@@ -156,7 +196,13 @@ def scan_signal_triggers() -> None:
                         {"key": "signal_type", "label": "Type", "value": label},
                         {"key": "due_date", "label": "Due date", "value": signal.due_date.isoformat() if signal.due_date else "(none stated)"},
                         {"key": "extracted", "label": "From the email thread", "value": signal.summary},
+                        {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
                     ],
+                    # Rendered by the generic review card as an expandable
+                    # "Original message" section - what "Draft follow-up"
+                    # actually writes to the contact's record, visible
+                    # before the reviewer decides, not just after.
+                    "original_text": draft,
                     "related_entities": [{"type": "contact", "id": str(contact.id), "label": contact_label}],
                     "signal_id": str(signal.id),
                     "confidence": signal.confidence,
