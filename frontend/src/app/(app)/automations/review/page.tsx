@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, PartyPopper, Sparkles } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowLeft, ArrowUpNarrowWide, Clock, PartyPopper, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
 import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueItem } from "@/lib/types";
@@ -14,19 +14,26 @@ const STATUS_TABS = [
   { value: "rejected", label: "Rejected" },
 ] as const;
 
+const SORT_OPTIONS = [
+  { value: "recent", label: "Most recent", icon: Clock },
+  { value: "confidence_asc", label: "Confidence: low → high", icon: ArrowUpNarrowWide },
+  { value: "confidence_desc", label: "Confidence: high → low", icon: ArrowDownWideNarrow },
+] as const;
+
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; status?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; sort?: string }>;
 }) {
-  const { kind: activeKind, status: rawStatus } = await searchParams;
+  const { kind: activeKind, status: rawStatus, sort: rawSort } = await searchParams;
   const activeStatus = STATUS_TABS.some((t) => t.value === rawStatus) ? rawStatus! : "pending";
+  const activeSort = SORT_OPTIONS.some((s) => s.value === rawSort) ? rawSort! : "recent";
 
   const [kinds, counts, page] = await Promise.all([
     backendFetch<ReviewKind[]>("/api/review-queue/kinds"),
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),
     backendFetch<Page<ReviewQueueItem>>(
-      `/api/review-queue?status=${activeStatus}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}`
+      `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}`
     ),
   ]);
 
@@ -35,7 +42,11 @@ export default async function ReviewQueuePage({
   const kindByName = new Map(kinds.map((k) => [k.kind, k]));
   const activeStyle = activeKind ? styleForKind(activeKind) : null;
   const statusHref = (status: string) =>
-    `/automations/review?status=${status}${activeKind ? `&kind=${activeKind}` : ""}`;
+    `/automations/review?status=${status}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`;
+  const kindHref = (kind?: string) =>
+    `/automations/review?status=${activeStatus}${kind ? `&kind=${kind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`;
+  const sortHref = (sort: string) =>
+    `/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${sort !== "recent" ? `&sort=${sort}` : ""}`;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -86,33 +97,58 @@ export default async function ReviewQueuePage({
           change needed. Each chip carries the same icon/color used
           throughout the automations UI, so the queue and the overview
           read as one system. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href="/automations/review">
-          <Badge
-            variant={!activeKind ? "default" : "outline"}
-            className="cursor-pointer gap-1 px-3 py-1.5 text-xs font-semibold transition-colors"
-          >
-            All ({totalPending})
-          </Badge>
-        </Link>
-        {kinds.map((k) => {
-          const style = styleForKind(k.kind);
-          const Icon = style.icon;
-          const isActive = activeKind === k.kind;
-          return (
-            <Link key={k.kind} href={`/automations/review?kind=${k.kind}`}>
-              <Badge
-                variant={isActive ? "default" : "outline"}
-                className={`cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                  isActive ? "" : style.color
-                }`}
-              >
-                <Icon className="size-3.5" />
-                {k.label} ({countFor(k.kind)})
-              </Badge>
-            </Link>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={kindHref()}>
+            <Badge
+              variant={!activeKind ? "default" : "outline"}
+              className="cursor-pointer gap-1 px-3 py-1.5 text-xs font-semibold transition-colors"
+            >
+              All ({totalPending})
+            </Badge>
+          </Link>
+          {kinds.map((k) => {
+            const style = styleForKind(k.kind);
+            const Icon = style.icon;
+            const isActive = activeKind === k.kind;
+            return (
+              <Link key={k.kind} href={kindHref(k.kind)}>
+                <Badge
+                  variant={isActive ? "default" : "outline"}
+                  className={`cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    isActive ? "" : style.color
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  {k.label} ({countFor(k.kind)})
+                </Badge>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Sort control - confidence lives on every kind's payload (a
+            0-1 float, or absent for a kind that doesn't score itself), so
+            this works uniformly across every automation without any
+            per-kind special-casing. */}
+        <div className="flex items-center gap-1 rounded-lg border border-border/70 p-0.5">
+          {SORT_OPTIONS.map((s) => {
+            const Icon = s.icon;
+            const isActive = activeSort === s.value;
+            return (
+              <Link key={s.value} href={sortHref(s.value)} title={s.label}>
+                <span
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  <span className="hidden sm:inline">{s.label}</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

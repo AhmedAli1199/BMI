@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import Float, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -81,6 +81,7 @@ def list_counts(db: Session = Depends(get_db)) -> list[ReviewQueueCounts]:
 def list_review_items(
     kind: str | None = Query(None),
     status: str | None = Query("pending"),
+    sort: str = Query("recent"),  # "recent" (default) | "confidence_asc" | "confidence_desc"
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -92,7 +93,19 @@ def list_review_items(
         stmt = stmt.where(ReviewQueueItem.status == status)
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    stmt = stmt.order_by(ReviewQueueItem.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+
+    # confidence lives inside the JSONB payload, not a real column - not
+    # every kind sets it, so a missing value always sorts to the end
+    # regardless of direction (nulls_last both ways), rather than an
+    # unscored item confusingly dominating an ascending sort.
+    if sort in ("confidence_asc", "confidence_desc"):
+        confidence_expr = cast(ReviewQueueItem.payload["confidence"].astext, Float)
+        order = confidence_expr.asc() if sort == "confidence_asc" else confidence_expr.desc()
+        stmt = stmt.order_by(order.nulls_last())
+    else:
+        stmt = stmt.order_by(ReviewQueueItem.created_at.desc())
+
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     items = db.scalars(stmt).all()
     return ReviewQueuePage(
         items=[ReviewQueueItemOut.model_validate(i) for i in items],
