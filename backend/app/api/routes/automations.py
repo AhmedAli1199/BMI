@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import AutomationSettingOut, AutomationSettingUpdate, ScheduledJobOut
 from app.automations import runtime_settings
 from app.automations.business_card import process_business_card_photo, resolve_batch
+from app.automations.morning_queue import build_today_queue
 from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
@@ -38,6 +39,16 @@ def list_jobs() -> list[ScheduledJobOut]:
         )
         for j in all_jobs()
     ]
+
+
+@router.get("/today")
+def get_today_queue(owner_user_id: str | None = None, db: Session = Depends(get_db)) -> list[dict]:
+    """SALES-013's read side - see app/automations/morning_queue.py's
+    docstring for why this is aggregation, not a new producer. Every
+    still-pending signal_trigger/followup_due item, tagged with who it
+    belongs to. Pass owner_user_id for one rep's own list; omit it for a
+    manager's cross-team view grouped by rep."""
+    return build_today_queue(db, owner_user_id=owner_user_id)
 
 
 @router.post("/jobs/{job_id}/run")

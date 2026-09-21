@@ -1,7 +1,8 @@
-"""SALES-012 (Budget-Window & Renewal Triggers) - see docs/build-spec.txt.
-Reads the budget_window/renewal_date rows SALES-010-lite (email_summary.py)
-already extracts and surfaces one for review once it's actually worth a
-rep's attention - two ways, since the real data has both:
+"""SALES-012 (Budget-Window & Renewal Triggers, now also covering
+promised_callback - see the _TRIGGERABLE_TYPES comment below) - see
+docs/build-spec.txt. Reads the signal rows SALES-010-lite
+(email_summary.py) already extracts and surfaces one for review once it's
+actually worth a rep's attention - two ways, since the real data has both:
 
   1. Has a due_date: triggers once that date is within a configurable lead
      window (default 14 days out) - the classic "renewal coming up" case.
@@ -36,9 +37,17 @@ from app.models import Contact, EmailSignal, Note, ReviewQueueItem
 
 logger = logging.getLogger("app.automations.signal_triggers")
 
-_TRIGGERABLE_TYPES = ("budget_window", "renewal_date")
+# promised_callback included alongside the original budget_window/
+# renewal_date pair - SALES-013 (morning_queue.py) needs somewhere these
+# surface from, and this trigger logic (due within a lead window, or a
+# delay after extraction if undated) already fits it exactly the same way
+# - no separate producer needed. personal_touchpoint deliberately stays
+# out: it's a warmth/context signal, not something with a "due" point.
+_TRIGGERABLE_TYPES = ("budget_window", "renewal_date", "promised_callback")
 
-_SIGNAL_TYPE_LABELS = {"budget_window": "Budget window", "renewal_date": "Renewal date"}
+_SIGNAL_TYPE_LABELS = {
+    "budget_window": "Budget window", "renewal_date": "Renewal date", "promised_callback": "Promised callback",
+}
 
 
 def _add_note(db: Session, contact: Contact, body: str) -> None:
@@ -75,8 +84,8 @@ def _handle_signal_trigger(db: Session, item: ReviewQueueItem, action_id: str, i
 
 register(ReviewKind(
     kind="signal_trigger",
-    label="Budget window / renewal due",
-    description="A budget window or renewal date extracted from real email correspondence is coming up (or was confirmed with no specific date).",
+    label="Signal follow-up needed",
+    description="A budget window, renewal date, or promised callback extracted from real email correspondence is coming up (or was confirmed with no specific date).",
     actions=[
         ReviewAction(id="draft_followup", label="Draft follow-up", style="primary", outcome="approved"),
         ReviewAction(id="dismiss", label="Not relevant", style="secondary", outcome="rejected"),

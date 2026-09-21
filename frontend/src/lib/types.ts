@@ -257,6 +257,11 @@ export type ReviewQueueItem = {
 
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
 
+/** SALES-013's read side - a ReviewQueueItem (same shape, so it feeds
+ * straight into ReviewItemCard) plus which rep it belongs to. See
+ * backend's app/automations/morning_queue.py. */
+export type TodayItem = ReviewQueueItem & { owner_user_id: string | null; owner_name: string };
+
 export type ScheduledJob = {
   id: string;
   label: string;

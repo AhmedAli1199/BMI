@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  CalendarClock,
   CheckCircle2,
   ClipboardCheck,
   Power,
@@ -50,6 +51,12 @@ export default async function AutomationsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/automations/today">
+            <Badge variant="outline" className="cursor-pointer gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-xs">
+              <CalendarClock className="size-3.5" />
+              Today
+            </Badge>
+          </Link>
           <Link href="/automations/settings">
             <Badge variant="outline" className="cursor-pointer gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-xs">
               <Settings2 className="size-3.5" />
