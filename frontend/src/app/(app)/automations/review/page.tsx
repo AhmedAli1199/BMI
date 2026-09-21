@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReviewItemCard } from "@/components/review-item-card";
 import { ReopenReviewItemButton } from "@/components/reopen-review-item-button";
+import { BulkReviewActions } from "@/components/bulk-review-actions";
 
 const STATUS_TABS = [
   { value: "pending", label: "Pending" },
@@ -150,6 +151,18 @@ export default async function ReviewQueuePage({
           })}
         </div>
       </div>
+
+      {/* Bulk actions - only meaningful once the queue is filtered to one
+          kind (an action's meaning is per-kind, so there's no single
+          "approve all" across every automation at once) and only on the
+          pending tab (approved/rejected have nothing left to act on).
+          Always scoped to the current kind + pending, mirroring exactly
+          what the kind chips above already filtered the list to. */}
+      {activeStatus === "pending" && activeKind && kindByName.get(activeKind) && (
+        <div className="flex justify-end">
+          <BulkReviewActions kind={kindByName.get(activeKind)!} pendingCount={countFor(activeKind)} />
+        </div>
+      )}
 
       <div className="flex flex-col gap-4">
         {page.items.length > 0 ? (

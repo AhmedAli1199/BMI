@@ -8,6 +8,8 @@ from sqlalchemy import Float, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    BulkReviewActionRequest,
+    BulkReviewActionResult,
     ReviewActionOut,
     ReviewActionRequest,
     ReviewKindOut,
@@ -176,6 +178,78 @@ def resolve_review_item(
     db.commit()
     db.refresh(item)
     return ReviewQueueItemOut.model_validate(item)
+
+
+@router.post("/bulk-actions/{action_id}", response_model=BulkReviewActionResult)
+def bulk_resolve_review_items(
+    action_id: str,
+    kind: str = Query(..., description="Bulk actions always target one kind's action list - the same kind the queue view is filtered to."),
+    payload: BulkReviewActionRequest = BulkReviewActionRequest(),
+    db: Session = Depends(get_db),
+) -> BulkReviewActionResult:
+    """Applies one action to every currently-pending item of one kind - the
+    "approve all" / "dismiss all" the reviewer sees for whatever the queue
+    is filtered to right now. Deliberately scoped to a single kind (never
+    "every pending item across every kind"): actions are defined per kind,
+    so there's no single action_id that would even mean the same thing
+    across two different kinds - the frontend calls this once per kind
+    it's showing, exactly matching what "respect the current filter" means
+    when more than one kind is visible at once.
+
+    Only usable for an action that needs no *per-item* input - no contact
+    picker, no related-entity choice, no required extra field, and a note
+    only if one was supplied here (applied identically to every item, same
+    as the single-item flow already allows). An action like "create
+    contact" (needs a name typed per item) or "confirm replacement" (needs
+    a contact picked per item) can't be meaningfully batched and is
+    rejected up front with a clear reason, rather than silently skipping
+    every item it can't handle.
+
+    Each item is applied in its own savepoint (db.begin_nested) so one bad
+    item (e.g. its referenced contact was deleted since queuing) fails and
+    rolls back only itself - it never discards the items already resolved
+    successfully in the same batch, the way a single db.rollback() on a
+    shared session would.
+    """
+    kind_def = get_kind(kind)
+    if not kind_def:
+        raise HTTPException(status_code=404, detail=f"No automation is registered for kind {kind!r}")
+    action = get_action(kind, action_id)
+    if not action:
+        raise HTTPException(status_code=400, detail=f"{action_id!r} is not a valid action for {kind!r}")
+
+    if action.requires_contact_picker or action.requires_related_entity_choice:
+        raise HTTPException(status_code=400, detail=f"\"{action.label}\" needs a per-item choice and can't be applied in bulk.")
+    if any(f.required for f in action.extra_fields if f.field_type != "bool"):
+        raise HTTPException(status_code=400, detail=f"\"{action.label}\" needs per-item input and can't be applied in bulk.")
+    if action.requires_note and not (payload.note or "").strip():
+        raise HTTPException(status_code=400, detail=f"\"{action.label}\" requires a note - add one to apply it in bulk.")
+
+    input_data: dict = {}
+    if payload.note:
+        input_data["note"] = payload.note
+
+    items = db.scalars(
+        select(ReviewQueueItem).where(ReviewQueueItem.kind == kind, ReviewQueueItem.status == "pending")
+    ).all()
+
+    succeeded = 0
+    errors: list[str] = []
+    for item in items:
+        try:
+            with db.begin_nested():
+                kind_def.handler(db, item, action_id, input_data)
+                item.status = action.outcome
+                item.resolved_action = action_id
+                item.review_note = payload.note
+                item.reviewed_at = datetime.now(timezone.utc)
+            succeeded += 1
+        except ValueError as e:
+            if len(errors) < 20:  # cap - a batch that's failing wholesale doesn't need a 500-line response
+                errors.append(f"{item.id}: {e}")
+
+    db.commit()
+    return BulkReviewActionResult(matched=len(items), succeeded=succeeded, failed=len(items) - succeeded, errors=errors)
 
 
 @router.post("/{item_id}/reopen", response_model=ReviewQueueItemOut)

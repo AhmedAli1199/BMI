@@ -484,6 +484,33 @@ export async function resolveReviewItem(
   }
 }
 
+/** Applies one action to every currently-pending item of one kind - see
+ * backend's POST /api/review-queue/bulk-actions/{action_id}. Always scoped
+ * to a single kind (bulk actions can't span kinds, since actions are
+ * defined per kind) and rejected up front by the backend for any action
+ * that needs per-item input it can't collect in bulk (a contact picker, a
+ * required extra field). Throws with the backend's own message on that
+ * rejection; on success, returns the counts so the caller can report
+ * "412 dismissed" / "3 failed" rather than a bare success toast. */
+export async function bulkResolveReviewItems(
+  kind: string,
+  actionId: string,
+  note?: string
+): Promise<{ matched: number; succeeded: number; failed: number; errors: string[] }> {
+  const result = await backendFetch<{ matched: number; succeeded: number; failed: number; errors: string[] }>(
+    `/api/review-queue/bulk-actions/${actionId}?${new URLSearchParams({ kind })}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    }
+  );
+  revalidatePath("/automations");
+  revalidatePath("/automations/review");
+  revalidatePath("/automations/today");
+  return result;
+}
+
 /** Puts a rejected review item back to pending - see backend's
  * POST /api/review-queue/{id}/reopen for why this only works on a
  * rejected item, never an approved one. */
