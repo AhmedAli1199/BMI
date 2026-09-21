@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # Vision provider switch - business_card.py/returned_copy.py's image
+    # reading goes through whichever of these is selected; draft_text()/
+    # extract_json() (plain-text calls) always stay on OpenAI regardless -
+    # only image calls are affected. "openai" (default) needs nothing
+    # beyond openai_api_key above. "gemini" needs gemini_api_key set too.
+    # Switching providers is a two-env-var change + restart, no code
+    # change - see llm.py's extract_json_from_image for exactly where this
+    # is read.
+    vision_provider: str = "openai"
+    gemini_api_key: str = ""
+    gemini_vision_model: str = "gemini-2.0-flash"
+
     # Microsoft Graph app registration (client-credentials flow, no per-user
     # login) - used by /api/diagnostics/graph-mailboxes to confirm which of
     # BMI's mailboxes are actually readable before CS-001/002/003 depend on

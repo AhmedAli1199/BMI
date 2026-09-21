@@ -11,4 +11,11 @@ email-validator==2.2.0
 apscheduler==3.10.4
 httpx==0.27.2
 openai==1.54.4
+# Google's current unified Gemini SDK - used only for vision (business
+# card / returned copy reading) when VISION_PROVIDER=gemini, see llm.py.
+# Installed and its API surface verified against llm.py's calls (Client,
+# types.Part.from_bytes, GenerateContentConfig's fields) in this session -
+# not yet smoke-tested against a real Gemini API key/photo, since none
+# was available here.
+google-genai==2.24.0
 python-multipart==0.0.12

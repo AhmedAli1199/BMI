@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.automations.llm import extract_json_from_image, is_configured
+from app.automations.llm import extract_json_from_image, is_vision_configured
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.vision_intake import MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
 from app.models import Address, Company, Contact, ReviewQueueItem
@@ -116,8 +116,8 @@ def process_returned_copy_photo(
     process_business_card_photo() for the same shape and reasoning."""
     if len(image_bytes) > MAX_IMAGE_BYTES:
         return {"queued": 0, "error": "Image too large (max 8MB)."}
-    if not is_configured():
-        return {"queued": 0, "error": "AI drafting isn't configured (no OpenAI key) - label reading needs it."}
+    if not is_vision_configured():
+        return {"queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - label reading needs it."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
     label = extract_json_from_image(_LABEL_EXTRACTION_PROMPT, data_url)

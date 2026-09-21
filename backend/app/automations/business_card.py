@@ -41,7 +41,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.contact_match import find_contact_by_email
 from app.automations.group_allowlist import ALLOWLISTED_GROUPS, suggest_groups
-from app.automations.llm import extract_json_from_image, is_configured
+from app.automations.llm import extract_json_from_image, is_vision_configured
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, get_action, get_kind, register
 from app.automations.teams_notify import post_summary
 from app.automations.vision_intake import MATCH_THRESHOLD, MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
@@ -305,8 +305,8 @@ def process_business_card_photo(
     read at all)."""
     if len(image_bytes) > MAX_IMAGE_BYTES:
         return {"cards_found": 0, "queued": 0, "error": "Image too large (max 8MB)."}
-    if not is_configured():
-        return {"cards_found": 0, "queued": 0, "error": "AI drafting isn't configured (no OpenAI key) - card reading needs it."}
+    if not is_vision_configured():
+        return {"cards_found": 0, "queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - card reading needs it."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
     result = extract_json_from_image(_CARD_EXTRACTION_PROMPT, data_url)
