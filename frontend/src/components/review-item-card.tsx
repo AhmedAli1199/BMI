@@ -372,24 +372,39 @@ function ExpandedActionForm({
           <Label className="text-xs">Which one do you want to keep?</Label>
           <div className="flex flex-col gap-1.5">
             {choiceOptions.map((e) => (
-              <button
+              <div
                 key={e.id}
-                type="button"
-                onClick={() => setChosenEntityId(e.id)}
-                className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors ${
+                className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
                   chosenEntityId === e.id
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-background text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                <span>{e.label}</span>
+                <button
+                  type="button"
+                  onClick={() => setChosenEntityId(e.id)}
+                  className="flex-1 text-left"
+                >
+                  {e.label}
+                </button>
+                <Link
+                  href={`/contacts/${e.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open this contact's full details in a new tab - useful when two contacts share the same name"
+                  className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
+                  <ExternalLink className="size-3" />
+                  View
+                </Link>
                 {chosenEntityId === e.id && (
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
+                  <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold text-primary">
                     <Check className="size-3.5" />
                     Keep this one
                   </span>
                 )}
-              </button>
+              </div>
             ))}
           </div>
           {choiceOptions.length > 0 && !chosenEntityId && (
