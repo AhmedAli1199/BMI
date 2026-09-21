@@ -163,6 +163,28 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="MS Teams \"Incoming Webhook\" connector URL for the batch-confirm summary (added/updated/skipped). Left blank, the summary is just logged.",
         group="Business card capture", type="text",
     ),
+
+    # ---- SALES-012 - budget-window & renewal triggers ----
+    AutomationSettingDef(
+        key="automations_signal_triggers_scan_enabled", label="Scan enabled",
+        description="Whether the budget-window/renewal trigger scan runs on its schedule.",
+        group="Budget window & renewal triggers", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sales012_lead_days", label="Lead time (days)",
+        description="A signal with a due_date triggers once that date is within this many days.",
+        group="Budget window & renewal triggers", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="sales012_no_date_delay_days", label="Undated signal delay (days)",
+        description="A signal with no due_date triggers this many days after it was first extracted.",
+        group="Budget window & renewal triggers", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="sales012_max_per_run", label="Max queued per run",
+        description="Caps how many review items get queued in one run.",
+        group="Budget window & renewal triggers", type="int", min=1,
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}

@@ -115,5 +115,12 @@ class Settings(BaseSettings):
     # blocks a write for lack of a webhook.
     teams_webhook_url: str = ""
 
+    # SALES-012 (Budget-Window & Renewal Triggers) - see
+    # app/automations/signal_triggers.py.
+    automations_signal_triggers_scan_enabled: bool = False
+    sales012_lead_days: int = 14  # trigger a dated signal once its due_date is this many days out
+    sales012_no_date_delay_days: int = 3  # trigger an undated signal this many days after it was first extracted
+    sales012_max_per_run: int = 25
+
 
 settings = Settings()
