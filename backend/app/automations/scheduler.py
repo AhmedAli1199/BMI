@@ -23,6 +23,7 @@ tick with no restart needed.
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Callable
 
@@ -85,6 +86,41 @@ def is_enabled(job: ScheduledJob) -> bool:
 
 _scheduler: BackgroundScheduler | None = None
 
+# Guards against the SAME job running twice concurrently - the scheduled
+# cron tick (background thread) and a manual "Run now" click (a request
+# thread) are two independent code paths with no shared coordination
+# otherwise, and they *have* overlapped in production: both sessions saw
+# no cursor row yet for the same mailbox, both tried to insert one, and
+# the second hit a UniqueViolation on automation_state_pkey. That specific
+# crash is now impossible either way (state.py's set_state is a real
+# upsert), but two overlapping runs of the same scan is still wasted work
+# - duplicate Graph API calls, duplicate LLM calls, duplicate everything -
+# worth preventing outright, not just surviving.
+_running_job_ids: set[str] = set()
+_running_lock = threading.Lock()
+
+
+def run_job(job: ScheduledJob) -> bool:
+    """The one place a job's func() actually gets called from - both the
+    scheduler's cron tick and the manual "Run now" API route go through
+    this, so the concurrency guard applies to either trigger source
+    equally. Raises whatever job.func() raises (callers decide how to
+    surface it - _run_guarded below logs and swallows it for the
+    scheduler thread, the API route turns it into an HTTP error). Returns
+    False (and does nothing else) if this exact job is already running -
+    True means it actually ran."""
+    with _running_lock:
+        if job.id in _running_job_ids:
+            logger.info("automation job skipped (already running): %s", job.id)
+            return False
+        _running_job_ids.add(job.id)
+    try:
+        job.func()
+    finally:
+        with _running_lock:
+            _running_job_ids.discard(job.id)
+    return True
+
 
 def _run_guarded(job: ScheduledJob) -> None:
     """Wraps every job body so one automation's bug can't crash the
@@ -98,7 +134,7 @@ def _run_guarded(job: ScheduledJob) -> None:
         return
     logger.info("automation job starting: %s", job.id)
     try:
-        job.func()
+        run_job(job)
     except Exception:
         logger.exception("automation job failed: %s", job.id)
     else:

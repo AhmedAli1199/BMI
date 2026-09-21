@@ -10,7 +10,7 @@ from app.automations import runtime_settings
 from app.automations.business_card import process_business_card_photo, resolve_batch
 from app.automations.morning_queue import build_today_queue
 from app.automations.returned_copy import process_returned_copy_photo
-from app.automations.scheduler import all_jobs, is_enabled
+from app.automations.scheduler import all_jobs, is_enabled, run_job
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
 from app.core.config import settings
 from app.db.session import get_db
@@ -76,7 +76,7 @@ def run_job_now(job_id: str) -> dict:
 
     logger.info("manual run requested for automation job: %s", job.id)
     try:
-        job.func()
+        ran = run_job(job)
     except Exception as exc:
         # The full logs.exception() call below still carries the complete
         # traceback (and, for a SQLAlchemy error, the compiled SQL +
@@ -90,8 +90,12 @@ def run_job_now(job_id: str) -> dict:
         short_reason = str(exc).splitlines()[0][:300] if str(exc) else exc.__class__.__name__
         raise HTTPException(status_code=500, detail=f"{job.id} failed: {short_reason} (see backend logs for the full error)") from exc
 
+    if not ran:
+        logger.info("manual run skipped for automation job (already running): %s", job.id)
+        return {"ok": True, "job_id": job.id, "skipped": True, "message": "Already running (e.g. its scheduled tick just started) - this click didn't queue a second run. Check back shortly."}
+
     logger.info("manual run finished for automation job: %s", job.id)
-    return {"ok": True, "job_id": job.id, "message": "Ran to completion - check the review queue and logs for what it found."}
+    return {"ok": True, "job_id": job.id, "skipped": False, "message": "Ran to completion - check the review queue and logs for what it found."}
 
 
 @router.post("/jobs/{job_id}/reset-cursor")

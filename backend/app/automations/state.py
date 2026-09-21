@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.models import AutomationState
@@ -26,12 +27,19 @@ def set_state(db: Session, key: str, value: dict) -> None:
     that want to keep existing fields should read first via get_state()
     and pass the merged dict back in. Caller is responsible for committing
     (this only stages the write), so a scan can batch several keys into one
-    transaction."""
-    row = db.get(AutomationState, key)
-    if row:
-        row.value = value
-    else:
-        db.add(AutomationState(key=key, value=value))
+    transaction.
+
+    A real INSERT ... ON CONFLICT DO UPDATE, not a check-then-branch on
+    db.get() - the latter raced in production: the scheduled cron tick and
+    a manual "Run now" click overlapped, both sessions saw no existing row
+    for the same mailbox's cursor key (neither had committed yet), both
+    tried to insert, and the second one hit a UniqueViolation on
+    automation_state_pkey. An upsert is correct under that race regardless
+    of timing - only one write ever "wins" the row, atomically, with no
+    window where two sessions can both see "not found"."""
+    stmt = pg_insert(AutomationState).values(key=key, value=value)
+    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
+    db.execute(stmt)
 
 
 def get_cursor(db: Session, key: str) -> datetime | None:

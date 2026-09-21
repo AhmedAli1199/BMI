@@ -320,7 +320,14 @@ def scan_email_exchanges() -> None:
                     f"Conversation so far:\n{context}\n\n"
                     f"New message - Subject: {latest_msg.subject}\n\n{latest_msg.body_text}"
                 )
-                extracted = extract_json(_SIGNAL_EXTRACTION_PROMPT, user_prompt)
+                # Default max_tokens (400) was tuned against OpenAI's
+                # typically terser output - Gemini's response for the same
+                # prompt ran long enough to get cut off mid-string,
+                # producing invalid JSON (observed in production: a
+                # JSONDecodeError, "Unterminated string"). This prompt asks
+                # for up to 4 signals plus a thread_summary, so it needs
+                # real headroom.
+                extracted = extract_json(_SIGNAL_EXTRACTION_PROMPT, user_prompt, max_tokens=1200)
                 if not extracted:
                     continue
                 queued_this_mailbox += _upsert_signals(
