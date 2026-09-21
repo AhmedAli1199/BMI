@@ -200,13 +200,19 @@ _OOO_EXTRACTION_PROMPT = (
     "You read a message that cheap heuristics flagged as possibly an out-of-office/automatic-reply. "
     "First decide whether it's GENUINELY someone stating they're away from work for a period of time "
     "(a real absence notice), as opposed to: a generic auto-acknowledgment template (\"thanks for your "
-    "email, we'll respond soon\"), a booking/newsletter confirmation, or any other automated reply that "
-    "isn't actually about the sender being away. Then, only if genuine, extract every person named as a "
-    "replacement or alternative point of contact while they're away (there may be more than one, e.g. "
-    "\"contact Rebecca or Katie\") and any replacement email address mentioned. Use null/empty for "
-    "anything not mentioned - never invent a name or address. Return JSON of the exact shape: "
+    "email, we'll respond soon\"), a booking/newsletter confirmation, a customer-service/ticketing "
+    "system's auto-reply, or any other automated reply that isn't actually about one named person being "
+    "away. Then, only if genuine: extract the date they're due back (as YYYY-MM-DD - resolve any relative "
+    "or partial date, e.g. \"back on the 2nd\" said in a message sent in September, against that "
+    "message's own send date; null if no return date is stated), and extract every person or shared "
+    "team mailbox named as a replacement/alternative point of contact while they're away, each with "
+    "whatever role or department is stated for them (e.g. \"contact Rebecca or Katie in Marketing, or "
+    "customerservices@... for anything urgent\" is TWO entries, one per named/departmental contact). "
+    "Use null/empty for anything not mentioned - never invent a name, address, or date. Return JSON of "
+    "the exact shape: "
     '{"is_genuine_absence": true or false, "confidence": a number from 0.0 to 1.0, '
-    '"replacement_names": [string, ...], "replacement_email": string or null}.'
+    '"return_date": "YYYY-MM-DD" or null, '
+    '"replacements": [{"name": string or null, "email": string or null, "role": string or null}, ...]}.'
 )
 
 
@@ -238,25 +244,40 @@ def _classify_ooo(msg: ParsedMessage) -> dict:
     can't tell" - the caller still queues it for a human to judge, just
     without any replacement info and at a low confidence, never silently
     dropped."""
-    result = extract_json(_OOO_EXTRACTION_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
+    user_prompt = f"Sent: {msg.received_at.date().isoformat()}\nSubject: {msg.subject}\n\nBody:\n{msg.body_text}"
+    result = extract_json(_OOO_EXTRACTION_PROMPT, user_prompt)
     if not result:
-        return {"is_genuine_absence": True, "confidence": 0.4, "replacement_names": [], "replacement_email": None}
+        return {"is_genuine_absence": True, "confidence": 0.4, "return_date": None, "replacements": []}
 
-    names = result.get("replacement_names")
-    if not isinstance(names, list):
-        names = [names] if names else []
-    replacement_names = [n.strip() for n in names if isinstance(n, str) and n.strip()]
+    raw_replacements = result.get("replacements")
+    replacements: list[dict] = []
+    if isinstance(raw_replacements, list):
+        for r in raw_replacements:
+            if not isinstance(r, dict):
+                continue
+            name = (r.get("name") or "").strip() or None
+            email = (r.get("email") or "").strip() or None
+            role = (r.get("role") or "").strip() or None
+            if name or email:
+                replacements.append({"name": name, "email": email, "role": role})
 
     try:
         confidence = max(0.0, min(1.0, float(result.get("confidence", 0.4))))
     except (TypeError, ValueError):
         confidence = 0.4
 
+    return_date = (result.get("return_date") or "").strip() or None
+    if return_date:
+        try:
+            datetime.strptime(return_date, "%Y-%m-%d")
+        except ValueError:
+            return_date = None  # not a real date - never pass an unparseable value downstream
+
     return {
         "is_genuine_absence": bool(result.get("is_genuine_absence", True)),
         "confidence": confidence,
-        "replacement_names": replacement_names,
-        "replacement_email": (result.get("replacement_email") or "").strip() or None,
+        "return_date": return_date,
+        "replacements": replacements,
     }
 
 
@@ -325,14 +346,35 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
     if not classification["is_genuine_absence"]:
         return False
 
-    replacement_names = classification["replacement_names"]
-    replacement_email = classification["replacement_email"]
-    replacement_name = ", ".join(replacement_names) if replacement_names else None
-    replacement_contact = find_contact_by_email(db, replacement_email)
+    replacements = classification["replacements"]
+    return_date = classification["return_date"]
+
+    # Try every named replacement in order (not just the first) until one
+    # matches an existing contact - a departmental fallback mailbox is
+    # unlikely to match a Contact row, but a named colleague usually will.
+    replacement_contact = None
+    for r in replacements:
+        if r["email"]:
+            replacement_contact = find_contact_by_email(db, r["email"])
+            if replacement_contact:
+                break
     suggested_contact = (
-        {"id": str(replacement_contact.id), "label": replacement_contact.full_name or replacement_email}
+        {"id": str(replacement_contact.id), "label": replacement_contact.full_name or ""}
         if replacement_contact else None
     )
+
+    replacement_summary = ", ".join(
+        r["name"] or r["email"] or r["role"] or "" for r in replacements if r["name"] or r["email"] or r["role"]
+    ) or None
+    def _format_replacement(r: dict) -> str:
+        label = r["name"] or r["role"] or "(unnamed)"
+        if r["email"]:
+            label += f" <{r['email']}>"
+        if r["role"] and r["name"]:
+            label += f" ({r['role']})"
+        return label
+
+    replacements_display = "; ".join(_format_replacement(r) for r in replacements) or "-"
 
     db.add(ReviewQueueItem(
         id=uuid.uuid4(), kind="ooo_ambiguous",
@@ -340,12 +382,13 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
         payload={
             "summary": (
                 f"{original.full_name or original.first_name or 'A contact'} is out of office"
-                + (f" - possible replacement: {replacement_name}" if replacement_name else "")
+                + (f" until {return_date}" if return_date else "")
+                + (f" - possible replacement: {replacement_summary}" if replacement_summary else "")
             ),
             "details": [
                 {"key": "subject", "label": "Subject", "value": msg.subject},
-                {"key": "replacement_name", "label": "Named replacement", "value": replacement_name or "-"},
-                {"key": "replacement_email", "label": "Replacement email", "value": replacement_email or "-"},
+                {"key": "return_date", "label": "Due back", "value": return_date or "-"},
+                {"key": "replacements", "label": "Named replacement(s)", "value": replacements_display},
             ],
             "related_entities": [
                 {"type": "contact", "id": str(original.id), "label": original.full_name or msg.from_address or "contact"}
@@ -353,6 +396,8 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
             "suggested_contact": suggested_contact,
             "original_text": msg.body_text,
             "message_id": msg.message_id,
+            "return_date": return_date,
+            "replacements": replacements,
             "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
         },
     ))

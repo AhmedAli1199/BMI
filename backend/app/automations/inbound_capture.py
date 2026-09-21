@@ -234,17 +234,28 @@ _INTENT_PROMPT = (
     "a handover naming a new point of contact, a company notifying of a contact/ownership change), "
     '"reply" (part of an ongoing conversation/relationship, even if the "RE:"/"FW:" prefix is missing), '
     '"spam_or_marketing" (a promotional pitch, newsletter, or other mass-sent content), or '
-    '"unsubscribe_request" (someone asking to be removed from a list). Return JSON of the exact shape: '
-    '{"intent": one of the four labels above, "confidence": a number from 0.0 to 1.0}.'
+    '"unsubscribe_request" (someone asking to be removed from a list). '
+    "Only when the intent is new_inquiry, also do two more things: (1) pull whatever contact details "
+    "appear in the sender's own signature/sign-off (never guess or invent one) - full name, job title, "
+    "company name, direct/office phone, mobile; (2) flag whether the message itself reads as a concrete, "
+    "actionable request with commercial intent right now (asking for pricing, a spec/rate card, "
+    "availability, or to book/order something) as opposed to a passive FYI/introduction with no ask. "
+    "Return JSON of the exact shape: "
+    '{"intent": one of the four labels above, "confidence": a number from 0.0 to 1.0, '
+    '"signature": {"full_name": string or null, "job_title": string or null, "company_name": string or null, '
+    '"phone": string or null, "mobile": string or null}, "is_high_intent": true or false}. '
+    'Omit or null out "signature" and "is_high_intent" entirely when intent isn\'t new_inquiry.'
 )
 
 
-def _classify_inbound_intent(msg: ParsedMessage) -> tuple[str, float] | None:
+def _classify_inbound_intent(msg: ParsedMessage) -> dict | None:
     """Tier C. Returns None on any classification failure (no AI configured,
     or the call failed) - the caller skips queuing rather than falsely
     queuing or crashing the scan, same fail-soft contract as every other AI
-    helper in this codebase."""
-    result = extract_json(_INTENT_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
+    helper in this codebase. Result keys: intent, confidence, signature
+    (dict of extracted contact fields, all null when not new_inquiry or
+    nothing was found), is_high_intent (bool)."""
+    result = extract_json(_INTENT_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}", max_tokens=600)
     if not result:
         return None
     intent = result.get("intent")
@@ -254,7 +265,19 @@ def _classify_inbound_intent(msg: ParsedMessage) -> tuple[str, float] | None:
         confidence = max(0.0, min(1.0, float(result.get("confidence", 0.5))))
     except (TypeError, ValueError):
         confidence = 0.5
-    return intent, confidence
+
+    raw_signature = result.get("signature") if isinstance(result.get("signature"), dict) else {}
+    signature = {
+        key: ((raw_signature.get(key) or "").strip() or None)
+        for key in ("full_name", "job_title", "company_name", "phone", "mobile")
+    }
+
+    return {
+        "intent": intent,
+        "confidence": confidence,
+        "signature": signature,
+        "is_high_intent": bool(result.get("is_high_intent", False)),
+    }
 
 
 def scan_inbound_contacts() -> None:
@@ -345,9 +368,11 @@ def scan_inbound_contacts() -> None:
                 llm_calls_used += 1
                 classification = _classify_inbound_intent(msg)
                 processed_upto = msg
-                if classification is None or classification[0] != "new_inquiry":
+                if classification is None or classification["intent"] != "new_inquiry":
                     continue
-                intent_confidence = classification[1]
+                intent_confidence = classification["confidence"]
+                signature = classification["signature"]
+                is_high_intent = classification["is_high_intent"]
 
                 is_shared_inbox = source_db == "*"
                 company = None if is_shared_inbox else suggest_company(db, source_db, msg.from_address)
@@ -358,6 +383,22 @@ def scan_inbound_contacts() -> None:
                     {"key": "sender_email", "label": "From", "value": msg.from_address or "-"},
                     {"key": "subject", "label": "Subject", "value": msg.subject},
                 ]
+                if is_high_intent:
+                    details.append({"key": "intent_tag", "label": "Intent", "value": "High intent - concrete ask (pricing/spec/availability/booking)"})
+                # Whatever the LLM read out of the sender's own signature -
+                # shown here (not pre-filled into create_contact's fields,
+                # which are a fixed static template shared by every item of
+                # this kind) so the reviewer can copy it straight in instead
+                # of re-reading the email to find it themselves. Only ever
+                # what appeared in the signature - never invented.
+                if any(signature.values()):
+                    details.extend([
+                        {"key": "sig_name", "label": "Name (from signature)", "value": signature["full_name"] or "-"},
+                        {"key": "sig_title", "label": "Job title (from signature)", "value": signature["job_title"] or "-"},
+                        {"key": "sig_company", "label": "Company (from signature)", "value": signature["company_name"] or "-"},
+                        {"key": "sig_phone", "label": "Phone (from signature)", "value": signature["phone"] or "-"},
+                        {"key": "sig_mobile", "label": "Mobile (from signature)", "value": signature["mobile"] or "-"},
+                    ])
                 if is_shared_inbox:
                     details.append({
                         "key": "database", "label": "Database",
@@ -374,13 +415,18 @@ def scan_inbound_contacts() -> None:
                     id=uuid.uuid4(), kind="inbound_contact_unmatched",
                     entity_type=None, entity_id=None,
                     payload={
-                        "summary": f"New inbound contact: {msg.from_address or '(unknown sender)'}"
-                                   + (f" - looks like {company.name}" if company else ""),
+                        "summary": (
+                            ("High-intent: " if is_high_intent else "")
+                            + f"New inbound contact: {signature['full_name'] or msg.from_address or '(unknown sender)'}"
+                            + (f" - looks like {company.name}" if company else "")
+                        ),
                         "details": details,
                         "original_text": msg.body_text,
                         "sender_email": msg.from_address,
                         "source_db": source_db,
                         "message_id": msg.message_id,
+                        "signature": signature,
+                        "is_high_intent": is_high_intent,
                         "confidence": intent_confidence,
                     },
                 ))
