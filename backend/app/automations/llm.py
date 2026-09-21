@@ -208,6 +208,18 @@ def _with_retries(call_fn, *, max_retries: int, base_delay: float, log_label: st
             attempt += 1
 
 
+def _gemini_retry_budget(cfg: dict) -> int:
+    """Gemini gets its full configured retry budget only when it's the
+    ONLY provider in play - if OpenAI is also configured, Gemini is
+    always going to fall back to it on failure anyway, so retrying
+    Gemini first (each attempt backing off 2x/4x/8x...) just delays
+    reaching the provider that would have answered immediately. This is
+    what turned a handful of Gemini rate-limit errors into whole scan
+    runs taking 10+ minutes and blowing past the request timeout - see
+    this module's docstring."""
+    return 0 if _get_openai_client() is not None else cfg["max_retries"]
+
+
 def _throttle(min_interval: float) -> None:
     """Blocks just long enough that this call starts no sooner than
     min_interval seconds after the last one did - spreads a scan loop's
@@ -328,7 +340,7 @@ def _draft_text_gemini(system_prompt: str, user_prompt: str, *, max_tokens: int,
                     temperature=0.4,
                 ),
             ),
-            max_retries=cfg["max_retries"], base_delay=cfg["retry_base_delay"], log_label="Gemini draft_text",
+            max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini draft_text",
         )
         usage = getattr(response, "usage_metadata", None)
         _log_usage(
@@ -461,7 +473,7 @@ def _extract_json_gemini(system_prompt: str, user_prompt: str, *, max_tokens: in
                     temperature=0.1,
                 ),
             ),
-            max_retries=cfg["max_retries"], base_delay=cfg["retry_base_delay"], log_label="Gemini extract_json",
+            max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini extract_json",
         )
         usage = getattr(response, "usage_metadata", None)
         _log_usage(
@@ -595,7 +607,7 @@ def _extract_json_from_image_gemini(
                     temperature=0.1,
                 ),
             ),
-            max_retries=cfg["max_retries"], base_delay=cfg["retry_base_delay"], log_label="Gemini extract_json_from_image",
+            max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini extract_json_from_image",
         )
         usage = getattr(response, "usage_metadata", None)
         _log_usage(

@@ -446,6 +446,7 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
 
         total_queued = 0
         for mailbox in mailboxes:
+            logger.info("bounce_ooo scan: starting mailbox %s", mailbox)
             cursor_key = f"bounce_scan:{mailbox}"
             state = get_state(db, cursor_key)
             last_processed_at = state.get("last_processed_at")
@@ -502,13 +503,23 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
             )
             total_queued += queued_this_mailbox
 
+            # Committed per mailbox, not once at the very end - each
+            # mailbox's review items and cursor advance are durable before
+            # moving to the next, so a slow LLM provider (retries/backoff/
+            # throttle can add real wall-clock time - see llm.py) timing
+            # out the whole request partway through doesn't lose work
+            # that had already completed. This was the actual cause of a
+            # "ran for a while, then nothing happened, no final log line"
+            # report in production: everything was held in one
+            # uncommitted transaction until the very end.
+            db.commit()
+
             if capped_out:
                 # Once the global cap is spent, later mailboxes in this same
                 # run would just capped_out immediately too - stop early
                 # rather than burning a Graph call per mailbox for nothing.
                 break
 
-        db.commit()
         logger.info(
             "bounce_ooo scan finished: %d total item(s) queued across %d mailbox(es)",
             total_queued, len(mailboxes),

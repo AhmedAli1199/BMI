@@ -313,6 +313,7 @@ def scan_inbound_contacts() -> None:
 
         total_queued = 0
         for mailbox, source_db in mailbox_pairs:
+            logger.info("inbound_capture scan: starting mailbox %s (%s)", mailbox, source_db)
             # Keyed by (mailbox, source_db), not mailbox alone - someone
             # with access to more than one database (per BMI's real access
             # sheet: several people appear once per database they can see)
@@ -443,13 +444,19 @@ def scan_inbound_contacts() -> None:
             )
             total_queued += queued_this_mailbox
 
+            # Committed per mailbox, not once at the very end - see
+            # bounce_handling.py's identical comment: a slow LLM provider
+            # (retries/backoff/throttle add real wall-clock time) timing
+            # out the whole request partway through must not lose work
+            # that had already completed in an earlier mailbox.
+            db.commit()
+
             if capped_out:
                 # Once the global cap is spent, later mailboxes in this same
                 # run would just capped_out immediately too - stop early
                 # rather than burning a Graph call per mailbox for nothing.
                 break
 
-        db.commit()
         logger.info("inbound_capture scan finished: %d total item(s) queued across %d mailbox(es)", total_queued, len(mailbox_pairs))
     finally:
         db.close()
