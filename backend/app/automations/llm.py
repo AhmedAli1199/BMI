@@ -226,13 +226,20 @@ def _data_url_to_bytes(data_url: str) -> tuple[str, bytes]:
 def _extract_json_from_image_gemini(
     system_prompt: str, image_data_url: str, *, max_tokens: int = 1000
 ) -> dict | list | None:
-    """Untested against a live key as of this writing (no Gemini key
-    configured in this environment yet) - follows the current google-genai
-    SDK's documented shape (Client.models.generate_content with a
-    types.Part.from_bytes image and response_mime_type="application/json"
-    in GenerateContentConfig). Smoke-test this against a real photo the
-    first time a real GEMINI_API_KEY is set, same as any other untested
-    integration path."""
+    """Follows the current google-genai SDK's documented shape
+    (Client.models.generate_content with a types.Part.from_bytes image,
+    the extraction instructions as system_instruction rather than jammed
+    into the user content, and response_mime_type="application/json" in
+    GenerateContentConfig).
+
+    Every failure mode here - a bad/expired key, a wrong model name, the
+    image tripping Gemini's safety filters, a network error, hitting a
+    quota - all land in the same `except Exception` and produce the exact
+    same "couldn't read this image" message to the person uploading a
+    photo, which makes a real config problem look like a bad photo. The
+    distinct log lines below exist so the ACTUAL cause is visible in the
+    backend logs even though the UI can't show it (a raw API error isn't
+    something to put in front of a rep uploading a business card)."""
     client = _get_gemini_client()
     if client is None:
         return None
@@ -241,21 +248,33 @@ def _extract_json_from_image_gemini(
         mime_type, image_bytes = _data_url_to_bytes(image_data_url)
         response = client.models.generate_content(
             model=settings.gemini_vision_model,
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                system_prompt,
-            ],
+            contents=[types.Part.from_bytes(data=image_bytes, mime_type=mime_type)],
             config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
                 response_mime_type="application/json",
                 max_output_tokens=max_tokens,
                 temperature=0.1,
             ),
         )
+        block_reason = getattr(getattr(response, "prompt_feedback", None), "block_reason", None)
+        if block_reason:
+            logger.warning("Gemini extract_json_from_image: prompt/image blocked (%s) - not a bad photo, a Gemini safety filter.", block_reason)
+            return None
+        if not response.candidates:
+            logger.warning("Gemini extract_json_from_image: no candidates returned - likely blocked or an empty generation, not a bad photo.")
+            return None
+
         text = (response.text or "").strip()
         if not text:
+            finish_reason = getattr(response.candidates[0], "finish_reason", None)
+            logger.warning("Gemini extract_json_from_image: empty response text (finish_reason=%s).", finish_reason)
             return None
         import json
         return json.loads(text)
     except Exception:
-        logger.exception("Gemini extract_json_from_image call failed.")
+        logger.exception(
+            "Gemini extract_json_from_image call failed (model=%s) - check GEMINI_API_KEY validity, "
+            "gemini_vision_model, and quota/billing on that key's project before assuming the photo is at fault.",
+            settings.gemini_vision_model,
+        )
         return None
