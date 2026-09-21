@@ -203,6 +203,11 @@ def scan_signal_triggers() -> None:
                     # actually writes to the contact's record, visible
                     # before the reviewer decides, not just after.
                     "original_text": draft,
+                    # Separate expandable section, distinct from
+                    # original_text above (that's the drafted action, this
+                    # is the real source material it was drawn from) - see
+                    # EmailSignal.source_snippet.
+                    "source_context": signal.source_snippet,
                     "related_entities": [{"type": "contact", "id": str(contact.id), "label": contact_label}],
                     "signal_id": str(signal.id),
                     "confidence": signal.confidence,

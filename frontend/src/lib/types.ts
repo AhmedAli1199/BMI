@@ -236,6 +236,7 @@ export type ReviewPayload = {
   summary?: string;
   details?: ReviewDetail[];
   original_text?: string;
+  source_context?: string | null;
   related_entities?: ReviewRelatedEntity[];
   suggested_contact?: { id: string; label: string } | null;
   candidate?: ReviewCandidate | null;

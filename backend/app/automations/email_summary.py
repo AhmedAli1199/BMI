@@ -52,10 +52,15 @@ _SIGNAL_EXTRACTION_PROMPT = (
     "You read one real email exchange between a salesperson and a client/prospect. Extract any of the "
     "following that this message (in light of the conversation summary so far) actually establishes - "
     "never invent one that isn't clearly there:\n"
-    "- budget_window: ONLY when a specific figure, spend amount, or explicit budget/spend commitment is "
-    "mentioned (e.g. \"has a budget of £4,000\", \"an extra £6k for Q4\"). A month/quarter/deadline date "
+    "- budget_window: ONLY a genuinely pending, not-yet-decided spend the CLIENT hasn't committed to yet - "
+    "a real figure or amount must be mentioned (e.g. \"has a budget of £4,000\", \"an extra £6k for Q4\"), "
+    "AND it must read as an open decision, not a fact already settled. A month/quarter/deadline date "
     "mentioned on its own - a webinar date, a press/print deadline, an event date - is NOT a budget_window "
-    "unless money or spend is explicitly tied to it. When in doubt, don't extract it.\n"
+    "unless money or spend is explicitly tied to it. Critically, a price/rate/fee the SALESPERSON quoted OR "
+    "a cost the client already confirmed/paid (an advertising rate card, an awards entry fee schedule, an "
+    "invoice amount, a rate already agreed) is NOT a budget_window either - that's a quote or a closed fact, "
+    "not something to follow up on. Only extract this when the client still has a real spend decision ahead "
+    "of them. When in doubt, don't extract it.\n"
     "- renewal_date: a contract or ad-placement renewal date with an actual client/customer - NEVER an "
     "internal BMI staffing, appointment, promotion, or payroll matter (those aren't renewals, skip them "
     "entirely even if a date is mentioned).\n"
@@ -148,7 +153,12 @@ def _looks_like_real_conversation(db: Session, msg: ParsedMessage) -> bool:
     return True
 
 
-def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, extracted: dict, *, sent_at: datetime) -> int:
+_SOURCE_SNIPPET_MAX_CHARS = 1200
+
+
+def _upsert_signals(
+    db: Session, contact_id, thread_id: str, message_id: str, extracted: dict, *, sent_at: datetime, message_body: str,
+) -> int:
     """Insert-or-update by (source_thread_id, signal_type) - a thread's Nth
     message about the same renewal date refines the existing row, it never
     creates a duplicate. Returns how many rows were written.
@@ -171,7 +181,15 @@ def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, ex
     that lands earlier is almost certainly a wrong-year hallucination
     (observed twice on real data) and is dropped down to null rather than
     stored wrong - a missing due_date is safe, a false-overdue one isn't,
-    since SALES-012 will trigger off it."""
+    since SALES-012 will trigger off it.
+
+    `message_body` is capped to _SOURCE_SNIPPET_MAX_CHARS and stored as
+    source_snippet - a bounded excerpt of the ONE message that produced
+    this signal, not the whole thread, so a reviewer can see the real
+    context behind the AI's one-line summary. A deliberate, scoped
+    exception to this module's original "never store a message body"
+    design - see EmailSignal.source_snippet's own docstring."""
+    snippet = message_body.strip()[:_SOURCE_SNIPPET_MAX_CHARS] or None
     existing_by_type: dict[str, EmailSignal] = {
         row.signal_type: row
         for row in db.query(EmailSignal).filter_by(source_thread_id=thread_id).all()
@@ -208,12 +226,13 @@ def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, ex
             existing.summary = summary
             existing.due_date = due_date
             existing.source_message_id = message_id
+            existing.source_snippet = snippet
             existing.status = "open"  # a fresh mention re-opens a signal a rep may have already actioned/dismissed
         else:
             new_row = EmailSignal(
                 id=uuid.uuid4(), contact_id=contact_id, signal_type=signal_type,
                 due_date=due_date, summary=summary,
-                source_thread_id=thread_id, source_message_id=message_id,
+                source_thread_id=thread_id, source_message_id=message_id, source_snippet=snippet,
                 confidence=0.6,
             )
             db.add(new_row)
@@ -305,7 +324,8 @@ def scan_email_exchanges() -> None:
                 if not extracted:
                     continue
                 queued_this_mailbox += _upsert_signals(
-                    db, contact.id, thread_id, latest_msg.message_id, extracted, sent_at=latest_msg.received_at,
+                    db, contact.id, thread_id, latest_msg.message_id, extracted,
+                    sent_at=latest_msg.received_at, message_body=latest_msg.body_text,
                 )
 
             if parsed:

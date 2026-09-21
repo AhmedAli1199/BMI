@@ -45,11 +45,17 @@ class EmailSignal(Base, UUIDPk):
     due_date: Mapped[date | None] = mapped_column(Date, index=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Graph identifiers - never a message body, just enough to find/update
-    # the right row and to fetch the source message again if a reviewer
-    # ever wants to see it.
+    # Graph identifiers - just enough to find/update the right row.
     source_thread_id: Mapped[str] = mapped_column(String(256), nullable=False)
     source_message_id: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    # A bounded excerpt (see email_summary.py's _SOURCE_SNIPPET_MAX_CHARS)
+    # of the specific message this signal was extracted from - not the
+    # whole thread, not every prior message, just enough for a reviewer to
+    # see the real context behind the one-line summary. A deliberate, scoped
+    # exception to the original "never store a message body" design (see
+    # git history) - approved explicitly rather than silently widened.
+    source_snippet: Mapped[str | None] = mapped_column(Text)
 
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open", index=True)

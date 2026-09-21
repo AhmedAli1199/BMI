@@ -259,6 +259,23 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
           </details>
         )}
 
+        {/* Separate from "Original message" above (that's the drafted
+            action for this kind, not source material) - the actual email
+            excerpt a signal was pulled from, so a rep can judge the AI's
+            summary against the real context before acting on it. */}
+        {payload.source_context && (
+          <details className="group rounded-lg border border-border/70">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+              <ChevronDown className="size-3.5 transition-transform group-open:hidden" />
+              <ChevronUp className="hidden size-3.5 transition-transform group-open:block" />
+              Original email excerpt
+            </summary>
+            <p className="whitespace-pre-wrap border-t border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+              {cleanNoteBody(payload.source_context)}
+            </p>
+          </details>
+        )}
+
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2 border-t border-border/70 pt-3">
           {kind.actions.map((action) => (

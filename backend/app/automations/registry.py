@@ -25,7 +25,8 @@ so the generic UI can render it without per-kind frontend code):
     {
       "summary": "One line shown as the card's headline",
       "details": [{"key": "...", "label": "...", "value": "...", "editable": bool}],
-      "original_text": "Raw source text (email body, OCR'd label, etc.) - optional",
+      "original_text": "Raw source text (email body, OCR'd label, etc.), OR a drafted action a rep can see before confirming (a follow-up note) - the meaning varies by kind, both render the same way, optional",
+      "source_context": "A separate raw-source excerpt, only used when original_text above means something else (a draft) and there's still real source material worth showing distinctly - optional",
       "related_entities": [{"type": "contact"|"company", "id": "...", "label": "..."}],
       "suggested_contact": {"id": "...", "label": "..."} | None,
       "confidence": 0.0-1.0 | None,
