@@ -309,7 +309,7 @@ def process_business_card_photo(
         return {"cards_found": 0, "queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - card reading needs it."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
-    result = extract_json_from_image(_CARD_EXTRACTION_PROMPT, data_url)
+    result = extract_json_from_image(_CARD_EXTRACTION_PROMPT, data_url, purpose="business_card.extraction")
     if result is None:
         return {"cards_found": 0, "queued": 0, "error": "Couldn't read this image - try a clearer photo."}
 

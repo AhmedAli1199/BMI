@@ -255,7 +255,7 @@ def _classify_inbound_intent(msg: ParsedMessage) -> dict | None:
     helper in this codebase. Result keys: intent, confidence, signature
     (dict of extracted contact fields, all null when not new_inquiry or
     nothing was found), is_high_intent (bool)."""
-    result = extract_json(_INTENT_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}", max_tokens=600)
+    result = extract_json(_INTENT_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}", max_tokens=600, purpose="inbound_capture.intent_classification")
     if not result:
         return None
     intent = result.get("intent")

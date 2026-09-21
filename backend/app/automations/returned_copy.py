@@ -120,7 +120,7 @@ def process_returned_copy_photo(
         return {"queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - label reading needs it."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
-    label = extract_json_from_image(_LABEL_EXTRACTION_PROMPT, data_url)
+    label = extract_json_from_image(_LABEL_EXTRACTION_PROMPT, data_url, purpose="returned_copy.label_extraction")
     if label is None or not isinstance(label, dict):
         return {"queued": 0, "error": "Couldn't read this label - try a clearer photo."}
     if label.get("legible") is False:

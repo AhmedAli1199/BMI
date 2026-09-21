@@ -287,6 +287,39 @@ export type AutomationSetting = {
   max: number | null;
 };
 
+// Mirrors backend/app/api/schemas.py's LlmUsage* shapes - see
+// GET /api/automations/llm-usage (backend/app/automations/llm.py logs one
+// LlmUsageEvent per real Gemini/OpenAI call; this is the aggregated view).
+export type LlmUsageBucket = {
+  bucket_start: string;
+  call_count: number;
+  success_count: number;
+  failure_count: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+};
+
+export type LlmUsageByPurpose = {
+  purpose: string;
+  provider: string;
+  call_count: number;
+  failure_count: number;
+  cost_usd: number;
+};
+
+export type LlmUsageSummary = {
+  range_start: string;
+  range_end: string;
+  total_calls: number;
+  total_failures: number;
+  total_cost_usd: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  buckets: LlmUsageBucket[];
+  by_purpose: LlmUsageByPurpose[];
+};
+
 export type PreferenceOption = { value: string; label: string; description: string };
 
 export type PreferenceDef = {

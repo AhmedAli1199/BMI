@@ -217,7 +217,7 @@ _OOO_EXTRACTION_PROMPT = (
 
 
 def _classify_bounce_severity(msg: ParsedMessage) -> tuple[str, float]:
-    result = extract_json(_BOUNCE_SEVERITY_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
+    result = extract_json(_BOUNCE_SEVERITY_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}", purpose="bounce_handling.bounce_severity")
     if result and result.get("severity") in ("hard", "soft"):
         try:
             return result["severity"], max(0.0, min(1.0, float(result.get("confidence", 0.5))))
@@ -245,7 +245,7 @@ def _classify_ooo(msg: ParsedMessage) -> dict:
     without any replacement info and at a low confidence, never silently
     dropped."""
     user_prompt = f"Sent: {msg.received_at.date().isoformat()}\nSubject: {msg.subject}\n\nBody:\n{msg.body_text}"
-    result = extract_json(_OOO_EXTRACTION_PROMPT, user_prompt)
+    result = extract_json(_OOO_EXTRACTION_PROMPT, user_prompt, purpose="bounce_handling.ooo_extraction")
     if not result:
         return {"is_genuine_absence": True, "confidence": 0.4, "return_date": None, "replacements": []}
 

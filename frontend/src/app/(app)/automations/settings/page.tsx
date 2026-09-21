@@ -36,6 +36,12 @@ export default async function AutomationSettingsPage() {
           &quot;Run now&quot; - no restart or redeploy needed. Anything not changed here keeps using its
           env var default.
         </p>
+        <Link
+          href="/automations/llm-usage"
+          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary hover:underline"
+        >
+          View LLM usage &amp; cost &rarr;
+        </Link>
       </div>
 
       <div className="flex flex-col gap-4">

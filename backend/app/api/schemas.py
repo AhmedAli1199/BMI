@@ -542,6 +542,40 @@ class BulkReviewActionResult(BaseModel):
     errors: list[str] = []  # "<item id>: <message>" for whichever items failed, capped
 
 
+# ---- LLM usage / cost dashboard ----------------------------------------
+
+class LlmUsageBucket(BaseModel):
+    """One row of the usage-over-time table - a fixed-width time bucket
+    (see the `granularity` query param) with its own call counts and cost."""
+    bucket_start: datetime
+    call_count: int
+    success_count: int
+    failure_count: int
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float
+
+
+class LlmUsageByPurpose(BaseModel):
+    purpose: str
+    provider: str
+    call_count: int
+    failure_count: int
+    cost_usd: float
+
+
+class LlmUsageSummary(BaseModel):
+    range_start: datetime
+    range_end: datetime
+    total_calls: int
+    total_failures: int
+    total_cost_usd: float
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    buckets: list[LlmUsageBucket]
+    by_purpose: list[LlmUsageByPurpose]
+
+
 # ---- Preferences / settings -------------------------------------------
 # See app/preferences.py for the registry these render.
 

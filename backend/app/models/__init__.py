@@ -8,6 +8,7 @@ from app.models.contact_channel import Address, Email, Phone
 from app.models.email_signal import EmailSignal
 from app.models.group import Group, GroupMembership
 from app.models.history import HistoryEntry
+from app.models.llm_usage import LlmUsageEvent
 from app.models.note import Note
 from app.models.opportunity import Opportunity
 from app.models.publication import Publication
@@ -33,6 +34,7 @@ __all__ = [
     "Group",
     "GroupMembership",
     "HistoryEntry",
+    "LlmUsageEvent",
     "Note",
     "Opportunity",
     "Phone",

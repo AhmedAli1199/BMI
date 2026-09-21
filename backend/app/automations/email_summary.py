@@ -327,7 +327,7 @@ def scan_email_exchanges() -> None:
                 # JSONDecodeError, "Unterminated string"). This prompt asks
                 # for up to 4 signals plus a thread_summary, so it needs
                 # real headroom.
-                extracted = extract_json(_SIGNAL_EXTRACTION_PROMPT, user_prompt, max_tokens=1200)
+                extracted = extract_json(_SIGNAL_EXTRACTION_PROMPT, user_prompt, max_tokens=1200, purpose="email_summary.signal_extraction")
                 if not extracted:
                     continue
                 queued_this_mailbox += _upsert_signals(

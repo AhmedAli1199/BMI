@@ -66,6 +66,34 @@ class Settings(BaseSettings):
     # change needed) then.
     gemini_vision_model: str = "gemini-3.6-flash"
 
+    # Reliability: every real Gemini/OpenAI call in app/automations/llm.py
+    # retries this many times (with exponential backoff) on a transient/
+    # rate-limit error specifically - not on a genuine bad-request/auth
+    # error, which retrying would never fix. Set to 0 to disable retries
+    # entirely (immediate single-attempt, old behavior).
+    llm_max_retries: int = 3
+    llm_retry_base_delay_seconds: float = 2.0
+
+    # Throttle: a minimum gap enforced between successive LLM calls made
+    # from the SAME scan run's loop (inbound_capture.py, bounce_handling.py)
+    # - spreads a burst of 20+ calls out over several seconds instead of
+    # firing them back to back, which is what was tripping Gemini's
+    # per-minute rate limit in production and silently defaulting every
+    # capped-out classification to "can't tell, assume genuine".
+    llm_call_min_interval_seconds: float = 1.1
+
+    # Cost dashboard (/api/automations/llm-usage, see app/models/llm_usage.py)
+    # - $ per 1,000,000 tokens, input vs output, per provider. These are
+    # editable at runtime (Automations Settings) specifically because list
+    # prices change and this repo has no way to fetch them live - update
+    # here (or override in Settings) when a provider's pricing changes;
+    # historical usage rows already store their own computed cost and are
+    # never rewritten retroactively.
+    llm_cost_gemini_input_per_1m: float = 0.30
+    llm_cost_gemini_output_per_1m: float = 2.50
+    llm_cost_openai_input_per_1m: float = 0.15
+    llm_cost_openai_output_per_1m: float = 0.60
+
     # Microsoft Graph app registration (client-credentials flow, no per-user
     # login) - used by /api/diagnostics/graph-mailboxes to confirm which of
     # BMI's mailboxes are actually readable before CS-001/002/003 depend on

@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.orm import Session
 
-from app.api.schemas import AutomationSettingOut, AutomationSettingUpdate, ScheduledJobOut
+from app.api.schemas import (
+    AutomationSettingOut,
+    AutomationSettingUpdate,
+    LlmUsageBucket,
+    LlmUsageByPurpose,
+    LlmUsageSummary,
+    ScheduledJobOut,
+)
 from app.automations import runtime_settings
 from app.automations.business_card import process_business_card_photo, resolve_batch
 from app.automations.morning_queue import build_today_queue
@@ -14,7 +24,7 @@ from app.automations.scheduler import all_jobs, is_enabled, run_job
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import AutomationState, Contact, EmailSignal
+from app.models import AutomationState, Contact, EmailSignal, LlmUsageEvent
 
 logger = logging.getLogger("app.api.automations")
 
@@ -255,3 +265,82 @@ def list_email_signals(db: Session = Depends(get_db)) -> list[dict]:
         }
         for signal, contact in rows
     ]
+
+
+@router.get("/llm-usage", response_model=LlmUsageSummary)
+def get_llm_usage(
+    days: int = Query(30, ge=1, le=365, description="How many days back to summarize."),
+    granularity: Literal["hour", "day"] = Query("day", description="Time-bucket width for the usage-over-time table."),
+    db: Session = Depends(get_db),
+) -> LlmUsageSummary:
+    """Aggregated LLM cost/usage - deliberately its own out-of-the-way
+    endpoint (only linked from Automations Settings, not any regularly
+    used page) rather than a dashboard widget, since "how much are we
+    spending on AI calls" is an occasional check-in, not something that
+    needs to be in front of a reviewer every day. Every real Gemini/
+    OpenAI call anywhere in the codebase logs one LlmUsageEvent row (see
+    app/automations/llm.py) - this just aggregates them, it never
+    computes cost itself.
+    """
+    range_end = datetime.now(timezone.utc)
+    range_start = range_end - timedelta(days=days)
+
+    is_failure = cast(LlmUsageEvent.success == False, Integer)  # noqa: E712 - explicit is-false, not "falsy"
+    is_success = cast(LlmUsageEvent.success == True, Integer)  # noqa: E712
+
+    totals_row = db.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(is_failure), 0),
+            func.coalesce(func.sum(LlmUsageEvent.estimated_cost_usd), 0.0),
+            func.coalesce(func.sum(LlmUsageEvent.prompt_tokens), 0),
+            func.coalesce(func.sum(LlmUsageEvent.completion_tokens), 0),
+        ).where(LlmUsageEvent.created_at >= range_start)
+    ).one()
+    total_calls, total_failures, total_cost, total_prompt_tokens, total_completion_tokens = totals_row
+
+    bucket_expr = func.date_trunc(granularity, LlmUsageEvent.created_at)
+    bucket_rows = db.execute(
+        select(
+            bucket_expr.label("bucket_start"),
+            func.count(),
+            func.coalesce(func.sum(is_success), 0),
+            func.coalesce(func.sum(is_failure), 0),
+            func.coalesce(func.sum(LlmUsageEvent.prompt_tokens), 0),
+            func.coalesce(func.sum(LlmUsageEvent.completion_tokens), 0),
+            func.coalesce(func.sum(LlmUsageEvent.estimated_cost_usd), 0.0),
+        )
+        .where(LlmUsageEvent.created_at >= range_start)
+        .group_by(bucket_expr)
+        .order_by(bucket_expr)
+    ).all()
+
+    by_purpose_rows = db.execute(
+        select(
+            LlmUsageEvent.purpose,
+            LlmUsageEvent.provider,
+            func.count(),
+            func.coalesce(func.sum(is_failure), 0),
+            func.coalesce(func.sum(LlmUsageEvent.estimated_cost_usd), 0.0),
+        )
+        .where(LlmUsageEvent.created_at >= range_start)
+        .group_by(LlmUsageEvent.purpose, LlmUsageEvent.provider)
+        .order_by(func.sum(LlmUsageEvent.estimated_cost_usd).desc())
+    ).all()
+
+    return LlmUsageSummary(
+        range_start=range_start, range_end=range_end,
+        total_calls=total_calls, total_failures=total_failures, total_cost_usd=total_cost,
+        total_prompt_tokens=total_prompt_tokens, total_completion_tokens=total_completion_tokens,
+        buckets=[
+            LlmUsageBucket(
+                bucket_start=b.bucket_start, call_count=b[1], success_count=b[2], failure_count=b[3],
+                prompt_tokens=b[4], completion_tokens=b[5], cost_usd=b[6],
+            )
+            for b in bucket_rows
+        ],
+        by_purpose=[
+            LlmUsageByPurpose(purpose=p[0], provider=p[1], call_count=p[2], failure_count=p[3], cost_usd=p[4])
+            for p in by_purpose_rows
+        ],
+    )

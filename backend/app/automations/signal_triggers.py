@@ -83,6 +83,7 @@ def _draft_followup_text(signal: EmailSignal, contact_label: str) -> tuple[str, 
             user_prompt=(
                 f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}"
             ),
+            purpose="signal_triggers.draft",
         )
         if ai_text:
             return ai_text, True

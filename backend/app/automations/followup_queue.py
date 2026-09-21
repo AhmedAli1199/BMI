@@ -135,6 +135,7 @@ def _draft_followup_text(activity: Activity, contact: Contact | None, company: C
                 "context - if the context is thin, keep the email general rather than fabricating detail."
             ),
             user_prompt=context,
+            purpose="followup_queue.draft",
         )
         if ai_text:
             return ai_text, True

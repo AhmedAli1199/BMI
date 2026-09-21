@@ -195,6 +195,43 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="Caps how many review items get queued in one run.",
         group="Budget window & renewal triggers", type="int", min=1,
     ),
+
+    # ---- LLM reliability & cost - see app/automations/llm.py ----
+    AutomationSettingDef(
+        key="llm_max_retries", label="Max retries per call",
+        description="How many times a Gemini/OpenAI call retries on a transient/rate-limit error before giving up. 0 disables retries.",
+        group="LLM usage & cost", type="int", min=0, max=10,
+    ),
+    AutomationSettingDef(
+        key="llm_retry_base_delay_seconds", label="Retry base delay (seconds)",
+        description="Starting delay before the first retry - doubles each attempt (exponential backoff).",
+        group="LLM usage & cost", type="float", min=0.1,
+    ),
+    AutomationSettingDef(
+        key="llm_call_min_interval_seconds", label="Min delay between calls in one scan (seconds)",
+        description="Spreads out a burst of LLM calls within a single scan run's loop, so it doesn't trip a provider's per-minute rate limit.",
+        group="LLM usage & cost", type="float", min=0.0,
+    ),
+    AutomationSettingDef(
+        key="llm_cost_gemini_input_per_1m", label="Gemini input cost ($ / 1M tokens)",
+        description="List price for Gemini prompt tokens - update when the provider changes pricing. Only affects the cost dashboard, never automation behavior.",
+        group="LLM usage & cost", type="float", min=0.0,
+    ),
+    AutomationSettingDef(
+        key="llm_cost_gemini_output_per_1m", label="Gemini output cost ($ / 1M tokens)",
+        description="List price for Gemini completion tokens.",
+        group="LLM usage & cost", type="float", min=0.0,
+    ),
+    AutomationSettingDef(
+        key="llm_cost_openai_input_per_1m", label="OpenAI input cost ($ / 1M tokens)",
+        description="List price for OpenAI prompt tokens.",
+        group="LLM usage & cost", type="float", min=0.0,
+    ),
+    AutomationSettingDef(
+        key="llm_cost_openai_output_per_1m", label="OpenAI output cost ($ / 1M tokens)",
+        description="List price for OpenAI completion tokens.",
+        group="LLM usage & cost", type="float", min=0.0,
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}
