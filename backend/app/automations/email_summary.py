@@ -148,7 +148,7 @@ def _looks_like_real_conversation(db: Session, msg: ParsedMessage) -> bool:
     return True
 
 
-def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, extracted: dict) -> int:
+def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, extracted: dict, *, sent_at: datetime) -> int:
     """Insert-or-update by (source_thread_id, signal_type) - a thread's Nth
     message about the same renewal date refines the existing row, it never
     creates a duplicate. Returns how many rows were written.
@@ -162,7 +162,16 @@ def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, ex
     INSERT a second row for the same key, which is exactly what produced
     the UniqueViolation this docstring is now warning about. `existing_by_type`
     is fetched once up front and mutated in place for the rest of this call
-    so every same-type signal after the first updates the one row instead."""
+    so every same-type signal after the first updates the one row instead.
+
+    `sent_at` is the source message's own received date - a belt-and-
+    suspenders check on top of the prompt now being told that date
+    explicitly: no promise, renewal, or budget window can legitimately be
+    dated before the email that mentions it was even sent, so a due_date
+    that lands earlier is almost certainly a wrong-year hallucination
+    (observed twice on real data) and is dropped down to null rather than
+    stored wrong - a missing due_date is safe, a false-overdue one isn't,
+    since SALES-012 will trigger off it."""
     existing_by_type: dict[str, EmailSignal] = {
         row.signal_type: row
         for row in db.query(EmailSignal).filter_by(source_thread_id=thread_id).all()
@@ -186,6 +195,13 @@ def _upsert_signals(db: Session, contact_id, thread_id: str, message_id: str, ex
                 due_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
             except ValueError:
                 pass
+            if due_date and due_date < sent_at.date():
+                logger.warning(
+                    "email_summary: dropping due_date %s for a %s signal (thread %s) - it's before the message's "
+                    "own send date %s, almost certainly a wrong-year hallucination",
+                    due_date, signal_type, thread_id, sent_at.date(),
+                )
+                due_date = None
 
         existing = existing_by_type.get(signal_type)
         if existing:
@@ -270,14 +286,27 @@ def scan_email_exchanges() -> None:
                     db.query(EmailSignal).filter_by(source_thread_id=thread_id).all()
                 ]
                 context = "\n".join(f"- {s}" for s in prior_summaries) or "(no prior context)"
+                # The model's training cutoff is not "now" - without being
+                # told the message's actual date, it has no reliable way to
+                # resolve "tomorrow"/"next week"/a bare day-of-week into a
+                # real calendar date, and defaults to guessing a year from
+                # its own training data (observed: 2023, on a message sent
+                # in 2026). Anchoring explicitly on the message's own
+                # received_at date fixes this at the source, on top of the
+                # due-date sanity check in _upsert_signals below.
+                sent_date = latest_msg.received_at.date().isoformat()
                 user_prompt = (
+                    f"This message was sent on {sent_date} - resolve any relative date (\"tomorrow\", \"next week\", "
+                    f"a bare day-of-week) and infer the correct year from that date, never from any other assumption.\n\n"
                     f"Conversation so far:\n{context}\n\n"
                     f"New message - Subject: {latest_msg.subject}\n\n{latest_msg.body_text}"
                 )
                 extracted = extract_json(_SIGNAL_EXTRACTION_PROMPT, user_prompt)
                 if not extracted:
                     continue
-                queued_this_mailbox += _upsert_signals(db, contact.id, thread_id, latest_msg.message_id, extracted)
+                queued_this_mailbox += _upsert_signals(
+                    db, contact.id, thread_id, latest_msg.message_id, extracted, sent_at=latest_msg.received_at,
+                )
 
             if parsed:
                 max_ts = max(m.received_at for m in parsed)
