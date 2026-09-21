@@ -197,10 +197,16 @@ _BOUNCE_SEVERITY_PROMPT = (
 )
 
 _OOO_EXTRACTION_PROMPT = (
-    "You read out-of-office / automatic-reply emails. Extract who, if anyone, the sender named as a "
-    "replacement or alternative point of contact while they're away. Use null for anything not "
-    "mentioned - never invent a name or address. Return JSON of the exact shape: "
-    '{"replacement_name": string or null, "replacement_email": string or null}.'
+    "You read a message that cheap heuristics flagged as possibly an out-of-office/automatic-reply. "
+    "First decide whether it's GENUINELY someone stating they're away from work for a period of time "
+    "(a real absence notice), as opposed to: a generic auto-acknowledgment template (\"thanks for your "
+    "email, we'll respond soon\"), a booking/newsletter confirmation, or any other automated reply that "
+    "isn't actually about the sender being away. Then, only if genuine, extract every person named as a "
+    "replacement or alternative point of contact while they're away (there may be more than one, e.g. "
+    "\"contact Rebecca or Katie\") and any replacement email address mentioned. Use null/empty for "
+    "anything not mentioned - never invent a name or address. Return JSON of the exact shape: "
+    '{"is_genuine_absence": true or false, "confidence": a number from 0.0 to 1.0, '
+    '"replacement_names": [string, ...], "replacement_email": string or null}.'
 )
 
 
@@ -218,13 +224,40 @@ def _classify_bounce_severity(msg: ParsedMessage) -> tuple[str, float]:
     return "hard", 0.4
 
 
-def _extract_ooo_replacement(msg: ParsedMessage) -> tuple[str | None, str | None]:
+def _classify_ooo(msg: ParsedMessage) -> dict:
+    """One LLM call doing double duty: is this genuinely someone away (vs a
+    generic auto-ack template that only looked OOO-shaped to the cheap
+    heuristics), plus - only worth extracting if genuine - who they named
+    as a replacement. Kept as a single call rather than two so tightening
+    the false-positive rate here costs nothing extra (see
+    docs/automation-tuning-baseline.md for the production false positives
+    this targets: generic auto-acknowledgment templates that previously
+    always queued as "genuine absence" at a flat 0.4 confidence).
+
+    Fails soft like every other AI call here: no result at all means "we
+    can't tell" - the caller still queues it for a human to judge, just
+    without any replacement info and at a low confidence, never silently
+    dropped."""
     result = extract_json(_OOO_EXTRACTION_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
     if not result:
-        return None, None
-    name = (result.get("replacement_name") or "").strip() or None
-    email = (result.get("replacement_email") or "").strip() or None
-    return name, email
+        return {"is_genuine_absence": True, "confidence": 0.4, "replacement_names": [], "replacement_email": None}
+
+    names = result.get("replacement_names")
+    if not isinstance(names, list):
+        names = [names] if names else []
+    replacement_names = [n.strip() for n in names if isinstance(n, str) and n.strip()]
+
+    try:
+        confidence = max(0.0, min(1.0, float(result.get("confidence", 0.4))))
+    except (TypeError, ValueError):
+        confidence = 0.4
+
+    return {
+        "is_genuine_absence": bool(result.get("is_genuine_absence", True)),
+        "confidence": confidence,
+        "replacement_names": replacement_names,
+        "replacement_email": (result.get("replacement_email") or "").strip() or None,
+    }
 
 
 def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
@@ -280,12 +313,21 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
     """Queues a review item for a message that looks like an out-of-office
     / auto-reply, but only when the sender is someone already in the CRM -
     an auto-reply from an address we have no contact for isn't something a
-    reviewer can act on. Returns True if something was queued."""
+    reviewer can act on - AND the LLM call confirms it's a genuine absence
+    notice, not a generic auto-ack template that merely looked OOO-shaped
+    to the cheap heuristics (see _classify_ooo). Returns True if something
+    was queued."""
     original = find_contact_by_email(db, msg.from_address)
     if not original:
         return False
 
-    replacement_name, replacement_email = _extract_ooo_replacement(msg)
+    classification = _classify_ooo(msg)
+    if not classification["is_genuine_absence"]:
+        return False
+
+    replacement_names = classification["replacement_names"]
+    replacement_email = classification["replacement_email"]
+    replacement_name = ", ".join(replacement_names) if replacement_names else None
     replacement_contact = find_contact_by_email(db, replacement_email)
     suggested_contact = (
         {"id": str(replacement_contact.id), "label": replacement_contact.full_name or replacement_email}
@@ -311,7 +353,7 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
             "suggested_contact": suggested_contact,
             "original_text": msg.body_text,
             "message_id": msg.message_id,
-            "confidence": 0.65 if replacement_contact else 0.4,
+            "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
         },
     ))
     return True
@@ -348,6 +390,15 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
             ).all()
         )
 
+        # Global across every mailbox in this run - an OOO-shaped candidate
+        # needs the LLM call in _handle_candidate_ooo to tell a genuine
+        # absence notice from a generic auto-ack template, and that's the
+        # cost this caps (bounce classification is unaffected: NDR volume
+        # doesn't spike the way a mailing-list send can trigger a wave of
+        # auto-replies at once). See ooo_llm_max_per_run's registry entry.
+        ooo_llm_max = runtime_settings.get_int(db, "ooo_llm_max_per_run")
+        ooo_llm_calls_used = 0
+
         total_queued = 0
         for mailbox in mailboxes:
             cursor_key = f"bounce_scan:{mailbox}"
@@ -367,32 +418,50 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
                 logger.error("bounce_ooo scan: mailbox %s failed (HTTP %s): %s", mailbox, exc.status_code, exc)
                 continue
 
-            parsed = [parse_message(m) for m in raw_messages if m.get("id") not in skip_ids]
+            # Oldest-first, and processed only up to whichever message the
+            # OOO cap first bites on - anything after that point (including
+            # non-OOO messages that happen to sort after it) is left for the
+            # cursor to naturally re-fetch next run, same cap-and-defer
+            # mechanism as inbound_capture.py.
+            parsed = sorted((parse_message(m) for m in raw_messages if m.get("id") not in skip_ids), key=lambda m: m.received_at)
             queued_this_mailbox = 0
+            processed_upto: ParsedMessage | None = None
+            capped_out = False
 
             for msg in parsed:
                 if msg.message_id in existing_message_ids:
+                    processed_upto = msg
                     continue
                 if looks_like_bounce(msg):
                     queued = _handle_candidate_bounce(db, msg)
                 elif looks_like_ooo(msg):
+                    if ooo_llm_calls_used >= ooo_llm_max:
+                        capped_out = True
+                        break
+                    ooo_llm_calls_used += 1
                     queued = _handle_candidate_ooo(db, msg)
                 else:
                     queued = False
                 if queued:
                     existing_message_ids.add(msg.message_id)
                     queued_this_mailbox += 1
+                processed_upto = msg
 
-            if parsed:
-                max_ts = max(m.received_at for m in parsed)
-                ids_at_max = [m.message_id for m in parsed if m.received_at == max_ts]
-                set_state(db, cursor_key, {"last_processed_at": max_ts.isoformat(), "last_message_ids": ids_at_max})
+            if processed_upto is not None:
+                set_state(db, cursor_key, {"last_processed_at": processed_upto.received_at.isoformat(), "last_message_ids": [processed_upto.message_id]})
 
             logger.info(
-                "bounce_ooo scan: mailbox %s - %d message(s) read, %d queued",
+                "bounce_ooo scan: mailbox %s - %d message(s) read, %d queued%s",
                 mailbox, len(parsed), queued_this_mailbox,
+                " (OOO LLM cap reached - remaining message(s) deferred to next run)" if capped_out else "",
             )
             total_queued += queued_this_mailbox
+
+            if capped_out:
+                # Once the global cap is spent, later mailboxes in this same
+                # run would just capped_out immediately too - stop early
+                # rather than burning a Graph call per mailbox for nothing.
+                break
 
         db.commit()
         logger.info(

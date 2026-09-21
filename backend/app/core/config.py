@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     # see app/automations/state.py. Every run after that only asks for what
     # arrived since the previous run, however often the job fires.
     bounce_scan_initial_lookback_minutes: int = 1440
+    # Same cap-and-defer mechanism as inbound_capture_llm_max_per_run above,
+    # for the OOO replacement-extraction call - smaller default since OOO
+    # volume runs much lower than inbound capture.
+    ooo_llm_max_per_run: int = 25
 
     # SALES-010-lite (Email Exchange Summarising) - see
     # app/automations/email_summary.py. Deliberately OFF by default and a
@@ -121,6 +125,12 @@ class Settings(BaseSettings):
     inbound_capture_max_recipients: int = 3
     inbound_capture_min_body_chars: int = 30
     inbound_capture_initial_lookback_minutes: int = 1440
+    # Hard cap on how many messages get the LLM intent-classification call
+    # (new_inquiry/reply/spam/...) in ONE run, across all mailboxes
+    # combined - bounds cost on a traffic spike. Anything past the cap
+    # isn't lost: the cursor only advances past what was actually
+    # processed this run, so the rest is picked up on the next tick.
+    inbound_capture_llm_max_per_run: int = 40
 
     # SALES-002 (Business Card Dedupe & Group Assignment) - see
     # app/automations/business_card.py. An MS Teams "Incoming Webhook"

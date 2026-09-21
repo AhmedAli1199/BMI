@@ -53,6 +53,30 @@ _OOO_SUBJECT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Corroborating body-text signal for the Auto-Submitted-header branch of
+# looks_like_ooo() below - that header alone means "any automated
+# response", not specifically "someone is away", and was seen in
+# production misclassifying a mail-routing failure notice as an
+# out-of-office reply. Requiring one of these phrases too (on top of the
+# header) keeps the header meaningful without needing an LLM call just to
+# rule out the "wrong kind of automated message" case.
+_OOO_BODY_HINT_RE = re.compile(
+    r"\b(out of office|out of the office|on leave|on holiday|on vacation|"
+    r"away from (my|the) (desk|office)|currently away|will be back|"
+    r"return(ing)? (on|to the office))\b",
+    re.IGNORECASE,
+)
+
+# A mail-routing/delivery failure that doesn't use a standard NDR subject
+# line - the production case this was added for: "unable to find X in the
+# data table" (a distribution-list/mail-merge routing failure), which
+# looks_like_ooo's Auto-Submitted check was previously swallowing.
+_ROUTING_FAILURE_RE = re.compile(
+    r"(unable to (find|route|deliver)|routing (issue|error|failure)|"
+    r"could not be delivered|delivery (has )?failed)",
+    re.IGNORECASE,
+)
+
 # Pulls email addresses out of an NDR body's "failed recipients" section -
 # deliberately a plain email regex rather than trying to parse every mail
 # server's own NDR body format (they all differ), since we only need the
@@ -131,15 +155,30 @@ def looks_like_bounce(msg: ParsedMessage) -> bool:
     # when the subject has been localized to something the regex above
     # won't catch.
     content_type = msg.headers.get("content-type", "")
-    return "report-type=delivery-status" in content_type.lower()
+    if "report-type=delivery-status" in content_type.lower():
+        return True
+    # A routing/delivery failure that doesn't use a standard NDR subject -
+    # e.g. a mail-merge distribution-list lookup failure - still reads as
+    # a bounce, not a human reply or an out-of-office.
+    return bool(_ROUTING_FAILURE_RE.search(msg.body_text[:500]))
 
 
 def looks_like_ooo(msg: ParsedMessage) -> bool:
     """Same idea for out-of-office/auto-reply detection - RFC 3834's
     Auto-Submitted header is the reliable signal when present; the subject
     regex covers the common case where a sender's mail system doesn't set
-    it (a lot of consumer/Google Workspace auto-replies skip it)."""
+    it (a lot of consumer/Google Workspace auto-replies skip it).
+
+    The Auto-Submitted header alone means "some kind of automated
+    response" - not specifically "this person is away" - and was observed
+    in production swallowing a mail-routing failure notice as if it were
+    an OOO reply. Requiring a body-text absence hint alongside the header
+    (the subject-regex branch doesn't need this - that regex is already
+    OOO-specific) keeps this from over-triggering on other automated
+    replies that happen to set the same header."""
+    if _OOO_SUBJECT_RE.match(msg.subject):
+        return True
     auto_submitted = msg.headers.get("auto-submitted", "").lower()
     if auto_submitted and auto_submitted != "no":
-        return True
-    return bool(_OOO_SUBJECT_RE.match(msg.subject))
+        return bool(_OOO_BODY_HINT_RE.search(msg.body_text[:1000]))
+    return False

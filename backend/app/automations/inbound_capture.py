@@ -44,9 +44,16 @@ from app.automations import runtime_settings
 from app.automations.company_match import domain_of, suggest_company
 from app.automations.contact_match import find_contact_by_email
 from app.automations.group_allowlist import ALLOWLISTED_GROUPS, NEWSLETTER_GROUP, suggest_groups
+from app.automations.llm import extract_json
 from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
+from app.automations.sender_patterns import (
+    contains_unsubscribe_text,
+    is_automated_sender,
+    is_reply_subject,
+    looks_like_unsubscribe_request,
+)
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
@@ -186,6 +193,7 @@ register(ReviewKind(
 
 
 def _looks_like_new_enquiry(db: Session, msg: ParsedMessage, internal_domains: set[str]) -> bool:
+    """Tier A: the original cheap structural gates."""
     if msg.recipient_count > runtime_settings.get_int(db, "inbound_capture_max_recipients"):
         return False
     if looks_like_bounce(msg) or looks_like_ooo(msg):
@@ -197,6 +205,56 @@ def _looks_like_new_enquiry(db: Session, msg: ParsedMessage, internal_domains: s
     if domain_of(msg.from_address) in internal_domains:
         return False
     return True
+
+
+def _obviously_not_a_lead(msg: ParsedMessage) -> bool:
+    """Tier B: cheap heuristics that catch the bulk of what was reaching
+    the review queue as noise (see docs/automation-tuning-baseline.md) -
+    replies within an existing thread, automated senders, and marketing/
+    unsubscribe-request text. Deliberately does NOT check "no company-
+    domain match" - that would filter out exactly the highest-value
+    genuinely-new-company leads (e.g. a self-registering new contact at a
+    company we've never dealt with), so that signal is left entirely to
+    Tier C / human review instead."""
+    if is_reply_subject(msg.subject):
+        return True
+    if is_automated_sender(msg.from_address):
+        return True
+    if looks_like_unsubscribe_request(msg.body_text):
+        return True
+    if contains_unsubscribe_text(msg.body_text):
+        return True
+    return False
+
+
+_INTENT_PROMPT = (
+    "You triage inbound email to a company enquiry mailbox, deciding whether a message is a genuine "
+    "new business enquiry worth a salesperson's attention. Classify it as exactly one of: "
+    '"new_inquiry" (a genuine new/prospective business contact - a fresh enquiry, a self-introduction, '
+    "a handover naming a new point of contact, a company notifying of a contact/ownership change), "
+    '"reply" (part of an ongoing conversation/relationship, even if the "RE:"/"FW:" prefix is missing), '
+    '"spam_or_marketing" (a promotional pitch, newsletter, or other mass-sent content), or '
+    '"unsubscribe_request" (someone asking to be removed from a list). Return JSON of the exact shape: '
+    '{"intent": one of the four labels above, "confidence": a number from 0.0 to 1.0}.'
+)
+
+
+def _classify_inbound_intent(msg: ParsedMessage) -> tuple[str, float] | None:
+    """Tier C. Returns None on any classification failure (no AI configured,
+    or the call failed) - the caller skips queuing rather than falsely
+    queuing or crashing the scan, same fail-soft contract as every other AI
+    helper in this codebase."""
+    result = extract_json(_INTENT_PROMPT, f"Subject: {msg.subject}\n\nBody:\n{msg.body_text}")
+    if not result:
+        return None
+    intent = result.get("intent")
+    if intent not in ("new_inquiry", "reply", "spam_or_marketing", "unsubscribe_request"):
+        return None
+    try:
+        confidence = max(0.0, min(1.0, float(result.get("confidence", 0.5))))
+    except (TypeError, ValueError):
+        confidence = 0.5
+    return intent, confidence
 
 
 def scan_inbound_contacts() -> None:
@@ -221,6 +279,14 @@ def scan_inbound_contacts() -> None:
                 select(ReviewQueueItem).where(ReviewQueueItem.kind == "inbound_contact_unmatched", ReviewQueueItem.status == "pending")
             ).all()
         }
+
+        # Global across every mailbox in this run - bounds Tier C cost on a
+        # traffic spike. A candidate that doesn't get its LLM call this run
+        # isn't lost: the cursor only advances up to the last message this
+        # mailbox actually finished processing, so the next scheduled tick
+        # re-fetches and retries it (see the cursor-advance logic below).
+        llm_max = runtime_settings.get_int(db, "inbound_capture_llm_max_per_run")
+        llm_calls_used = 0
 
         total_queued = 0
         for mailbox, source_db in mailbox_pairs:
@@ -249,17 +315,39 @@ def scan_inbound_contacts() -> None:
                 logger.error("inbound_capture scan: mailbox %s failed (HTTP %s): %s", mailbox, exc.status_code, exc)
                 continue
 
-            parsed = [parse_message(m) for m in raw_messages if m.get("id") not in skip_ids]
+            # Oldest-first, and processed only up to whichever message the
+            # Tier C cap first bites on - see the cap-and-defer comment
+            # above. Everything after that point is left for the cursor to
+            # naturally re-fetch and retry next run.
+            parsed = sorted((parse_message(m) for m in raw_messages if m.get("id") not in skip_ids), key=lambda m: m.received_at)
             queued_this_mailbox = 0
+            processed_upto: ParsedMessage | None = None
+            capped_out = False
 
             for msg in parsed:
                 sender = (msg.from_address or "").lower()
                 if not sender or sender in pending_senders:
+                    processed_upto = msg
                     continue
                 if not _looks_like_new_enquiry(db, msg, internal_domains):
+                    processed_upto = msg
+                    continue
+                if _obviously_not_a_lead(msg):
+                    processed_upto = msg
                     continue
                 if find_contact_by_email(db, msg.from_address):
+                    processed_upto = msg
                     continue
+
+                if llm_calls_used >= llm_max:
+                    capped_out = True
+                    break
+                llm_calls_used += 1
+                classification = _classify_inbound_intent(msg)
+                processed_upto = msg
+                if classification is None or classification[0] != "new_inquiry":
+                    continue
+                intent_confidence = classification[1]
 
                 is_shared_inbox = source_db == "*"
                 company = None if is_shared_inbox else suggest_company(db, source_db, msg.from_address)
@@ -293,22 +381,27 @@ def scan_inbound_contacts() -> None:
                         "sender_email": msg.from_address,
                         "source_db": source_db,
                         "message_id": msg.message_id,
-                        "confidence": 0.6 if company else 0.35,
+                        "confidence": intent_confidence,
                     },
                 ))
                 pending_senders.add(sender)
                 queued_this_mailbox += 1
 
-            if parsed:
-                max_ts = max(m.received_at for m in parsed)
-                ids_at_max = [m.message_id for m in parsed if m.received_at == max_ts]
-                set_state(db, cursor_key, {"last_processed_at": max_ts.isoformat(), "last_message_ids": ids_at_max})
+            if processed_upto is not None:
+                set_state(db, cursor_key, {"last_processed_at": processed_upto.received_at.isoformat(), "last_message_ids": [processed_upto.message_id]})
 
             logger.info(
-                "inbound_capture scan: mailbox %s (%s) - %d message(s) read, %d queued",
+                "inbound_capture scan: mailbox %s (%s) - %d message(s) read, %d queued%s",
                 mailbox, source_db, len(parsed), queued_this_mailbox,
+                " (LLM cap reached - remaining message(s) deferred to next run)" if capped_out else "",
             )
             total_queued += queued_this_mailbox
+
+            if capped_out:
+                # Once the global cap is spent, later mailboxes in this same
+                # run would just capped_out immediately too - stop early
+                # rather than burning a Graph call per mailbox for nothing.
+                break
 
         db.commit()
         logger.info("inbound_capture scan finished: %d total item(s) queued across %d mailbox(es)", total_queued, len(mailbox_pairs))

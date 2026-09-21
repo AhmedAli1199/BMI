@@ -46,6 +46,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
         group="Bounce & OOO scan", type="int", min=1,
     ),
+    AutomationSettingDef(
+        key="ooo_llm_max_per_run", label="Max OOO LLM classifications per run",
+        description="Caps how many candidate out-of-office messages get the LLM genuine-absence/replacement-extraction call in one run. Anything past the cap is retried on the next scheduled tick, not lost.",
+        group="Bounce & OOO scan", type="int", min=1,
+    ),
 
     # ---- CS-003 - departure scan ----
     AutomationSettingDef(
@@ -154,6 +159,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     AutomationSettingDef(
         key="inbound_capture_initial_lookback_minutes", label="Initial lookback (minutes)",
         description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
+        group="Inbound contact capture", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="inbound_capture_llm_max_per_run", label="Max LLM classifications per run",
+        description="Caps how many candidate messages get the LLM intent-classification call (new inquiry / reply / spam / unsubscribe request) in one run, across all mailboxes combined. Anything past the cap is retried on the next scheduled tick, not lost.",
         group="Inbound contact capture", type="int", min=1,
     ),
 
