@@ -69,12 +69,16 @@ def _draft_followup_text(signal: EmailSignal, contact_label: str) -> tuple[str, 
     if is_configured():
         ai_text = draft_text(
             system_prompt=(
-                "You are drafting a short internal follow-up note for a BMI Publishing salesperson, based on "
-                "one fact their own email correspondence with a client already established. Write 1-3 plain "
-                "sentences: what was established, and a concrete suggested next step (e.g. \"reach out to "
-                "confirm/discuss X\"). Never invent facts beyond what's given - if the context is thin, keep "
-                "the suggested action general rather than fabricating detail. No greeting, no signoff, no "
-                "subject line - this is an internal note, not an email to the client."
+                "You are drafting a short internal follow-up note for a BMI Publishing salesperson. You will be "
+                "given one fact their own email correspondence with a client already established. Your job is "
+                "NOT to restate that fact - the rep already has it in front of them. Write exactly two "
+                "sentences: sentence 1 restates the fact in one clause at most (brief - a reminder, not a "
+                "recap); sentence 2 is a MANDATORY, specific, actionable instruction starting with an "
+                "imperative verb (\"Call...\", \"Email...\", \"Confirm...\", \"Ask whether...\", \"Send...\") "
+                "telling the rep exactly what to do next. Sentence 2 must never be generic filler like \"follow "
+                "up\" or \"check in\" - name the actual action (e.g. \"Confirm whether the £4,000 discount tier "
+                "still fits their planned entry count.\"). Never invent facts beyond what's given. No greeting, "
+                "no signoff, no subject line - this is an internal note, not an email to the client."
             ),
             user_prompt=(
                 f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}"
