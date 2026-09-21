@@ -531,6 +531,17 @@ class ReviewQueuePage(Page):
     items: list[ReviewQueueItemOut]
 
 
+class BulkReviewActionRequest(BaseModel):
+    note: str | None = None
+
+
+class BulkReviewActionResult(BaseModel):
+    matched: int  # how many pending items matched kind/status before this ran
+    succeeded: int
+    failed: int
+    errors: list[str] = []  # "<item id>: <message>" for whichever items failed, capped
+
+
 # ---- Preferences / settings -------------------------------------------
 # See app/preferences.py for the registry these render.
 
