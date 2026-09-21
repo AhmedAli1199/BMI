@@ -224,7 +224,15 @@ def scan_inbound_contacts() -> None:
 
         total_queued = 0
         for mailbox, source_db in mailbox_pairs:
-            cursor_key = f"inbound_capture_scan:{mailbox}"
+            # Keyed by (mailbox, source_db), not mailbox alone - someone
+            # with access to more than one database (per BMI's real access
+            # sheet: several people appear once per database they can see)
+            # needs the SAME mailbox scanned once per database, each with
+            # its own independent "since last run" position. Keying by
+            # mailbox alone would mean the second entry for that address
+            # reads the cursor the first entry just advanced past, so it
+            # would never see anything new again after its very first run.
+            cursor_key = f"inbound_capture_scan:{mailbox}:{source_db}"
             state = get_state(db, cursor_key)
             last_processed_at = state.get("last_processed_at")
             skip_ids = set(state.get("last_message_ids", []))
