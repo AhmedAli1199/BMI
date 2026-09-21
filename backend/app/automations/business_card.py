@@ -14,11 +14,21 @@ entry per card visible in the image, since a trade-show photo often has
 several cards laid out together.
 
 Every card becomes exactly one review item, whether it's a brand-new
-contact or one that already looks like it exists (matched via
-vision_intake.py's fuzzy name lookup, scoped to the uploading session's
-publication so a match never crosses source_db). Nothing is written to
-the CRM until a human confirms - same guardrail as every other automation
-here.
+contact or one that already looks like it exists. Matching follows the
+spec's priority order: an exact email match first (skipped for a
+generic/shared inbox address like info@ or sales@, which tells us nothing
+about who the card belongs to), falling back to vision_intake.py's fuzzy
+name+company lookup - scoped to the uploading session's publication so a
+match never crosses source_db. Nothing is written to the CRM until a
+human confirms - same guardrail as every other automation here.
+
+A matched existing contact gets its card fields diffed against what's
+already stored (job title, email, phone, company) - only fields that
+actually changed are surfaced, and applying them is its own explicit
+action, never automatic. A brand-new contact gets up to three "suggested
+groups" from the same curated allowlist SALES-011 uses (see
+group_allowlist.py) - the reviewer can accept, edit, or clear them before
+confirming.
 """
 from __future__ import annotations
 
@@ -28,10 +38,100 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations.contact_match import find_contact_by_email
+from app.automations.group_allowlist import ALLOWLISTED_GROUPS, suggest_groups
 from app.automations.llm import extract_json_from_image, is_configured
-from app.automations.registry import ReviewAction, ReviewKind, register
+from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.vision_intake import MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
-from app.models import Contact, Email, Note, Phone, ReviewQueueItem
+from app.models import Company, Contact, Email, Group, GroupMembership, Note, Phone, ReviewQueueItem
+
+# Shared/generic inbox addresses tell us nothing about who a card belongs
+# to - "info@bigcorp.com" matching some unrelated existing contact who
+# once used that inbox would be a false positive, so these never drive an
+# email match; the name+company heuristic still applies as normal.
+_GENERIC_EMAIL_PREFIXES = {"info", "enquiries", "enquiry", "sales", "contact", "admin", "hello", "office", "support"}
+
+
+def _is_generic_email(email: str | None) -> bool:
+    if not email or "@" not in email:
+        return False
+    return email.split("@", 1)[0].strip().lower() in _GENERIC_EMAIL_PREFIXES
+
+
+def _match_existing_contact(db: Session, *, name: str | None, company_name: str | None, email: str | None, source_db: str) -> Contact | None:
+    """Email match first (spec's priority order), then the fuzzy name+company
+    heuristic - matching bounce_handling.py/email_summary.py's own
+    "try the strong signal first, fall back to the weak one" shape."""
+    if email and not _is_generic_email(email):
+        by_email = find_contact_by_email(db, email)
+        if by_email and by_email.source_db == source_db:
+            return by_email
+    return find_similar_contact(db, name=name, company_name=company_name, source_db=source_db)
+
+
+def _primary_or_first(db: Session, model, contact_id):
+    return (
+        db.query(model).filter(model.contact_id == contact_id, model.is_primary.is_(True)).first()
+        or db.query(model).filter(model.contact_id == contact_id).first()
+    )
+
+
+def _current_company_name(db: Session, contact: Contact) -> str | None:
+    if contact.company_id:
+        company = db.get(Company, contact.company_id)
+        return company.name if company else None
+    return contact.company_name_freetext
+
+
+def _diff_card_against_contact(db: Session, contact: Contact, card: dict) -> list[dict]:
+    """What the card says that's actually different from what's already
+    stored - only non-empty card values that disagree with the stored
+    value are surfaced, so a blank/illegible field on the card never looks
+    like "delete this."""
+    changed: list[dict] = []
+
+    if card.get("job_title") and card["job_title"].strip().lower() != (contact.job_title or "").strip().lower():
+        changed.append({"key": "job_title", "label": "Job title", "old": contact.job_title or "-", "new": card["job_title"]})
+
+    email_row = _primary_or_first(db, Email, contact.id)
+    stored_email = (email_row.address if email_row else None) or ""
+    if card.get("email") and card["email"].strip().lower() != stored_email.strip().lower():
+        changed.append({"key": "email", "label": "Email", "old": stored_email or "-", "new": card["email"]})
+
+    phone_row = _primary_or_first(db, Phone, contact.id)
+    stored_phone = (phone_row.number if phone_row else None) or ""
+    if card.get("phone") and card["phone"].strip() != stored_phone.strip():
+        changed.append({"key": "phone", "label": "Phone", "old": stored_phone or "-", "new": card["phone"]})
+
+    stored_company = _current_company_name(db, contact)
+    if card.get("company") and card["company"].strip().lower() != (stored_company or "").strip().lower():
+        changed.append({"key": "company", "label": "Company", "old": stored_company or "-", "new": card["company"]})
+
+    return changed
+
+
+def _apply_field_change(db: Session, contact: Contact, source_db: str, field: dict, card: dict) -> None:
+    key = field.get("key")
+    if key == "job_title":
+        contact.job_title = card.get("job_title")
+    elif key == "email" and card.get("email"):
+        row = db.query(Email).filter(Email.contact_id == contact.id, Email.is_primary.is_(True)).first()
+        if row:
+            row.address = card["email"]
+        else:
+            db.add(Email(id=uuid.uuid4(), source_db=contact.source_db, source_act_id=str(uuid.uuid4()),
+                          contact_id=contact.id, address=card["email"], is_primary=True))
+    elif key == "phone" and card.get("phone"):
+        row = db.query(Phone).filter(Phone.contact_id == contact.id, Phone.is_primary.is_(True)).first()
+        if row:
+            row.number = card["phone"]
+        else:
+            db.add(Phone(id=uuid.uuid4(), source_db=contact.source_db, source_act_id=str(uuid.uuid4()),
+                          contact_id=contact.id, number=card["phone"], is_primary=True))
+    elif key == "company" and card.get("company"):
+        matched_company = find_similar_company(db, name=card["company"], source_db=source_db)
+        contact.company_id = matched_company.id if matched_company else None
+        contact.company_name_freetext = None if matched_company else card["company"]
 
 _CARD_EXTRACTION_PROMPT = """You are reading one or more business cards photographed together in a
 single image. For EACH distinct card visible, extract: first_name, last_name, company, job_title,
@@ -86,6 +186,18 @@ def _handle_new_contact(db: Session, item: ReviewQueueItem, action_id: str, inpu
         db.add(Phone(id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
                       contact_id=contact.id, number=card["phone"], is_primary=True))
 
+    # Whatever the reviewer typed (pre-filled from suggestions computed
+    # against the company just matched/created above) is only ever applied
+    # if it resolves to a real, allowlisted group - a typo or a
+    # non-allowlisted name is silently skipped, never created as a new group.
+    requested_names = {n.strip().lower() for n in (input_data.get("groups") or "").split(",") if n.strip()}
+    for group_name in requested_names:
+        if group_name not in ALLOWLISTED_GROUPS.get(source_db, set()):
+            continue
+        group = db.query(Group).filter(Group.source_db == source_db, Group.name.ilike(group_name)).first()
+        if group:
+            db.add(GroupMembership(id=uuid.uuid4(), group_id=group.id, contact_id=contact.id))
+
     show = item.payload.get("show_context") or "trade show"
     _add_note(db, contact, f"Card collected at {show}.")
 
@@ -93,13 +205,25 @@ def _handle_new_contact(db: Session, item: ReviewQueueItem, action_id: str, inpu
 def _handle_existing_contact(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
     if action_id == "dismiss":
         return
-    if action_id != "log_seen":
-        raise ValueError(f"Unknown action {action_id!r} for business_card_existing")
     contact = db.get(Contact, item.entity_id) if item.entity_id else None
     if not contact:
         raise ValueError("This contact no longer exists.")
     show = item.payload.get("show_context") or "trade show"
-    _add_note(db, contact, f"Card collected again at {show} - already in the CRM, logged for the record.")
+
+    if action_id == "log_seen":
+        _add_note(db, contact, f"Card collected again at {show} - already in the CRM, logged for the record.")
+    elif action_id == "update_contact":
+        changed = item.payload.get("changed_fields") or []
+        if not changed:
+            raise ValueError("No changes were detected on this card to apply.")
+        card = item.payload.get("card") or {}
+        source_db = item.payload.get("source_db") or contact.source_db
+        for field in changed:
+            _apply_field_change(db, contact, source_db, field, card)
+        applied = ", ".join(f["label"].lower() for f in changed)
+        _add_note(db, contact, f"Details updated from a card collected again at {show}: {applied}.")
+    else:
+        raise ValueError(f"Unknown action {action_id!r} for business_card_existing")
 
 
 register(ReviewKind(
@@ -107,7 +231,12 @@ register(ReviewKind(
     label="Business card - new contact",
     description="A photographed business card didn't match anyone already in the CRM.",
     actions=[
-        ReviewAction(id="add_contact", label="Add as new contact", style="primary", outcome="approved"),
+        ReviewAction(
+            id="add_contact", label="Add as new contact", style="primary", outcome="approved",
+            extra_fields=[
+                ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="(suggested, or type your own)", required=False),
+            ],
+        ),
         ReviewAction(id="dismiss", label="Skip", style="destructive", outcome="rejected"),
     ],
     handler=_handle_new_contact,
@@ -118,7 +247,8 @@ register(ReviewKind(
     label="Business card - already in CRM",
     description="A photographed business card matched someone already in the CRM.",
     actions=[
-        ReviewAction(id="log_seen", label="Log as seen", style="primary", outcome="approved"),
+        ReviewAction(id="update_contact", label="Apply detected changes", style="primary", outcome="approved"),
+        ReviewAction(id="log_seen", label="Log as seen (no changes)", style="secondary", outcome="approved"),
         ReviewAction(id="dismiss", label="Skip", style="destructive", outcome="rejected"),
     ],
     handler=_handle_existing_contact,
@@ -146,10 +276,34 @@ def process_business_card_photo(
     queued = 0
     for card in cards:
         full_name = " ".join(filter(None, [card.get("first_name"), card.get("last_name")])) or None
-        match = find_similar_contact(db, name=full_name, company_name=card.get("company"), source_db=source_db)
+        match = _match_existing_contact(
+            db, name=full_name, company_name=card.get("company"), email=card.get("email"), source_db=source_db,
+        )
 
         kind = "business_card_existing" if match else "business_card_new"
         label = full_name or "(name not legible)"
+        details = [
+            {"key": "company", "label": "Company", "value": card.get("company") or "-"},
+            {"key": "job_title", "label": "Title", "value": card.get("job_title") or "-"},
+            {"key": "email", "label": "Email", "value": card.get("email") or "-"},
+            {"key": "phone", "label": "Phone", "value": card.get("phone") or "-"},
+        ]
+
+        extra_payload: dict = {}
+        if match:
+            changed_fields = _diff_card_against_contact(db, match, card)
+            extra_payload["changed_fields"] = changed_fields
+            if changed_fields:
+                details.append({
+                    "key": "changes", "label": "Changed since last seen",
+                    "value": "; ".join(f"{f['label']}: {f['old']} → {f['new']}" for f in changed_fields),
+                })
+        else:
+            company_match = find_similar_company(db, name=card.get("company"), source_db=source_db) if card.get("company") else None
+            suggested = suggest_groups(db, source_db, company_match.id) if company_match else []
+            if suggested:
+                details.append({"key": "suggested_groups", "label": "Suggested groups", "value": ", ".join(g.name for g in suggested)})
+
         db.add(ReviewQueueItem(
             id=uuid.uuid4(),
             kind=kind,
@@ -158,12 +312,7 @@ def process_business_card_photo(
             payload={
                 "summary": f"{label}" + (f" at {card['company']}" if card.get("company") else "")
                            + (" - matched an existing contact" if match else " - new contact"),
-                "details": [
-                    {"key": "company", "label": "Company", "value": card.get("company") or "-"},
-                    {"key": "job_title", "label": "Title", "value": card.get("job_title") or "-"},
-                    {"key": "email", "label": "Email", "value": card.get("email") or "-"},
-                    {"key": "phone", "label": "Phone", "value": card.get("phone") or "-"},
-                ],
+                "details": details,
                 "related_entities": (
                     [{"type": "contact", "id": str(match.id), "label": full_name or "existing contact"}]
                     if match else []
@@ -172,6 +321,7 @@ def process_business_card_photo(
                 "source_db": source_db,
                 "show_context": show_context,
                 "confidence": 0.5 if card.get("needs_review") else 0.85,
+                **extra_payload,
             },
         ))
         queued += 1

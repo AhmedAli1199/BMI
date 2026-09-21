@@ -36,7 +36,7 @@ from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations import runtime_settings
 from app.automations.company_match import domain_of, suggest_company
 from app.automations.contact_match import find_contact_by_email
-from app.automations.group_allowlist import ALLOWLISTED_GROUPS, NEWSLETTER_GROUP
+from app.automations.group_allowlist import ALLOWLISTED_GROUPS, NEWSLETTER_GROUP, suggest_groups
 from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
@@ -63,26 +63,6 @@ def _parse_mailbox_config(db: Session) -> list[tuple[str, str]]:
             continue
         pairs.append((mailbox, source_db))
     return pairs
-
-
-def _suggest_groups(db: Session, source_db: str, company_id) -> list[Group]:
-    """Real segment groups this company's other contacts already belong
-    to, restricted to the curated allowlist - see group_allowlist.py for
-    why this never queries the raw group table."""
-    allowed = ALLOWLISTED_GROUPS.get(source_db)
-    if not company_id or not allowed:
-        return []
-    rows = (
-        db.query(Group, func.count(GroupMembership.id).label("n"))
-        .join(GroupMembership, GroupMembership.group_id == Group.id)
-        .join(Contact, Contact.id == GroupMembership.contact_id)
-        .filter(Contact.company_id == company_id, func.lower(Group.name).in_(allowed))
-        .group_by(Group.id)
-        .order_by(func.count(GroupMembership.id).desc())
-        .limit(3)
-        .all()
-    )
-    return [g for g, _ in rows]
 
 
 def _find_group(db: Session, source_db: str, name: str) -> Group | None:
@@ -245,7 +225,7 @@ def scan_inbound_contacts() -> None:
                     continue
 
                 company = suggest_company(db, source_db, msg.from_address)
-                suggested_groups = _suggest_groups(db, source_db, company.id) if company else []
+                suggested_groups = suggest_groups(db, source_db, company.id) if company else []
                 newsletter_name = NEWSLETTER_GROUP.get(source_db)
 
                 db.add(ReviewQueueItem(
