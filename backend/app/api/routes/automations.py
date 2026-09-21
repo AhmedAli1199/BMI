@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import AutomationSettingOut, AutomationSettingUpdate, ScheduledJobOut
 from app.automations import runtime_settings
-from app.automations.business_card import process_business_card_photo
+from app.automations.business_card import process_business_card_photo, resolve_batch
 from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
@@ -129,6 +129,19 @@ async def upload_business_card(
         source_db=source_db, show_context=show_context,
     )
     return result
+
+
+@router.post("/business-cards/batches/{batch_id}/confirm")
+def confirm_business_card_batch(batch_id: str, db: Session = Depends(get_db)) -> dict:
+    """SALES-002's one-confirm batch write - resolves every still-pending
+    review item from this upload's batch with its default action in one
+    go, then posts an added/updated/skipped summary to Teams (if
+    configured). See business_card.resolve_batch's own docstring for
+    exactly what "default action" means per item."""
+    try:
+        return resolve_batch(db, batch_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/returned-copies/upload")

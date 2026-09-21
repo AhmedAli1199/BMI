@@ -35,14 +35,16 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.contact_match import find_contact_by_email
 from app.automations.group_allowlist import ALLOWLISTED_GROUPS, suggest_groups
 from app.automations.llm import extract_json_from_image, is_configured
-from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
-from app.automations.vision_intake import MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
+from app.automations.registry import ExtraField, ReviewAction, ReviewKind, get_action, get_kind, register
+from app.automations.teams_notify import post_summary
+from app.automations.vision_intake import MATCH_THRESHOLD, MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
 from app.models import Company, Contact, Email, Group, GroupMembership, Note, Phone, ReviewQueueItem
 
 # Shared/generic inbox addresses tell us nothing about who a card belongs
@@ -132,6 +134,45 @@ def _apply_field_change(db: Session, contact: Contact, source_db: str, field: di
         matched_company = find_similar_company(db, name=card["company"], source_db=source_db)
         contact.company_id = matched_company.id if matched_company else None
         contact.company_name_freetext = None if matched_company else card["company"]
+
+
+def _cards_look_like_duplicates(db: Session, a: dict, b: dict) -> bool:
+    """Two cards from the SAME upload that are almost certainly the same
+    person - a trade-show table sometimes hands over two cards for one
+    person (a personal one and a company one), or a card gets photographed
+    twice by mistake. Deliberately conservative: a name match alone isn't
+    enough if the two cards name different companies (the spec's own "same
+    person, different company - not a dupe" edge case)."""
+    name_a = " ".join(filter(None, [a.get("first_name"), a.get("last_name")])).strip()
+    name_b = " ".join(filter(None, [b.get("first_name"), b.get("last_name")])).strip()
+    if not name_a or not name_b:
+        return False
+    similarity = db.execute(text("SELECT similarity(:a, :b)"), {"a": name_a, "b": name_b}).scalar() or 0.0
+    if similarity < MATCH_THRESHOLD:
+        return False
+    company_a, company_b = (a.get("company") or "").strip().lower(), (b.get("company") or "").strip().lower()
+    if company_a and company_b and company_a != company_b:
+        return False
+    return True
+
+
+def _dedupe_within_batch(db: Session, cards: list[dict]) -> tuple[list[dict], int]:
+    """Collapses cards that look like the same person into one, filling
+    any field the kept card is missing from the one it absorbed. Returns
+    (deduped cards, how many were folded in)."""
+    kept: list[dict] = []
+    skipped = 0
+    for card in cards:
+        match = next((k for k in kept if _cards_look_like_duplicates(db, k, card)), None)
+        if match:
+            for key in ("email", "phone", "job_title", "company"):
+                if not match.get(key) and card.get(key):
+                    match[key] = card[key]
+            skipped += 1
+            continue
+        kept.append(card)
+    return kept, skipped
+
 
 _CARD_EXTRACTION_PROMPT = """You are reading one or more business cards photographed together in a
 single image. For EACH distinct card visible, extract: first_name, last_name, company, job_title,
@@ -272,7 +313,9 @@ def process_business_card_photo(
     if result is None:
         return {"cards_found": 0, "queued": 0, "error": "Couldn't read this image - try a clearer photo."}
 
-    cards = result.get("cards", []) if isinstance(result, dict) else []
+    raw_cards = result.get("cards", []) if isinstance(result, dict) else []
+    cards, skipped_duplicates = _dedupe_within_batch(db, raw_cards)
+    batch_id = str(uuid.uuid4())
     queued = 0
     for card in cards:
         full_name = " ".join(filter(None, [card.get("first_name"), card.get("last_name")])) or None
@@ -301,6 +344,7 @@ def process_business_card_photo(
         else:
             company_match = find_similar_company(db, name=card.get("company"), source_db=source_db) if card.get("company") else None
             suggested = suggest_groups(db, source_db, company_match.id) if company_match else []
+            extra_payload["suggested_groups"] = [g.name for g in suggested]
             if suggested:
                 details.append({"key": "suggested_groups", "label": "Suggested groups", "value": ", ".join(g.name for g in suggested)})
 
@@ -320,6 +364,7 @@ def process_business_card_photo(
                 "card": card,
                 "source_db": source_db,
                 "show_context": show_context,
+                "batch_id": batch_id,
                 "confidence": 0.5 if card.get("needs_review") else 0.85,
                 **extra_payload,
             },
@@ -327,4 +372,76 @@ def process_business_card_photo(
         queued += 1
 
     db.commit()
-    return {"cards_found": len(cards), "queued": queued}
+    return {
+        "cards_found": len(raw_cards), "queued": queued,
+        "skipped_duplicates": skipped_duplicates, "batch_id": batch_id,
+    }
+
+
+def resolve_batch(db: Session, batch_id: str) -> dict:
+    """SALES-002's "one review-list confirmation writes the batch": resolves
+    every still-pending business-card item from this batch_id with its
+    sensible default action - "Add as new contact" (using the groups
+    already suggested at queue time) for a new card, "Apply detected
+    changes" for an existing match with real diffs, "Log as seen" for one
+    with none. A reviewer who already resolved specific items individually
+    (to override a suggestion, or to skip one) leaves those untouched -
+    this only ever picks up what's still pending. One bad row never sinks
+    the batch: it's counted as failed and the rest still go through."""
+    items = (
+        db.query(ReviewQueueItem)
+        .filter(
+            ReviewQueueItem.status == "pending",
+            ReviewQueueItem.kind.in_(["business_card_new", "business_card_existing"]),
+            ReviewQueueItem.payload["batch_id"].astext == batch_id,
+        )
+        .all()
+    )
+    if not items:
+        raise ValueError(f"No pending business-card items found for batch {batch_id!r} - it may already be confirmed.")
+
+    added = updated = logged = failed = 0
+    failures: list[dict] = []
+    for item in items:
+        if item.kind == "business_card_new":
+            action_id = "add_contact"
+            input_data = {"groups": ", ".join(item.payload.get("suggested_groups") or [])}
+        else:
+            has_changes = bool(item.payload.get("changed_fields"))
+            action_id = "update_contact" if has_changes else "log_seen"
+            input_data = {}
+
+        kind_def = get_kind(item.kind)
+        action = get_action(item.kind, action_id)
+        try:
+            kind_def.handler(db, item, action_id, input_data)
+        except ValueError as exc:
+            failed += 1
+            failures.append({"item_id": str(item.id), "error": str(exc)})
+            continue
+
+        item.status = action.outcome
+        item.resolved_action = action_id
+        item.reviewed_at = datetime.now(timezone.utc)
+        item.review_note = "Resolved via batch confirm (SALES-002)."
+
+        if item.kind == "business_card_new":
+            added += 1
+        elif action_id == "update_contact":
+            updated += 1
+        else:
+            logged += 1
+
+    db.commit()
+
+    show = items[0].payload.get("show_context") or "a trade show"
+    summary_line = (
+        f"Business card batch confirmed for {show}: {added} added, {updated} updated, "
+        f"{logged} logged (no changes), {failed} failed."
+    )
+    post_summary(db, summary_line)
+
+    return {
+        "batch_id": batch_id, "added": added, "updated": updated,
+        "logged": logged, "failed": failed, "failures": failures,
+    }

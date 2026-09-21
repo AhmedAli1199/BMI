@@ -501,6 +501,20 @@ export async function resetAutomationSetting(key: string) {
   revalidatePath("/automations");
 }
 
+/** SALES-002's one-confirm batch write - resolves every still-pending
+ * business-card review item from one upload's batch_id with its sensible
+ * default action (see backend's business_card.resolve_batch). Returns the
+ * added/updated/logged/failed counts so the caller can show them. */
+export async function confirmBusinessCardBatch(batchId: string): Promise<{
+  added: number; updated: number; logged: number; failed: number;
+}> {
+  const result = await backendFetch<{ added: number; updated: number; logged: number; failed: number }>(
+    `/api/automations/business-cards/batches/${batchId}/confirm`, { method: "POST" }
+  );
+  revalidatePath("/automations/review");
+  return result;
+}
+
 // ---- Settings / preferences -------------------------------------------
 
 /** Updates one or more of the current user's preferences (see

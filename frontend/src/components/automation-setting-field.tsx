@@ -99,11 +99,11 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
         </div>
       )}
 
-      {setting.type === "csv" && (
+      {(setting.type === "csv" || setting.type === "text") && (
         <div className="flex items-center gap-2">
           <Input
             className="h-8 flex-1 text-sm"
-            placeholder="comma-separated addresses…"
+            placeholder={setting.type === "csv" ? "comma-separated addresses…" : "…"}
             value={String(value)}
             disabled={pending}
             onChange={(e) => setValue(e.target.value)}

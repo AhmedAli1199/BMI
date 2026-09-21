@@ -108,5 +108,12 @@ class Settings(BaseSettings):
     inbound_capture_min_body_chars: int = 30
     inbound_capture_initial_lookback_minutes: int = 1440
 
+    # SALES-002 (Business Card Dedupe & Group Assignment) - see
+    # app/automations/business_card.py. An MS Teams "Incoming Webhook"
+    # connector URL a batch-confirm summary (added/updated/skipped) is
+    # posted to. Left blank, the summary is just logged - nothing fails or
+    # blocks a write for lack of a webhook.
+    teams_webhook_url: str = ""
+
 
 settings = Settings()

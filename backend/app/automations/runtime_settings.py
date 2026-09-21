@@ -65,7 +65,7 @@ def effective_value(db: Session, key: str):
         return get_int(db, key)
     if setting_def.type == "float":
         return get_float(db, key)
-    return get_str(db, key)  # csv - the UI edits/shows this as its raw comma-separated text
+    return get_str(db, key)  # csv/text - the UI edits/shows this as its raw string
 
 
 def set_override(db: Session, key: str, value) -> None:

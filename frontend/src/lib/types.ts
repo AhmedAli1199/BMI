@@ -266,7 +266,7 @@ export type ScheduledJob = {
   has_cursor: boolean;
 };
 
-export type AutomationSettingType = "bool" | "int" | "float" | "csv";
+export type AutomationSettingType = "bool" | "int" | "float" | "csv" | "text";
 
 export type AutomationSetting = {
   key: string;

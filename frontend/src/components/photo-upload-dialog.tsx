@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SOURCE_LABELS } from "@/lib/sources";
+import { confirmBusinessCardBatch } from "@/lib/actions";
 
 type Kind = "business-card" | "returned-copy";
 
@@ -83,7 +84,26 @@ export function PhotoUploadDialog({ kind, publications }: { kind: Kind; publicat
           toast.error(result.error ?? "Couldn't process that photo - try again");
           return;
         }
-        toast.success(copy.resultLabel(result));
+        const queued = Number(result.queued ?? 0);
+        const skippedDuplicates = Number(result.skipped_duplicates ?? 0);
+        toast.success(
+          copy.resultLabel(result) + (skippedDuplicates > 0 ? ` (${skippedDuplicates} within-batch duplicate${skippedDuplicates === 1 ? "" : "s"} merged)` : ""),
+          kind === "business-card" && queued > 0 && result.batch_id
+            ? {
+                action: {
+                  label: "Confirm all now",
+                  onClick: () => {
+                    confirmBusinessCardBatch(result.batch_id as string)
+                      .then((r) => {
+                        toast.success(`Batch confirmed: ${r.added} added, ${r.updated} updated, ${r.logged} logged, ${r.failed} failed`);
+                        router.refresh();
+                      })
+                      .catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't confirm that batch"));
+                  },
+                },
+              }
+            : undefined
+        );
         reset();
         setOpen(false);
         router.refresh();

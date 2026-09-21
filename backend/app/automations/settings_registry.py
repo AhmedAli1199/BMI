@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-SettingType = Literal["bool", "int", "float", "csv"]
+SettingType = Literal["bool", "int", "float", "csv", "text"]
 
 
 @dataclass(frozen=True)
@@ -155,6 +155,13 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         key="inbound_capture_initial_lookback_minutes", label="Initial lookback (minutes)",
         description="How far back the very first scan of a mailbox looks, before it has its own cursor.",
         group="Inbound contact capture", type="int", min=1,
+    ),
+
+    # ---- SALES-002 - business card dedupe & group assignment ----
+    AutomationSettingDef(
+        key="teams_webhook_url", label="Teams webhook URL",
+        description="MS Teams \"Incoming Webhook\" connector URL for the batch-confirm summary (added/updated/skipped). Left blank, the summary is just logged.",
+        group="Business card capture", type="text",
     ),
 ]
 
