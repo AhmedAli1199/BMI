@@ -16,6 +16,7 @@ import type {
   HistoryOut,
   Page,
   Publication,
+  ReviewQueueItem,
   RoleDef,
   UserAccessEntry,
   UserAccount,
@@ -462,13 +463,25 @@ export async function resolveReviewItem(
   actionId: string,
   input: { note?: string; contact_id?: string; fields?: Record<string, string>; chosen_entity_id?: string }
 ) {
-  await backendFetch(`/api/review-queue/${itemId}/actions/${actionId}`, {
+  const resolved = await backendFetch<ReviewQueueItem>(`/api/review-queue/${itemId}/actions/${actionId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
   revalidatePath("/automations");
   revalidatePath("/automations/review");
+  revalidatePath("/automations/today");
+  // Every other write in this file revalidates the exact contact/company
+  // page it touched - this one didn't, so a note/field-update from here
+  // (e.g. SALES-012's "Draft follow-up") could sit behind a stale cached
+  // page if that contact was already open in the same tab.
+  if (resolved.entity_type === "contact" && resolved.entity_id) revalidatePath(`/contacts/${resolved.entity_id}`);
+  if (resolved.entity_type === "company" && resolved.entity_id) revalidatePath(`/companies/${resolved.entity_id}`);
+  // requires_related_entity_choice actions (e.g. CS-004's merge) act on a
+  // record named in related_entities, not entity_id - revalidate those too.
+  for (const related of resolved.payload?.related_entities ?? []) {
+    revalidatePath(`/${related.type === "contact" ? "contacts" : "companies"}/${related.id}`);
+  }
 }
 
 /** Puts a rejected review item back to pending - see backend's
