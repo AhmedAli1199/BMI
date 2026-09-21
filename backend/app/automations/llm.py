@@ -160,6 +160,43 @@ def _draft_text_gemini(system_prompt: str, user_prompt: str, *, max_tokens: int)
         return None
 
 
+def _parse_json_lenient(text: str) -> object | None:
+    """Every extract_json*/vision call routes its raw response text through
+    this before giving up on it. Gemini in particular (less often OpenAI)
+    sometimes wraps valid JSON in a markdown code fence, or emits a
+    literal newline/control character inside a string value (e.g. a
+    multi-line address pulled out of an email signature) - technically
+    invalid per strict JSON, but a value Python's own json module parses
+    fine with strict=False. Treating either as a hard parse failure means
+    burning a whole extra provider round-trip for no reason (a Gemini
+    parse failure here falls back to OpenAI - see extract_json's
+    docstring), so this tries progressively looser interpretations before
+    returning None to the caller as a genuine "couldn't get JSON back"."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text[:4].lower() == "json":
+            text = text[4:]
+        text = text.strip()
+    if not text:
+        return None
+    for strict in (True, False):
+        try:
+            return json.loads(text, strict=strict)
+        except json.JSONDecodeError:
+            continue
+    # Last resort: the JSON object/array is embedded in surrounding prose
+    # or trailing junk - grab the outermost matching span and retry.
+    for start_char, end_char in (("{", "}"), ("[", "]")):
+        start, end = text.find(start_char), text.rfind(end_char)
+        if start != -1 and end > start:
+            try:
+                return json.loads(text[start:end + 1], strict=False)
+            except json.JSONDecodeError:
+                continue
+    return None
+
+
 def extract_json(system_prompt: str, user_prompt: str, *, max_tokens: int = 400) -> dict | None:
     """Same idea as extract_json_from_image() but for plain text - used by
     the bounce/OOO mailbox scan (bounce_handling.py) to classify a message
@@ -193,7 +230,7 @@ def _extract_json_openai(system_prompt: str, user_prompt: str, *, max_tokens: in
             ],
         )
         text = (response.choices[0].message.content or "").strip()
-        return json.loads(text) if text else None
+        return _parse_json_lenient(text) if text else None
     except Exception:
         logger.exception("OpenAI extract_json call failed.")
         return None
@@ -219,7 +256,7 @@ def _extract_json_gemini(system_prompt: str, user_prompt: str, *, max_tokens: in
             logger.warning("Gemini extract_json: no candidates returned - falling back to OpenAI.")
             return None
         text = (response.text or "").strip()
-        return json.loads(text) if text else None
+        return _parse_json_lenient(text) if text else None
     except Exception:
         logger.exception("Gemini extract_json call failed (model=%s) - falling back to OpenAI.", settings.gemini_text_model)
         return None
@@ -271,7 +308,7 @@ def _extract_json_from_image_openai(
             ],
         )
         text = (response.choices[0].message.content or "").strip()
-        return json.loads(text) if text else None
+        return _parse_json_lenient(text) if text else None
     except Exception:
         logger.exception("OpenAI extract_json_from_image call failed.")
         return None
@@ -332,7 +369,7 @@ def _extract_json_from_image_gemini(
             finish_reason = getattr(response.candidates[0], "finish_reason", None)
             logger.warning("Gemini extract_json_from_image: empty response text (finish_reason=%s) - falling back to OpenAI.", finish_reason)
             return None
-        return json.loads(text)
+        return _parse_json_lenient(text)
     except Exception:
         logger.exception(
             "Gemini extract_json_from_image call failed (model=%s) - falling back to OpenAI. Check "
