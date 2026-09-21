@@ -138,7 +138,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="graph_inbound_capture_mailboxes", label="Mailboxes to scan (mailbox:source_db)",
-        description="Comma-separated \"mailbox:source_db\" pairs, e.g. enquiries@bmipublishing.co.uk:prospects - which Act! database a lead from that mailbox should be matched/suggested against.",
+        description="Comma-separated \"mailbox:source_db\" pairs, e.g. enquiries@bmipublishing.co.uk:prospects - which Act! database a lead from that mailbox should be matched/suggested against. Use \"mailbox:*\" for a genuinely shared/general inbox not tied to one brand - the reviewer picks the database when confirming instead of a company/group guess being computed.",
         group="Inbound contact capture", type="csv",
     ),
     AutomationSettingDef(

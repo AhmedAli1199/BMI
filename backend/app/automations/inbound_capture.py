@@ -6,6 +6,13 @@ a newsletter opt-in toggle, and up to three "suggested groups" drawn only
 from a hand-curated allowlist (see group_allowlist.py) of real segment
 groups, never the full noisy group table.
 
+A mailbox configured with source_db "*" (rather than a real database
+name) is treated as a genuinely shared/general inbox that isn't tied to
+one brand - company/group suggestions are meaningless without knowing
+which database to search, so those are skipped at scan time and the
+reviewer picks the actual database themselves when confirming (see
+_handle_create_contact) instead of the automation guessing wrong.
+
 Same "draft, never dispatch" contract as every other automation here:
 nothing is written to the CRM until a reviewer picks an action. In
 particular the suggested company is only ever a pre-filled guess - the
@@ -44,22 +51,30 @@ from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
 from app.models import Company, Contact, Email, Group, GroupMembership, Note, ReviewQueueItem
+from app.models.base import SOURCE_DBS
 
 logger = logging.getLogger("app.automations.inbound_capture")
 
 
 def _parse_mailbox_config(db: Session) -> list[tuple[str, str]]:
-    """"mailbox:source_db" pairs from settings - malformed entries (no
-    colon, unknown source_db) are logged and skipped rather than crashing
-    the whole scan over one typo."""
+    """"mailbox:source_db" pairs from settings - source_db is one of
+    SOURCE_DBS, or "*" for a genuinely shared/general inbox that isn't
+    tied to one brand (see _handle_create_contact: the reviewer picks the
+    actual database when confirming, since a company/group suggestion is
+    meaningless without knowing which database to search). Malformed
+    entries (no colon, an unrecognized source_db that isn't "*") are
+    logged and skipped rather than crashing the whole scan over one typo."""
     pairs: list[tuple[str, str]] = []
     for raw in runtime_settings.get_csv(db, "graph_inbound_capture_mailboxes"):
         if ":" not in raw:
-            logger.warning("inbound_capture: ignoring malformed mailbox entry %r (expected mailbox:source_db)", raw)
+            logger.warning("inbound_capture: ignoring malformed mailbox entry %r (expected mailbox:source_db or mailbox:*)", raw)
             continue
         mailbox, source_db = raw.rsplit(":", 1)
         mailbox, source_db = mailbox.strip(), source_db.strip().lower()
         if not mailbox or not source_db:
+            continue
+        if source_db != "*" and source_db not in SOURCE_DBS:
+            logger.warning("inbound_capture: ignoring mailbox %r - %r isn't a real database or \"*\"", mailbox, source_db)
             continue
         pairs.append((mailbox, source_db))
     return pairs
@@ -90,7 +105,17 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
         raise ValueError("The new contact needs at least a name.")
     source_db = item.payload.get("source_db")
     sender_email = item.payload.get("sender_email")
-    if not source_db:
+    if source_db == "*":
+        # A shared/general inbox isn't tied to one brand - the mailbox
+        # config couldn't tell us which database this belongs to, so the
+        # scan queued this without a company/group guess and the reviewer
+        # picks it now, same "never guess what we can't know" rule as
+        # everywhere else here.
+        chosen = (input_data.get("source_db") or "").strip().lower()
+        if chosen not in SOURCE_DBS:
+            raise ValueError(f"This came in on a shared inbox - pick which database it belongs to ({', '.join(SOURCE_DBS)}).")
+        source_db = chosen
+    elif not source_db:
         raise ValueError("This item is missing its source database - it may be stale.")
 
     company_name = (input_data.get("company_name") or "").strip()
@@ -145,6 +170,10 @@ register(ReviewKind(
             id="create_contact", label="Create contact", style="primary", outcome="approved",
             extra_fields=[
                 ExtraField(key="name", label="Full name", placeholder="Jane Smith"),
+                ExtraField(
+                    key="source_db", label="Database (only needed for a shared inbox)",
+                    placeholder=f"{' / '.join(SOURCE_DBS)}", required=False,
+                ),
                 ExtraField(key="company_name", label="Company", placeholder="(suggested company, or type a different one)", required=False),
                 ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="e.g. Leeds, Technology", required=False),
                 ExtraField(key="newsletter", label="Subscribe to newsletter", field_type="bool", required=False),
@@ -224,9 +253,26 @@ def scan_inbound_contacts() -> None:
                 if find_contact_by_email(db, msg.from_address):
                     continue
 
-                company = suggest_company(db, source_db, msg.from_address)
+                is_shared_inbox = source_db == "*"
+                company = None if is_shared_inbox else suggest_company(db, source_db, msg.from_address)
                 suggested_groups = suggest_groups(db, source_db, company.id) if company else []
-                newsletter_name = NEWSLETTER_GROUP.get(source_db)
+                newsletter_name = None if is_shared_inbox else NEWSLETTER_GROUP.get(source_db)
+
+                details = [
+                    {"key": "sender_email", "label": "From", "value": msg.from_address or "-"},
+                    {"key": "subject", "label": "Subject", "value": msg.subject},
+                ]
+                if is_shared_inbox:
+                    details.append({
+                        "key": "database", "label": "Database",
+                        "value": f"Unknown - shared inbox, pick one when confirming ({', '.join(SOURCE_DBS)})",
+                    })
+                else:
+                    details.extend([
+                        {"key": "suggested_company", "label": "Suggested company", "value": company.name if company else "(none - no domain match)"},
+                        {"key": "suggested_groups", "label": "Suggested groups", "value": ", ".join(g.name for g in suggested_groups) or "(none)"},
+                        {"key": "newsletter_group", "label": "Newsletter group for this database", "value": newsletter_name or "(none configured)"},
+                    ])
 
                 db.add(ReviewQueueItem(
                     id=uuid.uuid4(), kind="inbound_contact_unmatched",
@@ -234,13 +280,7 @@ def scan_inbound_contacts() -> None:
                     payload={
                         "summary": f"New inbound contact: {msg.from_address or '(unknown sender)'}"
                                    + (f" - looks like {company.name}" if company else ""),
-                        "details": [
-                            {"key": "sender_email", "label": "From", "value": msg.from_address or "-"},
-                            {"key": "subject", "label": "Subject", "value": msg.subject},
-                            {"key": "suggested_company", "label": "Suggested company", "value": company.name if company else "(none - no domain match)"},
-                            {"key": "suggested_groups", "label": "Suggested groups", "value": ", ".join(g.name for g in suggested_groups) or "(none)"},
-                            {"key": "newsletter_group", "label": "Newsletter group for this database", "value": newsletter_name or "(none configured)"},
-                        ],
+                        "details": details,
                         "original_text": msg.body_text,
                         "sender_email": msg.from_address,
                         "source_db": source_db,
