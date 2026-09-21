@@ -34,6 +34,11 @@ a record of what was decided and why.
       to catch obviously-internal threads automatically, but a
       BMI-confirmed list is more reliable than us inferring it from
       traffic patterns after the fact (see the David Wilcox finding below).
+- [ ] **Do we have (or can BMI set up) an MS Teams "Incoming Webhook"
+      URL for the business-card batch-confirm summary?** (SALES-002).
+      Without it, the added/updated/skipped summary just gets logged
+      server-side instead of posted to a channel - works either way, but
+      BMI presumably wants it visible somewhere the team actually looks.
 
 ## Answered
 
