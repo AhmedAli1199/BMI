@@ -43,32 +43,27 @@ class Settings(BaseSettings):
     followup_lookahead_days: int = 1
     followup_max_per_run: int = 40
 
-    # OpenAI - used only by app/automations/llm.py to draft follow-up text
-    # (and any future automation that needs generated prose). Left empty by
-    # default; llm.py falls back to a plain templated draft (no AI) rather
-    # than crashing when this is unset, so the follow-up scan still works -
-    # just without AI-personalized wording - until a key is added. See
-    # llm.py's docstring for exactly where this is read.
+    # AI provider preference (see app/automations/llm.py's docstring for
+    # the full contract): every AI call - text drafting AND vision - tries
+    # Gemini first if GEMINI_API_KEY is set, falling back to OpenAI
+    # automatically on any Gemini failure or if that key isn't set at all.
+    # OpenAI is the only key strictly required (it's the fallback everything
+    # lands on); Gemini is additive. No separate provider-selection setting
+    # to keep in sync - which provider actually served a call is entirely
+    # determined by which key(s) are present.
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
-    # Vision provider switch - business_card.py/returned_copy.py's image
-    # reading goes through whichever of these is selected; draft_text()/
-    # extract_json() (plain-text calls) always stay on OpenAI regardless -
-    # only image calls are affected. "openai" (default) needs nothing
-    # beyond openai_api_key above. "gemini" needs gemini_api_key set too.
-    # Switching providers is a two-env-var change + restart, no code
-    # change - see llm.py's extract_json_from_image for exactly where this
-    # is read.
-    vision_provider: str = "openai"
     gemini_api_key: str = ""
+    gemini_text_model: str = "gemini-3.6-flash"
     # gemini-2.0-flash was retired - Google's own 404 response when it was
     # first tried against a real key explicitly named this as the
     # replacement ("models/gemini-2.0-flash is no longer available...use
     # models/gemini-3.6-flash"), so this is taken directly from that
     # response, not guessed. If Google retires this one too, the error
     # will name its replacement the same way - update this default (or
-    # just set GEMINI_VISION_MODEL directly, no code change needed) then.
+    # just set GEMINI_VISION_MODEL/GEMINI_TEXT_MODEL directly, no code
+    # change needed) then.
     gemini_vision_model: str = "gemini-3.6-flash"
 
     # Microsoft Graph app registration (client-credentials flow, no per-user
