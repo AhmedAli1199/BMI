@@ -27,6 +27,7 @@ never re-triggers on its own.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
@@ -78,15 +79,29 @@ def _draft_followup_text(signal: EmailSignal, contact_label: str) -> tuple[str, 
                 "telling the rep exactly what to do next. Sentence 2 must never be generic filler like \"follow "
                 "up\" or \"check in\" - name the actual action (e.g. \"Confirm whether the £4,000 discount tier "
                 "still fits their planned entry count.\"). Never invent facts beyond what's given. No greeting, "
-                "no signoff, no subject line - this is an internal note, not an email to the client."
+                "no signoff, no subject line - this is an internal note, not an email to the client. "
+                "Output ONLY the two sentences of prose themselves - never a label, header, or the words "
+                "\"sentence 1\"/\"sentence 2\"/\"drafting\" anywhere in the output, and never explain what "
+                "you're about to write before writing it."
             ),
             user_prompt=(
                 f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}"
             ),
             purpose="signal_triggers.draft",
         )
+        # Defensive strip: even with the instruction above, a model can still
+        # echo a "Sentence 1:" / "Sentence 2 (...):" style label as a
+        # standalone line before the real prose - drop any such line rather
+        # than writing it into the contact's record (see the production bug
+        # this note documents: a note body that was literally just the
+        # label, nothing else, because the label ate the whole token budget).
         if ai_text:
-            return ai_text, True
+            cleaned = "\n".join(
+                line for line in ai_text.splitlines()
+                if not re.match(r"^\s*(sentence\s*\d|drafting\b)", line, re.IGNORECASE)
+            ).strip()
+            if cleaned:
+                return cleaned, True
 
     return f"{label} follow-up{due}: {signal.summary}", False
 

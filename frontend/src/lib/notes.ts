@@ -1,3 +1,18 @@
+import type { NoteOut } from "@/lib/types";
+
+/** What the Notes table's "Source" column shows for one note - real
+ * origin, not the "Act! Manual" literal every note used to show
+ * regardless of where it actually came from. A note migrated from Act!
+ * shows that; a note typed by a real person in this CRM shows their
+ * name (every UI-driven note-add sets created_by_user_id from the
+ * logged-in session); a note with source_db "manual" and no
+ * created_by is always automation-authored - no automation in this
+ * codebase ever sets created_by_user_id on a Note it writes. */
+export function noteSourceLabel(note: NoteOut): string {
+  if (note.source_db !== "manual") return "Act! Import";
+  return note.created_by?.name || "AI / Automation";
+}
+
 const HTML_ENTITIES: Record<string, string> = {
   "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
   "&quot;": '"', "&#39;": "'", "&apos;": "'",

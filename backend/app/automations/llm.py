@@ -338,6 +338,15 @@ def _draft_text_gemini(system_prompt: str, user_prompt: str, *, max_tokens: int,
                     system_instruction=system_prompt,
                     max_output_tokens=max_tokens,
                     temperature=0.4,
+                    # gemini-3.6-flash is a reasoning model whose invisible
+                    # "thinking" tokens are drawn from the same
+                    # max_output_tokens budget as the visible answer - with
+                    # thinking left on, a short draft can get cut off after
+                    # reasoning ate most of the budget, leaving little or
+                    # nothing of the actual text. None of these short,
+                    # single-turn draft/classification prompts need
+                    # multi-step reasoning, so it's disabled outright.
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             ),
             max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini draft_text",
@@ -471,6 +480,10 @@ def _extract_json_gemini(system_prompt: str, user_prompt: str, *, max_tokens: in
                     response_mime_type="application/json",
                     max_output_tokens=max_tokens,
                     temperature=0.1,
+                    # See _draft_text_gemini's identical comment - a
+                    # structured-extraction call has even less use for
+                    # multi-step reasoning than a draft does.
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             ),
             max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini extract_json",
@@ -605,6 +618,11 @@ def _extract_json_from_image_gemini(
                     response_mime_type="application/json",
                     max_output_tokens=max_tokens,
                     temperature=0.1,
+                    # See _draft_text_gemini's identical comment - reading
+                    # fields off a photographed card/label is mechanical
+                    # extraction, not a task that benefits from multi-step
+                    # reasoning eating into the same output token budget.
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
                 ),
             ),
             max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini extract_json_from_image",

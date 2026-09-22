@@ -36,6 +36,11 @@ export type NoteOut = {
   is_private: boolean;
   act_created_at: string | null;
   created_by: UserSummary | null;
+  // One of the real Act! source databases, or "manual" for anything
+  // written directly in this CRM (by a person via the UI, or by an
+  // automation) - see noteSourceLabel() in act-tab-workstation.tsx for
+  // how "manual" is split into a real name vs. "AI / Automation".
+  source_db: string;
 };
 export type HistoryOut = {
   id: string;

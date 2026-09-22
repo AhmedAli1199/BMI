@@ -127,6 +127,15 @@ class NoteOut(BaseModel):
     is_private: bool = False
     act_created_at: datetime | None = None
     created_by: UserSummary | None = None
+    # Where this note actually came from - one of app.models.base.SOURCE_DBS
+    # for a real Act!-migrated note, or MANUAL_SOURCE_DB ("manual") for
+    # anything written directly in this CRM. A "manual" note with no
+    # created_by is always automation-authored (every UI-driven note-add
+    # sets created_by_user_id from the logged-in session; no automation
+    # ever does) - the frontend uses that combination to label a note
+    # "AI / Automation" instead of the misleading blanket "Act! Manual" it
+    # used to show for every single note regardless of real origin.
+    source_db: str
 
 
 class NoteCreate(BaseModel):

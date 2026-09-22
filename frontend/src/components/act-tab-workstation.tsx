@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
 import { TouchpointBar } from "@/components/touchpoint-bar";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
-import { cleanNoteBody } from "@/lib/notes";
+import { cleanNoteBody, noteSourceLabel } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
 
 export function ActTabWorkstation({
@@ -194,7 +194,7 @@ export function ActTabWorkstation({
                         {body ? highlightMatch(body, searchTerm) : "No content."}
                       </p>
                       <span className="text-[10px] text-muted-foreground shrink-0 uppercase tracking-wider">
-                        Act! Manual
+                        {noteSourceLabel(n)}
                       </span>
                     </div>
                   );
