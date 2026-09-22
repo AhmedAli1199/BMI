@@ -14,9 +14,16 @@ import type { NoteOut, HistoryOut, ActivityOut } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { cleanNoteBody } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
+import { DeleteItemButton } from "@/components/delete-item-button";
+import {
+  deleteContactNote, deleteCompanyNote,
+  deleteContactHistory, deleteCompanyHistory,
+  deleteActivity,
+} from "@/lib/actions";
 
 type TimelineItem = {
   id: string;
+  rawId: string;
   kind: "note" | "history" | "activity";
   date: Date;
   isoString: string;
@@ -65,6 +72,8 @@ export function UnifiedActivityTimeline({
   history = [],
   activities = [],
   searchTerm = "",
+  entityType,
+  entityId,
 }: {
   notes: NoteOut[];
   history: HistoryOut[];
@@ -74,6 +83,14 @@ export function UnifiedActivityTimeline({
    * History tabs, so this timeline stays in sync with them rather than
    * needing its own separate search box. */
   searchTerm?: string;
+  /** Which record this timeline belongs to - which delete endpoint a note/
+   * history row's delete button calls (a note and a history entry are
+   * each owned by exactly one contact or company, see backend's
+   * delete_entity_row). Omit to render the timeline read-only (no delete
+   * buttons) - not currently used anywhere, but keeps this component
+   * usable for a future read-only context without a required prop. */
+  entityType?: "contact" | "company";
+  entityId?: string;
 }) {
   const [filter, setFilter] = useState<"all" | "call" | "meeting" | "note" | "email" | "task">("all");
 
@@ -82,6 +99,7 @@ export function UnifiedActivityTimeline({
       const d = n.act_created_at ? new Date(n.act_created_at) : new Date();
       return {
         id: `note-${n.id}`,
+        rawId: n.id,
         kind: "note",
         date: d,
         isoString: d.toISOString(),
@@ -95,6 +113,7 @@ export function UnifiedActivityTimeline({
       const d = new Date(h.occurred_at);
       return {
         id: `hist-${h.id}`,
+        rawId: h.id,
         kind: "history",
         date: d,
         isoString: d.toISOString(),
@@ -108,6 +127,7 @@ export function UnifiedActivityTimeline({
       const d = new Date(a.start_at);
       return {
         id: `act-${a.id}`,
+        rawId: a.id,
         kind: "activity",
         date: d,
         isoString: d.toISOString(),
@@ -148,6 +168,24 @@ export function UnifiedActivityTimeline({
         return <Sparkles className="size-3.5 text-primary" />;
     }
   };
+
+  /** Which delete action a given item's button should call - None when
+   * this timeline has no entityType/entityId (read-only mode) or for a
+   * kind this component can't attribute to a single contact/company
+   * (there isn't one today, but keeps the switch exhaustive-safe). */
+  function deleteHandlerFor(item: TimelineItem): (() => Promise<void>) | null {
+    if (!entityType || !entityId) return null;
+    if (item.kind === "note") {
+      return () => (entityType === "contact" ? deleteContactNote(entityId, item.rawId) : deleteCompanyNote(entityId, item.rawId));
+    }
+    if (item.kind === "history") {
+      return () => (entityType === "contact" ? deleteContactHistory(entityId, item.rawId) : deleteCompanyHistory(entityId, item.rawId));
+    }
+    if (item.kind === "activity") {
+      return () => deleteActivity(item.rawId, entityType === "contact" ? { contactId: entityId } : { companyId: entityId });
+    }
+    return null;
+  }
 
   const getBorderColor = (category: string) => {
     switch (category) {
@@ -273,11 +311,20 @@ export function UnifiedActivityTimeline({
                       </Badge>
                     )}
                   </div>
-                  <time className="text-[11px] font-medium text-muted-foreground">
-                    {item.isScheduled && isFuture(item.date)
-                      ? item.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                      : formatRelativeTime(item.date)}
-                  </time>
+                  <div className="flex items-center gap-1.5">
+                    <time className="text-[11px] font-medium text-muted-foreground">
+                      {item.isScheduled && isFuture(item.date)
+                        ? item.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                        : formatRelativeTime(item.date)}
+                    </time>
+                    {deleteHandlerFor(item) && (
+                      <DeleteItemButton
+                        label={`Delete ${item.kind}`}
+                        confirmMessage={`Delete this ${item.kind}? This can't be undone.`}
+                        onDelete={deleteHandlerFor(item)!}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {item.body && (

@@ -136,6 +136,11 @@ export async function addContactNote(
   revalidatePath(`/contacts/${contactId}`);
 }
 
+export async function deleteContactNote(contactId: string, noteId: string) {
+  await backendFetch(`/api/contacts/${contactId}/notes/${noteId}`, { method: "DELETE" });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
 export type LogHistoryInput = {
   history_type: string;
   subject?: string;
@@ -165,6 +170,16 @@ export async function logCompanyHistory(companyId: string, input: LogHistoryInpu
   });
   revalidatePath(`/companies/${companyId}`);
   return entry;
+}
+
+export async function deleteContactHistory(contactId: string, historyId: string) {
+  await backendFetch(`/api/contacts/${contactId}/history/${historyId}`, { method: "DELETE" });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteCompanyHistory(companyId: string, historyId: string) {
+  await backendFetch(`/api/companies/${companyId}/history/${historyId}`, { method: "DELETE" });
+  revalidatePath(`/companies/${companyId}`);
 }
 
 export type ScheduleActivityInput = {
@@ -206,8 +221,10 @@ export async function setActivityDone(id: string, is_cleared: boolean, revalidat
   revalidatePath("/activities");
 }
 
-export async function deleteActivity(id: string) {
+export async function deleteActivity(id: string, revalidate?: { contactId?: string; companyId?: string }) {
   await backendFetch<void>(`/api/activities/${id}`, { method: "DELETE" });
+  if (revalidate?.contactId) revalidatePath(`/contacts/${revalidate.contactId}`);
+  if (revalidate?.companyId) revalidatePath(`/companies/${revalidate.companyId}`);
   revalidatePath("/activities");
 }
 
@@ -378,6 +395,11 @@ export async function addCompanyNote(companyId: string, body: string, is_private
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ body, is_private, created_by_user_id: currentUserId(session?.sub) }),
   });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function deleteCompanyNote(companyId: string, noteId: string) {
+  await backendFetch(`/api/companies/${companyId}/notes/${noteId}`, { method: "DELETE" });
   revalidatePath(`/companies/${companyId}`);
 }
 

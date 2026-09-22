@@ -12,6 +12,8 @@ import { EntityAvatar } from "@/components/entity-avatar";
 import { TouchpointBar } from "@/components/touchpoint-bar";
 import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
 import { cleanNoteBody } from "@/lib/notes";
+import { deleteCompanyNote } from "@/lib/actions";
+import { DeleteItemButton } from "@/components/delete-item-button";
 import { sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
@@ -196,7 +198,13 @@ export default async function CompanyDetailPage({
           {/* TAB 2: Activity & History */}
           <TabsContent value="activity" className="mt-4 flex flex-col gap-4">
             <TouchpointBar companyId={company.id} contactName={company.name} sourceDb={company.source_db} />
-            <UnifiedActivityTimeline notes={[]} history={company.history} activities={company.activities} />
+            <UnifiedActivityTimeline
+              notes={[]}
+              history={company.history}
+              activities={company.activities}
+              entityType="company"
+              entityId={company.id}
+            />
           </TabsContent>
 
           {/* TAB 3: Notes */}
@@ -211,11 +219,18 @@ export default async function CompanyDetailPage({
                     <Badge variant="outline" className="text-[10px]">
                       {n.note_type || "Note"}
                     </Badge>
-                    <time>
-                      {n.act_created_at
-                        ? new Date(n.act_created_at).toLocaleDateString()
-                        : ""}
-                    </time>
+                    <div className="flex items-center gap-1.5">
+                      <time>
+                        {n.act_created_at
+                          ? new Date(n.act_created_at).toLocaleDateString()
+                          : ""}
+                      </time>
+                      <DeleteItemButton
+                        label="Delete note"
+                        confirmMessage="Delete this note? This can't be undone."
+                        onDelete={() => deleteCompanyNote(company.id, n.id)}
+                      />
+                    </div>
                   </div>
                   <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">
                     {cleanNoteBody(n.body) || "No content."}

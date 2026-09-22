@@ -232,6 +232,17 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="List price for OpenAI completion tokens.",
         group="LLM usage & cost", type="float", min=0.0,
     ),
+    AutomationSettingDef(
+        key="llm_cost_overrides_json", label="Per-model cost overrides (JSON)",
+        description=(
+            "Exact rate for a specific model, checked before the provider-level defaults above. "
+            'Shape: {"<exact model name, e.g. gemini-3.6-flash>": {"input": <$/1M tokens>, "output": <$/1M tokens>}}. '
+            "Use this to give the model actually configured (see Provider settings) its real published rate "
+            "without a code change - the provider-level fields above are only the fallback for a model with no "
+            "entry here."
+        ),
+        group="LLM usage & cost", type="text",
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}

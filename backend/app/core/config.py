@@ -93,6 +93,23 @@ class Settings(BaseSettings):
     llm_cost_gemini_output_per_1m: float = 2.50
     llm_cost_openai_input_per_1m: float = 0.15
     llm_cost_openai_output_per_1m: float = 0.60
+    # UNVERIFIED PLACEHOLDER RATES, not confirmed against either provider's
+    # real pricing page - gemini-3.6-flash and gpt-4o-mini's exact current
+    # list prices should be looked up and entered here (or as an
+    # llm_cost_overrides_json override below) before treating the cost
+    # dashboard's numbers as accurate. Neither provider's API response
+    # includes a dollar cost field - token counts are exact (read straight
+    # off the response), the $ figure is always this rate table multiplied
+    # by those tokens, same as every third-party LLM cost tracker does it.
+
+    # Exact-model overrides, as a JSON object: {"<model name>": {"input":
+    # <$/1M tokens>, "output": <$/1M tokens>}, ...}. Checked before the
+    # provider-level defaults above - lets each model actually in use
+    # (settings.gemini_text_model, gemini_vision_model, openai_model) have
+    # its own real rate instead of one flat per-provider guess, without a
+    # code change when a model is swapped. Malformed JSON is ignored (logged,
+    # falls back to the provider default) rather than blocking a call.
+    llm_cost_overrides_json: str = "{}"
 
     # Microsoft Graph app registration (client-credentials flow, no per-user
     # login) - used by /api/diagnostics/graph-mailboxes to confirm which of

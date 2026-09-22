@@ -28,7 +28,7 @@ from app.api.schemas import (
     PhoneOut,
     PhoneWrite,
 )
-from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._channels import create_channel, delete_channel, delete_entity_row, update_channel
 from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
 from app.db.session import get_db
@@ -236,6 +236,16 @@ def add_company_history(company_id: uuid.UUID, payload: HistoryCreate, db: Sessi
     out = HistoryOut.model_validate(entry)
     out.created_by = creator_summary(entry, resolve_creators(db, [entry]))
     return out
+
+
+@router.delete("/{company_id}/notes/{note_id}", status_code=204, response_model=None)
+def delete_company_note(company_id: uuid.UUID, note_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    delete_entity_row(db, Note, "company", company_id, note_id)
+
+
+@router.delete("/{company_id}/history/{history_id}", status_code=204, response_model=None)
+def delete_company_history(company_id: uuid.UUID, history_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    delete_entity_row(db, HistoryEntry, "company", company_id, history_id)
 
 
 def _require_company(db: Session, company_id: uuid.UUID) -> None:

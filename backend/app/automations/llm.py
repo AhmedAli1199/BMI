@@ -152,6 +152,7 @@ def _runtime_llm_settings() -> dict:
                     runtime_settings.get_float(db, "llm_cost_openai_input_per_1m"),
                     runtime_settings.get_float(db, "llm_cost_openai_output_per_1m"),
                 ),
+                "cost_overrides": _parse_cost_overrides(runtime_settings.get_str(db, "llm_cost_overrides_json")),
             }
         finally:
             db.close()
@@ -163,7 +164,43 @@ def _runtime_llm_settings() -> dict:
             "min_interval": settings.llm_call_min_interval_seconds,
             "cost_gemini": (settings.llm_cost_gemini_input_per_1m, settings.llm_cost_gemini_output_per_1m),
             "cost_openai": (settings.llm_cost_openai_input_per_1m, settings.llm_cost_openai_output_per_1m),
+            "cost_overrides": _parse_cost_overrides(settings.llm_cost_overrides_json),
         }
+
+
+def _parse_cost_overrides(raw: str) -> dict[str, tuple[float, float]]:
+    """Parses the exact-model pricing override setting (see
+    llm_cost_overrides_json's registry entry) into {model_name: (input_per_
+    1m, output_per_1m)}. Malformed JSON/shape is logged and treated as "no
+    overrides" rather than raising - a typo in this setting must never
+    block the underlying automation call, only degrade cost tracking to
+    the provider-level default rate."""
+    try:
+        data = json.loads(raw) if raw and raw.strip() else {}
+        if not isinstance(data, dict):
+            raise ValueError("must be a JSON object of {model: {input, output}}")
+        out: dict[str, tuple[float, float]] = {}
+        for model, rates in data.items():
+            out[str(model)] = (float(rates["input"]), float(rates["output"]))
+        return out
+    except Exception:
+        logger.exception("llm_cost_overrides_json is malformed - ignoring it for this call (falling back to the provider-level default rate).")
+        return {}
+
+
+def _resolve_cost_rates(cfg: dict, provider: str, model: str) -> tuple[float, float]:
+    """The actual per-model pricing lookup this module uses to cost every
+    call - an exact-model override (llm_cost_overrides_json) if one is set
+    for this specific model name, else the provider-level default rate.
+    This is what makes cost tracking "dynamic" rather than a single
+    hardcoded number: it's keyed by whatever settings.gemini_text_model/
+    gemini_vision_model/openai_model is actually configured to right now,
+    not a rate baked in for one specific model name - change the model,
+    the next call's cost follows automatically using the provider default
+    until/unless an exact override is added for the new model too."""
+    if model in cfg["cost_overrides"]:
+        return cfg["cost_overrides"][model]
+    return cfg["cost_gemini"] if provider == "gemini" else cfg["cost_openai"]
 
 
 def _is_transient_error(exc: Exception) -> bool:
@@ -310,7 +347,7 @@ def _draft_text_openai(system_prompt: str, user_prompt: str, *, max_tokens: int,
         _log_usage(
             provider="openai", model=settings.openai_model, call_type="text", purpose=purpose,
             prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0, completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
-            cost_rates=cfg["cost_openai"], success=True, error_type=None,
+            cost_rates=_resolve_cost_rates(cfg, "openai", settings.openai_model), success=True, error_type=None,
         )
         text = (response.choices[0].message.content or "").strip()
         return text or None
@@ -318,7 +355,7 @@ def _draft_text_openai(system_prompt: str, user_prompt: str, *, max_tokens: int,
         logger.exception("OpenAI draft_text call failed - falling back to templated text.")
         _log_usage(
             provider="openai", model=settings.openai_model, call_type="text", purpose=purpose,
-            prompt_tokens=0, completion_tokens=0, cost_rates=cfg["cost_openai"], success=False, error_type=exc.__class__.__name__,
+            prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "openai", settings.openai_model), success=False, error_type=exc.__class__.__name__,
         )
         return None
 
@@ -355,7 +392,7 @@ def _draft_text_gemini(system_prompt: str, user_prompt: str, *, max_tokens: int,
         _log_usage(
             provider="gemini", model=settings.gemini_text_model, call_type="text", purpose=purpose,
             prompt_tokens=getattr(usage, "prompt_token_count", 0) or 0, completion_tokens=getattr(usage, "candidates_token_count", 0) or 0,
-            cost_rates=cfg["cost_gemini"], success=True, error_type=None,
+            cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_text_model), success=True, error_type=None,
         )
         if not response.candidates:
             logger.warning("Gemini draft_text: no candidates returned - falling back to OpenAI.")
@@ -366,7 +403,7 @@ def _draft_text_gemini(system_prompt: str, user_prompt: str, *, max_tokens: int,
         logger.exception("Gemini draft_text call failed (model=%s) - falling back to OpenAI.", settings.gemini_text_model)
         _log_usage(
             provider="gemini", model=settings.gemini_text_model, call_type="text", purpose=purpose,
-            prompt_tokens=0, completion_tokens=0, cost_rates=cfg["cost_gemini"], success=False, error_type=exc.__class__.__name__,
+            prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_text_model), success=False, error_type=exc.__class__.__name__,
         )
         return None
 
@@ -451,7 +488,7 @@ def _extract_json_openai(system_prompt: str, user_prompt: str, *, max_tokens: in
         _log_usage(
             provider="openai", model=settings.openai_model, call_type="json", purpose=purpose,
             prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0, completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
-            cost_rates=cfg["cost_openai"], success=True, error_type=None,
+            cost_rates=_resolve_cost_rates(cfg, "openai", settings.openai_model), success=True, error_type=None,
         )
         text = (response.choices[0].message.content or "").strip()
         return _parse_json_lenient(text) if text else None
@@ -459,7 +496,7 @@ def _extract_json_openai(system_prompt: str, user_prompt: str, *, max_tokens: in
         logger.exception("OpenAI extract_json call failed.")
         _log_usage(
             provider="openai", model=settings.openai_model, call_type="json", purpose=purpose,
-            prompt_tokens=0, completion_tokens=0, cost_rates=cfg["cost_openai"], success=False, error_type=exc.__class__.__name__,
+            prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "openai", settings.openai_model), success=False, error_type=exc.__class__.__name__,
         )
         return None
 
@@ -492,7 +529,7 @@ def _extract_json_gemini(system_prompt: str, user_prompt: str, *, max_tokens: in
         _log_usage(
             provider="gemini", model=settings.gemini_text_model, call_type="json", purpose=purpose,
             prompt_tokens=getattr(usage, "prompt_token_count", 0) or 0, completion_tokens=getattr(usage, "candidates_token_count", 0) or 0,
-            cost_rates=cfg["cost_gemini"], success=True, error_type=None,
+            cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_text_model), success=True, error_type=None,
         )
         if not response.candidates:
             logger.warning("Gemini extract_json: no candidates returned - falling back to OpenAI.")
@@ -503,7 +540,7 @@ def _extract_json_gemini(system_prompt: str, user_prompt: str, *, max_tokens: in
         logger.exception("Gemini extract_json call failed (model=%s) - falling back to OpenAI.", settings.gemini_text_model)
         _log_usage(
             provider="gemini", model=settings.gemini_text_model, call_type="json", purpose=purpose,
-            prompt_tokens=0, completion_tokens=0, cost_rates=cfg["cost_gemini"], success=False, error_type=exc.__class__.__name__,
+            prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_text_model), success=False, error_type=exc.__class__.__name__,
         )
         return None
 
@@ -563,7 +600,7 @@ def _extract_json_from_image_openai(
         _log_usage(
             provider="openai", model=settings.openai_model, call_type="vision", purpose=purpose,
             prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0, completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
-            cost_rates=cfg["cost_openai"], success=True, error_type=None,
+            cost_rates=_resolve_cost_rates(cfg, "openai", settings.openai_model), success=True, error_type=None,
         )
         text = (response.choices[0].message.content or "").strip()
         return _parse_json_lenient(text) if text else None
@@ -571,7 +608,7 @@ def _extract_json_from_image_openai(
         logger.exception("OpenAI extract_json_from_image call failed.")
         _log_usage(
             provider="openai", model=settings.openai_model, call_type="vision", purpose=purpose,
-            prompt_tokens=0, completion_tokens=0, cost_rates=cfg["cost_openai"], success=False, error_type=exc.__class__.__name__,
+            prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "openai", settings.openai_model), success=False, error_type=exc.__class__.__name__,
         )
         return None
 
@@ -631,7 +668,7 @@ def _extract_json_from_image_gemini(
         _log_usage(
             provider="gemini", model=settings.gemini_vision_model, call_type="vision", purpose=purpose,
             prompt_tokens=getattr(usage, "prompt_token_count", 0) or 0, completion_tokens=getattr(usage, "candidates_token_count", 0) or 0,
-            cost_rates=cfg["cost_gemini"], success=True, error_type=None,
+            cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_vision_model), success=True, error_type=None,
         )
         block_reason = getattr(getattr(response, "prompt_feedback", None), "block_reason", None)
         if block_reason:
@@ -655,6 +692,6 @@ def _extract_json_from_image_gemini(
         )
         _log_usage(
             provider="gemini", model=settings.gemini_vision_model, call_type="vision", purpose=purpose,
-            prompt_tokens=0, completion_tokens=0, cost_rates=cfg["cost_gemini"], success=False, error_type=exc.__class__.__name__,
+            prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_vision_model), success=False, error_type=exc.__class__.__name__,
         )
         return None

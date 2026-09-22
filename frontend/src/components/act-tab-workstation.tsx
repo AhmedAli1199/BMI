@@ -20,6 +20,8 @@ import { TouchpointBar } from "@/components/touchpoint-bar";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { cleanNoteBody, noteSourceLabel } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
+import { deleteContactNote } from "@/lib/actions";
+import { DeleteItemButton } from "@/components/delete-item-button";
 
 export function ActTabWorkstation({
   contact,
@@ -152,6 +154,8 @@ export function ActTabWorkstation({
             history={contact.history}
             activities={contact.activities}
             searchTerm={searchTerm}
+            entityType="contact"
+            entityId={contact.id}
           />
         </TabsContent>
 
@@ -193,8 +197,13 @@ export function ActTabWorkstation({
                       <p className="flex-1 text-foreground leading-relaxed whitespace-pre-wrap">
                         {body ? highlightMatch(body, searchTerm) : "No content."}
                       </p>
-                      <span className="text-[10px] text-muted-foreground shrink-0 uppercase tracking-wider">
+                      <span className="flex shrink-0 items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
                         {noteSourceLabel(n)}
+                        <DeleteItemButton
+                          label="Delete note"
+                          confirmMessage="Delete this note? This can't be undone."
+                          onDelete={() => deleteContactNote(contact.id, n.id)}
+                        />
                       </span>
                     </div>
                   );
