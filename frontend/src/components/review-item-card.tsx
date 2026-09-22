@@ -493,6 +493,7 @@ function ExpandedActionForm({
             }
             value={contact}
             onChange={setContact}
+            viewHref={(id) => `/contacts/${id}`}
           />
         </div>
       )}

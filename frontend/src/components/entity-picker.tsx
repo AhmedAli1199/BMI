@@ -4,8 +4,9 @@
    behavior here, not accidental prop-mirroring. */
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ExternalLink, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { X } from "lucide-react";
 
 type Option = { id: string; label: string; sublabel?: string | null };
 
@@ -20,12 +21,18 @@ export function EntityPicker({
   search,
   value,
   onChange,
+  viewHref,
 }: {
   label: string;
   placeholder: string;
   search: (q: string) => Promise<Option[]>;
   value: Option | null;
   onChange: (value: Option | null) => void;
+  /** When set, a selected value gets a "View" link (opens in a new tab) to
+   * this record's own page - e.g. `(id) => `/contacts/${id}``. Optional
+   * since this picker is also used for things with no detail page of
+   * their own (groups). */
+  viewHref?: (id: string) => string;
 }) {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<Option[]>([]);
@@ -58,6 +65,18 @@ export function EntityPicker({
           {value.label}
           {value.sublabel && <span className="text-muted-foreground"> · {value.sublabel}</span>}
         </span>
+        {viewHref && (
+          <Link
+            href={viewHref(value.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open this ${label}'s full details in a new tab`}
+            className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="size-3.5" />
+            View
+          </Link>
+        )}
         <button
           type="button"
           onClick={() => onChange(null)}
