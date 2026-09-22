@@ -168,6 +168,14 @@ class Settings(BaseSettings):
     # should never trigger off something the model itself wasn't sure
     # about. Was a flat, unused 0.6 on every signal before this.
     email_summary_confidence_threshold: float = 0.5
+    # SALES-010's actual deliverable (a Note per closed exchange, not just
+    # the structured signals above): a thread with no new message for this
+    # many hours is considered closed and gets summarised into one Note -
+    # matches the spec's "thread-quiescence" trigger. 24h (roughly "quiet
+    # overnight") rather than this scan's own 4h cadence, so a same-day
+    # back-and-forth doesn't get closed mid-conversation just because the
+    # next reply happened to land between two scan runs.
+    email_summary_idle_close_hours: int = 24
 
     # SALES-011 (Inbound Contact Capture) - see
     # app/automations/inbound_capture.py. A distinct mailbox list from both
@@ -202,6 +210,19 @@ class Settings(BaseSettings):
     sales012_lead_days: int = 14  # trigger a dated signal once its due_date is this many days out
     sales012_no_date_delay_days: int = 3  # trigger an undated signal this many days after it was first extracted
     sales012_max_per_run: int = 25
+
+    # SALES-005 (Personal Touchpoint Reminders) - see
+    # app/automations/personal_touchpoints.py. Reads personal_touchpoint
+    # signals SALES-010 already extracts and sensitivity-filters; a
+    # separate producer from SALES-012 because these are warmth signals,
+    # not "due" ones - default lead_days=0 (trigger on/after the stated
+    # date, never ahead of it - a "welcome back" note sent before someone's
+    # actually back reads wrong) and a short no-date delay (most of these
+    # are mentioned in passing, worth a note soon after, not on a schedule).
+    automations_personal_touchpoints_scan_enabled: bool = False
+    sales005_lead_days: int = 0
+    sales005_no_date_delay_days: int = 1
+    sales005_max_per_run: int = 25
 
     # SALES-013 (Morning Follow-Up Queue) - see
     # app/automations/morning_queue.py. Ranks each pending signal_trigger/

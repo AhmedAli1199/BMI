@@ -1,9 +1,25 @@
-"""SALES-010-lite (Email Exchange Summarising), scoped down from the
-original spec to the part that's actually useful and safe to build first:
-turning real, contact-matched 1:1 correspondence into the structured
-signals (budget windows, renewal dates, promised call-backs, personal
-touchpoints) that SALES-012/013 need but have never had - see BACKLOG.md/
-session notes for why the follow-up queue has been empty without this.
+"""SALES-010 (Email Exchange Summarising). Two things happen here, both
+built on the same per-message extraction call so neither costs an extra
+LLM round trip:
+
+  1. Structured signals (budget windows, renewal dates, promised
+     call-backs, personal touchpoints) written to EmailSignal, which
+     SALES-012/013 read to build the follow-up queue.
+  2. SALES-010's own actual deliverable, added later than (1) and easy to
+     miss: when a thread goes quiet for a configurable idle window (see
+     _close_idle_threads), write ONE Note on the contact's record
+     summarising the whole exchange - what was discussed/offered/agreed,
+     package + rate as distinct lines - regardless of whether anything in
+     it was "triggerable". Before this, a thread that closed cleanly with
+     nothing to follow up on left no record in the CRM at all; a
+     dismissed/non-actioned signal_trigger item still wrote nothing
+     either. This is what makes email-derived history exist for every
+     substantive conversation, not just the ones needing a chase.
+
+Originally scoped down (see git history for the earlier "SALES-010-lite"
+framing) to skip #2 and just build the structured-signal extraction
+SALES-012/013 needed - see BACKLOG.md/session notes for that history. #2
+above closes that gap.
 
 Deliberately narrow scope - every one of these runs before anything ever
 reaches the LLM, cheapest/most-eliminating first:
@@ -36,6 +52,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations import runtime_settings
 from app.automations.contact_match import find_contact_by_email
 from app.automations.llm import extract_json
@@ -44,7 +61,7 @@ from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
-from app.models import Contact, Email, EmailSignal, ReviewQueueItem
+from app.models import Contact, Email, EmailSignal, EmailThreadState, Note, ReviewQueueItem
 
 logger = logging.getLogger("app.automations.email_summary")
 
@@ -81,11 +98,19 @@ _SIGNAL_EXTRACTION_PROMPT = (
     "ONLY if a specific package/product is named, else null; rate_offered (verbatim, e.g. \"£4,000\", "
     "\"£2,500 for single page\") ONLY if a specific figure or rate is actually stated, else null - never "
     "estimate or round a figure that wasn't given.\n\n"
+    "Also judge is_meaningful: true only if this is a genuine, substantive sales conversation worth a "
+    "permanent record (a real discussion of needs, a package/rate offered or discussed, something agreed "
+    "or promised, a concrete next step) - false for pure pleasantries, a bare \"thanks!\"/\"got it\", "
+    "scheduling logistics with no substance, or an automated/templated reply. Judge the CONVERSATION AS A "
+    "WHOLE (using the prior context given below), not just this one message - a \"thanks, speak soon\" "
+    "reply to an otherwise substantive thread is still part of a meaningful conversation.\n\n"
     "Return JSON of the exact shape: {\"signals\": [{\"type\": one of the four above, "
     "\"due_date\": \"YYYY-MM-DD\" or null, \"summary\": \"one sentence\", \"confidence\": 0.0-1.0, "
     "\"package_offered\": string or null, \"rate_offered\": string or null}], "
-    "\"thread_summary\": \"one or two sentences on where this conversation stands\"}. "
-    "Return {\"signals\": [], \"thread_summary\": \"...\"} if nothing above is actually established."
+    "\"thread_summary\": \"one or two sentences on where this conversation stands\", "
+    "\"is_meaningful\": true or false}. "
+    "Return {\"signals\": [], \"thread_summary\": \"...\", \"is_meaningful\": false} if nothing above is "
+    "actually established and the conversation has no substance."
 )
 
 # Belt-and-suspenders safety net for the personal_touchpoint prompt
@@ -305,6 +330,110 @@ def _upsert_signals(
     return written
 
 
+def _upsert_thread_state(
+    db: Session, contact_id, thread_id: str, *, new_message_count: int,
+    last_message_at: datetime, thread_summary: str | None, is_meaningful: bool,
+) -> None:
+    """Keeps email_thread_states current on every scan that sees a new
+    message on this thread - this is the only place SALES-010's own
+    closing sweep (_close_idle_threads) gets its "last activity" and
+    "is this worth a Note" signal from, so it has to run for every thread,
+    not just ones that produced an EmailSignal.
+
+    A thread that was previously closed (closed_at set) getting a new
+    message here means it reopened - clear the closed markers so the next
+    idle sweep re-evaluates it, and bump reopen_count so the eventual
+    closing Note reads as a continuation, not a first exchange."""
+    state = db.query(EmailThreadState).filter_by(source_thread_id=thread_id).first()
+    if state is None:
+        db.add(EmailThreadState(
+            id=uuid.uuid4(), source_thread_id=thread_id, contact_id=contact_id,
+            message_count=new_message_count, last_message_at=last_message_at,
+            thread_summary=thread_summary, is_meaningful=is_meaningful,
+        ))
+        return
+
+    state.message_count += new_message_count
+    state.last_message_at = last_message_at
+    state.thread_summary = thread_summary or state.thread_summary
+    # Once genuinely meaningful, stays meaningful - a later "thanks!" on an
+    # otherwise substantive thread shouldn't un-flag the whole exchange.
+    state.is_meaningful = state.is_meaningful or is_meaningful
+    if state.closed_at is not None:
+        state.closed_at = None
+        state.closed_note_id = None
+        state.reopen_count += 1
+
+
+_CLOSING_NOTE_HEADER = "Email exchange summary"
+
+
+def _close_idle_threads(db: Session, idle_hours: int) -> int:
+    """SALES-010's actual deliverable: for every thread that's gone quiet
+    for `idle_hours` and hasn't been closed yet, write one Note capturing
+    what the exchange established - reusing the thread_summary and any
+    package/rate already captured per-message (see _upsert_thread_state),
+    so this costs no extra LLM call. A non-meaningful thread (pure
+    pleasantries/logistics) still gets marked closed - so it's never
+    rechecked again - just with no Note written.
+
+    Returns how many Notes were written this sweep."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=idle_hours)
+    candidates = (
+        db.query(EmailThreadState)
+        .filter(EmailThreadState.closed_at.is_(None), EmailThreadState.last_message_at <= cutoff)
+        .all()
+    )
+
+    written = 0
+    for state in candidates:
+        now = datetime.now(timezone.utc)
+        if not state.is_meaningful:
+            state.closed_at = now
+            continue
+
+        contact = db.get(Contact, state.contact_id)
+        if not contact:
+            # Contact was deleted/merged since this thread was tracked -
+            # nothing to attach a Note to; close it out rather than retry
+            # forever against a record that no longer exists.
+            state.closed_at = now
+            continue
+
+        signals = db.query(EmailSignal).filter_by(source_thread_id=state.source_thread_id).all()
+        facts = [f"{s.signal_type.replace('_', ' ').capitalize()}: {s.summary}" for s in signals]
+        price_lines = []
+        for s in signals:
+            if s.package_offered:
+                price_lines.append(f"Package: {s.package_offered}")
+            if s.rate_offered:
+                price_lines.append(f"Rate: {s.rate_offered}")
+
+        body_parts = [state.thread_summary or "(no summary captured)"]
+        if price_lines:
+            # Deduped, order-preserved - more than one message in the same
+            # thread can restate the same package/rate.
+            body_parts.append("\n".join(dict.fromkeys(price_lines)))
+        if facts:
+            body_parts.append("\n".join(dict.fromkeys(facts)))
+        body = "\n\n".join(body_parts)
+        if state.reopen_count:
+            body = f"(Continued conversation - reopened {state.reopen_count}x since first closed.)\n\n{body}"
+
+        note = Note(
+            id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+            entity_type="contact", entity_id=contact.id,
+            note_type=_CLOSING_NOTE_HEADER, body=body, act_created_at=now,
+        )
+        db.add(note)
+        db.flush()
+        state.closed_at = now
+        state.closed_note_id = note.id
+        written += 1
+
+    return written
+
+
 def scan_email_exchanges() -> None:
     """SALES-010-lite producer: reads each configured salesperson mailbox,
     filters down to real contact-matched 1:1 conversations (see module
@@ -416,6 +545,17 @@ def scan_email_exchanges() -> None:
                     sent_at=latest_msg.received_at, message_body=latest_msg.body_text,
                     confidence_threshold=confidence_threshold,
                 )
+                # Keeps the thread-quiescence tracker current regardless of
+                # whether this message produced any EmailSignal - a
+                # meaningful thread with no due-date/budget/callback still
+                # deserves its closing Note (SALES-010's actual
+                # deliverable), it just never feeds SALES-012.
+                _upsert_thread_state(
+                    db, contact.id, thread_id, new_message_count=len(entries),
+                    last_message_at=latest_msg.received_at,
+                    thread_summary=(extracted.get("thread_summary") or "").strip() or None,
+                    is_meaningful=bool(extracted.get("is_meaningful")),
+                )
 
             if parsed:
                 max_ts = max(m.received_at for m in parsed)
@@ -428,10 +568,17 @@ def scan_email_exchanges() -> None:
             )
             total_signals += queued_this_mailbox
 
+        # SALES-010's own deliverable, not SALES-012's - runs once per
+        # scan across every tracked thread (not per mailbox), since a
+        # thread going idle has nothing to do with which mailbox is being
+        # scanned right now.
+        idle_hours = runtime_settings.get_int(db, "email_summary_idle_close_hours")
+        notes_written = _close_idle_threads(db, idle_hours)
+
         db.commit()
         logger.info(
-            "email_summary scan finished: %d total signal(s) written across %d mailbox(es)",
-            total_signals, len(mailboxes),
+            "email_summary scan finished: %d total signal(s) written, %d closing note(s) written across %d mailbox(es)",
+            total_signals, notes_written, len(mailboxes),
         )
     finally:
         db.close()

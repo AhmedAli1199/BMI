@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  Heart,
   MailQuestion,
   MailWarning,
   Sparkles,
@@ -47,6 +48,13 @@ const STYLES: Record<string, AutomationStyle> = {
     chipBg: "border-[#5b3e8f]",
     accent: "bg-[#5b3e8f]",
     ring: "hover:border-[#5b3e8f]/60",
+  },
+  personal_touchpoint_due: {
+    icon: Heart,
+    color: "text-[#c2185b]",
+    chipBg: "border-[#c2185b]",
+    accent: "bg-[#c2185b]",
+    ring: "hover:border-[#c2185b]/60",
   },
 };
 

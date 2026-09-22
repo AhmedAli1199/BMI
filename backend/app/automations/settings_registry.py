@@ -139,6 +139,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="A signal below this confidence (0-1, the model's own genuine score) is dropped entirely rather than stored - SALES-012 should never trigger off something the model itself wasn't sure about.",
         group="Email exchange summary", type="float", min=0.0, max=1.0,
     ),
+    AutomationSettingDef(
+        key="email_summary_idle_close_hours", label="Idle-close window (hours)",
+        description="A thread with no new message for this long is considered closed - a single Note summarising the whole exchange (what was discussed/offered/agreed, package + rate) is written once, on close.",
+        group="Email exchange summary", type="int", min=1,
+    ),
 
     # ---- SALES-011 - inbound contact capture ----
     AutomationSettingDef(
@@ -199,6 +204,28 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         key="sales012_max_per_run", label="Max queued per run",
         description="Caps how many review items get queued in one run.",
         group="Budget window & renewal triggers", type="int", min=1,
+    ),
+
+    # ---- SALES-005 - personal touchpoint reminders ----
+    AutomationSettingDef(
+        key="automations_personal_touchpoints_scan_enabled", label="Scan enabled",
+        description="Whether the personal touchpoint reminder scan runs on its schedule.",
+        group="Personal touchpoint reminders", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sales005_lead_days", label="Lead time (days)",
+        description="A touchpoint with a stated date triggers once that date is this many days away (0 = on or after the date itself, never before).",
+        group="Personal touchpoint reminders", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="sales005_no_date_delay_days", label="Undated touchpoint delay (days)",
+        description="A touchpoint with no specific date triggers this many days after it was first mentioned.",
+        group="Personal touchpoint reminders", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="sales005_max_per_run", label="Max queued per run",
+        description="Caps how many review items get queued in one run.",
+        group="Personal touchpoint reminders", type="int", min=1,
     ),
 
     # ---- SALES-013 - morning follow-up queue ranking ----

@@ -40,7 +40,7 @@ from sqlalchemy.orm import Session
 from app.automations import runtime_settings
 from app.models import Contact, Opportunity, ReviewQueueItem, User
 
-_SOURCE_KINDS = ("signal_trigger", "followup_due")
+_SOURCE_KINDS = ("signal_trigger", "followup_due", "personal_touchpoint_due")
 
 
 def _resolve_owner(db: Session, item: ReviewQueueItem) -> tuple[str | None, str]:

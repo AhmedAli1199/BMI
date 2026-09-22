@@ -26,6 +26,7 @@ import type { ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
 const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   signal_trigger: "draft_followup",
   followup_due: "mark_sent",
+  personal_touchpoint_due: "draft_touchpoint",
 };
 
 const STYLE_CLASSES: Record<ReviewAction["style"], string> = {

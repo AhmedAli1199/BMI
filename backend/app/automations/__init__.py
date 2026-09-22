@@ -2,7 +2,7 @@
 registry.py) as a side effect - main.py imports it once at startup. Add a
 new automation module here so it actually gets registered.
 """
-from app.automations import bounce_handling, business_card, dedupe, departure, email_summary, followup_queue, inbound_capture, returned_copy, signal_triggers  # noqa: F401
+from app.automations import bounce_handling, business_card, dedupe, departure, email_summary, followup_queue, inbound_capture, personal_touchpoints, returned_copy, signal_triggers  # noqa: F401
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, all_kinds, get_action, get_kind, register
 
 __all__ = [

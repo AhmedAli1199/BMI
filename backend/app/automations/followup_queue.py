@@ -1,7 +1,12 @@
-"""Follow-up Engine + Morning Queue (SALES-005/012/013 from the automations
+"""Follow-up Engine + Morning Queue (SALES-012/013 from the automations
 catalog) - the first producer job in this codebase that runs end to end:
 scans real data, drafts real text (AI when configured, a plain template
 when not), and writes a real review_queue row a rep acts on.
+
+Correction: this module's docstring previously also claimed SALES-005
+(Personal Touchpoint Reminders) - it never actually implemented it; this
+only ever scanned Activity due-dates, nothing touchpoint-related. The real
+SALES-005 lives in personal_touchpoints.py.
 
 Unblocked by the 2026-09-18 Act! activity backfill: every migrated
 Activity now carries a real contact_id/company_id (where Act!'s own
