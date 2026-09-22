@@ -57,7 +57,7 @@ from app.automations.sender_patterns import (
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
-from app.models import Company, Contact, Email, Group, GroupMembership, Note, ReviewQueueItem
+from app.models import Company, Contact, Email, Group, GroupMembership, Note, Phone, ReviewQueueItem
 from app.models.base import SOURCE_DBS
 
 logger = logging.getLogger("app.automations.inbound_capture")
@@ -127,12 +127,13 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
 
     company_name = (input_data.get("company_name") or "").strip()
     company = _find_or_create_company(db, source_db, company_name) if company_name else None
+    job_title = (input_data.get("job_title") or "").strip() or None
 
     parts = name.split(maxsplit=1)
     contact = Contact(
         id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
         first_name=parts[0], last_name=parts[1] if len(parts) > 1 else None, full_name=name,
-        company_id=company.id if company else None, custom_fields={},
+        job_title=job_title, company_id=company.id if company else None, custom_fields={},
     )
     db.add(contact)
     db.flush()
@@ -140,6 +141,18 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
     if sender_email:
         db.add(Email(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
                       contact_id=contact.id, type_label="Business", address=sender_email, is_primary=True))
+
+    phone = (input_data.get("phone") or "").strip()
+    mobile = (input_data.get("mobile") or "").strip()
+    # Mobile is the more useful primary for an inbound lead (a signature's
+    # sign-off number is usually a mobile), but only mark one primary -
+    # whichever one exists when the other doesn't.
+    if phone:
+        db.add(Phone(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+                      contact_id=contact.id, type_label="Business", number=phone, is_primary=not mobile))
+    if mobile:
+        db.add(Phone(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+                      contact_id=contact.id, type_label="Mobile", number=mobile, is_primary=True))
 
     # Whatever the reviewer typed (pre-filled from suggestions computed
     # against the company they actually confirmed/created) is only ever
@@ -177,11 +190,14 @@ register(ReviewKind(
             id="create_contact", label="Create contact", style="primary", outcome="approved",
             extra_fields=[
                 ExtraField(key="name", label="Full name", placeholder="Jane Smith"),
+                ExtraField(key="job_title", label="Job title", placeholder="(from signature, if the email had one)", required=False),
                 ExtraField(
                     key="source_db", label="Database (only needed for a shared inbox)",
                     placeholder=f"{' / '.join(SOURCE_DBS)}", required=False,
                 ),
                 ExtraField(key="company_name", label="Company", placeholder="(suggested company, or type a different one)", required=False),
+                ExtraField(key="phone", label="Phone", placeholder="(from signature, if the email had one)", required=False),
+                ExtraField(key="mobile", label="Mobile", placeholder="(from signature, if the email had one)", required=False),
                 ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="e.g. Leeds, Technology", required=False),
                 ExtraField(key="newsletter", label="Subscribe to newsletter", field_type="bool", required=False),
             ],
@@ -412,6 +428,27 @@ def scan_inbound_contacts() -> None:
                         {"key": "newsletter_group", "label": "Newsletter group for this database", "value": newsletter_name or "(none configured)"},
                     ])
 
+                # Pre-fills the "Create contact" form's extra_fields (keyed
+                # to match their ExtraField.key exactly) with whatever the
+                # signature parse actually found - never a guess. Company
+                # falls back to the domain-match suggestion when the
+                # signature itself didn't name one, same fallback the
+                # "Suggested company" detail row above already uses.
+                prefill: dict[str, str] = {}
+                if signature["full_name"]:
+                    prefill["name"] = signature["full_name"]
+                if signature["job_title"]:
+                    prefill["job_title"] = signature["job_title"]
+                company_prefill = signature["company_name"] or (company.name if company else "")
+                if company_prefill:
+                    prefill["company_name"] = company_prefill
+                if signature["phone"]:
+                    prefill["phone"] = signature["phone"]
+                if signature["mobile"]:
+                    prefill["mobile"] = signature["mobile"]
+                if suggested_groups:
+                    prefill["groups"] = ", ".join(g.name for g in suggested_groups)
+
                 db.add(ReviewQueueItem(
                     id=uuid.uuid4(), kind="inbound_contact_unmatched",
                     entity_type=None, entity_id=None,
@@ -429,6 +466,7 @@ def scan_inbound_contacts() -> None:
                         "signature": signature,
                         "is_high_intent": is_high_intent,
                         "confidence": intent_confidence,
+                        "prefill": prefill,
                     },
                 ))
                 pending_senders.add(sender)

@@ -90,7 +90,11 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   function resetInputs() {
     setNote("");
     setContact(null);
-    setFields({});
+    // Seed from whatever this item's automation could confidently
+    // identify (see ReviewPayload.prefill) rather than an empty form -
+    // the reviewer still edits/overrides before submitting, this just
+    // saves retyping what was already extracted.
+    setFields({ ...(payload.prefill ?? {}) });
     setChosenEntityId(null);
   }
 

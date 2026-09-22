@@ -246,6 +246,12 @@ export type ReviewPayload = {
   suggested_contact?: { id: string; label: string } | null;
   candidate?: ReviewCandidate | null;
   confidence?: number | null;
+  /** Keyed to match ReviewAction.extra_fields[].key exactly - whatever an
+   * automation could confidently identify (a signature parse, a domain
+   * match) pre-filled into that action's form, never a guess it can't
+   * back up. Generic across every kind: any automation can set this and
+   * the form seeds itself from it, no per-kind frontend wiring needed. */
+  prefill?: Record<string, string>;
 };
 
 export type ReviewQueueItem = {
