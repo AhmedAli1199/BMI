@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from app.api.schemas import (
     BulkReviewActionRequest,
     BulkReviewActionResult,
+    RedraftRequest,
+    RedraftResult,
     ReviewActionOut,
     ReviewActionRequest,
     ReviewKindOut,
@@ -178,6 +180,42 @@ def resolve_review_item(
     db.commit()
     db.refresh(item)
     return ReviewQueueItemOut.model_validate(item)
+
+
+@router.post("/{item_id}/redraft", response_model=RedraftResult)
+def redraft_review_item(item_id: uuid.UUID, payload: RedraftRequest, db: Session = Depends(get_db)) -> RedraftResult:
+    """Regenerates an AI-drafted follow-up (payload["original_text"]) with
+    extra instructions from the reviewer - "make it shorter", "mention the
+    renewal date explicitly", etc. Deliberately does NOT resolve the item
+    (status stays "pending") - this is a preview step the reviewer can
+    call as many times as they like before actually approving, same as
+    editing a draft by hand would be. The regenerated text IS persisted
+    into the item's own payload so a page refresh (or the review list
+    itself) shows the latest draft rather than the original one, but that
+    persistence never touches item.status/resolved_action - only an
+    explicit POST .../actions/{action_id} does that.
+    """
+    item = db.get(ReviewQueueItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    if item.status != "pending":
+        raise HTTPException(status_code=409, detail="Already resolved - can't redraft a closed item.")
+
+    kind_def = get_kind(item.kind)
+    if not kind_def:
+        raise HTTPException(status_code=500, detail=f"No automation is registered for kind {item.kind!r}")
+    if not kind_def.redraft:
+        raise HTTPException(status_code=400, detail=f"{item.kind!r} items don't support redrafting.")
+
+    try:
+        new_draft = kind_def.redraft(db, item, payload.instructions.strip())
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    item.payload = {**item.payload, "original_text": new_draft}
+    db.commit()
+    return RedraftResult(draft=new_draft)
 
 
 @router.post("/bulk-actions/{action_id}", response_model=BulkReviewActionResult)

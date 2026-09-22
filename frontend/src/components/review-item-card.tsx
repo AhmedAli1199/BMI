@@ -14,7 +14,19 @@ import { EntityPicker } from "@/components/entity-picker";
 import { cleanNoteBody } from "@/lib/notes";
 import { styleForKind } from "@/lib/automation-style";
 import { resolveReviewItem, searchContacts } from "@/lib/actions";
+import { DraftReviewDialog } from "@/components/draft-review-dialog";
 import type { ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
+
+/** Kind+action combos whose payload.original_text is an AI-drafted note/
+ * email (not source material) and whose approve action writes it verbatim
+ * to a record - these get the full preview/edit/regenerate dialog
+ * (draft-review-dialog.tsx) instead of the generic one-click confirm, so
+ * a reviewer always sees and can adjust exactly what's about to be
+ * written before it happens. See registry.py's ReviewKind.redraft. */
+const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
+  signal_trigger: "draft_followup",
+  followup_due: "mark_sent",
+};
 
 const STYLE_CLASSES: Record<ReviewAction["style"], string> = {
   primary: "",
@@ -60,6 +72,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   const [pending, startTransition] = useTransition();
   const [justResolvedLabel, setJustResolvedLabel] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
 
   const { payload } = item;
   const style = styleForKind(kind.kind);
@@ -121,6 +134,10 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   }
 
   function handleActionClick(action: ReviewAction) {
+    if (DRAFT_REVIEW_ACTIONS[kind.kind] === action.id) {
+      setDraftDialogOpen(true);
+      return;
+    }
     if (actionNeedsInput(action)) {
       setExpandedAction(expandedAction === action.id ? null : action.id);
       resetInputs();
@@ -338,6 +355,21 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
               resetInputs();
             }}
             onSubmit={() => submit(kind.actions.find((a) => a.id === expandedAction)!)}
+          />
+        )}
+
+        {DRAFT_REVIEW_ACTIONS[kind.kind] && (
+          <DraftReviewDialog
+            open={draftDialogOpen}
+            onOpenChange={setDraftDialogOpen}
+            itemId={item.id}
+            actionId={DRAFT_REVIEW_ACTIONS[kind.kind]}
+            actionLabel={kind.actions.find((a) => a.id === DRAFT_REVIEW_ACTIONS[kind.kind])?.label ?? "Approve"}
+            initialDraft={payload.original_text ?? ""}
+            onApproved={(label) => {
+              toast.success(`${label} — done`);
+              setJustResolvedLabel(label);
+            }}
           />
         )}
       </CardContent>

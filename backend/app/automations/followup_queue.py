@@ -91,6 +91,19 @@ def _handle_followup(db: Session, item: ReviewQueueItem, action_id: str, input_d
         raise ValueError(f"Unknown action {action_id!r} for followup_due")
 
 
+def _redraft_followup(db: Session, item: ReviewQueueItem, extra_instructions: str) -> str:
+    """POST /review-queue/{id}/redraft's backing function for this kind -
+    see signal_triggers.py's identical-purpose function. Never touches
+    activity.is_cleared or the item's approval state."""
+    activity = db.get(Activity, item.entity_id) if item.entity_id else None
+    if not activity:
+        raise ValueError("The activity this follow-up was drafted from no longer exists - it may have been deleted.")
+    contact = db.get(Contact, activity.contact_id) if activity.contact_id else None
+    company = db.get(Company, activity.company_id) if activity.company_id else None
+    draft, _ = _draft_followup_text(activity, contact, company, extra_instructions)
+    return draft
+
+
 register(ReviewKind(
     kind="followup_due",
     label="Follow-up due",
@@ -107,13 +120,18 @@ register(ReviewKind(
         ReviewAction(id="dismiss", label="Dismiss", style="destructive", outcome="rejected"),
     ],
     handler=_handle_followup,
+    redraft=_redraft_followup,
 ))
 
 
-def _draft_followup_text(activity: Activity, contact: Contact | None, company: Company | None) -> tuple[str, bool]:
+def _draft_followup_text(
+    activity: Activity, contact: Contact | None, company: Company | None, extra_instructions: str = "",
+) -> tuple[str, bool]:
     """Returns (draft_text, was_ai_generated). Always returns something
     usable - AI when configured, a plain templated line otherwise - never
-    blocks the item from being queued just because no key is set."""
+    blocks the item from being queued just because no key is set.
+    `extra_instructions`, when set, is the reviewer's own "regenerate with
+    instructions" request - see _redraft_followup below."""
     who = _entity_label(contact, company)
     subject = activity.subject or activity.activity_type or "a follow-up"
 
@@ -133,6 +151,7 @@ def _draft_followup_text(activity: Activity, contact: Contact | None, company: C
                 "(no subject line, no greeting placeholders like [Name] - use the actual name given). "
                 "Keep it under 120 words. Never invent facts, prices, or commitments not present in the "
                 "context - if the context is thin, keep the email general rather than fabricating detail."
+                + (f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}" if extra_instructions else "")
             ),
             user_prompt=context,
             purpose="followup_queue.draft",

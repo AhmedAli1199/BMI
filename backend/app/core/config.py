@@ -83,24 +83,29 @@ class Settings(BaseSettings):
     llm_call_min_interval_seconds: float = 1.1
 
     # Cost dashboard (/api/automations/llm-usage, see app/models/llm_usage.py)
-    # - $ per 1,000,000 tokens, input vs output, per provider. These are
-    # editable at runtime (Automations Settings) specifically because list
-    # prices change and this repo has no way to fetch them live - update
-    # here (or override in Settings) when a provider's pricing changes;
-    # historical usage rows already store their own computed cost and are
-    # never rewritten retroactively.
-    llm_cost_gemini_input_per_1m: float = 0.30
-    llm_cost_gemini_output_per_1m: float = 2.50
+    # - $ per 1,000,000 tokens, input vs output, per provider, used as the
+    # fallback for any model with no entry in llm_cost_overrides_json
+    # below. Neither provider's API response includes a dollar cost field -
+    # token counts are exact (read straight off the response), the $ figure
+    # is always this rate table multiplied by those tokens, same as every
+    # third-party LLM cost tracker does it. Editable at runtime
+    # (Automations Settings) since list prices change; historical usage
+    # rows already store their own computed cost and are never rewritten
+    # retroactively.
+    #
+    # Gemini default = gemini-3.6-flash's actual current list price,
+    # confirmed 2026-09-22 against https://ai.google.dev/gemini-api/docs/pricing:
+    # $0.75 input / $3.75 output per 1M tokens through 2026-12-31 (output
+    # price explicitly includes thinking tokens), rising to $1.50 / $7.50
+    # from 2027-01-01 - update this (or add a dated llm_cost_overrides_json
+    # entry) when that takes effect.
+    llm_cost_gemini_input_per_1m: float = 0.75
+    llm_cost_gemini_output_per_1m: float = 3.75
+    # OpenAI default = gpt-4o-mini's published rate at the time this was
+    # written - not re-verified as carefully as the Gemini figure above;
+    # confirm against https://openai.com/api/pricing before relying on it.
     llm_cost_openai_input_per_1m: float = 0.15
     llm_cost_openai_output_per_1m: float = 0.60
-    # UNVERIFIED PLACEHOLDER RATES, not confirmed against either provider's
-    # real pricing page - gemini-3.6-flash and gpt-4o-mini's exact current
-    # list prices should be looked up and entered here (or as an
-    # llm_cost_overrides_json override below) before treating the cost
-    # dashboard's numbers as accurate. Neither provider's API response
-    # includes a dollar cost field - token counts are exact (read straight
-    # off the response), the $ figure is always this rate table multiplied
-    # by those tokens, same as every third-party LLM cost tracker does it.
 
     # Exact-model overrides, as a JSON object: {"<model name>": {"input":
     # <$/1M tokens>, "output": <$/1M tokens>}, ...}. Checked before the
@@ -109,7 +114,9 @@ class Settings(BaseSettings):
     # its own real rate instead of one flat per-provider guess, without a
     # code change when a model is swapped. Malformed JSON is ignored (logged,
     # falls back to the provider default) rather than blocking a call.
-    llm_cost_overrides_json: str = "{}"
+    # Defaults to an explicit gemini-3.6-flash entry mirroring the verified
+    # rate above, as a concrete example of the override shape.
+    llm_cost_overrides_json: str = '{"gemini-3.6-flash": {"input": 0.75, "output": 3.75}}'
 
     # Microsoft Graph app registration (client-credentials flow, no per-user
     # login) - used by /api/diagnostics/graph-mailboxes to confirm which of

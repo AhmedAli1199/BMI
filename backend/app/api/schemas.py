@@ -540,6 +540,14 @@ class ReviewQueuePage(Page):
     items: list[ReviewQueueItemOut]
 
 
+class RedraftRequest(BaseModel):
+    instructions: str = Field(min_length=1, max_length=2000)
+
+
+class RedraftResult(BaseModel):
+    draft: str
+
+
 class BulkReviewActionRequest(BaseModel):
     note: str | None = None
 

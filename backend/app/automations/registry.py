@@ -110,6 +110,15 @@ class ReviewKind:
     # human-readable message for anything the reviewer should see as an
     # error (stale data, missing contact, etc.) rather than a 500.
     handler: Callable[[Session, ReviewQueueItem, str, dict], None]
+    # Optional: (db, item, extra_instructions) -> new draft text, for a
+    # kind whose payload["original_text"] is an AI-drafted action (a
+    # follow-up note/email) rather than source material - see
+    # signal_triggers.py/followup_queue.py's _redraft_* functions. Lets
+    # the review-queue UI offer "regenerate with instructions" before the
+    # reviewer commits, without resolving/mutating the item - only an
+    # explicit approve action does that. None (the default) means this
+    # kind has no re-draftable text, and POST .../redraft 400s for it.
+    redraft: Callable[[Session, ReviewQueueItem, str], str] | None = None
 
 
 _REGISTRY: dict[str, ReviewKind] = {}

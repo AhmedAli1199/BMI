@@ -57,13 +57,16 @@ _SIGNAL_TYPE_LABELS = {
 }
 
 
-def _draft_followup_text(signal: EmailSignal, contact_label: str) -> tuple[str, bool]:
+def _draft_followup_text(signal: EmailSignal, contact_label: str, extra_instructions: str = "") -> tuple[str, bool]:
     """Returns (draft_text, was_ai_generated) - same contract as
     followup_queue.py's _draft_followup_text, and deliberately generated
     once at QUEUE time (not when the reviewer clicks) so what the rep sees
     in the review card before deciding is exactly what gets written to the
     contact's record if they approve it - no surprise gap between preview
-    and outcome."""
+    and outcome. `extra_instructions`, when set, comes from the reviewer's
+    own "regenerate with instructions" request (see _redraft_signal_trigger
+    below) - appended as an explicit, higher-priority instruction, never
+    silently blended into the base prompt."""
     label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
     due = f" (due {signal.due_date.isoformat()})" if signal.due_date else ""
 
@@ -83,6 +86,7 @@ def _draft_followup_text(signal: EmailSignal, contact_label: str) -> tuple[str, 
                 "Output ONLY the two sentences of prose themselves - never a label, header, or the words "
                 "\"sentence 1\"/\"sentence 2\"/\"drafting\" anywhere in the output, and never explain what "
                 "you're about to write before writing it."
+                + (f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}" if extra_instructions else "")
             ),
             user_prompt=(
                 f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}"
@@ -128,17 +132,30 @@ def _handle_signal_trigger(db: Session, item: ReviewQueueItem, action_id: str, i
         contact = db.get(Contact, signal.contact_id)
         if not contact:
             raise ValueError("The contact this signal belongs to no longer exists.")
-        # Write exactly what the reviewer already saw in the card (see
-        # scan_signal_triggers) - drafted once at queue time, not
-        # re-derived here, so there's never a gap between preview and
-        # what actually lands on the contact's record.
-        draft = item.payload.get("original_text") or signal.summary
+        # Prefer whatever the reviewer last saw/edited in the draft dialog
+        # (submitted as `note`, same field the generic review form already
+        # uses for "override the default text") - falls back to the
+        # queue-time draft only if the dialog was skipped entirely (an
+        # older client, or an API caller that never opened it).
+        draft = (input_data.get("note") or "").strip() or item.payload.get("original_text") or signal.summary
         _add_note(db, contact, draft)
         signal.status = "actioned"
     elif action_id == "dismiss":
         signal.status = "dismissed"
     else:
         raise ValueError(f"Unknown action {action_id!r} for signal_trigger")
+
+
+def _redraft_signal_trigger(db: Session, item: ReviewQueueItem, extra_instructions: str) -> str:
+    """POST /review-queue/{id}/redraft's backing function for this kind -
+    re-runs the same drafting prompt with the reviewer's extra
+    instructions folded in. Never touches signal.status or the item's
+    approval state - see that route's docstring."""
+    signal = _get_signal_or_raise(db, item.payload.get("signal_id"))
+    contact = db.get(Contact, signal.contact_id)
+    contact_label = (contact.full_name or contact.first_name) if contact else None
+    draft, _ = _draft_followup_text(signal, contact_label or "the contact", extra_instructions)
+    return draft
 
 
 register(ReviewKind(
@@ -150,6 +167,7 @@ register(ReviewKind(
         ReviewAction(id="dismiss", label="Not relevant", style="secondary", outcome="rejected"),
     ],
     handler=_handle_signal_trigger,
+    redraft=_redraft_signal_trigger,
 ))
 
 

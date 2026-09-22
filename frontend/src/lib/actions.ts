@@ -506,6 +506,20 @@ export async function resolveReviewItem(
   }
 }
 
+/** Regenerates an AI-drafted follow-up with extra reviewer instructions -
+ * see backend's POST /api/review-queue/{id}/redraft. Deliberately does
+ * NOT resolve the item (no revalidate of the review queue itself needed
+ * for that reason) - it's a preview step the reviewer can call as many
+ * times as they like before actually approving via resolveReviewItem. */
+export async function redraftReviewItem(itemId: string, instructions: string): Promise<string> {
+  const result = await backendFetch<{ draft: string }>(`/api/review-queue/${itemId}/redraft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ instructions }),
+  });
+  return result.draft;
+}
+
 /** Applies one action to every currently-pending item of one kind - see
  * backend's POST /api/review-queue/bulk-actions/{action_id}. Always scoped
  * to a single kind (bulk actions can't span kinds, since actions are
