@@ -163,6 +163,11 @@ class Settings(BaseSettings):
     # manager who also has their own contact record from the Act! import),
     # never a real client conversation. Comma-separated, case-insensitive.
     email_summary_internal_domains: str = "bmipublishing.co.uk,onboardhospitality.com,sellingtravel.com"
+    # A signal below this confidence (the model's own genuine score, not a
+    # flat guess) is dropped entirely rather than stored - SALES-012
+    # should never trigger off something the model itself wasn't sure
+    # about. Was a flat, unused 0.6 on every signal before this.
+    email_summary_confidence_threshold: float = 0.5
 
     # SALES-011 (Inbound Contact Capture) - see
     # app/automations/inbound_capture.py. A distinct mailbox list from both

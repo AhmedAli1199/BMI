@@ -134,6 +134,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="Comma-separated BMI-owned email domains. A thread is dropped when both the sender and the matched contact are on one of these - staff-to-staff mail, not a client conversation.",
         group="Email exchange summary", type="csv",
     ),
+    AutomationSettingDef(
+        key="email_summary_confidence_threshold", label="Confidence threshold",
+        description="A signal below this confidence (0-1, the model's own genuine score) is dropped entirely rather than stored - SALES-012 should never trigger off something the model itself wasn't sure about.",
+        group="Email exchange summary", type="float", min=0.0, max=1.0,
+    ),
 
     # ---- SALES-011 - inbound contact capture ----
     AutomationSettingDef(

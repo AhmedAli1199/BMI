@@ -24,17 +24,20 @@ const SORT_OPTIONS = [
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; status?: string; sort?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string }>;
 }) {
-  const { kind: activeKind, status: rawStatus, sort: rawSort } = await searchParams;
+  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ } = await searchParams;
   const activeStatus = STATUS_TABS.some((t) => t.value === rawStatus) ? rawStatus! : "pending";
   const activeSort = SORT_OPTIONS.some((s) => s.value === rawSort) ? rawSort! : "recent";
+  const activeQuery = (rawQ || "").trim();
 
   const [kinds, counts, page] = await Promise.all([
     backendFetch<ReviewKind[]>("/api/review-queue/kinds"),
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),
     backendFetch<Page<ReviewQueueItem>>(
-      `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}`
+      `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}${
+        activeQuery ? `&q=${encodeURIComponent(activeQuery)}` : ""
+      }`
     ),
   ]);
 
@@ -164,6 +167,33 @@ export default async function ReviewQueuePage({
         </div>
       )}
 
+      {/* Search by contact/company - matches against every kind's card
+          headline (payload.summary), which always names who the item is
+          about, so this works uniformly with no per-kind wiring. A plain
+          GET form (not a client component) since this is a server
+          component page and the URL is already the single source of
+          truth for every other filter here. */}
+      <form action="/automations/review" method="GET" className="flex items-center gap-2">
+        {activeKind && <input type="hidden" name="kind" value={activeKind} />}
+        <input type="hidden" name="status" value={activeStatus} />
+        {activeSort !== "recent" && <input type="hidden" name="sort" value={activeSort} />}
+        <input
+          type="search"
+          name="q"
+          defaultValue={activeQuery}
+          placeholder="Search by contact or company..."
+          className="w-full max-w-xs rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+        />
+        {activeQuery && (
+          <Link
+            href={`/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`}
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </Link>
+        )}
+      </form>
+
       <div className="flex flex-col gap-4">
         {page.items.length > 0 ? (
           page.items.map((item) => {
@@ -187,10 +217,12 @@ export default async function ReviewQueuePage({
                 <PartyPopper className="size-6" />
               </span>
               <p className="mt-1 text-base font-bold text-foreground">
-                {activeStatus === "pending" ? "All caught up." : "Nothing here yet."}
+                {activeQuery ? "No matches." : activeStatus === "pending" ? "All caught up." : "Nothing here yet."}
               </p>
               <p className="max-w-xs text-sm text-muted-foreground">
-                {activeStatus === "pending"
+                {activeQuery
+                  ? `Nothing matching "${activeQuery}"${activeKind ? " in this automation" : ""}.`
+                  : activeStatus === "pending"
                   ? `Nothing is waiting on you${activeKind ? " for this automation" : ""} right now. New items will show up here the moment a scanner finds one.`
                   : `No ${activeStatus} items${activeKind ? " for this automation" : ""} yet.`}
               </p>

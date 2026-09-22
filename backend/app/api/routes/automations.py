@@ -18,6 +18,7 @@ from app.api.schemas import (
 )
 from app.automations import runtime_settings
 from app.automations.business_card import process_business_card_photo, resolve_batch
+from app.automations.metrics import get_rep_metrics
 from app.automations.morning_queue import build_today_queue
 from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled, run_job
@@ -59,6 +60,15 @@ def get_today_queue(owner_user_id: str | None = None, db: Session = Depends(get_
     belongs to. Pass owner_user_id for one rep's own list; omit it for a
     manager's cross-team view grouped by rep."""
     return build_today_queue(db, owner_user_id=owner_user_id)
+
+
+@router.get("/metrics")
+def get_metrics(days: int = Query(14, ge=1, le=90, description="How many days back to break down 'actioned' by day."), db: Session = Depends(get_db)) -> dict:
+    """SALES-013's "metrics store" read side - see
+    app/automations/metrics.py's docstring for why this is aggregation
+    over the existing review queue, not a new table. Per-rep outstanding
+    count (as of now) plus a daily actioned breakdown over the window."""
+    return get_rep_metrics(db, days=days)
 
 
 @router.post("/jobs/{job_id}/run")

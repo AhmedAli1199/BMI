@@ -75,8 +75,15 @@ _SIGNAL_EXTRACTION_PROMPT = (
     "due_date MUST be null. NEVER invent a specific day (e.g. defaulting to the 1st of the month) to fill "
     "in a date that wasn't actually given - a null due_date is correct and expected far more often than a "
     "guessed one.\n\n"
+    "For EACH signal, also give: confidence (0.0-1.0, your genuine confidence that this is really a live, "
+    "actionable signal and not a misread) - be honest, not optimistic, a wrong-but-confident signal costs "
+    "a rep's time; package_offered (verbatim, e.g. \"double-page spread\", \"awards entry + gala table\") "
+    "ONLY if a specific package/product is named, else null; rate_offered (verbatim, e.g. \"£4,000\", "
+    "\"£2,500 for single page\") ONLY if a specific figure or rate is actually stated, else null - never "
+    "estimate or round a figure that wasn't given.\n\n"
     "Return JSON of the exact shape: {\"signals\": [{\"type\": one of the four above, "
-    "\"due_date\": \"YYYY-MM-DD\" or null, \"summary\": \"one sentence\"}], "
+    "\"due_date\": \"YYYY-MM-DD\" or null, \"summary\": \"one sentence\", \"confidence\": 0.0-1.0, "
+    "\"package_offered\": string or null, \"rate_offered\": string or null}], "
     "\"thread_summary\": \"one or two sentences on where this conversation stands\"}. "
     "Return {\"signals\": [], \"thread_summary\": \"...\"} if nothing above is actually established."
 )
@@ -191,7 +198,8 @@ _SOURCE_SNIPPET_MAX_CHARS = 1200
 
 
 def _upsert_signals(
-    db: Session, contact_id, thread_id: str, message_id: str, extracted: dict, *, sent_at: datetime, message_body: str,
+    db: Session, contact_id, thread_id: str, message_id: str, extracted: dict, *,
+    sent_at: datetime, message_body: str, confidence_threshold: float,
 ) -> int:
     """Insert-or-update by (source_thread_id, signal_type) - a thread's Nth
     message about the same renewal date refines the existing row, it never
@@ -222,7 +230,12 @@ def _upsert_signals(
     this signal, not the whole thread, so a reviewer can see the real
     context behind the AI's one-line summary. A deliberate, scoped
     exception to this module's original "never store a message body"
-    design - see EmailSignal.source_snippet's own docstring."""
+    design - see EmailSignal.source_snippet's own docstring.
+
+    `confidence_threshold` - a signal below this (the model's own,
+    genuine confidence, not a flat guess - see the extraction prompt) is
+    dropped entirely rather than stored at low confidence, so SALES-012
+    never triggers off something the model itself wasn't sure about."""
     snippet = message_body.strip()[:_SOURCE_SNIPPET_MAX_CHARS] or None
     existing_by_type: dict[str, EmailSignal] = {
         row.signal_type: row
@@ -240,6 +253,20 @@ def _upsert_signals(
         if signal_type == "personal_touchpoint" and _is_sensitive_touchpoint(summary):
             logger.info("email_summary: dropped a sensitive personal_touchpoint (thread %s) - needs a human, not an automated note", thread_id)
             continue
+
+        try:
+            confidence = max(0.0, min(1.0, float(signal.get("confidence", 0.5))))
+        except (TypeError, ValueError):
+            confidence = 0.5
+        if confidence < confidence_threshold:
+            logger.info(
+                "email_summary: dropped a %s signal (thread %s) at confidence %.2f - below the %.2f threshold",
+                signal_type, thread_id, confidence, confidence_threshold,
+            )
+            continue
+        package_offered = (signal.get("package_offered") or "").strip() or None
+        rate_offered = (signal.get("rate_offered") or "").strip() or None
+
         due_date = None
         raw_date = signal.get("due_date")
         if raw_date:
@@ -261,13 +288,16 @@ def _upsert_signals(
             existing.due_date = due_date
             existing.source_message_id = message_id
             existing.source_snippet = snippet
+            existing.confidence = confidence
+            existing.package_offered = package_offered
+            existing.rate_offered = rate_offered
             existing.status = "open"  # a fresh mention re-opens a signal a rep may have already actioned/dismissed
         else:
             new_row = EmailSignal(
                 id=uuid.uuid4(), contact_id=contact_id, signal_type=signal_type,
                 due_date=due_date, summary=summary,
                 source_thread_id=thread_id, source_message_id=message_id, source_snippet=snippet,
-                confidence=0.6,
+                confidence=confidence, package_offered=package_offered, rate_offered=rate_offered,
             )
             db.add(new_row)
             existing_by_type[signal_type] = new_row
@@ -290,6 +320,7 @@ def scan_email_exchanges() -> None:
             logger.info("email_summary scan: no mailboxes configured (GRAPH_EMAIL_SUMMARY_MAILBOXES / Automations Settings) - nothing to scan.")
             return
 
+        confidence_threshold = runtime_settings.get_float(db, "email_summary_confidence_threshold")
         total_signals = 0
         for mailbox in mailboxes:
             cursor_key = f"email_summary_scan:{mailbox}"
@@ -383,6 +414,7 @@ def scan_email_exchanges() -> None:
                 queued_this_mailbox += _upsert_signals(
                     db, contact.id, thread_id, latest_msg.message_id, extracted,
                     sent_at=latest_msg.received_at, message_body=latest_msg.body_text,
+                    confidence_threshold=confidence_threshold,
                 )
 
             if parsed:

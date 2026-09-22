@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Float, cast, func, select
+from sqlalchemy import Float, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -85,6 +85,7 @@ def list_counts(db: Session = Depends(get_db)) -> list[ReviewQueueCounts]:
 def list_review_items(
     kind: str | None = Query(None),
     status: str | None = Query("pending"),
+    q: str | None = Query(None, description="Free-text search - every kind's card headline (payload.summary) always names the contact/company, so this doubles as search-by-contact without a join."),
     sort: str = Query("recent"),  # "recent" (default) | "confidence_asc" | "confidence_desc"
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -95,6 +96,14 @@ def list_review_items(
         stmt = stmt.where(ReviewQueueItem.kind == kind)
     if status:
         stmt = stmt.where(ReviewQueueItem.status == status)
+    if q and q.strip():
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                ReviewQueueItem.payload["summary"].astext.ilike(needle),
+                ReviewQueueItem.payload["subject"].astext.ilike(needle),
+            )
+        )
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 

@@ -57,6 +57,14 @@ class EmailSignal(Base, UUIDPk):
     # git history) - approved explicitly rather than silently widened.
     source_snippet: Mapped[str | None] = mapped_column(Text)
 
+    # Verbatim, only when the message actually states one - never
+    # inferred/estimated (see email_summary.py's extraction prompt). Kept
+    # as short free text, not a parsed number: a rate is often given as a
+    # range or with conditions ("£4,000 for the double-page, £2,500 for
+    # single") that a numeric column would lose.
+    package_offered: Mapped[str | None] = mapped_column(String(256))
+    rate_offered: Mapped[str | None] = mapped_column(String(256))
+
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="open", index=True)
 

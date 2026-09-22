@@ -40,7 +40,7 @@ from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.db.session import SessionLocal
-from app.models import Contact, EmailSignal, Note, ReviewQueueItem
+from app.models import Contact, EmailSignal, HistoryEntry, Note, ReviewQueueItem
 
 logger = logging.getLogger("app.automations.signal_triggers")
 
@@ -77,7 +77,10 @@ def _purpose_line(signal: EmailSignal, contact_label: str) -> str:
     rely on the review queue UI that queued it having ever existed."""
     label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
     due = f", due {signal.due_date.isoformat()}" if signal.due_date else ""
-    return f"{label}{due} for {contact_label} - {signal.summary}"
+    extras = ", ".join(
+        f"{k}: {v}" for k, v in (("package", signal.package_offered), ("rate", signal.rate_offered)) if v
+    )
+    return f"{label}{due} for {contact_label} - {signal.summary}" + (f" ({extras})" if extras else "")
 
 
 def _format_drafted_note(purpose: str, subject: str, body: str) -> str:
@@ -100,14 +103,19 @@ def _draft_followup_text(signal: EmailSignal, contact_label: str, extra_instruct
     label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
     due = f" (due {signal.due_date.isoformat()})" if signal.due_date else ""
     purpose = _purpose_line(signal, contact_label)
+    price_context = "".join(
+        f"\n{k}: {v}" for k, v in (("Package discussed", signal.package_offered), ("Rate discussed", signal.rate_offered)) if v
+    )
 
     if is_configured():
         system_prompt = _DRAFT_EMAIL_PROMPT
+        if price_context:
+            system_prompt += "\n\nIf a package/rate is given below, you may reference it, but never alter the figure or invent one."
         if extra_instructions:
             system_prompt += f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}"
         result = extract_json(
             system_prompt,
-            f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}",
+            f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}{price_context}",
             purpose="signal_triggers.draft",
         )
         subject = (result or {}).get("subject", "").strip()
@@ -252,6 +260,8 @@ def scan_signal_triggers() -> None:
                         {"key": "signal_type", "label": "Type", "value": label},
                         {"key": "due_date", "label": "Due date", "value": signal.due_date.isoformat() if signal.due_date else "(none stated)"},
                         {"key": "extracted", "label": "From the email thread", "value": signal.summary},
+                        *([{"key": "package_offered", "label": "Package discussed", "value": signal.package_offered}] if signal.package_offered else []),
+                        *([{"key": "rate_offered", "label": "Rate discussed", "value": signal.rate_offered}] if signal.rate_offered else []),
                         {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
                     ],
                     # Rendered by the generic review card as an expandable
@@ -273,6 +283,17 @@ def scan_signal_triggers() -> None:
                     "signal_type": signal.signal_type,
                     "due_date": signal.due_date.isoformat() if signal.due_date else None,
                 },
+            ))
+            # Audit stamp on the contact's own record the moment a trigger
+            # fires - separate from (and independent of) the Note written
+            # later if/when the reviewer approves the draft, so there's a
+            # visible trail even for a trigger that ends up dismissed.
+            db.add(HistoryEntry(
+                id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+                entity_type="contact", entity_id=contact.id,
+                history_type="Follow-up queued", subject=f"{label} follow-up queued",
+                details=f"{label}" + (f", due {signal.due_date.isoformat()}" if signal.due_date else "") + f" - {signal.summary}",
+                occurred_at=datetime.now(timezone.utc),
             ))
             queued += 1
 
