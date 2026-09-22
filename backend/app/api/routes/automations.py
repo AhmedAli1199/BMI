@@ -25,7 +25,7 @@ from app.automations.scheduler import all_jobs, is_enabled, run_job
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import AutomationState, Contact, EmailSignal, LlmUsageEvent
+from app.models import AutomationState, Contact, EmailSignal, LlmUsageEvent, ReviewQueueItem
 
 logger = logging.getLogger("app.api.automations")
 
@@ -143,6 +143,57 @@ def reset_job_cursor(job_id: str, db: Session = Depends(get_db)) -> dict:
     db.commit()
     logger.info("cursor reset for automation job: %s (%d state row(s) cleared)", job.id, deleted)
     return {"ok": True, "job_id": job.id, "cleared": deleted}
+
+
+@router.post("/reset")
+def reset_automation_data(
+    confirm: bool = Query(False, description="Must be true - a safety catch against an accidental call."),
+    reset_cursors: bool = Query(True, description="Also clear every scan job's remembered mailbox/scan position, so the next run re-reads from its configured lookback instead of picking up where it left off."),
+    reset_signals: bool = Query(False, description="Also delete every EmailSignal row (SALES-010-lite's extracted budget/renewal/callback/touchpoint facts), not just the review queue built on top of them - forces a full re-extraction from scratch on the next email scan, not just re-triggering off what's already there."),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Wipes every ReviewQueueItem (every kind, every status) so the whole
+    review queue starts empty. Deliberately does NOT touch the durable
+    side effects an approved item already made - a merged/retired
+    contact, an actioned EmailSignal, a resolved Activity, a written Note
+    - none of that is undone, so re-running the scans afterward will not
+    resurrect anything you already approved. The one real gap: a
+    dedupe "Not relevant" verdict (duplicate_contact, rejected) has no
+    memory anywhere except the row this deletes, so those specific pairs
+    WILL be re-proposed on the next dedupe scan - there is nothing to
+    preserve that decision by, short of not deleting that row.
+
+    reset_signals=true goes further and clears email_summary.py's own
+    output too, so both layers restart from nothing - use this only if
+    you actually want signals re-extracted, not just re-surfaced.
+    """
+    if not confirm:
+        raise HTTPException(status_code=400, detail="Pass confirm=true to actually wipe automation data - this is destructive and not undoable from here.")
+
+    deleted_items = db.query(ReviewQueueItem).delete(synchronize_session=False)
+
+    deleted_cursors = 0
+    if reset_cursors:
+        cursor_prefixes = [j.cursor_prefix for j in all_jobs() if j.cursor_prefix]
+        for prefix in cursor_prefixes:
+            deleted_cursors += db.query(AutomationState).filter(AutomationState.key.like(f"{prefix}%")).delete(synchronize_session=False)
+
+    deleted_signals = 0
+    if reset_signals:
+        deleted_signals = db.query(EmailSignal).delete(synchronize_session=False)
+
+    db.commit()
+    logger.warning(
+        "automation data reset: %d review item(s), %d cursor row(s)%s deleted",
+        deleted_items, deleted_cursors,
+        f", {deleted_signals} email signal(s)" if reset_signals else "",
+    )
+    return {
+        "ok": True,
+        "deleted_review_items": deleted_items,
+        "deleted_cursors": deleted_cursors,
+        "deleted_signals": deleted_signals if reset_signals else None,
+    }
 
 
 @router.post("/business-cards/upload")
