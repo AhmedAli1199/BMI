@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations import runtime_settings
-from app.automations.llm import draft_text, is_configured
+from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.db.session import SessionLocal
@@ -57,8 +57,38 @@ _SIGNAL_TYPE_LABELS = {
 }
 
 
+_DRAFT_EMAIL_PROMPT = (
+    "You draft a short, professional follow-up EMAIL a BMI Publishing salesperson can copy and send "
+    "to their client/prospect almost as-is, based on one fact their own earlier email correspondence "
+    "already established. Write a real email: a greeting using the contact's first name if given, 2-4 "
+    "sentences referencing the established fact and prompting the specific next step, and a brief "
+    "sign-off with no signature block (the rep's own email client adds that). Never invent facts, "
+    "prices, dates, or commitments beyond what's given - if the context is thin, keep it general rather "
+    "than fabricating detail. Return JSON of the exact shape: {\"subject\": string, \"body\": string}. "
+    "\"body\" is the email text only - no labels, no commentary, no explaining what you're about to write."
+)
+
+
+def _purpose_line(signal: EmailSignal, contact_label: str) -> str:
+    """A short, deterministic (never LLM-generated) explanation of why this
+    note exists, written into the Note itself - not just shown in the
+    review card. The Note is a permanent CRM record a future reader has no
+    other context for, so it needs to be self-explanatory on its own, not
+    rely on the review queue UI that queued it having ever existed."""
+    label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
+    due = f", due {signal.due_date.isoformat()}" if signal.due_date else ""
+    return f"{label}{due} for {contact_label} - {signal.summary}"
+
+
+def _format_drafted_note(purpose: str, subject: str, body: str) -> str:
+    """One self-contained Note body: why this exists, then the actual
+    email a rep can copy into their own client - see this module's
+    docstring on why a bare internal reminder wasn't good enough."""
+    return f"Why this note: {purpose}\n\nSubject: {subject}\n\n{body}".strip()
+
+
 def _draft_followup_text(signal: EmailSignal, contact_label: str, extra_instructions: str = "") -> tuple[str, bool]:
-    """Returns (draft_text, was_ai_generated) - same contract as
+    """Returns (formatted_note_body, was_ai_generated) - same contract as
     followup_queue.py's _draft_followup_text, and deliberately generated
     once at QUEUE time (not when the reviewer clicks) so what the rep sees
     in the review card before deciding is exactly what gets written to the
@@ -69,45 +99,33 @@ def _draft_followup_text(signal: EmailSignal, contact_label: str, extra_instruct
     silently blended into the base prompt."""
     label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
     due = f" (due {signal.due_date.isoformat()})" if signal.due_date else ""
+    purpose = _purpose_line(signal, contact_label)
 
     if is_configured():
-        ai_text = draft_text(
-            system_prompt=(
-                "You are drafting a short internal follow-up note for a BMI Publishing salesperson. You will be "
-                "given one fact their own email correspondence with a client already established. Your job is "
-                "NOT to restate that fact - the rep already has it in front of them. Write exactly two "
-                "sentences: sentence 1 restates the fact in one clause at most (brief - a reminder, not a "
-                "recap); sentence 2 is a MANDATORY, specific, actionable instruction starting with an "
-                "imperative verb (\"Call...\", \"Email...\", \"Confirm...\", \"Ask whether...\", \"Send...\") "
-                "telling the rep exactly what to do next. Sentence 2 must never be generic filler like \"follow "
-                "up\" or \"check in\" - name the actual action (e.g. \"Confirm whether the £4,000 discount tier "
-                "still fits their planned entry count.\"). Never invent facts beyond what's given. No greeting, "
-                "no signoff, no subject line - this is an internal note, not an email to the client. "
-                "Output ONLY the two sentences of prose themselves - never a label, header, or the words "
-                "\"sentence 1\"/\"sentence 2\"/\"drafting\" anywhere in the output, and never explain what "
-                "you're about to write before writing it."
-                + (f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}" if extra_instructions else "")
-            ),
-            user_prompt=(
-                f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}"
-            ),
+        system_prompt = _DRAFT_EMAIL_PROMPT
+        if extra_instructions:
+            system_prompt += f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}"
+        result = extract_json(
+            system_prompt,
+            f"Signal type: {label}{due}\nContact: {contact_label}\nWhat the email established: {signal.summary}",
             purpose="signal_triggers.draft",
         )
-        # Defensive strip: even with the instruction above, a model can still
-        # echo a "Sentence 1:" / "Sentence 2 (...):" style label as a
-        # standalone line before the real prose - drop any such line rather
-        # than writing it into the contact's record (see the production bug
-        # this note documents: a note body that was literally just the
-        # label, nothing else, because the label ate the whole token budget).
-        if ai_text:
-            cleaned = "\n".join(
-                line for line in ai_text.splitlines()
-                if not re.match(r"^\s*(sentence\s*\d|drafting\b)", line, re.IGNORECASE)
-            ).strip()
-            if cleaned:
-                return cleaned, True
+        subject = (result or {}).get("subject", "").strip()
+        body = (result or {}).get("body", "").strip()
+        # Defensive strip - see llm.py's thinking-budget fix and the
+        # production bug it addressed: even now, a stray meta-label line
+        # can slip into "body" before the real prose. Drop it rather than
+        # writing it into the contact's record.
+        body = "\n".join(
+            line for line in body.splitlines()
+            if not re.match(r"^\s*(sentence\s*\d|drafting\b)", line, re.IGNORECASE)
+        ).strip()
+        if subject and body:
+            return _format_drafted_note(purpose, subject, body), True
 
-    return f"{label} follow-up{due}: {signal.summary}", False
+    subject = f"{label} - {contact_label}"
+    body = f"Hi {contact_label},\n\nFollowing up: {signal.summary}\n\nLet me know if that still works.\n"
+    return _format_drafted_note(purpose, subject, body), False
 
 
 def _add_note(db: Session, contact: Contact, body: str) -> None:
@@ -249,6 +267,11 @@ def scan_signal_triggers() -> None:
                     "related_entities": [{"type": "contact", "id": str(contact.id), "label": contact_label}],
                     "signal_id": str(signal.id),
                     "confidence": signal.confidence,
+                    # Root-level (not just inside "details", which is
+                    # display-only text) so morning_queue.py's ranking can
+                    # read a real date/type without parsing display strings.
+                    "signal_type": signal.signal_type,
+                    "due_date": signal.due_date.isoformat() if signal.due_date else None,
                 },
             ))
             queued += 1

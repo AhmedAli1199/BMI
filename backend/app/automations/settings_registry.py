@@ -196,6 +196,23 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Budget window & renewal triggers", type="int", min=1,
     ),
 
+    # ---- SALES-013 - morning follow-up queue ranking ----
+    AutomationSettingDef(
+        key="sales013_weight_urgency", label="Urgency weight",
+        description="How much a due-date's closeness (or overdue-ness) drives the morning queue's ranking. Always based on a real date.",
+        group="Morning follow-up queue", type="float", min=0.0, max=1.0,
+    ),
+    AutomationSettingDef(
+        key="sales013_weight_value", label="Deal value weight",
+        description="How much a linked Opportunity's value drives ranking. Only ~7 Opportunity rows exist across all databases - set to 0 to ignore value entirely and rank on urgency alone.",
+        group="Morning follow-up queue", type="float", min=0.0, max=1.0,
+    ),
+    AutomationSettingDef(
+        key="sales013_value_cap", label="Value cap ($ / £ treated as \"maximum\")",
+        description="An Opportunity total_amount at or above this scores as maximum value (1.0) for ranking purposes.",
+        group="Morning follow-up queue", type="float", min=1.0,
+    ),
+
     # ---- LLM reliability & cost - see app/automations/llm.py ----
     AutomationSettingDef(
         key="llm_max_retries", label="Max retries per call",

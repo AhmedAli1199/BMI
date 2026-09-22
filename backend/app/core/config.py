@@ -198,5 +198,26 @@ class Settings(BaseSettings):
     sales012_no_date_delay_days: int = 3  # trigger an undated signal this many days after it was first extracted
     sales012_max_per_run: int = 25
 
+    # SALES-013 (Morning Follow-Up Queue) - see
+    # app/automations/morning_queue.py. Ranks each pending signal_trigger/
+    # followup_due item by score = w_urgency*urgency + w_value*value, both
+    # normalized 0-1. Urgency is computed deterministically from the
+    # item's own due date (or its no-date trigger delay) - always real,
+    # never guessed. Value only ever reflects a genuine Opportunity.
+    # total_amount linked to that contact (there are only ~7 Opportunity
+    # rows total across all three migrated Act! databases - it's not a
+    # real pipeline in this CRM - so this is a small tie-breaker on the
+    # rare item that has one, never a required input); an item with no
+    # linked Opportunity scores 0 on value, not a guessed figure. Default
+    # weights favor urgency heavily for exactly that reason - turn
+    # sales013_weight_value down to 0 entirely if Opportunity data isn't
+    # trustworthy enough to factor in at all.
+    sales013_weight_urgency: float = 0.85
+    sales013_weight_value: float = 0.15
+    # An Opportunity.total_amount at or above this is treated as "maximum
+    # value" (normalized to 1.0) - tune to whatever a genuinely large BMI
+    # deal looks like; there's no market data to derive this from.
+    sales013_value_cap: float = 10000.0
+
 
 settings = Settings()

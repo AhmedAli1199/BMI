@@ -44,7 +44,7 @@ from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
-from app.models import Contact, Email, EmailSignal
+from app.models import Contact, Email, EmailSignal, ReviewQueueItem
 
 logger = logging.getLogger("app.automations.email_summary")
 
@@ -151,6 +151,40 @@ def _looks_like_real_conversation(db: Session, msg: ParsedMessage) -> bool:
     if len(msg.body_text.strip()) < runtime_settings.get_int(db, "email_summary_min_body_chars"):
         return False
     return True
+
+
+def _stand_down_signal_triggers(db: Session, thread_id: str) -> int:
+    """Auto-resolves every pending `signal_trigger` review item whose
+    signal came from this exact thread, and dismisses the underlying open
+    EmailSignal rows so they don't re-trigger. Returns how many review
+    items were stood down. See its call site's comment for when this
+    fires (a genuine client reply on the thread, never an outbound
+    message)."""
+    open_signal_ids = {
+        str(row.id) for row in db.query(EmailSignal.id).filter_by(source_thread_id=thread_id).all()
+    }
+    if not open_signal_ids:
+        return 0
+
+    stood_down = 0
+    pending_items = (
+        db.query(ReviewQueueItem)
+        .filter(ReviewQueueItem.kind == "signal_trigger", ReviewQueueItem.status == "pending")
+        .all()
+    )
+    for item in pending_items:
+        if item.payload.get("signal_id") not in open_signal_ids:
+            continue
+        item.status = "rejected"
+        item.resolved_action = "stood_down"
+        item.review_note = "Client replied on this thread - automatically stood down."
+        item.reviewed_at = datetime.now(timezone.utc)
+        stood_down += 1
+
+    db.query(EmailSignal).filter(
+        EmailSignal.source_thread_id == thread_id, EmailSignal.status == "open",
+    ).update({"status": "dismissed"})
+    return stood_down
 
 
 _SOURCE_SNIPPET_MAX_CHARS = 1200
@@ -300,6 +334,22 @@ def scan_email_exchanges() -> None:
                 # older ones in this same batch already establish the
                 # context an earlier signal (if any) was built from.
                 latest_msg, contact = max(entries, key=lambda e: e[0].received_at)
+
+                # Reply-detection stand-down (SALES-012's spec) - a genuine
+                # inbound reply from the CLIENT on this exact thread means
+                # whatever promised-callback/renewal/budget trigger was
+                # queued off it has plausibly already been handled by this
+                # very conversation continuing; auto-stand it down rather
+                # than leaving a stale trigger for the rep to notice and
+                # dismiss by hand. An outbound message the salesperson
+                # sent on the same thread does NOT stand anything down -
+                # only the client replying counts.
+                sender_contact = find_contact_by_email(db, latest_msg.from_address)
+                if sender_contact is not None and sender_contact.id == contact.id:
+                    stood_down = _stand_down_signal_triggers(db, thread_id)
+                    if stood_down:
+                        logger.info("email_summary scan: client replied on thread %s - stood down %d pending signal_trigger item(s)", thread_id, stood_down)
+
                 prior_summaries = [
                     s.summary for s in
                     db.query(EmailSignal).filter_by(source_thread_id=thread_id).all()

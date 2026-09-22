@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations import runtime_settings
-from app.automations.llm import draft_text, is_configured
+from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.db.session import SessionLocal
@@ -63,6 +63,13 @@ def _add_history(db: Session, *, entity_type: str, entity_id: uuid.UUID, subject
     ))
 
 
+def _next_working_day(d: datetime) -> datetime:
+    d = d + timedelta(days=1)
+    while d.weekday() >= 5:  # Saturday=5, Sunday=6
+        d += timedelta(days=1)
+    return d
+
+
 def _handle_followup(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
     activity = db.get(Activity, item.entity_id) if item.entity_id else None
     if not activity:
@@ -82,7 +89,11 @@ def _handle_followup(db: Session, item: ReviewQueueItem, action_id: str, input_d
         activity.is_cleared = True
 
     elif action_id == "snooze":
-        activity.start_at = datetime.now(timezone.utc) + timedelta(days=7)
+        # "Defer" per SALES-013's spec (next working day, not a fixed
+        # week) - reschedules the source Activity and lets the ordinary
+        # scan naturally re-surface it once start_at re-enters the
+        # lookahead window; nothing here needs to "unresolve" this item.
+        activity.start_at = _next_working_day(datetime.now(timezone.utc))
 
     elif action_id == "dismiss":
         pass  # No write - reviewer is telling us this one doesn't need a follow-up right now.
@@ -116,7 +127,7 @@ register(ReviewKind(
             id="mark_sent", label="Mark sent", style="primary", outcome="approved",
             requires_note=False,
         ),
-        ReviewAction(id="snooze", label="Snooze 1 week", style="secondary", outcome="approved"),
+        ReviewAction(id="snooze", label="Defer to next working day", style="secondary", outcome="approved"),
         ReviewAction(id="dismiss", label="Dismiss", style="destructive", outcome="rejected"),
     ],
     handler=_handle_followup,
@@ -124,47 +135,66 @@ register(ReviewKind(
 ))
 
 
+_DRAFT_EMAIL_PROMPT = (
+    "You draft a short, warm, professional follow-up EMAIL a BMI Publishing salesperson can copy and "
+    "send almost as-is, based on a CRM activity that's due. Write a real email: a greeting using the "
+    "actual contact/company name given (never a placeholder like [Name]), 2-4 sentences of body, and a "
+    "brief sign-off with no signature block (the rep's own email client adds that). Keep the body under "
+    "120 words. Never invent facts, prices, or commitments not present in the context - if the context "
+    "is thin, keep it general rather than fabricating detail. Return JSON of the exact shape: "
+    "{\"subject\": string, \"body\": string}. \"body\" is the email text only - no labels, no commentary."
+)
+
+
+def _purpose_line(activity: Activity, who: str) -> str:
+    """Deterministic (never LLM-generated) explanation written into the
+    Note/History itself - see signal_triggers.py's identical-purpose
+    function for why this can't just live in the review queue UI."""
+    subject = activity.subject or activity.activity_type or "a follow-up"
+    return f"{activity.activity_type or 'Follow-up'} due {activity.start_at.strftime('%d %b %Y')} for {who} - \"{subject}\""
+
+
+def _format_drafted_note(purpose: str, subject: str, body: str) -> str:
+    return f"Why this note: {purpose}\n\nSubject: {subject}\n\n{body}".strip()
+
+
 def _draft_followup_text(
     activity: Activity, contact: Contact | None, company: Company | None, extra_instructions: str = "",
 ) -> tuple[str, bool]:
-    """Returns (draft_text, was_ai_generated). Always returns something
-    usable - AI when configured, a plain templated line otherwise - never
-    blocks the item from being queued just because no key is set.
-    `extra_instructions`, when set, is the reviewer's own "regenerate with
-    instructions" request - see _redraft_followup below."""
+    """Returns (formatted_note_body, was_ai_generated). Always returns
+    something usable - AI when configured, a plain templated line
+    otherwise - never blocks the item from being queued just because no
+    key is set. `extra_instructions`, when set, is the reviewer's own
+    "regenerate with instructions" request - see _redraft_followup below."""
     who = _entity_label(contact, company)
-    subject = activity.subject or activity.activity_type or "a follow-up"
+    subject_line = activity.subject or activity.activity_type or "a follow-up"
+    purpose = _purpose_line(activity, who)
 
     if is_configured():
         context = (
             f"Activity type: {activity.activity_type or 'follow-up'}\n"
-            f"Subject: {subject}\n"
+            f"Subject: {subject_line}\n"
             f"Due: {activity.start_at.strftime('%d %b %Y')}\n"
             f"Contact/company: {who}\n"
             f"Notes on the activity: {activity.details or '(none)'}\n"
             f"Originally organized by: {activity.organized_by_name or 'unknown'}\n"
         )
-        ai_text = draft_text(
-            system_prompt=(
-                "You are drafting a short, warm, professional follow-up email on behalf of a BMI "
-                "Publishing salesperson, based on a CRM activity that's due. Write only the email body "
-                "(no subject line, no greeting placeholders like [Name] - use the actual name given). "
-                "Keep it under 120 words. Never invent facts, prices, or commitments not present in the "
-                "context - if the context is thin, keep the email general rather than fabricating detail."
-                + (f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}" if extra_instructions else "")
-            ),
-            user_prompt=context,
-            purpose="followup_queue.draft",
-        )
-        if ai_text:
-            return ai_text, True
+        system_prompt = _DRAFT_EMAIL_PROMPT
+        if extra_instructions:
+            system_prompt += f"\n\nThe reviewer asked for this specific revision - follow it: {extra_instructions}"
+        result = extract_json(system_prompt, context, purpose="followup_queue.draft")
+        subject = (result or {}).get("subject", "").strip()
+        body = (result or {}).get("body", "").strip()
+        if subject and body:
+            return _format_drafted_note(purpose, subject, body), True
 
     # Fallback - always available, no AI dependency.
-    return (
+    body = (
         f"Hi {who},\n\n"
-        f"Following up on \"{subject}\" - just wanted to check in and see where things stand.\n\n"
+        f"Following up on \"{subject_line}\" - just wanted to check in and see where things stand.\n\n"
         f"Let me know a good time to connect.\n"
-    ), False
+    )
+    return _format_drafted_note(purpose, subject_line, body), False
 
 
 def scan_for_due_followups() -> None:
@@ -233,6 +263,9 @@ def scan_for_due_followups() -> None:
                         if related_id else []
                     ),
                     "confidence": 0.7 if was_ai else None,
+                    # Root-level, for morning_queue.py's ranking - see
+                    # signal_triggers.py's identical addition.
+                    "due_at": activity.start_at.isoformat(),
                 },
             ))
             queued_count += 1

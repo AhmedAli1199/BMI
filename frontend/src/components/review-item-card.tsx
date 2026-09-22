@@ -268,7 +268,13 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
             <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
               <ChevronDown className="size-3.5 transition-transform group-open:hidden" />
               <ChevronUp className="hidden size-3.5 transition-transform group-open:block" />
-              Original message
+              {/* "Drafted note" for a kind that writes an AI-drafted note/
+                  email (see DRAFT_REVIEW_ACTIONS above) - "Original
+                  message" would wrongly imply this is the source email,
+                  when it's actually the generated draft. Every other kind
+                  really is showing the original source message, so keeps
+                  that accurate label. */}
+              {DRAFT_REVIEW_ACTIONS[kind.kind] ? "Drafted note" : "Original message"}
             </summary>
             <p className="whitespace-pre-wrap border-t border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
               {cleanNoteBody(payload.original_text)}
