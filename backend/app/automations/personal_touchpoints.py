@@ -134,11 +134,11 @@ def _redraft_touchpoint(db: Session, item: ReviewQueueItem, extra_instructions: 
 
 register(ReviewKind(
     kind="personal_touchpoint_due",
-    label="Personal touchpoint",
-    description="A personal occasion (return from leave, birthday, anniversary) mentioned in real email correspondence is due for a warm, no-business note.",
+    label="Personal Touchpoint Reminders",
+    description="Client return-from-leave dates, anniversaries, and relationship milestones for warm, no-pitch touchpoints.",
     actions=[
-        ReviewAction(id="draft_touchpoint", label="Draft note", style="primary", outcome="approved"),
-        ReviewAction(id="skip", label="Skip", style="secondary", outcome="rejected"),
+        ReviewAction(id="draft_touchpoint", label="Review draft & send", style="primary", outcome="approved"),
+        ReviewAction(id="skip", label="Skip this occasion", style="secondary", outcome="rejected"),
     ],
     handler=_handle_touchpoint,
     redraft=_redraft_touchpoint,

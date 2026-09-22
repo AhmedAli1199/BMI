@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { RotateCcw, Save } from "lucide-react";
+import { Info, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { updateAutomationSetting, resetAutomationSetting } from "@/lib/actions";
 import type { AutomationSetting } from "@/lib/types";
 
@@ -44,17 +50,26 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
 
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 py-3.5 last:border-b-0">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs font-bold text-foreground">{setting.label}</Label>
-            {setting.is_overridden && (
-              <Badge variant="secondary" className="text-[10px] font-semibold">
-                Customized
-              </Badge>
-            )}
-          </div>
-          <p className="mt-0.5 max-w-md text-[11px] text-muted-foreground">{setting.description}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs font-bold text-foreground">{setting.label}</Label>
+          {setting.description && (
+            <TooltipProvider delay={100}>
+              <Tooltip>
+                <TooltipTrigger className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground transition-colors cursor-help">
+                  <Info className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs font-normal">
+                  {setting.description}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {setting.is_overridden && (
+            <Badge variant="secondary" className="text-[10px] font-semibold">
+              Customized
+            </Badge>
+          )}
         </div>
         {setting.is_overridden && (
           <Button size="sm" variant="outline" disabled={pending} onClick={reset}>

@@ -92,18 +92,15 @@ def _handle_returned_copy(db: Session, item: ReviewQueueItem, action_id: str, in
 
 register(ReviewKind(
     kind="returned_copy",
-    label="Returned copy",
-    description=(
-        "A printed copy came back undeliverable. Confirm the corrected address, retire the record "
-        "(moved/closed), or dismiss if this can't be matched to anyone real."
-    ),
+    label="Returned Print Copies",
+    description="Undeliverable printed copies returned from the post room to update addresses or retire stale subscriber records.",
     actions=[
         ReviewAction(id="correct_address", label="Update address", style="primary", outcome="approved"),
         ReviewAction(
             id="retire", label="Retire (moved/closed)", style="secondary", outcome="approved",
-            extra_fields=[ExtraField(key="note", label="Reason", placeholder="e.g. company closed", required=False)],
+            extra_fields=[ExtraField(key="note", label="Reason", placeholder="e.g. company moved", required=False)],
         ),
-        ReviewAction(id="dismiss", label="Can't match this one", style="destructive", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Dismiss (no match)", style="secondary", outcome="rejected"),
     ],
     handler=_handle_returned_copy,
 ))

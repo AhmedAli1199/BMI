@@ -183,21 +183,21 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
 
 register(ReviewKind(
     kind="inbound_contact_unmatched",
-    label="New inbound contact",
-    description="An email arrived from a sender with no existing contact match - review and capture them as a new contact.",
+    label="Inbound Lead Capture",
+    description="New prospective advertisers and agency contacts detected from incoming correspondence.",
     actions=[
         ReviewAction(
             id="create_contact", label="Create contact", style="primary", outcome="approved",
             extra_fields=[
                 ExtraField(key="name", label="Full name", placeholder="Jane Smith"),
-                ExtraField(key="job_title", label="Job title", placeholder="(from signature, if the email had one)", required=False),
+                ExtraField(key="job_title", label="Job title", placeholder="Job title", required=False),
                 ExtraField(
                     key="source_db", label="Database (only needed for a shared inbox)",
                     placeholder=f"{' / '.join(SOURCE_DBS)}", required=False,
                 ),
-                ExtraField(key="company_name", label="Company", placeholder="(suggested company, or type a different one)", required=False),
-                ExtraField(key="phone", label="Phone", placeholder="(from signature, if the email had one)", required=False),
-                ExtraField(key="mobile", label="Mobile", placeholder="(from signature, if the email had one)", required=False),
+                ExtraField(key="company_name", label="Company", placeholder="Company name", required=False),
+                ExtraField(key="phone", label="Phone", placeholder="Direct line", required=False),
+                ExtraField(key="mobile", label="Mobile", placeholder="Mobile number", required=False),
                 ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="e.g. Leeds, Technology", required=False),
                 ExtraField(key="newsletter", label="Subscribe to newsletter", field_type="bool", required=False),
             ],

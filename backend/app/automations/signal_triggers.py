@@ -186,11 +186,11 @@ def _redraft_signal_trigger(db: Session, item: ReviewQueueItem, extra_instructio
 
 register(ReviewKind(
     kind="signal_trigger",
-    label="Signal follow-up needed",
-    description="A budget window, renewal date, or promised callback extracted from real email correspondence is coming up (or was confirmed with no specific date).",
+    label="Commercial Signals",
+    description="Upcoming advertiser budget windows, publication renewal dates, and promised callbacks extracted from email correspondence.",
     actions=[
-        ReviewAction(id="draft_followup", label="Draft follow-up", style="primary", outcome="approved"),
-        ReviewAction(id="dismiss", label="Not relevant", style="secondary", outcome="rejected"),
+        ReviewAction(id="draft_followup", label="Review draft & send", style="primary", outcome="approved"),
+        ReviewAction(id="dismiss", label="Dismiss signal", style="secondary", outcome="rejected"),
     ],
     handler=_handle_signal_trigger,
     redraft=_redraft_signal_trigger,

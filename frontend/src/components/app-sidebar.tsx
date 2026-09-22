@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
+import { CalendarClock, ClipboardCheck, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -120,11 +120,12 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
               <SidebarMenu className="gap-1.5">
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    render={<Link href="/automations" />}
-                    isActive={pathname === "/automations"}
+                    render={<Link href="/automations/today" />}
+                    isActive={pathname.startsWith("/automations/today")}
                     className={NAV_ITEM}
                   >
-                    Overview
+                    <CalendarClock className="mr-1.5 size-4 text-primary" />
+                    <span>Today</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -133,7 +134,18 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                     isActive={pathname.startsWith("/automations/review")}
                     className={NAV_ITEM}
                   >
-                    Review queue
+                    <ClipboardCheck className="mr-1.5 size-4 text-muted-foreground" />
+                    <span>Review Queue</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/automations" />}
+                    isActive={pathname === "/automations"}
+                    className={NAV_ITEM}
+                  >
+                    <Sparkles className="mr-1.5 size-4 text-muted-foreground" />
+                    <span>Automations Hub</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

@@ -122,18 +122,15 @@ def _redraft_followup(db: Session, item: ReviewQueueItem, extra_instructions: st
 
 register(ReviewKind(
     kind="followup_due",
-    label="Follow-up due",
-    description=(
-        "A scheduled call, meeting or to-do is due or just went overdue. Review the draft, send it "
-        "yourself from your own inbox, then mark it sent here so it's logged and cleared."
-    ),
+    label="Overdue Follow-ups",
+    description="Scheduled client calls and follow-ups with AI-assisted email drafts ready for review.",
     actions=[
         ReviewAction(
-            id="mark_sent", label="Mark sent", style="primary", outcome="approved",
+            id="mark_sent", label="Approve & log to CRM", style="primary", outcome="approved",
             requires_note=False,
         ),
         ReviewAction(id="snooze", label="Defer to next working day", style="secondary", outcome="approved"),
-        ReviewAction(id="dismiss", label="Dismiss", style="destructive", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Dismiss", style="secondary", outcome="rejected"),
     ],
     handler=_handle_followup,
     redraft=_redraft_followup,

@@ -296,21 +296,15 @@ def _handle_duplicate(db: Session, item: ReviewQueueItem, action_id: str, input_
 
 register(ReviewKind(
     kind="duplicate_contact",
-    label="Possible duplicate contact",
-    description=(
-        "Two contact records in the same database look like the same person. Pick which one to keep, "
-        "then merging moves every note, history entry, activity, and group membership from the other "
-        "onto it and retires that one - it never deletes anything outright, but it can't be undone "
-        "from this screen, so double-check before confirming."
-    ),
+    label="Duplicate Contact Resolution",
+    description="Consolidates matching records to unify interaction history, notes, and activity records into a single profile.",
     actions=[
         ReviewAction(
-            id="merge", label="Merge - same person", style="primary", outcome="approved",
+            id="merge", label="Merge records", style="primary", outcome="approved",
             requires_related_entity_choice=True,
-            confirm_message="This moves every note, history, activity and group membership from the "
-                             "other record onto the one you picked to keep, then retires the other. Continue?",
+            confirm_message="This merges all notes, history, activities, and group memberships into the primary contact and archives the duplicate. Continue?",
         ),
-        ReviewAction(id="not_duplicate", label="Not a duplicate", style="destructive", outcome="rejected"),
+        ReviewAction(id="not_duplicate", label="Keep as separate contacts", style="secondary", outcome="rejected"),
     ],
     handler=_handle_duplicate,
 ))

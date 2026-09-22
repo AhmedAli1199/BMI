@@ -269,28 +269,28 @@ def _handle_existing_contact(db: Session, item: ReviewQueueItem, action_id: str,
 
 register(ReviewKind(
     kind="business_card_new",
-    label="Business card - new contact",
-    description="A photographed business card didn't match anyone already in the CRM.",
+    label="New Business Card Leads",
+    description="Trade show and event business cards detected as new prospective contacts.",
     actions=[
         ReviewAction(
-            id="add_contact", label="Add as new contact", style="primary", outcome="approved",
+            id="add_contact", label="Create contact", style="primary", outcome="approved",
             extra_fields=[
-                ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="(suggested, or type your own)", required=False),
+                ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="e.g. London, Airline Catering", required=False),
             ],
         ),
-        ReviewAction(id="dismiss", label="Skip", style="destructive", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected"),
     ],
     handler=_handle_new_contact,
 ))
 
 register(ReviewKind(
     kind="business_card_existing",
-    label="Business card - already in CRM",
-    description="A photographed business card matched someone already in the CRM.",
+    label="Business Card Contact Updates",
+    description="Trade show cards matching existing contacts with updated titles, phones, or details.",
     actions=[
-        ReviewAction(id="update_contact", label="Apply detected changes", style="primary", outcome="approved"),
-        ReviewAction(id="log_seen", label="Log as seen (no changes)", style="secondary", outcome="approved"),
-        ReviewAction(id="dismiss", label="Skip", style="destructive", outcome="rejected"),
+        ReviewAction(id="update_contact", label="Apply updated details", style="primary", outcome="approved"),
+        ReviewAction(id="log_seen", label="Log event meeting (keep existing)", style="secondary", outcome="approved"),
+        ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected"),
     ],
     handler=_handle_existing_contact,
 ))

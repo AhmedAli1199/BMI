@@ -144,8 +144,8 @@ def _handle_ooo_ambiguous(db: Session, item: ReviewQueueItem, action_id: str, in
 
 register(ReviewKind(
     kind="bounce_uncertain",
-    label="Uncertain bounce",
-    description="An email reply that looked like it might be a bounce, but confidence was too low to act on automatically.",
+    label="Ambiguous Delivery Bounces",
+    description="Delivery failures requiring human confirmation before updating subscriber deliverability status.",
     actions=[
         ReviewAction(id="confirm_hard_bounce", label="Confirm & unsubscribe", style="primary", outcome="approved", requires_note=False),
         ReviewAction(id="not_a_bounce", label="Not a bounce, ignore", style="secondary", outcome="rejected"),
@@ -155,8 +155,8 @@ register(ReviewKind(
 
 register(ReviewKind(
     kind="bounce_unmatched",
-    label="Bounce, no contact match",
-    description="A hard bounce came in but we couldn't confidently match it to an existing contact.",
+    label="Unmatched Delivery Bounces",
+    description="Delivery failures for addresses not currently indexed in the active contact database.",
     actions=[
         ReviewAction(id="match_contact", label="Match to a contact", style="primary", outcome="approved", requires_contact_picker=True),
         ReviewAction(id="ignore", label="Ignore", style="secondary", outcome="rejected"),
@@ -166,8 +166,8 @@ register(ReviewKind(
 
 register(ReviewKind(
     kind="ooo_ambiguous",
-    label="Out-of-office needs review",
-    description="An out-of-office or auto-reply where we couldn't confidently tell a temporary absence from a genuine handover.",
+    label="Out-of-Office & Handover Notes",
+    description="Automatic replies indicating client leave windows, return dates, and colleague handover contacts.",
     actions=[
         ReviewAction(id="confirm_replacement", label="Confirm replacement", style="primary", outcome="approved", requires_contact_picker=True),
         ReviewAction(
@@ -177,7 +177,7 @@ register(ReviewKind(
                 ExtraField(key="email", label="Email", placeholder="jane@company.com", required=False),
             ],
         ),
-        ReviewAction(id="temporary_ignore", label="Just temporary, ignore", style="secondary", outcome="rejected"),
+        ReviewAction(id="temporary_ignore", label="Temporary leave, ignore", style="secondary", outcome="rejected"),
     ],
     handler=_handle_ooo_ambiguous,
 ))

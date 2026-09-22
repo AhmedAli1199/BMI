@@ -99,23 +99,19 @@ def _handle_departure(db: Session, item: ReviewQueueItem, action_id: str, input_
 
 register(ReviewKind(
     kind="departure_unconfirmed",
-    label="Departure & successor",
-    description=(
-        "A contact appears to have left their role. We may have researched a successor, but every "
-        "path here needs a human to confirm before any record is updated - a wrong successor means "
-        "the wrong person gets pitched or mailed."
-    ),
+    label="Executive Role Departures",
+    description="Contacts detected as having moved on, with proposed same-company successors ready for review.",
     actions=[
         ReviewAction(
-            id="confirm_successor", label="Confirm researched successor", style="primary", outcome="approved",
-            confirm_message="This updates every record this person holds across all titles. Continue?",
+            id="confirm_successor", label="Confirm successor", style="primary", outcome="approved",
+            confirm_message="This updates the contact record across all active publication titles. Continue?",
         ),
-        ReviewAction(id="pick_different_successor", label="Pick someone else", style="secondary", outcome="approved", requires_contact_picker=True),
+        ReviewAction(id="pick_different_successor", label="Assign different contact", style="secondary", outcome="approved", requires_contact_picker=True),
         ReviewAction(
             id="use_fallback", label="Use general company address", style="secondary", outcome="approved",
             extra_fields=[ExtraField(key="fallback_email", label="General company email", placeholder="info@company.com")],
         ),
-        ReviewAction(id="dismiss_false_alarm", label="False alarm, dismiss", style="destructive", outcome="rejected", confirm_message="Dismiss this departure signal entirely?"),
+        ReviewAction(id="dismiss_false_alarm", label="Dismiss (contact remains)", style="secondary", outcome="rejected", confirm_message="Dismiss this departure signal?"),
     ],
     handler=_handle_departure,
 ))
