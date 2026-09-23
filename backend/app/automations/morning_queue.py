@@ -38,7 +38,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.automations import runtime_settings
-from app.models import Contact, Opportunity, ReviewQueueItem, User
+from app.models import Company, Contact, Opportunity, ReviewQueueItem, User
 
 _SOURCE_KINDS = ("signal_trigger", "followup_due", "personal_touchpoint_due")
 
