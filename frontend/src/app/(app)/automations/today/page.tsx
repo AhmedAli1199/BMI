@@ -19,10 +19,18 @@ export default async function TodayPage({
 }: {
   searchParams: Promise<{ view?: string }>;
 }) {
-  const { view: rawView } = await searchParams;
-  const view = rawView === "all" ? "all" : "mine";
-
   const session = await getSession();
+  // "Everyone" is a manager-style cross-team view - only meaningful for
+  // someone who can actually see more than their own database/queue
+  // (admin/data_manager; a sales identity's /today call is forced to
+  // their own owner_user_id server-side regardless of what's asked for -
+  // see backend/app/api/routes/automations.py's get_today_queue - so
+  // offering the toggle to them would just silently do nothing when
+  // clicked, same bug as the publication switcher).
+  const canViewEveryone = session?.role === "admin" || session?.role === "data_manager";
+  const { view: rawView } = await searchParams;
+  const view = rawView === "all" && canViewEveryone ? "all" : "mine";
+
   const ownerParam = view === "mine" && session?.sub ? `?owner_user_id=${session.sub}` : "";
 
   const [items, kinds] = await Promise.all([
@@ -67,20 +75,22 @@ export default async function TodayPage({
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Link href="/automations/today?view=mine">
-          <Badge variant={view === "mine" ? "default" : "outline"} className="cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold">
-            <CalendarClock className="size-3.5" />
-            My list
-          </Badge>
-        </Link>
-        <Link href="/automations/today?view=all">
-          <Badge variant={view === "all" ? "default" : "outline"} className="cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold">
-            <Users className="size-3.5" />
-            Everyone
-          </Badge>
-        </Link>
-      </div>
+      {canViewEveryone && (
+        <div className="flex items-center gap-2">
+          <Link href="/automations/today?view=mine">
+            <Badge variant={view === "mine" ? "default" : "outline"} className="cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold">
+              <CalendarClock className="size-3.5" />
+              My list
+            </Badge>
+          </Link>
+          <Link href="/automations/today?view=all">
+            <Badge variant={view === "all" ? "default" : "outline"} className="cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold">
+              <Users className="size-3.5" />
+              Everyone
+            </Badge>
+          </Link>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <Card className="editorial-card relative overflow-hidden">

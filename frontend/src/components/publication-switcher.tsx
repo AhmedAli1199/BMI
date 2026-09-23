@@ -41,9 +41,16 @@ const ALL: Publication = {
 export function PublicationSwitcher({
   current,
   publications,
+  locked = false,
 }: {
   current: string;
   publications: Publication[];
+  /** True for anyone who can only ever see one database (a non-admin
+   * with exactly one access grant) - there's nothing to actually switch
+   * between, so this renders as a plain label instead of a dropdown that
+   * offers "All Publications"/other titles and does nothing when picked
+   * (the backend clamps straight back to their one allowed database). */
+  locked?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -57,6 +64,19 @@ export function PublicationSwitcher({
       await setPublicationFilter(slug);
       router.refresh();
     });
+  }
+
+  if (locked) {
+    const own = publications[0];
+    const style = own ? styleForColor(own.color) : styleForColor(ALL.color);
+    return (
+      <span className="flex h-8 items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-2.5 text-sidebar-foreground">
+        <span className={`size-2 rounded-full ${style.dot}`} />
+        <span className="max-w-[140px] truncate text-xs font-semibold sm:max-w-none">
+          {own?.name ?? "No database access"}
+        </span>
+      </span>
+    );
   }
 
   return (

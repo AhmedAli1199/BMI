@@ -9,6 +9,7 @@ import { PublicationSwitcher } from "@/components/publication-switcher";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
 import { getPublicationFilter } from "@/lib/publication";
 import { listPublications } from "@/lib/actions";
+import { allowedSourceDbSlugs } from "@/lib/access";
 
 export default async function AppLayout({
   children,
@@ -16,10 +17,17 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const [publicationFilter, publications] = await Promise.all([
+  const [publicationFilter, allPublications] = await Promise.all([
     getPublicationFilter(),
     listPublications(),
   ]);
+  // Same rule as the dashboard's own tiles (page.tsx) - a non-admin only
+  // ever sees their own granted title(s) as switcher options, never the
+  // other two just to immediately be told "no access" after picking one.
+  const publications =
+    session?.role === "admin"
+      ? allPublications
+      : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   return (
     <SidebarProvider>
@@ -32,7 +40,11 @@ export default async function AppLayout({
             BMI Publishing
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
-          <PublicationSwitcher current={publicationFilter} publications={publications} />
+          <PublicationSwitcher
+            current={publicationFilter}
+            publications={publications}
+            locked={session?.role !== "admin" && publications.length <= 1}
+          />
           {session && (
             <LogInteractionDialog
               global

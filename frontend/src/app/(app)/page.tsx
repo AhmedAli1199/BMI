@@ -199,9 +199,16 @@ export default async function DashboardPage() {
           <span>
             Showing <span className="font-semibold text-foreground">{sourceDb}</span> only.
           </span>
-          <PublicationTileButton sourceDb="">
-            <span className="font-semibold text-primary hover:underline">Show all titles</span>
-          </PublicationTileButton>
+          {/* "Show all titles" is only a real option for someone who can
+              actually see more than one database - for anyone locked to a
+              single title (see scope.locked / resolveScope), this link
+              used to appear and do nothing when clicked, since the scope
+              would just clamp straight back to their one allowed database. */}
+          {!scope.locked && (
+            <PublicationTileButton sourceDb="">
+              <span className="font-semibold text-primary hover:underline">Show all titles</span>
+            </PublicationTileButton>
+          )}
         </div>
       )}
 
