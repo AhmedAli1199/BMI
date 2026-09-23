@@ -37,11 +37,17 @@ const COPY: Record<
     },
   },
   "returned-copy": {
-    title: "Upload returned copy label",
-    description: "A photo of the undeliverable-mail label the post office sent back.",
+    title: "Upload returned copy label(s)",
+    description: "One photo can hold one or several returned-mail envelopes or labels.",
     icon: ImagePlus,
-    resultLabel: (r) =>
-      r.matched ? "Matched to an existing record - queued for review." : "No match found - queued for review anyway.",
+    resultLabel: (r) => {
+      const labelsFound = Number(r.labels_found ?? (r.queued ?? 0));
+      const queued = Number(r.queued ?? 0);
+      const matched = Number(r.matched_count ?? (r.matched ? 1 : 0));
+      if (queued === 0) return "No readable returned-mail labels found in that photo.";
+      const matchSuffix = matched > 0 ? ` (${matched} matched to CRM)` : " (pending manual match)";
+      return `Found ${labelsFound} label${labelsFound === 1 ? "" : "s"} - ${queued} queued for review${matchSuffix}.`;
+    },
   },
 };
 

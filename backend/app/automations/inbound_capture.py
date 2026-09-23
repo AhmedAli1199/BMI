@@ -448,6 +448,8 @@ def scan_inbound_contacts() -> None:
                     prefill["mobile"] = signature["mobile"]
                 if suggested_groups:
                     prefill["groups"] = ", ".join(g.name for g in suggested_groups)
+                if source_db:
+                    prefill["source_db"] = source_db
 
                 db.add(ReviewQueueItem(
                     id=uuid.uuid4(), kind="inbound_contact_unmatched",

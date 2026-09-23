@@ -252,6 +252,30 @@ export type ReviewPayload = {
    * back up. Generic across every kind: any automation can set this and
    * the form seeds itself from it, no per-kind frontend wiring needed. */
   prefill?: Record<string, string>;
+  source_db?: string;
+  signature?: {
+    full_name?: string | null;
+    job_title?: string | null;
+    company_name?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | null;
+  replacements?: Array<{
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    role?: string | null;
+  }> | null;
+  card?: {
+    full_name?: string | null;
+    job_title?: string | null;
+    company_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | null;
+  suggested_groups?: string[] | null;
+  [key: string]: unknown;
 };
 
 export type ReviewQueueItem = {

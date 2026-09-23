@@ -2,7 +2,19 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, ExternalLink, Users, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Layers,
+  Sparkles,
+  Users,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +67,174 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
+/** Extracts all available contact, company, phone, and group details from the
+ * payload (including signature, details list, card OCR, and replacements) to
+ * prefill review action form inputs automatically. */
+function computeInitialFields(
+  payload: ReviewQueueItem["payload"],
+  action: ReviewAction
+): Record<string, string> {
+  const initial: Record<string, string> = { ...(payload.prefill ?? {}) };
+
+  // 1. Signature extraction (SALES-011 Inbound Capture)
+  const sig = payload.signature as {
+    full_name?: string | null;
+    job_title?: string | null;
+    company_name?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | undefined;
+
+  if (sig) {
+    if (sig.full_name && !initial["name"]) initial["name"] = sig.full_name;
+    if (sig.job_title && !initial["job_title"]) initial["job_title"] = sig.job_title;
+    if (sig.company_name && !initial["company_name"]) initial["company_name"] = sig.company_name;
+    if (sig.phone && !initial["phone"] && sig.phone !== "-") initial["phone"] = sig.phone;
+    if (sig.mobile && !initial["mobile"] && sig.mobile !== "-") initial["mobile"] = sig.mobile;
+  }
+
+  // 2. Scan details array for any remaining gaps
+  if (payload.details && Array.isArray(payload.details)) {
+    for (const d of payload.details) {
+      const val = (d.value ?? "").trim();
+      if (!val || val === "-" || val.startsWith("(none")) continue;
+
+      if ((d.key === "sig_name" || d.label === "Name (from signature)") && !initial["name"]) {
+        initial["name"] = val;
+      }
+      if ((d.key === "sig_title" || d.label === "Job title (from signature)") && !initial["job_title"]) {
+        initial["job_title"] = val;
+      }
+      if ((d.key === "sig_company" || d.label === "Company (from signature)") && !initial["company_name"]) {
+        initial["company_name"] = val;
+      }
+      if ((d.key === "suggested_company" || d.label === "Suggested company") && !initial["company_name"]) {
+        initial["company_name"] = val;
+      }
+      if ((d.key === "sig_phone" || d.label === "Phone (from signature)") && !initial["phone"]) {
+        initial["phone"] = val;
+      }
+      if ((d.key === "sig_mobile" || d.label === "Mobile (from signature)") && !initial["mobile"]) {
+        initial["mobile"] = val;
+      }
+      if ((d.key === "suggested_groups" || d.label === "Suggested groups") && !initial["groups"]) {
+        initial["groups"] = val;
+      }
+    }
+  }
+
+  // 3. Fallback for suggested company if not in signature
+  if (!initial["company_name"]) {
+    const suggestedCompanyDetail = payload.details?.find(
+      (d) => (d.key === "suggested_company" || d.label === "Suggested company") && !d.value?.startsWith("(none")
+    );
+    if (suggestedCompanyDetail?.value) {
+      initial["company_name"] = suggestedCompanyDetail.value.trim();
+    }
+  }
+
+  // 4. Source db prefill
+  if (payload.source_db && !initial["source_db"]) {
+    initial["source_db"] = payload.source_db;
+  }
+
+  // 5. OOO replacements prefill (for create_new_contact)
+  const replacements = payload.replacements as Array<{
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    role?: string | null;
+  }> | undefined;
+
+  if (replacements && replacements.length > 0) {
+    const first = replacements[0];
+    if (first.name && !initial["name"]) initial["name"] = first.name;
+    if (first.email && !initial["email"]) initial["email"] = first.email;
+    if (first.phone && !initial["phone"]) initial["phone"] = first.phone;
+    if (first.role && !initial["job_title"]) initial["job_title"] = first.role;
+  }
+
+  // 6. Business card prefill
+  const card = payload.card as {
+    full_name?: string | null;
+    job_title?: string | null;
+    company_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | undefined;
+
+  if (card) {
+    if (card.full_name && !initial["name"]) initial["name"] = card.full_name;
+    if (card.job_title && !initial["job_title"]) initial["job_title"] = card.job_title;
+    if (card.company_name && !initial["company_name"]) initial["company_name"] = card.company_name;
+    if (card.email && !initial["email"]) initial["email"] = card.email;
+    if (card.phone && !initial["phone"]) initial["phone"] = card.phone;
+    if (card.mobile && !initial["mobile"]) initial["mobile"] = card.mobile;
+  }
+
+  const suggestedGroups = payload.suggested_groups as string[] | undefined;
+  if (suggestedGroups && Array.isArray(suggestedGroups) && !initial["groups"]) {
+    initial["groups"] = suggestedGroups.join(", ");
+  }
+
+  // 7. Initialize every extra_field so inputs are strictly controlled
+  for (const f of action.extra_fields) {
+    if (!(f.key in initial)) {
+      initial[f.key] = f.field_type === "bool" ? "false" : "";
+    }
+  }
+
+  return initial;
+}
+
+function getSuggestionHints(payload: ReviewQueueItem["payload"]) {
+  const companySuggestions: string[] = [];
+  const groupSuggestions: string[] = [];
+
+  const sig = payload.signature as { company_name?: string | null } | undefined;
+  if (sig?.company_name && !companySuggestions.includes(sig.company_name)) {
+    companySuggestions.push(sig.company_name);
+  }
+
+  if (payload.details && Array.isArray(payload.details)) {
+    for (const d of payload.details) {
+      const val = (d.value ?? "").trim();
+      if (!val || val === "-" || val.startsWith("(none")) continue;
+
+      if ((d.key === "suggested_company" || d.label === "Suggested company") && !companySuggestions.includes(val)) {
+        companySuggestions.push(val);
+      }
+      if ((d.key === "sig_company" || d.label === "Company (from signature)") && !companySuggestions.includes(val)) {
+        companySuggestions.push(val);
+      }
+      if (d.key === "suggested_groups" || d.label === "Suggested groups") {
+        val
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .forEach((g) => {
+            if (!groupSuggestions.includes(g)) groupSuggestions.push(g);
+          });
+      }
+      if (d.key === "newsletter_group" || d.label === "Newsletter group for this database") {
+        if (!val.startsWith("(none") && !groupSuggestions.includes(val)) {
+          groupSuggestions.push(val);
+        }
+      }
+    }
+  }
+
+  const rawSuggestedGroups = payload.suggested_groups as string[] | undefined;
+  if (rawSuggestedGroups && Array.isArray(rawSuggestedGroups)) {
+    rawSuggestedGroups.forEach((g) => {
+      if (!groupSuggestions.includes(g)) groupSuggestions.push(g);
+    });
+  }
+
+  return { companySuggestions, groupSuggestions };
+}
+
 /**
  * Renders ANY review-queue item, for any automation, from data alone - it
  * never hardcodes "bounce" or "departure" anywhere. What it draws comes
@@ -81,21 +261,18 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
   useEffect(() => {
     if (!justResolvedLabel) return;
-    // Brief success flash so an action feels acknowledged, then the card
-    // folds itself away - not an instant pop, which reads as the click
-    // "not registering" for a split second.
     const t = setTimeout(() => setCollapsed(true), 900);
     return () => clearTimeout(t);
   }, [justResolvedLabel]);
 
-  function resetInputs() {
+  function resetInputs(action?: ReviewAction) {
     setNote("");
     setContact(null);
-    // Seed from whatever this item's automation could confidently
-    // identify (see ReviewPayload.prefill) rather than an empty form -
-    // the reviewer still edits/overrides before submitting, this just
-    // saves retyping what was already extracted.
-    setFields({ ...(payload.prefill ?? {}) });
+    if (action) {
+      setFields(computeInitialFields(payload, action));
+    } else {
+      setFields({ ...(payload.prefill ?? {}) });
+    }
     setChosenEntityId(null);
   }
 
@@ -144,8 +321,11 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
       return;
     }
     if (actionNeedsInput(action)) {
-      setExpandedAction(expandedAction === action.id ? null : action.id);
-      resetInputs();
+      const isOpening = expandedAction !== action.id;
+      setExpandedAction(isOpening ? action.id : null);
+      if (isOpening) {
+        resetInputs(action);
+      }
       return;
     }
     if (action.confirm_message) {
@@ -155,8 +335,6 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
     submit(action);
   }
 
-  // Removed from the list right after the success flash plays, rather than
-  // instantly - see the useEffect above.
   if (collapsed) return null;
 
   if (justResolvedLabel) {
@@ -350,6 +528,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
         {expandedAction && (
           <ExpandedActionForm
             action={kind.actions.find((a) => a.id === expandedAction)!}
+            payload={payload}
             note={note}
             setNote={setNote}
             contact={contact}
@@ -390,6 +569,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
 function ExpandedActionForm({
   action,
+  payload,
   note,
   setNote,
   contact,
@@ -405,6 +585,7 @@ function ExpandedActionForm({
   onSubmit,
 }: {
   action: ReviewAction;
+  payload: ReviewQueueItem["payload"];
   note: string;
   setNote: (v: string) => void;
   contact: { id: string; label: string } | null;
@@ -420,6 +601,7 @@ function ExpandedActionForm({
   onSubmit: () => void;
 }) {
   const choiceOptions = relatedEntities.filter((e) => e.type === "contact");
+  const { companySuggestions, groupSuggestions } = getSuggestionHints(payload);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
@@ -499,32 +681,215 @@ function ExpandedActionForm({
         </div>
       )}
 
-      {action.extra_fields.map((f) =>
-        f.field_type === "bool" ? (
-          <label key={f.key} className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              className="size-3.5 rounded border-border"
-              checked={fields[f.key] === "true"}
-              onChange={(e) => setFields({ ...fields, [f.key]: e.target.checked ? "true" : "false" })}
-            />
-            {f.label}
-          </label>
-        ) : (
+      {action.extra_fields.map((f) => {
+        if (f.field_type === "bool") {
+          return (
+            <label key={f.key} className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                className="size-3.5 rounded border-border"
+                checked={fields[f.key] === "true"}
+                onChange={(e) => setFields({ ...fields, [f.key]: e.target.checked ? "true" : "false" })}
+              />
+              {f.label}
+            </label>
+          );
+        }
+
+        if (f.key === "company_name") {
+          return (
+            <div key={f.key} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">
+                  {f.label}
+                  {f.required && <span className="text-destructive"> *</span>}
+                </Label>
+                {fields[f.key] && (
+                  <button
+                    type="button"
+                    onClick={() => setFields({ ...fields, [f.key]: "" })}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    Remove company
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  className="h-8 pr-7 text-sm"
+                  placeholder={f.placeholder}
+                  value={fields[f.key] ?? ""}
+                  onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+                />
+                {fields[f.key] && (
+                  <button
+                    type="button"
+                    onClick={() => setFields({ ...fields, [f.key]: "" })}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    title="Clear"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+              {companySuggestions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-muted-foreground">Suggestions:</span>
+                  {companySuggestions.map((comp) => (
+                    <button
+                      key={comp}
+                      type="button"
+                      onClick={() => setFields({ ...fields, [f.key]: comp })}
+                      className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                        fields[f.key] === comp
+                          ? "border-primary bg-primary/10 font-semibold text-primary"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                      }`}
+                    >
+                      {comp}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (f.key === "groups") {
+          return (
+            <div key={f.key} className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">
+                  {f.label}
+                  {f.required && <span className="text-destructive"> *</span>}
+                </Label>
+                {fields[f.key] && (
+                  <button
+                    type="button"
+                    onClick={() => setFields({ ...fields, [f.key]: "" })}
+                    className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    Clear groups
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Input
+                  className="h-8 pr-7 text-sm"
+                  placeholder={f.placeholder}
+                  value={fields[f.key] ?? ""}
+                  onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+                />
+                {fields[f.key] && (
+                  <button
+                    type="button"
+                    onClick={() => setFields({ ...fields, [f.key]: "" })}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    title="Clear"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+              {groupSuggestions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10.5px] text-muted-foreground">Suggested groups:</span>
+                  {groupSuggestions.map((grp) => {
+                    const currentGroups = (fields[f.key] ?? "")
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    const isSelected = currentGroups.includes(grp);
+                    return (
+                      <button
+                        key={grp}
+                        type="button"
+                        onClick={() => {
+                          let updated: string[];
+                          if (isSelected) {
+                            updated = currentGroups.filter((g) => g !== grp);
+                          } else {
+                            updated = [...currentGroups, grp];
+                          }
+                          setFields({ ...fields, [f.key]: updated.join(", ") });
+                        }}
+                        className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                          isSelected
+                            ? "border-primary bg-primary/10 font-semibold text-primary"
+                            : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                        }`}
+                      >
+                        {isSelected ? `✓ ${grp}` : `+ ${grp}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (f.key === "source_db") {
+          return (
+            <div key={f.key} className="flex flex-col gap-1.5">
+              <Label className="text-xs">
+                {f.label}
+                {f.required && <span className="text-destructive"> *</span>}
+              </Label>
+              <Input
+                className="h-8 text-sm"
+                placeholder={f.placeholder}
+                value={fields[f.key] ?? ""}
+                onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+              />
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[10.5px] text-muted-foreground">Target database:</span>
+                {["prospects", "onboard", "sellingtravel"].map((dbName) => (
+                  <button
+                    key={dbName}
+                    type="button"
+                    onClick={() => setFields({ ...fields, [f.key]: dbName })}
+                    className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                      fields[f.key] === dbName
+                        ? "border-primary bg-primary/10 font-semibold text-primary"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }`}
+                  >
+                    {dbName}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        return (
           <div key={f.key} className="flex flex-col gap-1.5">
             <Label className="text-xs">
               {f.label}
               {f.required && <span className="text-destructive"> *</span>}
             </Label>
-            <Input
-              className="h-8 text-sm"
-              placeholder={f.placeholder}
-              value={fields[f.key] ?? ""}
-              onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
-            />
+            <div className="relative">
+              <Input
+                className="h-8 pr-7 text-sm"
+                placeholder={f.placeholder}
+                value={fields[f.key] ?? ""}
+                onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
+              />
+              {fields[f.key] && (
+                <button
+                  type="button"
+                  onClick={() => setFields({ ...fields, [f.key]: "" })}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  title="Clear"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-        )
-      )}
+        );
+      })}
 
       {action.requires_note && (
         <div className="flex flex-col gap-1.5">

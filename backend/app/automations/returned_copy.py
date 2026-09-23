@@ -24,14 +24,43 @@ from app.automations.registry import ExtraField, ReviewAction, ReviewKind, regis
 from app.automations.vision_intake import MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
 from app.models import Address, Company, Contact, ReviewQueueItem
 
-_LABEL_EXTRACTION_PROMPT = """You are reading a single returned-mail label (an undeliverable
-magazine/copy returned by the post office). Extract: name, company, address_line1, address_line2,
-city, state, postal_code, country, and reference (any customer/subscriber reference number printed
-on the label). Use null for anything not present or not legible - never invent a value.
+_LABEL_EXTRACTION_PROMPT = """You are reading one or more returned-mail items (undeliverable magazine copies, envelopes, or mailing labels returned to the publisher by the post office).
 
-Return JSON of the exact shape: {"name": ..., "company": ..., "address_line1": ..., "address_line2":
-..., "city": ..., "state": ..., "postal_code": ..., "country": ..., "reference": ..., "legible": bool}.
-Set legible=false if the label is too damaged/blurry to extract anything useful."""
+CRITICAL INSTRUCTIONS:
+1. Do NOT extract "BMI Publishing" or "14 Lumley Gardens, Cheam, Sutton" - that is the PUBLISHER'S OWN RETURN ADDRESS printed on the mailer.
+2. For EACH distinct returned copy, envelope, or mailing label visible in the photo, extract the recipient/subscriber details:
+   - name: Full name of the recipient/subscriber (e.g. "Michelle Waters", "The Manager"). If no person name is given, use null.
+   - company: Company or organisation name (e.g. "Travel Counsellors", "Templeworld Ltd").
+   - address_line1: Street address line (e.g. "Westmead, Aqueduct Lane", "13 The Avenue").
+   - address_line2: Secondary address line or locality if present (e.g. "Alvechurch").
+   - city: Town or City (e.g. "Birmingham", "Richmond").
+   - state: County, Region, or State (e.g. "West Midlands", "Surrey").
+   - postal_code: Postcode or ZIP code (e.g. "B48 7BS", "TW9 2AL").
+   - country: Country if present (e.g. "United Kingdom").
+   - reference: Any subscriber reference, barcode number, or print run code printed on the label (e.g. "27194 / 01 / 0004602 / 34400 / 024F1BHD1000336 /" or "34836 / 01 / 0002632 / 37800 / 024F1Y9YF00078 /").
+   - return_reason: Any handwritten, stamped, or sticker return reason (e.g. "Please return", "Gone away", "Moved", "Refused").
+3. Postal markings: Ignore pen strokes, crossing-out lines, stamps, and handwritten notes that overlap the printed address - extract whatever printed recipient details remain readable beneath or around them.
+4. If the photo contains multiple envelopes or labels, extract an entry for each one.
+5. If the image is rotated (sideways or upside down), still extract the text accurately.
+
+Return JSON of the exact shape:
+{
+  "labels": [
+    {
+      "name": ... | null,
+      "company": ... | null,
+      "address_line1": ... | null,
+      "address_line2": ... | null,
+      "city": ... | null,
+      "state": ... | null,
+      "postal_code": ... | null,
+      "country": ... | null,
+      "reference": ... | null,
+      "return_reason": ... | null
+    }
+  ]
+}
+If no returned mail labels or recipient addresses are visible at all, return {"labels": []}."""
 
 
 def _entity_and_address(db: Session, item: ReviewQueueItem) -> tuple[Contact | Company | None, Address | None]:
@@ -50,13 +79,26 @@ def _entity_and_address(db: Session, item: ReviewQueueItem) -> tuple[Contact | C
 
 
 def _handle_returned_copy(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
+    if action_id == "dismiss":
+        return
+
     entity, address = _entity_and_address(db, item)
+    # If not automatically matched, check if reviewer provided a manual contact_id
+    if not entity and input_data.get("contact_id"):
+        entity = db.get(Contact, uuid.UUID(str(input_data["contact_id"])))
+        if entity:
+            addresses = db.query(Address).filter(Address.contact_id == entity.id).order_by(Address.is_primary.desc()).all()
+            address = addresses[0] if addresses else None
+            item.entity_type, item.entity_id = "contact", entity.id
+            item.payload["matched_entity_type"] = "contact"
+            item.payload["matched_entity_id"] = str(entity.id)
+
     if not entity:
-        raise ValueError("The matched contact/company no longer exists.")
+        raise ValueError("No matched contact/company found on this record to update or retire.")
     label = item.payload.get("label") or {}
 
     if action_id == "correct_address":
-        entity_type = item.payload["matched_entity_type"]
+        entity_type = item.payload.get("matched_entity_type") or "contact"
         if address:
             address.line1 = label.get("address_line1") or address.line1
             address.line2 = label.get("address_line2") or address.line2
@@ -83,9 +125,6 @@ def _handle_returned_copy(db: Session, item: ReviewQueueItem, action_id: str, in
             "_retired_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    elif action_id == "dismiss":
-        pass
-
     else:
         raise ValueError(f"Unknown action {action_id!r} for returned_copy")
 
@@ -109,57 +148,122 @@ register(ReviewKind(
 def process_returned_copy_photo(
     db: Session, image_bytes: bytes, content_type: str, *, source_db: str
 ) -> dict:
-    """Called directly by the upload route - see business_card.py's
-    process_business_card_photo() for the same shape and reasoning."""
+    """Called directly by the upload route - reads one or more returned-mail
+    labels photographed together, matches each against contacts/companies in
+    the selected database, and queues review items for human confirmation."""
     if len(image_bytes) > MAX_IMAGE_BYTES:
-        return {"queued": 0, "error": "Image too large (max 8MB)."}
+        return {"labels_found": 0, "queued": 0, "error": "Image too large (max 8MB)."}
     if not is_vision_configured():
-        return {"queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - label reading needs it."}
+        return {"labels_found": 0, "queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - label reading needs it."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
-    label = extract_json_from_image(_LABEL_EXTRACTION_PROMPT, data_url, purpose="returned_copy.label_extraction")
-    if label is None or not isinstance(label, dict):
-        return {"queued": 0, "error": "Couldn't read this label - try a clearer photo."}
-    if label.get("legible") is False:
-        return {"queued": 0, "error": "Label too damaged/blurry to read."}
+    result = extract_json_from_image(_LABEL_EXTRACTION_PROMPT, data_url, purpose="returned_copy.label_extraction")
 
-    contact = find_similar_contact(db, name=label.get("name"), company_name=label.get("company"), source_db=source_db)
-    company = None if contact else find_similar_company(db, name=label.get("company"), source_db=source_db)
-    matched = contact or company
-    matched_type = "contact" if contact else ("company" if company else None)
+    # Handle multiple returned format shapes gracefully:
+    # 1. {"labels": [...]}
+    # 2. Top-level list: [{...}, {...}]
+    # 3. Single legacy dict: {"name": ..., "company": ...}
+    raw_labels: list[dict] = []
+    if isinstance(result, dict):
+        if "labels" in result and isinstance(result["labels"], list):
+            raw_labels = [item for item in result["labels"] if isinstance(item, dict)]
+        elif any(k in result for k in ("name", "company", "address_line1", "postal_code")):
+            raw_labels = [result]
+    elif isinstance(result, list):
+        raw_labels = [item for item in result if isinstance(item, dict)]
 
-    if not matched:
-        db.add(ReviewQueueItem(
-            id=uuid.uuid4(), kind="returned_copy", entity_type=None, entity_id=None,
-            payload={
-                "summary": f"Returned copy for \"{label.get('name') or label.get('company') or '(unreadable)'}\""
-                           " - no match found in the CRM",
-                "details": [
-                    {"key": "address", "label": "Address on label",
-                     "value": ", ".join(filter(None, [label.get("address_line1"), label.get("city"), label.get("postal_code")])) or "-"},
-                ],
-                "label": label, "matched_entity_type": None, "matched_entity_id": None,
-                "confidence": None,
-            },
-        ))
-        db.commit()
-        return {"queued": 1, "matched": False}
+    # Filter out empty or publisher-only items
+    valid_labels: list[dict] = []
+    for l in raw_labels:
+        comp = (l.get("company") or "").strip().lower()
+        addr = (l.get("address_line1") or "").strip().lower()
+        # Skip if the model accidentally captured BMI Publishing itself
+        if "bmi publishing" in comp or "14 lumley" in addr:
+            continue
+        has_recipient = any(
+            (l.get(k) or "").strip()
+            for k in ("name", "company", "address_line1", "postal_code", "reference")
+        )
+        if has_recipient:
+            valid_labels.append(l)
 
-    matched_label = matched.full_name if contact else matched.name
-    db.add(ReviewQueueItem(
-        id=uuid.uuid4(), kind="returned_copy",
-        entity_type=matched_type, entity_id=matched.id,
-        payload={
-            "summary": f"Returned copy for {matched_label or '(unnamed)'}",
-            "details": [
-                {"key": "new_address", "label": "Address on label",
-                 "value": ", ".join(filter(None, [label.get("address_line1"), label.get("city"), label.get("postal_code")])) or "-"},
-                {"key": "reference", "label": "Reference", "value": label.get("reference") or "-"},
-            ],
-            "related_entities": [{"type": matched_type, "id": str(matched.id), "label": matched_label or "matched record"}],
-            "label": label, "matched_entity_type": matched_type, "matched_entity_id": str(matched.id),
-            "confidence": 0.75,
-        },
-    ))
+    if not valid_labels:
+        return {
+            "labels_found": 0,
+            "queued": 0,
+            "error": "Couldn't detect any readable returned-mail labels in this photo - please try a clearer photo.",
+        }
+
+    queued = 0
+    matched_count = 0
+    for label in valid_labels:
+        contact = find_similar_contact(
+            db, name=label.get("name"), company_name=label.get("company"), source_db=source_db
+        )
+        company = None if contact else find_similar_company(db, name=label.get("company"), source_db=source_db)
+        matched = contact or company
+        matched_type = "contact" if contact else ("company" if company else None)
+
+        address_parts = [
+            label.get("address_line1"),
+            label.get("address_line2"),
+            label.get("city"),
+            label.get("state"),
+            label.get("postal_code"),
+            label.get("country"),
+        ]
+        formatted_address = ", ".join(filter(None, address_parts)) or "-"
+
+        details = [
+            {"key": "address", "label": "Address on label", "value": formatted_address},
+        ]
+        if label.get("company"):
+            details.append({"key": "company", "label": "Company on label", "value": label["company"]})
+        if label.get("name"):
+            details.append({"key": "name", "label": "Recipient name", "value": label["name"]})
+        if label.get("reference"):
+            details.append({"key": "reference", "label": "Reference / Code", "value": label["reference"]})
+        if label.get("return_reason"):
+            details.append({"key": "return_reason", "label": "Return note / reason", "value": label["return_reason"]})
+
+        if not matched:
+            display_name = label.get("name") or label.get("company") or "Unknown recipient"
+            db.add(ReviewQueueItem(
+                id=uuid.uuid4(), kind="returned_copy", entity_type=None, entity_id=None,
+                payload={
+                    "summary": f"Returned copy for \"{display_name}\" - no match found in {source_db}",
+                    "details": details,
+                    "label": label,
+                    "matched_entity_type": None,
+                    "matched_entity_id": None,
+                    "confidence": None,
+                    "source_db": source_db,
+                },
+            ))
+            queued += 1
+        else:
+            matched_count += 1
+            matched_label = matched.full_name if contact else matched.name
+            db.add(ReviewQueueItem(
+                id=uuid.uuid4(), kind="returned_copy",
+                entity_type=matched_type, entity_id=matched.id,
+                payload={
+                    "summary": f"Returned copy for {matched_label or '(unnamed)'}",
+                    "details": details,
+                    "related_entities": [{"type": matched_type, "id": str(matched.id), "label": matched_label or "matched record"}],
+                    "label": label,
+                    "matched_entity_type": matched_type,
+                    "matched_entity_id": str(matched.id),
+                    "confidence": 0.85 if contact else 0.75,
+                    "source_db": source_db,
+                },
+            ))
+            queued += 1
+
     db.commit()
-    return {"queued": 1, "matched": True}
+    return {
+        "labels_found": len(valid_labels),
+        "queued": queued,
+        "matched": matched_count > 0,
+        "matched_count": matched_count,
+    }

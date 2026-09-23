@@ -376,6 +376,14 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
 
     replacements_display = "; ".join(_format_replacement(r) for r in replacements) or "-"
 
+    ooo_prefill: dict[str, str] = {}
+    if replacements:
+        first_rep = replacements[0]
+        if first_rep.get("name"):
+            ooo_prefill["name"] = first_rep["name"]
+        if first_rep.get("email"):
+            ooo_prefill["email"] = first_rep["email"]
+
     db.add(ReviewQueueItem(
         id=uuid.uuid4(), kind="ooo_ambiguous",
         entity_type="contact", entity_id=original.id,
@@ -398,6 +406,7 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
             "message_id": msg.message_id,
             "return_date": return_date,
             "replacements": replacements,
+            "prefill": ooo_prefill,
             "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
         },
     ))
