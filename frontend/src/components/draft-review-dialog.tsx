@@ -98,8 +98,8 @@ export function DraftReviewDialog({
             Review the draft
           </DialogTitle>
           <DialogDescription>
-            Edit it directly, ask for a revision, or approve as-is. Nothing is saved to the record until you
-            approve.
+            Edit it directly, ask for a revision, or approve as-is. Approving saves it as a note on the
+            contact&apos;s record — copy it into your own email or phone call to actually send it.
           </DialogDescription>
         </DialogHeader>
 

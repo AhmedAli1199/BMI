@@ -137,7 +137,7 @@ register(ReviewKind(
     label="Personal Touchpoint Reminders",
     description="Client return-from-leave dates, anniversaries, and relationship milestones for warm, no-pitch touchpoints.",
     actions=[
-        ReviewAction(id="draft_touchpoint", label="Review draft & send", style="primary", outcome="approved"),
+        ReviewAction(id="draft_touchpoint", label="Approve & log to CRM", style="primary", outcome="approved"),
         ReviewAction(id="skip", label="Skip this occasion", style="secondary", outcome="rejected"),
     ],
     handler=_handle_touchpoint,
