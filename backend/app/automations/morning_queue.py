@@ -54,15 +54,25 @@ def _resolve_owner(db: Session, item: ReviewQueueItem) -> tuple[str | None, str]
         if related and related.get("id"):
             contact_id = related["id"]
 
-    if not contact_id:
-        return None, "Unassigned"
+    if contact_id:
+        contact = db.get(Contact, contact_id)
+        if contact:
+            if contact.owner_user_id:
+                owner = db.get(User, contact.owner_user_id)
+                return (str(contact.owner_user_id), owner.name if owner else "Unassigned")
+            if contact.company_id:
+                company = db.get(Company, contact.company_id)
+                if company and company.owner_user_id:
+                    owner = db.get(User, company.owner_user_id)
+                    return (str(company.owner_user_id), owner.name if owner else "Unassigned")
 
-    contact = db.get(Contact, contact_id)
-    if not contact or not contact.owner_user_id:
-        return None, "Unassigned"
+    if item.entity_type == "company" and item.entity_id:
+        company = db.get(Company, item.entity_id)
+        if company and company.owner_user_id:
+            owner = db.get(User, company.owner_user_id)
+            return (str(company.owner_user_id), owner.name if owner else "Unassigned")
 
-    owner = db.get(User, contact.owner_user_id)
-    return (str(contact.owner_user_id), owner.name if owner else "Unassigned")
+    return None, "Unassigned"
 
 
 def _item_contact_id(item: ReviewQueueItem) -> str | None:

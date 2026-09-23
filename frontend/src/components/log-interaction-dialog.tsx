@@ -232,6 +232,11 @@ export function LogInteractionDialog({
                     sourceDb: db,
                   });
                 }}
+                viewHref={() => {
+                  if (target?.contactId) return `/contacts/${target.contactId}`;
+                  if (target?.companyId) return `/companies/${target.companyId}`;
+                  return "#";
+                }}
               />
             </div>
           )}

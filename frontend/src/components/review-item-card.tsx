@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -25,9 +26,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
 import { cleanNoteBody } from "@/lib/notes";
 import { styleForKind } from "@/lib/automation-style";
-import { resolveReviewItem, searchContacts } from "@/lib/actions";
+import { resolveReviewItem, searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
 import { DraftReviewDialog } from "@/components/draft-review-dialog";
-import type { ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
+import type { CompanyListItem, GroupListItem, ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
 
 /** Kind+action combos whose payload.original_text is an AI-drafted note/
  * email (not source material) and whose approve action writes it verbatim
@@ -568,6 +569,424 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   );
 }
 
+function CompanyAutocomplete({
+  label,
+  required,
+  placeholder,
+  value,
+  onChange,
+  suggestions,
+  initialCompanyId,
+}: {
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  value: string;
+  onChange: (name: string, companyId?: string | null) => void;
+  suggestions: string[];
+  initialCompanyId?: string | null;
+}) {
+  const [query, setQuery] = useState(value);
+  const [options, setOptions] = useState<CompanyListItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [companyId, setCompanyId] = useState<string | null>(initialCompanyId ?? null);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const inputWrapRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value changes (e.g. from suggestions or reset)
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  // Attempt to resolve companyId if we have a company name but no ID yet
+  useEffect(() => {
+    if (!value.trim() || companyId) return;
+    let active = true;
+    searchCompanies(value.trim()).then((matches) => {
+      if (!active) return;
+      const exact = matches.find((m) => m.name.toLowerCase() === value.trim().toLowerCase());
+      if (exact) {
+        setCompanyId(exact.id);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [value, companyId]);
+
+  // Debounced search when user types
+  useEffect(() => {
+    if (!query.trim()) {
+      setOptions([]);
+      return;
+    }
+    const id = setTimeout(() => {
+      searchCompanies(query.trim()).then((res) => {
+        setOptions(res);
+      });
+    }, 180);
+    return () => clearTimeout(id);
+  }, [query]);
+
+  // Click outside to close floating dropdown
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (boxRef.current?.contains(target)) return;
+      if (inputWrapRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  // Update floating rect to avoid overflow clipping
+  useLayoutEffect(() => {
+    if (!open) return;
+    function updateRect() {
+      const el = inputWrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+    }
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [open]);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">
+          {label}
+          {required && <span className="text-destructive"> *</span>}
+        </Label>
+        <div className="flex items-center gap-2">
+          {companyId && (
+            <Link
+              href={`/companies/${companyId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+              title="Open this company's profile in a new tab"
+            >
+              <Building2 className="size-3" />
+              View company
+              <ExternalLink className="size-2.5" />
+            </Link>
+          )}
+          {value && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange("", null);
+                setCompanyId(null);
+                setQuery("");
+              }}
+              className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+            >
+              Remove company
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div ref={inputWrapRef} className="relative">
+        <Input
+          className="h-8 pr-7 text-sm"
+          placeholder={placeholder || "Type to search companies…"}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            onChange(e.target.value, null);
+            setCompanyId(null);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            if (query.trim()) setOpen(true);
+          }}
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              onChange("", null);
+              setCompanyId(null);
+              setOptions([]);
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            title="Clear"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      {open && rect && (options.length > 0 || query.trim().length >= 2) &&
+        createPortal(
+          <div
+            ref={boxRef}
+            style={{ position: "absolute", top: rect.top, left: rect.left, width: rect.width }}
+            className="z-50 max-h-56 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+          >
+            {options.length > 0 ? (
+              options.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  className="flex w-full items-center justify-between border-b border-border/40 px-3 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground last:border-0"
+                  onClick={() => {
+                    onChange(comp.name, comp.id);
+                    setQuery(comp.name);
+                    setCompanyId(comp.id);
+                    setOpen(false);
+                  }}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-foreground">{comp.name}</span>
+                    <span className="text-[10.5px] text-muted-foreground">
+                      {[comp.industry, comp.category].filter(Boolean).join(" · ") || "Existing company"}
+                    </span>
+                  </div>
+                  {comp.contact_count > 0 && (
+                    <span className="text-[10.5px] text-muted-foreground shrink-0">
+                      {comp.contact_count} {comp.contact_count === 1 ? "contact" : "contacts"}
+                    </span>
+                  )}
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-xs text-muted-foreground italic">
+                No matching companies found — will create new company &ldquo;{query}&rdquo;
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
+
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-[10.5px] text-muted-foreground">Suggestions:</span>
+          {suggestions.map((comp) => (
+            <button
+              key={comp}
+              type="button"
+              onClick={() => {
+                onChange(comp);
+                setQuery(comp);
+                setCompanyId(null);
+              }}
+              className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                value === comp
+                  ? "border-primary bg-primary/10 font-semibold text-primary"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              }`}
+            >
+              {comp}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupsAutocomplete({
+  label,
+  required,
+  placeholder,
+  value,
+  onChange,
+  suggestions,
+}: {
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+  value: string;
+  onChange: (value: string) => void;
+  suggestions: string[];
+}) {
+  const [options, setOptions] = useState<GroupListItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const inputWrapRef = useRef<HTMLDivElement>(null);
+
+  // Extract the active query token being typed (after the last comma)
+  const lastToken = (value.split(",").pop() || "").trim();
+
+  // Debounced search for groups
+  useEffect(() => {
+    if (!lastToken) {
+      setOptions([]);
+      return;
+    }
+    const id = setTimeout(() => {
+      searchGroups(lastToken).then(setOptions);
+    }, 180);
+    return () => clearTimeout(id);
+  }, [lastToken]);
+
+  // Click outside listener
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (boxRef.current?.contains(target)) return;
+      if (inputWrapRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  // Update floating rect
+  useLayoutEffect(() => {
+    if (!open) return;
+    function updateRect() {
+      const el = inputWrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+    }
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [open]);
+
+  const currentGroups = value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  function selectGroup(groupName: string) {
+    const parts = value.split(",");
+    parts.pop(); // remove incomplete token
+    const cleanPrefix = parts.map((s) => s.trim()).filter(Boolean);
+    if (!cleanPrefix.includes(groupName)) {
+      cleanPrefix.push(groupName);
+    }
+    onChange(cleanPrefix.join(", ") + ", ");
+    setOpen(false);
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">
+          {label}
+          {required && <span className="text-destructive"> *</span>}
+        </Label>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Clear groups
+          </button>
+        )}
+      </div>
+
+      <div ref={inputWrapRef} className="relative">
+        <Input
+          className="h-8 pr-7 text-sm"
+          placeholder={placeholder || "Type to search and add groups…"}
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => {
+            if (lastToken) setOpen(true);
+          }}
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            title="Clear"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      {open && rect && options.length > 0 &&
+        createPortal(
+          <div
+            ref={boxRef}
+            style={{ position: "absolute", top: rect.top, left: rect.left, width: rect.width }}
+            className="z-50 max-h-56 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+          >
+            {options.map((grp) => (
+              <button
+                key={grp.id}
+                type="button"
+                className="flex w-full items-center justify-between border-b border-border/40 px-3 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground last:border-0"
+                onClick={() => selectGroup(grp.name)}
+              >
+                <div className="flex flex-col">
+                  <span className="font-semibold text-foreground">{grp.name}</span>
+                  {grp.description && (
+                    <span className="text-[10.5px] text-muted-foreground line-clamp-1">{grp.description}</span>
+                  )}
+                </div>
+                {grp.member_count > 0 && (
+                  <span className="text-[10.5px] text-muted-foreground shrink-0">
+                    {grp.member_count} {grp.member_count === 1 ? "member" : "members"}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-[10.5px] text-muted-foreground">Suggested groups:</span>
+          {suggestions.map((grp) => {
+            const isSelected = currentGroups.includes(grp);
+            return (
+              <button
+                key={grp}
+                type="button"
+                onClick={() => {
+                  let updated: string[];
+                  if (isSelected) {
+                    updated = currentGroups.filter((g) => g !== grp);
+                  } else {
+                    updated = [...currentGroups, grp];
+                  }
+                  onChange(updated.join(", "));
+                }}
+                className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                  isSelected
+                    ? "border-primary bg-primary/10 font-semibold text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                }`}
+              >
+                {isSelected ? `✓ ${grp}` : `+ ${grp}`}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExpandedActionForm({
   action,
   payload,
@@ -603,6 +1022,11 @@ function ExpandedActionForm({
 }) {
   const choiceOptions = relatedEntities.filter((e) => e.type === "contact");
   const { companySuggestions, groupSuggestions } = getSuggestionHints(payload);
+  const initialCompanyId =
+    (payload.matched_entity_type === "company" ? (payload.matched_entity_id as string) : null) ||
+    (payload.company_id as string) ||
+    (payload.suggested_company_id as string) ||
+    (relatedEntities.find((e) => e.type === "company")?.id ?? null);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3.5">
@@ -699,134 +1123,30 @@ function ExpandedActionForm({
 
         if (f.key === "company_name") {
           return (
-            <div key={f.key} className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">
-                  {f.label}
-                  {f.required && <span className="text-destructive"> *</span>}
-                </Label>
-                {fields[f.key] && (
-                  <button
-                    type="button"
-                    onClick={() => setFields({ ...fields, [f.key]: "" })}
-                    className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    Remove company
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  className="h-8 pr-7 text-sm"
-                  placeholder={f.placeholder}
-                  value={fields[f.key] ?? ""}
-                  onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
-                />
-                {fields[f.key] && (
-                  <button
-                    type="button"
-                    onClick={() => setFields({ ...fields, [f.key]: "" })}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    title="Clear"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
-              </div>
-              {companySuggestions.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-muted-foreground">Suggestions:</span>
-                  {companySuggestions.map((comp) => (
-                    <button
-                      key={comp}
-                      type="button"
-                      onClick={() => setFields({ ...fields, [f.key]: comp })}
-                      className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
-                        fields[f.key] === comp
-                          ? "border-primary bg-primary/10 font-semibold text-primary"
-                          : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                      }`}
-                    >
-                      {comp}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <CompanyAutocomplete
+              key={f.key}
+              label={f.label}
+              required={f.required}
+              placeholder={f.placeholder}
+              value={fields[f.key] ?? ""}
+              onChange={(name) => setFields({ ...fields, [f.key]: name })}
+              suggestions={companySuggestions}
+              initialCompanyId={initialCompanyId}
+            />
           );
         }
 
         if (f.key === "groups") {
           return (
-            <div key={f.key} className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">
-                  {f.label}
-                  {f.required && <span className="text-destructive"> *</span>}
-                </Label>
-                {fields[f.key] && (
-                  <button
-                    type="button"
-                    onClick={() => setFields({ ...fields, [f.key]: "" })}
-                    className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    Clear groups
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <Input
-                  className="h-8 pr-7 text-sm"
-                  placeholder={f.placeholder}
-                  value={fields[f.key] ?? ""}
-                  onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
-                />
-                {fields[f.key] && (
-                  <button
-                    type="button"
-                    onClick={() => setFields({ ...fields, [f.key]: "" })}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    title="Clear"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )}
-              </div>
-              {groupSuggestions.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                  <span className="text-[10.5px] text-muted-foreground">Suggested groups:</span>
-                  {groupSuggestions.map((grp) => {
-                    const currentGroups = (fields[f.key] ?? "")
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean);
-                    const isSelected = currentGroups.includes(grp);
-                    return (
-                      <button
-                        key={grp}
-                        type="button"
-                        onClick={() => {
-                          let updated: string[];
-                          if (isSelected) {
-                            updated = currentGroups.filter((g) => g !== grp);
-                          } else {
-                            updated = [...currentGroups, grp];
-                          }
-                          setFields({ ...fields, [f.key]: updated.join(", ") });
-                        }}
-                        className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
-                          isSelected
-                            ? "border-primary bg-primary/10 font-semibold text-primary"
-                            : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                        }`}
-                      >
-                        {isSelected ? `✓ ${grp}` : `+ ${grp}`}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <GroupsAutocomplete
+              key={f.key}
+              label={f.label}
+              required={f.required}
+              placeholder={f.placeholder}
+              value={fields[f.key] ?? ""}
+              onChange={(val) => setFields({ ...fields, [f.key]: val })}
+              suggestions={groupSuggestions}
+            />
           );
         }
 

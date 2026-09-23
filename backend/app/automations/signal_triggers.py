@@ -189,7 +189,7 @@ register(ReviewKind(
     label="Commercial Signals",
     description="Upcoming advertiser budget windows, publication renewal dates, and promised callbacks extracted from email correspondence.",
     actions=[
-        ReviewAction(id="draft_followup", label="Review draft & send", style="primary", outcome="approved"),
+        ReviewAction(id="draft_followup", label="Approve & log to CRM", style="primary", outcome="approved"),
         ReviewAction(id="dismiss", label="Dismiss signal", style="secondary", outcome="rejected"),
     ],
     handler=_handle_signal_trigger,
