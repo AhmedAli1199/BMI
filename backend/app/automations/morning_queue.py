@@ -112,18 +112,22 @@ def _value_scores(db: Session, contact_ids: set[str], value_cap: float) -> dict[
     return best
 
 
-def build_today_queue(db: Session, owner_user_id: str | None = None) -> list[dict]:
+def build_today_queue(db: Session, owner_user_id: str | None = None, source_dbs: set[str] | None = None) -> list[dict]:
     """Every pending signal_trigger/followup_due item, each tagged with
     who it belongs to and ranked by urgency/value. If owner_user_id is
     given, scoped to that rep's own items (a rep's "my list for today");
     omitted, every item is returned grouped-ready (a manager's cross-team
-    view)."""
-    items = (
-        db.query(ReviewQueueItem)
-        .filter(ReviewQueueItem.kind.in_(_SOURCE_KINDS), ReviewQueueItem.status == "pending")
-        .order_by(ReviewQueueItem.created_at.asc())
-        .all()
+    view). source_dbs, when given, further restricts to those databases -
+    see the /today route's identity-based scoping; an item with no
+    source_db recorded is left in either way (nothing to filter by)."""
+    query = db.query(ReviewQueueItem).filter(
+        ReviewQueueItem.kind.in_(_SOURCE_KINDS), ReviewQueueItem.status == "pending"
     )
+    if source_dbs is not None:
+        query = query.filter(
+            (ReviewQueueItem.source_db.in_(source_dbs)) | (ReviewQueueItem.source_db.is_(None))
+        )
+    items = query.order_by(ReviewQueueItem.created_at.asc()).all()
 
     w_urgency = runtime_settings.get_float(db, "sales013_weight_urgency")
     w_value = runtime_settings.get_float(db, "sales013_weight_value")

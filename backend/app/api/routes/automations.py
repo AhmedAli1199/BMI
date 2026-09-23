@@ -24,16 +24,35 @@ from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled, run_job
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
 from app.core.config import settings
+from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import AutomationState, Contact, EmailSignal, LlmUsageEvent, ReviewQueueItem
+from app.roles import CAN_USE_AUTOMATIONS
 
 logger = logging.getLogger("app.api.automations")
 
 router = APIRouter(prefix="/automations", tags=["automations"])
 
 
+def require_staff(identity: Identity = Depends(get_identity)) -> Identity:
+    """Gate for the Automations Hub (job status/control, settings, LLM
+    cost, the data-reset action) - admin/data_manager only, mirroring
+    frontend/src/lib/access.ts's canUseAutomations. Fails OPEN when no
+    identity was forwarded at all (see identity.py's trust-model note) -
+    the same shared-API-key caller that could reach this before this
+    dependency existed still can; this only stops a real, identified
+    sales session from reaching hub-only actions. Deliberately NOT
+    applied to /today (a rep's own queue), the review-queue routes (kind/
+    database-scoped instead, see review_queue.py's _apply_scope), or the
+    business-card/returned-copy upload endpoints (reps use those
+    directly in the field)."""
+    if identity.is_known and identity.role not in CAN_USE_AUTOMATIONS:
+        raise HTTPException(status_code=403, detail="Automations Hub is restricted to Administrator/Data Manager accounts.")
+    return identity
+
+
 @router.get("/jobs", response_model=list[ScheduledJobOut])
-def list_jobs() -> list[ScheduledJobOut]:
+def list_jobs(_staff: Identity = Depends(require_staff)) -> list[ScheduledJobOut]:
     """Status of every registered producer job (see
     app/automations/scheduler.py). Reflects the *effective* enabled state -
     a stored override from the Settings tab below if there is one, else
@@ -53,17 +72,28 @@ def list_jobs() -> list[ScheduledJobOut]:
 
 
 @router.get("/today")
-def get_today_queue(owner_user_id: str | None = None, db: Session = Depends(get_db)) -> list[dict]:
+def get_today_queue(
+    owner_user_id: str | None = None, db: Session = Depends(get_db), identity: Identity = Depends(get_identity),
+) -> list[dict]:
     """SALES-013's read side - see app/automations/morning_queue.py's
     docstring for why this is aggregation, not a new producer. Every
     still-pending signal_trigger/followup_due item, tagged with who it
     belongs to. Pass owner_user_id for one rep's own list; omit it for a
-    manager's cross-team view grouped by rep."""
-    return build_today_queue(db, owner_user_id=owner_user_id)
+    manager's cross-team view grouped by rep.
+
+    A sales identity can only ever see their OWN queue - owner_user_id is
+    forced to their own id regardless of what's passed, so a rep can't
+    page through this endpoint by guessing other reps' user ids. Both a
+    sales and a data_manager identity are further restricted to their own
+    database access (an admin, or no identity forwarded, sees everything -
+    see identity.py's allowed_source_dbs)."""
+    if identity.is_known and identity.role == "sales":
+        owner_user_id = identity.user_id
+    return build_today_queue(db, owner_user_id=owner_user_id, source_dbs=identity.allowed_source_dbs())
 
 
 @router.get("/metrics")
-def get_metrics(days: int = Query(14, ge=1, le=90, description="How many days back to break down 'actioned' by day."), db: Session = Depends(get_db)) -> dict:
+def get_metrics(days: int = Query(14, ge=1, le=90, description="How many days back to break down 'actioned' by day."), db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> dict:
     """SALES-013's "metrics store" read side - see
     app/automations/metrics.py's docstring for why this is aggregation
     over the existing review queue, not a new table. Per-rep outstanding
@@ -72,7 +102,7 @@ def get_metrics(days: int = Query(14, ge=1, le=90, description="How many days ba
 
 
 @router.post("/jobs/{job_id}/run")
-def run_job_now(job_id: str) -> dict:
+def run_job_now(job_id: str, _staff: Identity = Depends(require_staff)) -> dict:
     """Fires one registered producer job immediately, out of band from its
     cron schedule - for testing a scan without waiting for it (or without
     temporarily hacking the cron string + restarting). Runs synchronously
@@ -119,7 +149,7 @@ def run_job_now(job_id: str) -> dict:
 
 
 @router.post("/jobs/{job_id}/reset-cursor")
-def reset_job_cursor(job_id: str, db: Session = Depends(get_db)) -> dict:
+def reset_job_cursor(job_id: str, db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> dict:
     """Deletes a job's remembered "since last run" position (see
     app/automations/state.py), so its next run treats every mailbox it
     scans as brand new - bounded only by that job's own initial-lookback
@@ -151,6 +181,7 @@ def reset_automation_data(
     reset_cursors: bool = Query(True, description="Also clear every scan job's remembered mailbox/scan position, so the next run re-reads from its configured lookback instead of picking up where it left off."),
     reset_signals: bool = Query(False, description="Also delete every EmailSignal row (SALES-010-lite's extracted budget/renewal/callback/touchpoint facts), not just the review queue built on top of them - forces a full re-extraction from scratch on the next email scan, not just re-triggering off what's already there."),
     db: Session = Depends(get_db),
+    _staff: Identity = Depends(require_staff),
 ) -> dict:
     """Wipes every ReviewQueueItem (every kind, every status) so the whole
     review queue starts empty. Deliberately does NOT touch the durable
@@ -244,7 +275,7 @@ async def upload_returned_copy(
 
 
 @router.get("/settings", response_model=list[AutomationSettingOut])
-def list_automation_settings(db: Session = Depends(get_db)) -> list[AutomationSettingOut]:
+def list_automation_settings(db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> list[AutomationSettingOut]:
     """Every editable automation tunable, with its current effective value
     and whether that's a stored override or just the env var default - the
     Automations Settings UI renders entirely from this, so a new setting
@@ -262,7 +293,7 @@ def list_automation_settings(db: Session = Depends(get_db)) -> list[AutomationSe
 
 
 @router.put("/settings/{key}", response_model=AutomationSettingOut)
-def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Session = Depends(get_db)) -> AutomationSettingOut:
+def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> AutomationSettingOut:
     """Sets (or replaces) a runtime override - takes effect on that
     setting's next read, which for a scan job means its next scheduled
     tick or "Run now" click, never requiring a restart."""
@@ -283,7 +314,7 @@ def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Se
 
 
 @router.delete("/settings/{key}", response_model=AutomationSettingOut)
-def reset_automation_setting(key: str, db: Session = Depends(get_db)) -> AutomationSettingOut:
+def reset_automation_setting(key: str, db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> AutomationSettingOut:
     """Removes a stored override, reverting the setting to its env var
     default - the "reset to default" action in the UI."""
     d = get_def(key)
@@ -299,7 +330,7 @@ def reset_automation_setting(key: str, db: Session = Depends(get_db)) -> Automat
 
 
 @router.get("/email-signals")
-def list_email_signals(db: Session = Depends(get_db)) -> list[dict]:
+def list_email_signals(db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> list[dict]:
     """THROWAWAY - a quick read-only visibility view into what
     email_summary.py's scan has actually extracted, so it can be judged on
     real output before SALES-012/013 get built on top of it. Not meant to
@@ -333,6 +364,7 @@ def get_llm_usage(
     days: int = Query(30, ge=1, le=365, description="How many days back to summarize."),
     granularity: Literal["hour", "day"] = Query("day", description="Time-bucket width for the usage-over-time table."),
     db: Session = Depends(get_db),
+    _staff: Identity = Depends(require_staff),
 ) -> LlmUsageSummary:
     """Aggregated LLM cost/usage - deliberately its own out-of-the-way
     endpoint (only linked from Automations Settings, not any regularly

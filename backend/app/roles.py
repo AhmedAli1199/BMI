@@ -41,13 +41,25 @@ ROLE_DEFS: list[RoleDef] = [
     RoleDef(
         ROLE_SALES,
         "Sales",
-        "Read/write on Contacts, Companies, and Groups within their assigned database(s) only. No "
-        "Automations, no Settings beyond their own preferences, no user management.",
+        "Read/write on Contacts, Companies, and Groups within their assigned database(s) only. Sees their "
+        "own Today queue and Review Queue (sales-relevant items only, scoped to their own database(s)), "
+        "not the Automations Hub (job status, settings) or CRM-hygiene review kinds (merges, departures, "
+        "bounce triage) - those stay with Admin/Data Manager. No Settings beyond their own preferences, "
+        "no user management.",
     ),
 ]
 
-# role -> whether it can reach the Automations review queue / producer job status.
+# role -> whether it can reach the Automations Hub (job status, settings,
+# LLM cost, the data-reset action) and every review-queue kind, not just
+# the sales-audience ones - see app/automations/registry.py's
+# ReviewKind.audience. Kept as the narrower, admin-facing set its name
+# always meant; CAN_VIEW_OWN_QUEUE below is the new, wider one.
 CAN_USE_AUTOMATIONS = {ROLE_ADMIN, ROLE_DATA_MANAGER}
+# role -> whether it can see a Today/Review Queue view AT ALL - every
+# role gets this now; WHAT they see within it is scoped separately (see
+# app/core/identity.py + review_queue.py/automations.py's filtering) by
+# audience + source_db(+owner for a sales rep's own queue).
+CAN_VIEW_OWN_QUEUE = {ROLE_ADMIN, ROLE_DATA_MANAGER, ROLE_SALES}
 # role -> whether it can manage other users' accounts/access.
 CAN_MANAGE_USERS = {ROLE_ADMIN}
 # role -> whether it can register a new database (Publication).

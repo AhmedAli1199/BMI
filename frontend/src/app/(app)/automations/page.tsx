@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Power,
   Settings2,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Timer,
@@ -19,6 +20,8 @@ import {
   humanizeCron,
   styleForKind,
 } from "@/lib/automation-style";
+import { canUseAutomations } from "@/lib/access";
+import { getSession } from "@/lib/session";
 import type { ReviewKind, ReviewQueueCounts, ScheduledJob } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +31,23 @@ import { RunJobButton } from "@/components/run-job-button";
 import { SOURCE_LABELS } from "@/lib/sources";
 
 export default async function AutomationsPage() {
+  const session = await getSession();
+  if (!canUseAutomations(session)) {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-3 p-6 pt-24 text-center">
+        <ShieldAlert className="size-8 text-muted-foreground opacity-60" />
+        <h1 className="text-lg font-bold text-foreground">Administrators &amp; Data Managers only</h1>
+        <p className="text-sm text-muted-foreground">
+          Job status, settings, and LLM cost are restricted here. Your Today queue and Review Queue are
+          still yours - use the sidebar.
+        </p>
+        <Link href="/automations/today" className="text-xs font-semibold text-primary hover:underline">
+          Go to your Today queue
+        </Link>
+      </div>
+    );
+  }
+
   const [kinds, counts, jobs] = await Promise.all([
     backendFetch<ReviewKind[]>("/api/review-queue/kinds"),
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),

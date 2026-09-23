@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeMotif } from "@/components/theme-motif";
-import { canUseAutomations } from "@/lib/access";
+import { canUseAutomations, canViewAutomationsQueue } from "@/lib/access";
 import type { SessionPayload } from "@/lib/session";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -113,7 +113,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {canUseAutomations(session) && (
+        {canViewAutomationsQueue(session) && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Automations</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -138,16 +138,22 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                     <span>Review Queue</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link href="/automations" />}
-                    isActive={pathname === "/automations"}
-                    className={NAV_ITEM}
-                  >
-                    <Sparkles className="mr-1.5 size-4 text-muted-foreground" />
-                    <span>Automations Hub</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {/* The job/settings/cost control panel - stays
+                    admin/data_manager only even though Today/Review Queue
+                    above are now open to sales too (scoped to their own
+                    data server-side - see lib/access.ts). */}
+                {canUseAutomations(session) && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href="/automations" />}
+                      isActive={pathname === "/automations"}
+                      className={NAV_ITEM}
+                    >
+                      <Sparkles className="mr-1.5 size-4 text-muted-foreground" />
+                      <span>Automations Hub</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
