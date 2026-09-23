@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ActivitiesPage, ActivityCreate, ActivityOut, ActivityUpdate
@@ -62,7 +62,25 @@ def list_activities(
     if source_db:
         stmt = stmt.where(Activity.source_db == source_db)
     if assigned_user_id:
-        stmt = stmt.where(Activity.created_by_user_id == assigned_user_id)
+        # created_by_user_id is a real FK, but only ever set for an
+        # activity actually created in this CRM - every migrated Act!
+        # activity only has organized_by_name (plain text, resolved from
+        # Act!'s own TBL_ACCESSOR at migration time - see
+        # Activity.organized_by_name's docstring), because the Act!
+        # accessor -> our-user mapping is still parked. Matching on
+        # created_by_user_id alone means "Mine only" finds nothing for
+        # anyone whose activities are almost entirely migrated, which is
+        # everyone right now. Fall back to a name match against the
+        # requesting user's own display name so the filter actually works
+        # today; once the real mapping lands this can drop back to the FK
+        # alone.
+        user = db.get(User, assigned_user_id)
+        if user and user.name:
+            stmt = stmt.where(
+                or_(Activity.created_by_user_id == assigned_user_id, Activity.organized_by_name.ilike(user.name))
+            )
+        else:
+            stmt = stmt.where(Activity.created_by_user_id == assigned_user_id)
     if start_after:
         stmt = stmt.where(Activity.start_at >= start_after)
     if start_before:
