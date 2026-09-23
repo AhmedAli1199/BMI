@@ -82,8 +82,15 @@ def list_activities(
         stmt = stmt.where(Activity.company_id == company_id)
 
     total = len(db.scalars(stmt).all())
+    # Most-recent-first, not oldest-first: the migrated backlog goes back
+    # to 2009 for some records, and an ascending sort buried everything
+    # actually current under 15+ years of stale, long-uncleared tasks on
+    # page 1 of the default (unbounded) "Open" view. Descending means the
+    # genuinely current/recent backlog surfaces first; ancient history is
+    # still there on later pages (or "All"), never dropped, just not
+    # first.
     rows = db.scalars(
-        stmt.order_by(Activity.start_at.asc()).offset((page - 1) * page_size).limit(page_size)
+        stmt.order_by(Activity.start_at.desc()).offset((page - 1) * page_size).limit(page_size)
     ).all()
 
     creators = resolve_creators(db, rows)

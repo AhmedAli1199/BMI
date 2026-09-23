@@ -24,7 +24,7 @@ export default async function ActivitiesPage({
     q?: string;
   }>;
 }) {
-  const { status: statusParam, mine, type: typeParam, priority: priorityParam, q: qParam } =
+  const { status: statusParam, mine: rawMine, type: typeParam, priority: priorityParam, q: qParam } =
     await searchParams;
 
   const status: Status =
@@ -43,6 +43,16 @@ export default async function ActivitiesPage({
   ]);
   const scope = resolveScope(session, rawSourceDb);
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
+  // The database filter above scopes by title, not by person - by
+  // default this grid shows everyone's activities in that database
+  // (matches Act!'s own shared-calendar model), with "Mine only" as an
+  // opt-in toggle. For a sales rep, defaulting to everyone else's
+  // scheduling (an admin/data manager's own admin tasks included) isn't
+  // useful day to day, so "Mine only" starts ON for that role - still
+  // just a default, not a restriction: rawMine=0 explicitly turns it
+  // back off, same as anyone else can toggle it either way.
+  const mine =
+    rawMine === "1" ? "1" : rawMine === "0" ? undefined : session?.role === "sales" ? "1" : undefined;
   const publications =
     session?.role === "admin"
       ? allPublications
@@ -253,7 +263,7 @@ export default async function ActivitiesPage({
             <>
               <div className="h-4 w-px bg-border/80" />
               <Link
-                href={createFilterHref({ mine: mine === "1" ? null : "1" })}
+                href={createFilterHref({ mine: mine === "1" ? "0" : "1" })}
                 className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                   mine === "1"
                     ? "border border-primary/40 bg-primary/15 text-primary"
