@@ -6,6 +6,7 @@ import { canManageUsers } from "@/lib/access";
 import type { PreferenceDef, UserPreferences } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { PreferenceGroup } from "@/components/preference-group";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export default async function SettingsPage() {
   const session = await getSession();
@@ -68,6 +69,19 @@ export default async function SettingsPage() {
           </Card>
         </Link>
       )}
+
+      <div className="flex flex-col gap-4">
+        <h2 className="editorial-heading text-lg font-bold text-foreground">Appearance</h2>
+        <Card className="editorial-card">
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-sm font-bold text-foreground">Theme</p>
+              <p className="text-xs text-muted-foreground">Choose how the app looks.</p>
+            </div>
+            <ThemeSwitcher />
+          </CardContent>
+        </Card>
+      </div>
 
       {[...groups.entries()].map(([groupName, groupDefs]) => (
         <div key={groupName} className="flex flex-col gap-4">

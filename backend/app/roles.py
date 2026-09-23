@@ -26,27 +26,9 @@ class RoleDef:
 
 
 ROLE_DEFS: list[RoleDef] = [
-    RoleDef(
-        ROLE_ADMIN,
-        "Administrator",
-        "Full access to every database, user management, Settings, and the Automations review queue. "
-        "Can add new databases.",
-    ),
-    RoleDef(
-        ROLE_DATA_MANAGER,
-        "Data Manager",
-        "Full read/write on Contacts, Companies, and Groups within their assigned database(s), plus the "
-        "Automations review queue. Cannot manage other users or add new databases.",
-    ),
-    RoleDef(
-        ROLE_SALES,
-        "Sales",
-        "Read/write on Contacts, Companies, and Groups within their assigned database(s) only. Sees their "
-        "own Today queue and Review Queue (sales-relevant items only, scoped to their own database(s)), "
-        "not the Automations Hub (job status, settings) or CRM-hygiene review kinds (merges, departures, "
-        "bounce triage) - those stay with Admin/Data Manager. No Settings beyond their own preferences, "
-        "no user management.",
-    ),
+    RoleDef(ROLE_ADMIN, "Administrator", "Sees everything and manages the team."),
+    RoleDef(ROLE_DATA_MANAGER, "Data Manager", "Full access to their assigned database(s)."),
+    RoleDef(ROLE_SALES, "Sales", "Their own contacts, tasks, and queue only."),
 ]
 
 # role -> whether it can reach the Automations Hub (job status, settings,

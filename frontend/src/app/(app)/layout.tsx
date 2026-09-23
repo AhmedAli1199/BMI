@@ -4,7 +4,6 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/session";
-import { ThemeSwitcher } from "@/components/theme-switcher";
 import { PublicationSwitcher } from "@/components/publication-switcher";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
 import { getPublicationFilter } from "@/lib/publication";
@@ -56,9 +55,6 @@ export default async function AppLayout({
               }
             />
           )}
-          <span className="ml-auto">
-            <ThemeSwitcher />
-          </span>
         </header>
         <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
       </SidebarInset>
