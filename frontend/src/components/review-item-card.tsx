@@ -133,10 +133,11 @@ function computeInitialFields(
     }
   }
 
-  // 4. Source db prefill
-  if (payload.source_db && !initial["source_db"]) {
-    initial["source_db"] = payload.source_db;
-  }
+  // 4. Source db - only meaningful (and only ever shown) when the item
+  // came in on a genuinely shared inbox ("*"): a normal per-title mailbox
+  // already resolved its own database server-side, so there's nothing to
+  // ask and nothing to prefill here - leaving initial["source_db"] unset
+  // in that case is what keeps the picker hidden below.
 
   // 5. OOO replacements prefill (for create_new_contact)
   const replacements = payload.replacements as Array<{
@@ -830,26 +831,25 @@ function ExpandedActionForm({
         }
 
         if (f.key === "source_db") {
+          // Only relevant when this item came in on a genuinely shared
+          // inbox (payload.source_db === "*") - a normal per-title
+          // mailbox already knows its own database, so this field is
+          // silently skipped rather than shown empty/pre-filled and
+          // confusing every other item of this kind.
+          if (payload.source_db !== "*") return null;
           return (
             <div key={f.key} className="flex flex-col gap-1.5">
-              <Label className="text-xs">
-                {f.label}
-                {f.required && <span className="text-destructive"> *</span>}
-              </Label>
-              <Input
-                className="h-8 text-sm"
-                placeholder={f.placeholder}
-                value={fields[f.key] ?? ""}
-                onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}
-              />
-              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                <span className="text-[10.5px] text-muted-foreground">Target database:</span>
+              <Label className="text-xs">Which BMI title does this belong to?</Label>
+              <p className="text-[11px] text-muted-foreground">
+                This came in on a shared inbox, not one tied to a single title - pick which database this contact belongs to.
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5">
                 {["prospects", "onboard", "sellingtravel"].map((dbName) => (
                   <button
                     key={dbName}
                     type="button"
                     onClick={() => setFields({ ...fields, [f.key]: dbName })}
-                    className={`rounded border px-2 py-0.5 text-[11px] transition-colors ${
+                    className={`rounded border px-2.5 py-1 text-xs transition-colors ${
                       fields[f.key] === dbName
                         ? "border-primary bg-primary/10 font-semibold text-primary"
                         : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground"
