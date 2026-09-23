@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Copy, Plus, Shuffle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,16 @@ import { createTeamUser, listGroupsForDatabase, updateTeamUser } from "@/lib/act
 import type { GroupListItem, Publication, RoleDef, UserAccessEntry, UserAccount } from "@/lib/types";
 
 type AccessRow = { source_db: string; group_id: string | null };
+
+/** A random, easy-to-read-aloud temporary password - excludes visually
+ * confusable characters (0/O, 1/l/I) since this is meant to be read over
+ * a call or typed from a note, not just pasted. */
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = new Uint32Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+}
 
 function AccessRowEditor({
   row,
@@ -181,13 +191,44 @@ export function UserFormDialog({
                 {existing ? "Reset password" : "Temporary password"}
                 {!existing && <span className="text-destructive"> *</span>}
               </Label>
-              <Input
-                id="uf-password"
-                type="text"
-                placeholder={existing ? "Leave blank to keep their current password" : "At least 8 characters"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="flex items-center gap-1.5">
+                <Input
+                  id="uf-password"
+                  type="text"
+                  placeholder={existing ? "Leave blank to keep their current password" : "At least 8 characters"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="outline"
+                  title="Generate a random password"
+                  onClick={() => setPassword(generatePassword())}
+                >
+                  <Shuffle className="size-3.5" />
+                </Button>
+                {password && (
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="outline"
+                    title="Copy to clipboard"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(password);
+                      toast.success("Password copied - share it securely, never over chat.");
+                    }}
+                  >
+                    <Copy className="size-3.5" />
+                  </Button>
+                )}
+              </div>
+              {existing && password && (
+                <p className="text-[11px] text-muted-foreground">
+                  Saving will reset {existing.name}&apos;s password to this - they&apos;ll need it to log in again.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
