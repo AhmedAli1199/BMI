@@ -118,13 +118,23 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
             <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Automations</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1.5">
+                {/* Every icon in this group shares one rule - bright/
+                    primary when its own page is active, a readable (not
+                    washed-out) neutral otherwise - so "Today" isn't the
+                    only one that ever looks switched on. Previously
+                    "Today" was hardcoded text-primary always and the
+                    other two were always text-muted-foreground, which
+                    read as broken/inconsistent rather than as a
+                    deliberate active-state design. */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     render={<Link href="/automations/today" />}
                     isActive={pathname.startsWith("/automations/today")}
                     className={NAV_ITEM}
                   >
-                    <CalendarClock className="mr-1.5 size-4 text-primary" />
+                    <CalendarClock
+                      className={`mr-1.5 size-4 ${pathname.startsWith("/automations/today") ? "text-primary" : "text-sidebar-foreground/70"}`}
+                    />
                     <span>Today</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -134,7 +144,9 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                     isActive={pathname.startsWith("/automations/review")}
                     className={NAV_ITEM}
                   >
-                    <ClipboardCheck className="mr-1.5 size-4 text-muted-foreground" />
+                    <ClipboardCheck
+                      className={`mr-1.5 size-4 ${pathname.startsWith("/automations/review") ? "text-primary" : "text-sidebar-foreground/70"}`}
+                    />
                     <span>Review Queue</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -149,7 +161,9 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                       isActive={pathname === "/automations"}
                       className={NAV_ITEM}
                     >
-                      <Sparkles className="mr-1.5 size-4 text-muted-foreground" />
+                      <Sparkles
+                        className={`mr-1.5 size-4 ${pathname === "/automations" ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
                       <span>Automations Hub</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

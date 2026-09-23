@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, PlayCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 function flatten(detail: unknown): string {
   // Defense in depth: the backend already caps how much detail it sends
@@ -61,26 +62,22 @@ export function RunJobButton({ jobId, hasCursor = false }: { jobId: string; hasC
 
   return (
     <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={() => run(false)}
-        disabled={pending}
-        className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
-      >
+      <Button type="button" size="sm" variant="outline" onClick={() => run(false)} disabled={pending}>
         {pending ? <Loader2 className="size-3 animate-spin" /> : <PlayCircle className="size-3" />}
         {pending ? "Running…" : "Run now"}
-      </button>
+      </Button>
       {hasCursor && (
-        <button
+        <Button
           type="button"
+          size="sm"
+          variant="outline"
           onClick={() => run(true)}
           disabled={pending}
           title="Clears this scan's remembered position first, so it re-reads everything back to its initial lookback window instead of only what's new since last time"
-          className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
         >
           <RotateCcw className="size-3" />
           Reset & rescan
-        </button>
+        </Button>
       )}
     </div>
   );
