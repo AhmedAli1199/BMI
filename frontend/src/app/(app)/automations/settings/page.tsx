@@ -32,9 +32,7 @@ export default async function AutomationSettingsPage() {
           Tune every scan
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Changes here take effect on that scan&apos;s next scheduled run, or the next time you hit
-          &quot;Run now&quot; - no restart or redeploy needed. Anything not changed here keeps using its
-          env var default.
+          Changes take effect automatically on the next scheduled run or when you click &quot;Run now&quot;.
         </p>
         <Link
           href="/automations/llm-usage"
