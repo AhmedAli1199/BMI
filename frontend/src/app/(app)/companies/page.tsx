@@ -17,7 +17,7 @@ import { ClickableTableRow } from "@/components/clickable-table-row";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { sourceLabel } from "@/lib/sources";
+import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 
@@ -115,7 +115,9 @@ export default async function CompaniesPage({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{sourceLabel(c.source_db)}</Badge>
+                  <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(c.source_db)}`}>
+                    {sourceLabel(c.source_db)}
+                  </Badge>
                 </TableCell>
               </ClickableTableRow>
             ))}
