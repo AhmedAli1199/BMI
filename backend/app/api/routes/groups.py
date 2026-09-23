@@ -115,7 +115,7 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db)) -> GroupDe
 
     group = Group(
         id=uuid.uuid4(),
-        source_db="manual",
+        source_db=payload.source_db or "manual",
         source_act_id=str(uuid.uuid4()),
         name=payload.name,
         description=payload.description,

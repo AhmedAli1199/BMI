@@ -374,12 +374,14 @@ class GroupCreate(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
     parent_group_id: uuid.UUID | None = None
+    source_db: str | None = None
 
 
 class GroupUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     description: str | None = None
     parent_group_id: uuid.UUID | None = None
+    source_db: str | None = None
 
 
 class GroupListItem(BaseModel):

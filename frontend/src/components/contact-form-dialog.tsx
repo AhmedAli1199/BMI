@@ -156,6 +156,7 @@ export function ContactFormDialog({ existing, defaultSourceDb }: { existing?: Ex
                 search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))}
                 value={company ? { id: company.id, label: company.label } : null}
                 onChange={(v) => setCompany(v)}
+                viewHref={(id) => `/companies/${id}`}
               />
             </div>
             {!existing && (

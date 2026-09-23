@@ -56,7 +56,7 @@ export default async function GroupsPage({
           <form action="/groups" className="w-72">
             <Input name="q" placeholder="Search group name..." defaultValue={q ?? ""} />
           </form>
-          <GroupFormDialog />
+          <GroupFormDialog defaultSourceDb={source_db} />
         </div>
       </div>
 

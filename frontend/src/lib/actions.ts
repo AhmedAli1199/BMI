@@ -408,6 +408,8 @@ export async function deleteCompanyNote(companyId: string, noteId: string) {
 export type GroupFormInput = {
   name: string;
   description?: string;
+  source_db?: string;
+  parent_group_id?: string | null;
 };
 
 export async function createGroup(input: GroupFormInput) {
