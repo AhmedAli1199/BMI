@@ -44,13 +44,32 @@ export async function backendFetch<T>(path: string, init?: RequestInit): Promise
       cache: "no-store",
     });
     if (!res.ok) {
-      const detail = await res.text().catch(() => "");
+      const rawBody = await res.text().catch(() => "");
       // In local dev, if 404 or backend mismatch, try fallback
       if (process.env.NODE_ENV === "development") {
         const fallback = getDevFallback<T>(path);
         if (fallback !== null) return fallback;
       }
-      throw new Error(`Backend request failed: ${res.status} ${path}${detail ? ` - ${detail}` : ""}`);
+      // The full "status + path + raw body" string is developer-facing -
+      // useful in server logs, never something a reviewer should see in a
+      // toast (see review-item-card.tsx's catch blocks, which show
+      // e.message directly). FastAPI's own error responses are always
+      // {"detail": "<a real sentence already written for a human>"} - use
+      // that verbatim when present, so an action's own backend message
+      // ("This signal no longer exists - it may have been superseded by a
+      // newer message on the same thread.") reaches the user unmangled.
+      const fullMessage = `Backend request failed: ${res.status} ${path}${rawBody ? ` - ${rawBody}` : ""}`;
+      console.error(fullMessage);
+      let userMessage = `Something went wrong (${res.status}). Please try again.`;
+      try {
+        const parsed = JSON.parse(rawBody);
+        if (typeof parsed?.detail === "string" && parsed.detail.trim()) {
+          userMessage = parsed.detail;
+        }
+      } catch {
+        // Not JSON (a proxy/gateway error page, etc.) - keep the generic message.
+      }
+      throw new Error(userMessage);
     }
     if (res.status === 204) {
       return undefined as T;

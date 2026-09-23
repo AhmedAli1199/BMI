@@ -58,11 +58,18 @@ PLAYWRIGHT_CHROMIUM_PATH=/path/to/chromium npm run test:e2e
   `backend/tests/test_morning_queue.py`'s API-level coverage of the same
   bug.
 
-## A gap found while writing these (not yet fixed)
+## A gap found while writing these (fixed)
 
-Resolving a `signal_trigger` or `personal_touchpoint_due` review item
-whose linked `EmailSignal` row no longer exists returns a 400 from the
-backend, which the frontend's server action does not catch - it
-currently takes down the whole `/automations/review` page to a 500
-instead of showing an inline error on that one card. Worth a follow-up
-fix; out of scope for this test-suite pass.
+Resolving a review item that fails validation on the backend (e.g. a
+`signal_trigger`/`personal_touchpoint_due` item whose linked
+`EmailSignal` row no longer exists) surfaced the raw
+`Backend request failed: 400 /api/review-queue/... - {"detail":"..."}`
+string in the error toast - developer-facing, not what a reviewer should
+see. Turned out NOT to crash the page (the component's own try/catch was
+already working; an earlier read of Next's server-action transport
+returning its own 500 status for a thrown action was mistaken for a
+broken page). Fixed in `lib/backend.ts`'s `backendFetch`: every non-2xx
+response now surfaces the backend's own `detail` message (FastAPI's
+standard error shape) cleanly, and logs the full status/path/body to the
+server console instead - fixes this for every toast across the app, not
+just the review queue.
