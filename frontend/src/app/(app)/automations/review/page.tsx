@@ -98,37 +98,53 @@ export default async function ReviewQueuePage({
 
       {/* Kind filter strip - built entirely from what's registered, so a
           new automation appears here (even with 0 items) with no frontend
-          change needed. Each chip carries the same icon/color used
-          throughout the automations UI, so the queue and the overview
-          read as one system. */}
+          change needed. Deliberately restrained: every chip shares one
+          neutral outline (a saturated per-kind border on every chip at
+          once read as noise, not signal - the icon's own tint is enough
+          to keep each automation recognizable). Selection is the one
+          splash of color, so the eye finds it instantly. Kinds with
+          nothing pending sort to the end and sit at lower opacity - with
+          most automations idle most of the time, a wall of "(0)" chips
+          otherwise buries the ones actually waiting on you. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Link href={kindHref()}>
             <Badge
               variant={!activeKind ? "default" : "outline"}
-              className="cursor-pointer gap-1 px-3 py-1.5 text-xs font-semibold transition-colors"
+              className={`cursor-pointer gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                !activeKind ? "" : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+              }`}
             >
-              All ({totalPending})
+              All
+              <span className={!activeKind ? "opacity-80" : "opacity-60"}>{totalPending}</span>
             </Badge>
           </Link>
-          {kinds.map((k) => {
-            const style = styleForKind(k.kind);
-            const Icon = style.icon;
-            const isActive = activeKind === k.kind;
-            return (
-              <Link key={k.kind} href={kindHref(k.kind)}>
-                <Badge
-                  variant={isActive ? "default" : "outline"}
-                  className={`cursor-pointer gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    isActive ? "" : style.color
-                  }`}
-                >
-                  <Icon className="size-3.5" />
-                  {k.label} ({countFor(k.kind)})
-                </Badge>
-              </Link>
-            );
-          })}
+          {[...kinds]
+            .sort((a, b) => (countFor(b.kind) > 0 ? 1 : 0) - (countFor(a.kind) > 0 ? 1 : 0))
+            .map((k) => {
+              const style = styleForKind(k.kind);
+              const Icon = style.icon;
+              const isActive = activeKind === k.kind;
+              const count = countFor(k.kind);
+              return (
+                <Link key={k.kind} href={kindHref(k.kind)}>
+                  <Badge
+                    variant={isActive ? "default" : "outline"}
+                    className={`cursor-pointer gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      isActive
+                        ? ""
+                        : count > 0
+                        ? "border-border/60 text-foreground hover:border-border"
+                        : "border-border/40 text-muted-foreground/70 hover:border-border/60 hover:text-muted-foreground"
+                    }`}
+                  >
+                    <Icon className={`size-3.5 ${isActive ? "" : count > 0 ? style.color : ""}`} />
+                    {k.label}
+                    <span className={isActive ? "opacity-80" : count > 0 ? "text-muted-foreground" : "opacity-70"}>{count}</span>
+                  </Badge>
+                </Link>
+              );
+            })}
         </div>
 
         {/* Sort control - confidence lives on every kind's payload (a
