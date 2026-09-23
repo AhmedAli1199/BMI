@@ -6,7 +6,10 @@ __pycache__/
 *.pyc
 node_modules/
 .next/
-.claude/
+.claude/*
+# Exception: vendored skills for the ui-polish-revamp work are meant to be
+# shared/committed, not local session state.
+!.claude/skills/
 CREDENTIALS.local.md
 DATA_INSPECTION_REPORT.md
 etl-onboard.log
