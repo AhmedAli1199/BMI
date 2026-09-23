@@ -350,7 +350,7 @@ def process_business_card_photo(
 
         db.add(ReviewQueueItem(
             id=uuid.uuid4(),
-            kind=kind,
+            kind=kind, source_db=source_db,
             entity_type="contact" if match else None,
             entity_id=match.id if match else None,
             payload={

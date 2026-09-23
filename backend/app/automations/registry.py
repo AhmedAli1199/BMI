@@ -119,6 +119,17 @@ class ReviewKind:
     # explicit approve action does that. None (the default) means this
     # kind has no re-draftable text, and POST .../redraft 400s for it.
     redraft: Callable[[Session, ReviewQueueItem, str], str] | None = None
+    # Phase 1 of scoping automations by role (see app/roles.py's
+    # CAN_USE_AUTOMATIONS and frontend/src/lib/access.ts) - "sales" for a
+    # kind that's genuinely a salesperson's own work (a follow-up draft on
+    # their own lead), "admin" for CRM-hygiene work (merges, departures,
+    # bounce triage) that stays with admins/data managers regardless of
+    # this flag. Not enforced yet on its own - Phase 2 wires this (plus
+    # ReviewQueueItem.source_db) into real per-request access checks;
+    # this field only records the intended audience now, decided
+    # kind-by-kind, so that phase has something correct to enforce rather
+    # than guessing it retroactively.
+    audience: Literal["sales", "admin"] = "admin"
 
 
 _REGISTRY: dict[str, ReviewKind] = {}

@@ -194,6 +194,7 @@ register(ReviewKind(
     ],
     handler=_handle_signal_trigger,
     redraft=_redraft_signal_trigger,
+    audience="sales",
 ))
 
 
@@ -252,7 +253,7 @@ def scan_signal_triggers() -> None:
             contact_label = contact.full_name or contact.first_name or "a contact"
             draft, was_ai = _draft_followup_text(signal, contact_label)
             db.add(ReviewQueueItem(
-                id=uuid.uuid4(), kind="signal_trigger",
+                id=uuid.uuid4(), kind="signal_trigger", source_db=contact.source_db,
                 entity_type="contact", entity_id=contact.id,
                 payload={
                     "summary": f"{label} for {contact_label}" + (f" - due {signal.due_date.isoformat()}" if signal.due_date else ""),

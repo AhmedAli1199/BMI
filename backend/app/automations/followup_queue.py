@@ -134,6 +134,7 @@ register(ReviewKind(
     ],
     handler=_handle_followup,
     redraft=_redraft_followup,
+    audience="sales",
 ))
 
 
@@ -247,7 +248,7 @@ def scan_for_due_followups() -> None:
 
             db.add(ReviewQueueItem(
                 id=uuid.uuid4(),
-                kind="followup_due",
+                kind="followup_due", source_db=activity.source_db,
                 entity_type="activity",
                 entity_id=activity.id,
                 payload={

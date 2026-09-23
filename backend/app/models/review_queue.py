@@ -22,6 +22,18 @@ class ReviewQueueItem(Base, UUIDPk):
     # Which automation created this, e.g. "bounce_handling", "ai_followup_draft".
     kind: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
 
+    # Which of the three Act! databases (or "*" for a not-yet-resolved
+    # shared-inbox lead) this item's underlying contact/company/activity
+    # belongs to - set once, at queue time, from that record's own
+    # source_db (never guessed). Nullable: a handful of kinds have no
+    # resolvable record yet (e.g. bounce_unmatched, a bounce with no
+    # contact match at all) - those stay database-agnostic and are only
+    # ever admin-audience kinds, never shown scoped to one rep. Exists so
+    # per-database/per-rep access scoping (see app/roles.py,
+    # frontend/src/lib/access.ts) can filter review_queue directly,
+    # without a join through Contact/Company/Activity on every request.
+    source_db: Mapped[str | None] = mapped_column(String(32), index=True)
+
     # What the automation proposes to do, and to what - kept generic (jsonb)
     # since every automation's payload shape is different (a draft email
     # body vs. a proposed contact-field correction vs. a bounce action).

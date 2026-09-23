@@ -142,6 +142,7 @@ register(ReviewKind(
     ],
     handler=_handle_touchpoint,
     redraft=_redraft_touchpoint,
+    audience="sales",
 ))
 
 
@@ -199,7 +200,7 @@ def scan_personal_touchpoints() -> None:
             contact_label = contact.full_name or contact.first_name or "a contact"
             draft, was_ai = _draft_touchpoint_text(signal, contact_label)
             db.add(ReviewQueueItem(
-                id=uuid.uuid4(), kind="personal_touchpoint_due",
+                id=uuid.uuid4(), kind="personal_touchpoint_due", source_db=contact.source_db,
                 entity_type="contact", entity_id=contact.id,
                 payload={
                     "summary": f"Personal touchpoint for {contact_label}" + (f" - due {signal.due_date.isoformat()}" if signal.due_date else ""),

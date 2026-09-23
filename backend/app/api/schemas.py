@@ -475,12 +475,17 @@ class ReviewKindOut(BaseModel):
     label: str
     description: str
     actions: list[ReviewActionOut]
+    # Phase 1 labeling only (see registry.py's ReviewKind.audience) - not
+    # yet enforced server-side; exposed now so Phase 2 has a real field to
+    # gate on rather than adding one later.
+    audience: str
 
 
 class ReviewQueueItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     kind: str
+    source_db: str | None = None
     entity_type: str | None = None
     entity_id: uuid.UUID | None = None
     payload: dict

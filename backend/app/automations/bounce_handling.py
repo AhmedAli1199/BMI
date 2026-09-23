@@ -293,7 +293,7 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
 
     if contact:
         db.add(ReviewQueueItem(
-            id=uuid.uuid4(), kind="bounce_uncertain",
+            id=uuid.uuid4(), kind="bounce_uncertain", source_db=contact.source_db,
             entity_type="contact", entity_id=contact.id,
             payload={
                 "summary": f"{'Hard' if severity == 'hard' else 'Soft'} bounce for "
@@ -385,7 +385,7 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
             ooo_prefill["email"] = first_rep["email"]
 
     db.add(ReviewQueueItem(
-        id=uuid.uuid4(), kind="ooo_ambiguous",
+        id=uuid.uuid4(), kind="ooo_ambiguous", source_db=original.source_db,
         entity_type="contact", entity_id=original.id,
         payload={
             "summary": (

@@ -37,6 +37,7 @@ def list_kinds() -> list[ReviewKindOut]:
             kind=k.kind,
             label=k.label,
             description=k.description,
+            audience=k.audience,
             actions=[
                 ReviewActionOut(
                     id=a.id, label=a.label, style=a.style, outcome=a.outcome,

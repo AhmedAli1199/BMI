@@ -229,7 +229,7 @@ def process_returned_copy_photo(
         if not matched:
             display_name = label.get("name") or label.get("company") or "Unknown recipient"
             db.add(ReviewQueueItem(
-                id=uuid.uuid4(), kind="returned_copy", entity_type=None, entity_id=None,
+                id=uuid.uuid4(), kind="returned_copy", source_db=source_db, entity_type=None, entity_id=None,
                 payload={
                     "summary": f"Returned copy for \"{display_name}\" - no match found in {source_db}",
                     "details": details,
@@ -245,7 +245,7 @@ def process_returned_copy_photo(
             matched_count += 1
             matched_label = matched.full_name if contact else matched.name
             db.add(ReviewQueueItem(
-                id=uuid.uuid4(), kind="returned_copy",
+                id=uuid.uuid4(), kind="returned_copy", source_db=source_db,
                 entity_type=matched_type, entity_id=matched.id,
                 payload={
                     "summary": f"Returned copy for {matched_label or '(unnamed)'}",

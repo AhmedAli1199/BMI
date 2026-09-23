@@ -231,6 +231,9 @@ export type ReviewKind = {
   label: string;
   description: string;
   actions: ReviewAction[];
+  /** Phase 1 labeling only (see backend registry.py's ReviewKind.audience)
+   * - not yet enforced; "sales" vs "admin" who a kind is meant for. */
+  audience: "sales" | "admin";
 };
 
 export type ReviewDetail = { key?: string; label: string; value: string; editable?: boolean };
@@ -281,6 +284,7 @@ export type ReviewPayload = {
 export type ReviewQueueItem = {
   id: string;
   kind: string;
+  source_db: string | null;
   entity_type: string | null;
   entity_id: string | null;
   payload: ReviewPayload;

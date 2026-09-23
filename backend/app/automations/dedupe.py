@@ -452,7 +452,7 @@ def scan_for_duplicates() -> None:
 
             db.add(ReviewQueueItem(
                 id=uuid.uuid4(),
-                kind="duplicate_contact",
+                kind="duplicate_contact", source_db=survivor.source_db,
                 entity_type="contact",
                 entity_id=survivor.id,
                 payload={

@@ -205,6 +205,7 @@ register(ReviewKind(
         ReviewAction(id="ignore", label="Not a lead, ignore", style="secondary", outcome="rejected"),
     ],
     handler=_handle_create_contact,
+    audience="sales",
 ))
 
 
@@ -448,11 +449,16 @@ def scan_inbound_contacts() -> None:
                     prefill["mobile"] = signature["mobile"]
                 if suggested_groups:
                     prefill["groups"] = ", ".join(g.name for g in suggested_groups)
-                if source_db:
-                    prefill["source_db"] = source_db
+                # source_db deliberately NEVER goes in prefill - a normal
+                # per-title mailbox already has a real, resolved source_db
+                # that isn't something to ask about at all (see
+                # review-item-card.tsx: that field only renders when
+                # payload.source_db == "*", a shared inbox with nothing to
+                # prefill since the whole point is the reviewer must pick).
 
                 db.add(ReviewQueueItem(
                     id=uuid.uuid4(), kind="inbound_contact_unmatched",
+                    source_db=source_db if source_db != "*" else None,
                     entity_type=None, entity_id=None,
                     payload={
                         "summary": (
