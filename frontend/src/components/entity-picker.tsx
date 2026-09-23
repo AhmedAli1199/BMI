@@ -3,7 +3,8 @@
    list synchronously when the query is emptied is the correct, immediate
    behavior here, not accidental prop-mirroring. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ExternalLink, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,15 @@ type Option = { id: string; label: string; sublabel?: string | null };
  * server action (see lib/actions.ts). Not a full combobox library - these
  * lists run into the tens of thousands of rows, so a plain <select> was
  * never an option; this is the minimum that actually works at that scale.
+ *
+ * The results dropdown is portaled to document.body and positioned by
+ * the input's own bounding rect, rather than an absolutely-positioned
+ * child of this component - every shadcn Card (and several other
+ * containers in this app) ships with `overflow-hidden` on its base
+ * class, so a plain in-flow absolute dropdown gets silently clipped to
+ * a sliver the moment it's used inside one (e.g. the contact page's
+ * "Add to group" picker, inside a Card). Portaling escapes that
+ * entirely, for every use of this component at once.
  */
 export function EntityPicker({
   label,
@@ -37,7 +47,9 @@ export function EntityPicker({
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<Option[]>([]);
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -52,11 +64,35 @@ export function EntityPicker({
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (boxRef.current?.contains(target)) return;
+      if (inputWrapRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  // Recomputes the dropdown's floating position from the input's real
+  // on-screen location whenever it opens, and keeps it glued there
+  // through scroll/resize while open - a portal has no natural
+  // relationship to the input's position otherwise.
+  useLayoutEffect(() => {
+    if (!open) return;
+    function updateRect() {
+      const el = inputWrapRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
+    }
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [open]);
 
   if (value) {
     return (
@@ -89,8 +125,10 @@ export function EntityPicker({
     );
   }
 
+  const showDropdown = open && options.length > 0 && rect;
+
   return (
-    <div className="relative" ref={boxRef}>
+    <div ref={inputWrapRef}>
       <Input
         placeholder={placeholder}
         value={query}
@@ -100,26 +138,32 @@ export function EntityPicker({
         }}
         onFocus={() => setOpen(true)}
       />
-      {open && options.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-              onClick={() => {
-                onChange(opt);
-                setQuery("");
-                setOptions([]);
-                setOpen(false);
-              }}
-            >
-              {opt.label}
-              {opt.sublabel && <span className="text-muted-foreground"> · {opt.sublabel}</span>}
-            </button>
-          ))}
-        </div>
-      )}
+      {showDropdown &&
+        createPortal(
+          <div
+            ref={boxRef}
+            style={{ position: "absolute", top: rect.top, left: rect.left, width: rect.width }}
+            className="z-50 max-h-64 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                onClick={() => {
+                  onChange(opt);
+                  setQuery("");
+                  setOptions([]);
+                  setOpen(false);
+                }}
+              >
+                {opt.label}
+                {opt.sublabel && <span className="text-muted-foreground"> · {opt.sublabel}</span>}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

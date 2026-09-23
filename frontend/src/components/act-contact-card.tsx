@@ -24,8 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
+import { EntityPicker } from "@/components/entity-picker";
 import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
-import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress } from "@/lib/actions";
+import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, searchCompanies } from "@/lib/actions";
 
 export function ActContactCard({
   contact,
@@ -44,6 +45,9 @@ export function ActContactCard({
   const [category, setCategory] = useState(contact.category ?? "");
   const [referredBy, setReferredBy] = useState(contact.referred_by ?? "");
   const [birthdate, setBirthdate] = useState(contact.birthdate ?? "");
+  const [company, setCompany] = useState<{ id: string; label: string } | null>(
+    contact.company ? { id: contact.company.id, label: contact.company.name } : null
+  );
 
   // Phone/mobile/email/address live in separate child tables (a contact can
   // have several of each) - the header/business-card view only ever shows
@@ -83,6 +87,7 @@ export function ActContactCard({
             category,
             referred_by: referredBy,
             birthdate,
+            company_id: company?.id ?? null,
           }),
           phone !== (contact.phones[0]?.number ?? "")
             ? saveContactPhone(contact.id, contact.phones[0]?.id, { type_label: "Business", number: phone })
@@ -135,6 +140,7 @@ export function ActContactCard({
     setAddrState(contact.addresses[0]?.state ?? "");
     setAddrPostal(contact.addresses[0]?.postal_code ?? "");
     setAddrCountry(contact.addresses[0]?.country ?? "");
+    setCompany(contact.company ? { id: contact.company.id, label: contact.company.name } : null);
     setEditing(false);
   }
 
@@ -256,18 +262,31 @@ export function ActContactCard({
           {/* Company */}
           <div className="flex items-baseline justify-between gap-2">
             <span className="w-24 shrink-0 text-muted-foreground">Company:</span>
-            <span className="font-semibold text-foreground truncate flex-1 text-right">
-              {contact.company ? (
-                <Link
-                  href={`/companies/${contact.company.id}`}
-                  className="text-primary hover:underline"
-                >
-                  {contact.company.name}
-                </Link>
-              ) : (
-                "—"
-              )}
-            </span>
+            {editing ? (
+              <div className="flex-1">
+                <EntityPicker
+                  label="company"
+                  placeholder="Search companies…"
+                  search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name }))}
+                  value={company}
+                  onChange={setCompany}
+                  viewHref={(id) => `/companies/${id}`}
+                />
+              </div>
+            ) : (
+              <span className="font-semibold text-foreground truncate flex-1 text-right">
+                {contact.company ? (
+                  <Link
+                    href={`/companies/${contact.company.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {contact.company.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </span>
+            )}
           </div>
 
           {/* Job Title */}
