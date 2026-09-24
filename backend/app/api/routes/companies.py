@@ -349,7 +349,7 @@ def update_company(
         setattr(company, field, value)
     record_field_changes(
         db, entity_type="company", entity_id=company.id, before=before, updates=updates,
-        changed_by_user_id=uuid.UUID(identity.user_id) if identity.user_id else None,
+        changed_by_user_id=identity.user_uuid,
     )
     db.commit()
     return get_company(company_id, db)

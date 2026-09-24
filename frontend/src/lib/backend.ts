@@ -45,8 +45,14 @@ export async function backendFetch<T>(path: string, init?: RequestInit): Promise
     });
     if (!res.ok) {
       const rawBody = await res.text().catch(() => "");
-      // In local dev, if 404 or backend mismatch, try fallback
-      if (process.env.NODE_ENV === "development") {
+      // Dev fallback is only for "this backend isn't the one we expect at
+      // all" (wrong port, a proxy/placeholder answering every route with
+      // 404) - never for a status a real, live backend deliberately
+      // returned, like a 422 validation error or a 400/500. Falling back
+      // on any !res.ok used to swallow those too: a rejected PATCH looked
+      // like a successful save (toast + canned demo data back), with the
+      // real failure only visible in a server log nobody was looking at.
+      if (process.env.NODE_ENV === "development" && res.status === 404) {
         const fallback = getDevFallback<T>(path);
         if (fallback !== null) return fallback;
       }

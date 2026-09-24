@@ -79,6 +79,29 @@ function cleanPayload<T extends Record<string, unknown>>(input: T): Partial<T> {
   return out;
 }
 
+/** Same as cleanPayload but for a PATCH/update, where an empty string is a
+ * real, intentional edit ("clear this field out") rather than "field not
+ * filled in yet" - dropping it here silently turned "clear the name" into
+ * a no-op that never reached the backend, so nothing changed on the page,
+ * on reload, or in the field-change history. Only `undefined` (a key the
+ * form never touched) is dropped; `null` and `""` are sent as-is. */
+function cleanUpdatePayload<T extends Record<string, unknown>>(input: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    // An empty string is "clear this field" for a text field, but the
+    // backend's typed fields (birthdate: date, company_id: uuid) reject ""
+    // outright - Pydantic can't parse it as a date/uuid at all, which used
+    // to 422 the *entire* PATCH (every other field in the same request
+    // included) the moment a date field was touched while empty. null is
+    // what every field type actually accepts as "no value" - and reads the
+    // same as "" everywhere a field is displayed (see field-change-
+    // history.tsx: `new_value || "(cleared)"` treats both identically).
+    out[key as keyof T] = (value === "" ? null : value) as T[keyof T];
+  }
+  return out;
+}
+
 export async function createContact(input: ContactFormInput) {
   const contact = await backendFetch<ContactDetail>("/api/contacts", {
     method: "POST",
@@ -94,7 +117,7 @@ export async function updateContact(id: string, input: ContactFormInput) {
   const contact = await backendFetch<ContactDetail>(`/api/contacts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cleanPayload(input)),
+    body: JSON.stringify(cleanUpdatePayload(input)),
   });
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
@@ -415,7 +438,7 @@ export async function updateCompany(id: string, input: Partial<CompanyFormInput>
   await backendFetch<void>(`/api/companies/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cleanPayload(input)),
+    body: JSON.stringify(cleanUpdatePayload(input)),
   });
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
@@ -464,7 +487,7 @@ export async function updateGroup(id: string, input: Partial<GroupFormInput>) {
   await backendFetch<void>(`/api/groups/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cleanPayload(input)),
+    body: JSON.stringify(cleanUpdatePayload(input)),
   });
   revalidatePath("/groups");
   revalidatePath(`/groups/${id}`);

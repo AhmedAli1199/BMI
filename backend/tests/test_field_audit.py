@@ -90,6 +90,24 @@ def test_an_edit_with_no_identity_header_still_writes_a_row_with_no_attribution(
     assert changes[0]["changed_by"] is None
 
 
+def test_a_non_uuid_user_id_edits_the_record_without_attribution_instead_of_500ing(client, db_session):
+    """Regression: the frontend's local-dev bypass identity (session.ts's
+    sub="local-dev", used whenever there's no verified session cookie)
+    is a real, known identity (a role is set) but was never issued a
+    database user row - its id isn't a UUID at all. identity.py's own
+    docstring says a non-UUID id should fall back to "no user", but the
+    PATCH route used to do uuid.UUID(identity.user_id) directly, which
+    raised and 500'd the whole request instead - clearing a field (or
+    editing anything) silently failed for that one identity."""
+    resp = client.patch(
+        f"/api/contacts/{_create_contact(client)['id']}",
+        json={"job_title": "Mathematician"},
+        headers={"X-BMI-User-Id": "local-dev", "X-BMI-User-Role": "admin"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["job_title"] == "Mathematician"
+
+
 def test_company_field_edits_are_also_recorded(client, db_session):
     rep = make_user(db_session, role="admin", name="Admin User")
     company = _create_company(client)
@@ -122,3 +140,49 @@ def test_field_changes_for_unknown_contact_is_an_empty_list_not_an_error(client)
     resp = client.get(f"/api/contacts/{uuid.uuid4()}/field-changes")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_clearing_first_and_last_name_recomputes_full_name(client, db_session):
+    """Regression: clearing first/last name used to leave the old
+    full_name behind (never recomputed on update, unlike create_contact),
+    so the record kept showing its old name everywhere even though the
+    underlying first/last fields had genuinely changed."""
+    rep = make_user(db_session, role="sales", name="Jane Rep")
+    contact = _create_contact(client, first_name="Ada", last_name="Lovelace")
+    assert contact["full_name"] == "Ada Lovelace"
+
+    resp = client.patch(
+        f"/api/contacts/{contact['id']}", json={"first_name": "", "last_name": ""},
+        headers=identity_headers(rep),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["full_name"] is None
+
+    resp = client.get(f"/api/contacts/{contact['id']}")
+    assert resp.json()["full_name"] is None
+
+    changes = {c["field"]: c for c in client.get(f"/api/contacts/{contact['id']}/field-changes").json()}
+    assert changes["first_name"]["new_value"] == ""
+    assert changes["last_name"]["new_value"] == ""
+    assert "full_name" in changes
+    assert changes["full_name"]["old_value"] == "Ada Lovelace"
+    assert changes["full_name"]["new_value"] is None
+
+
+def test_setting_a_new_first_name_recomputes_full_name(client, db_session):
+    contact = _create_contact(client, first_name="Ada", last_name="Lovelace")
+
+    resp = client.patch(f"/api/contacts/{contact['id']}", json={"first_name": "Grace"})
+    assert resp.status_code == 200
+    assert resp.json()["full_name"] == "Grace Lovelace"
+
+
+def test_explicit_full_name_override_is_not_clobbered_by_recompute(client, db_session):
+    contact = _create_contact(client, first_name="Ada", last_name="Lovelace")
+
+    resp = client.patch(
+        f"/api/contacts/{contact['id']}",
+        json={"first_name": "Grace", "full_name": "Dr. Grace Lovelace"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["full_name"] == "Dr. Grace Lovelace"

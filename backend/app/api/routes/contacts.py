@@ -445,12 +445,22 @@ def update_contact(
         raise HTTPException(status_code=400, detail="company_id does not exist")
 
     updates = payload.model_dump(exclude_unset=True)
+    # full_name is derived from first/last at create time (see
+    # create_contact) but was never recomputed here - clearing both name
+    # fields left the old full_name behind, so the record still displayed
+    # its old name everywhere (the header, contacts list, EntityAvatar)
+    # even though first_name/last_name had genuinely changed underneath.
+    # Skipped only if the caller explicitly set full_name itself.
+    if ("first_name" in updates or "last_name" in updates) and "full_name" not in updates:
+        new_first = updates.get("first_name", contact.first_name)
+        new_last = updates.get("last_name", contact.last_name)
+        updates["full_name"] = " ".join(filter(None, [new_first, new_last])) or None
     before = {field: getattr(contact, field) for field in updates}
     for field, value in updates.items():
         setattr(contact, field, value)
     record_field_changes(
         db, entity_type="contact", entity_id=contact.id, before=before, updates=updates,
-        changed_by_user_id=uuid.UUID(identity.user_id) if identity.user_id else None,
+        changed_by_user_id=identity.user_uuid,
     )
     db.commit()
     return get_contact(contact_id, db)

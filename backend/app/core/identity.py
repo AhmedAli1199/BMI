@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from dataclasses import dataclass, field
 
 from fastapi import Header
@@ -47,6 +48,24 @@ class Identity:
     @property
     def is_admin(self) -> bool:
         return self.role == ROLE_ADMIN
+
+    @property
+    def user_uuid(self) -> uuid.UUID | None:
+        """user_id as a real UUID for a FK column (FieldChange.changed_by_
+        user_id, etc.) - None for anything that isn't one, most notably
+        the frontend's local-dev bypass identity (sub="local-dev", see
+        frontend/src/lib/session.ts), which is a real, known identity
+        (role is set) but was never issued a database user row. Every
+        caller that writes this into a FK column should use this instead
+        of parsing user_id directly - a non-UUID id must never fail the
+        request itself (fail-open, same as the rest of this module), it
+        should just mean "can't attribute this one to a real user"."""
+        if not self.user_id:
+            return None
+        try:
+            return uuid.UUID(self.user_id)
+        except ValueError:
+            return None
 
     def allowed_source_dbs(self) -> set[str] | None:
         """None = unrestricted (admin, or no identity forwarded). An

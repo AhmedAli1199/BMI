@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Building2,
@@ -37,6 +38,7 @@ export function ActContactCard({
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const router = useRouter();
 
   // Editable Form State
   const [firstName, setFirstName] = useState(contact.first_name ?? "");
@@ -118,6 +120,14 @@ export function ActContactCard({
         ]);
         toast.success("Contact record updated");
         setEditing(false);
+        // The header name (and anything else read straight off `contact`
+        // rather than its own local edit-form state, like full_name) never
+        // updates on its own - updateContact's revalidatePath only marks
+        // the route stale for the *next* navigation, it doesn't re-render
+        // this already-mounted page. Without this, clearing the name
+        // fields appeared to silently do nothing: saved fine, but the
+        // header kept showing the old name until a manual reload.
+        router.refresh();
       } catch {
         toast.error("Failed to save changes");
       }
