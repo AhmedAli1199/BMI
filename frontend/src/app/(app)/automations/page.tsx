@@ -87,7 +87,16 @@ function KindCard({ k, c }: { k: ReviewKind; c: { pending: number; approved: num
   );
 }
 
-export default async function AutomationsPage() {
+const VALID_TABS = ["sales", "capture", "hygiene", "business-cards", "engine"];
+
+export default async function AutomationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const activeTab = VALID_TABS.includes(tab || "") ? tab! : "sales";
+
   const session = await getSession();
   if (!canUseAutomations(session)) {
     return (
@@ -249,7 +258,7 @@ export default async function AutomationsPage() {
           workstream's automations. Business card capture gets its own
           dedicated tab (per BMI's ask) rather than being buried at the
           end of a long scroll. */}
-      <Tabs defaultValue="sales" className="w-full">
+      <Tabs defaultValue={activeTab} className="w-full">
         <div className="overflow-x-auto border-b border-border/80 bg-muted/30 px-1">
           <TabsList className="h-auto w-max gap-1 bg-transparent p-0 pt-1">
             {AUTOMATION_CATEGORIES.filter((cat) => cat.id !== "capture").map((cat) => (

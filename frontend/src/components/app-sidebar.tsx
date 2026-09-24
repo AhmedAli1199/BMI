@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ClipboardCheck, HeartPulse, Settings, Sparkles } from "lucide-react";
+import { BrainCircuit, CalendarClock, ClipboardCheck, HeartPulse, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -126,6 +126,20 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                     other two were always text-muted-foreground, which
                     read as broken/inconsistent rather than as a
                     deliberate active-state design. */}
+                {canUseAutomations(session) && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href="/brain" />}
+                      isActive={pathname === "/brain"}
+                      className={NAV_ITEM}
+                    >
+                      <BrainCircuit
+                        className={`mr-1.5 size-4 ${pathname === "/brain" ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
+                      <span>Command Center</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     render={<Link href="/automations/today" />}
