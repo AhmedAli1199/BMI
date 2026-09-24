@@ -33,6 +33,7 @@ from app.api.routes._channels import create_channel, delete_channel, delete_enti
 from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
 from app.db.session import get_db
+from app.services.contact_transfer import reassign_contact_records
 from app.models import (
     Activity,
     Company,
@@ -206,17 +207,17 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
     notes = db.scalars(
         select(Note).where(Note.entity_type == "contact", Note.entity_id == contact_id)
         .order_by(Note.act_created_at.desc().nulls_last())
-        .limit(100)
+        .limit(500)
     ).all()
     history = db.scalars(
         select(HistoryEntry).where(HistoryEntry.entity_type == "contact", HistoryEntry.entity_id == contact_id)
         .order_by(HistoryEntry.occurred_at.desc())
-        .limit(100)
+        .limit(500)
     ).all()
     activities = db.scalars(
         select(Activity).where(Activity.contact_id == contact_id)
         .order_by(Activity.start_at.desc())
-        .limit(100)
+        .limit(500)
     ).all()
 
     creators = resolve_creators(db, [*notes, *history, *activities])
@@ -438,6 +439,27 @@ def update_contact(contact_id: uuid.UUID, payload: ContactUpdate, db: Session = 
         setattr(contact, field, value)
     db.commit()
     return get_contact(contact_id, db)
+
+
+@router.post("/{contact_id}/reassign/{successor_id}", status_code=204, response_model=None)
+def reassign_contact(contact_id: uuid.UUID, successor_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    """"When a contact leaves a particular company, we can easily move
+    notes in ACT from that person to a new person" - BMI's own Act pain-
+    points doc. A manual, rep-initiated action (the rep already knows who
+    left and who replaced them) - see app/services/contact_transfer.py's
+    docstring for why the actual move logic lives there rather than here,
+    shared with a future CS-003 automation instead of being reimplemented."""
+    if contact_id == successor_id:
+        raise HTTPException(status_code=400, detail="Pick a different contact to move records to.")
+    source = db.get(Contact, contact_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    destination = db.get(Contact, successor_id)
+    if not destination:
+        raise HTTPException(status_code=400, detail="The contact to move records to doesn't exist.")
+
+    reassign_contact_records(db, source=source, destination=destination)
+    db.commit()
 
 
 @router.delete("/{contact_id}", status_code=204, response_model=None)

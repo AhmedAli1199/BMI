@@ -145,7 +145,10 @@ export default async function CompanyDetailPage({
               </div>
               <div className="flex items-center gap-2">
                 <AddExistingContactPicker companyId={company.id} companyName={company.name} />
-                <ContactFormDialog defaultSourceDb={company.source_db} />
+                <ContactFormDialog
+                  defaultSourceDb={company.source_db}
+                  defaultCompany={{ id: company.id, name: company.name }}
+                />
               </div>
             </div>
 

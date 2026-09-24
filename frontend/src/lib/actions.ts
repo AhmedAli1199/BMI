@@ -109,6 +109,16 @@ export async function deleteContact(id: string) {
   revalidatePath("/contacts");
 }
 
+/** Moves every note/history entry from one contact to another - "when a
+ * contact leaves a particular company, we can easily move notes in ACT
+ * from that person to a new person" (BMI's own Act pain-points doc). See
+ * backend/app/services/contact_transfer.py for what actually moves. */
+export async function reassignContact(contactId: string, successorId: string) {
+  await backendFetch<void>(`/api/contacts/${contactId}/reassign/${successorId}`, { method: "POST" });
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath(`/contacts/${successorId}`);
+}
+
 export async function addContactToGroup(contactId: string, groupId: string) {
   await backendFetch<void>(`/api/contacts/${contactId}/groups/${groupId}`, { method: "POST" });
   revalidatePath(`/contacts/${contactId}`);

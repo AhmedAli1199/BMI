@@ -330,16 +330,27 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
     return True
 
 
-def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
+def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts: set[uuid.UUID]) -> bool:
     """Queues a review item for a message that looks like an out-of-office
     / auto-reply, but only when the sender is someone already in the CRM -
     an auto-reply from an address we have no contact for isn't something a
     reviewer can act on - AND the LLM call confirms it's a genuine absence
     notice, not a generic auto-ack template that merely looked OOO-shaped
     to the cheap heuristics (see _classify_ooo). Returns True if something
-    was queued."""
+    was queued.
+
+    One pending item per contact at a time (pending_ooo_contacts, same
+    shape as inbound_capture.py's pending_senders): someone out for two
+    weeks has their auto-reply fire on every new thread that reaches
+    them, not just once - without this, that's a fresh "X is out of
+    office" card per message, which is exactly what flooded the queue
+    during the Sept 23 demo ("almost filled entirely by these out-of-
+    office emails"). A second auto-reply from someone already queued adds
+    nothing a reviewer could act on differently, so it's just skipped."""
     original = find_contact_by_email(db, msg.from_address)
     if not original:
+        return False
+    if original.id in pending_ooo_contacts:
         return False
 
     classification = _classify_ooo(msg)
@@ -410,6 +421,7 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage) -> bool:
             "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
         },
     ))
+    pending_ooo_contacts.add(original.id)
     return True
 
 
@@ -440,6 +452,18 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
                 select(ReviewQueueItem.payload["message_id"].astext).where(
                     ReviewQueueItem.kind.in_(["bounce_uncertain", "bounce_unmatched", "ooo_ambiguous"]),
                     ReviewQueueItem.status == "pending",
+                )
+            ).all()
+        )
+        # Global across every mailbox in this run, same dedup shape as
+        # existing_message_ids above but keyed by contact rather than
+        # message - see _handle_candidate_ooo's docstring.
+        pending_ooo_contacts: set[uuid.UUID] = set(
+            db.scalars(
+                select(ReviewQueueItem.entity_id).where(
+                    ReviewQueueItem.kind == "ooo_ambiguous",
+                    ReviewQueueItem.status == "pending",
+                    ReviewQueueItem.entity_id.isnot(None),
                 )
             ).all()
         )
@@ -494,7 +518,7 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
                         capped_out = True
                         break
                     ooo_llm_calls_used += 1
-                    queued = _handle_candidate_ooo(db, msg)
+                    queued = _handle_candidate_ooo(db, msg, pending_ooo_contacts)
                 else:
                     queued = False
                 if queued:

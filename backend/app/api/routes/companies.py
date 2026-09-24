@@ -128,17 +128,17 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
     notes = db.scalars(
         select(Note).where(Note.entity_type == "company", Note.entity_id == company_id)
         .order_by(Note.act_created_at.desc().nulls_last())
-        .limit(100)
+        .limit(500)
     ).all()
     history = db.scalars(
         select(HistoryEntry).where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == company_id)
         .order_by(HistoryEntry.occurred_at.desc())
-        .limit(100)
+        .limit(500)
     ).all()
     activities = db.scalars(
         select(Activity).where(Activity.company_id == company_id)
         .order_by(Activity.start_at.desc())
-        .limit(100)
+        .limit(500)
     ).all()
 
     creators = resolve_creators(db, [*notes, *history, *activities])

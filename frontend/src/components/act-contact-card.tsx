@@ -27,6 +27,7 @@ import { EntityAvatar } from "@/components/entity-avatar";
 import { EntityPicker } from "@/components/entity-picker";
 import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, searchCompanies } from "@/lib/actions";
+import { ReassignContactButton } from "@/components/reassign-contact-button";
 
 export function ActContactCard({
   contact,
@@ -215,15 +216,18 @@ export function ActContactCard({
               </Button>
             </>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setEditing(true)}
-              className="h-7 text-xs gap-1.5 cursor-pointer font-medium hover:border-primary/50"
-            >
-              <Pencil className="size-3 text-muted-foreground" />
-              <span>Edit Record</span>
-            </Button>
+            <>
+              <ReassignContactButton contactId={contact.id} contactName={name} />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditing(true)}
+                className="h-7 text-xs gap-1.5 cursor-pointer font-medium hover:border-primary/50"
+              >
+                <Pencil className="size-3 text-muted-foreground" />
+                <span>Edit Record</span>
+              </Button>
+            </>
           )}
         </div>
       </CardHeader>

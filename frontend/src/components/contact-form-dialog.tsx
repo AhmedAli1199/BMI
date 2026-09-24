@@ -29,7 +29,22 @@ type Existing = {
   company: { id: string; name: string } | null;
 };
 
-export function ContactFormDialog({ existing, defaultSourceDb }: { existing?: Existing; defaultSourceDb?: string }) {
+export function ContactFormDialog({
+  existing,
+  defaultSourceDb,
+  defaultCompany,
+}: {
+  existing?: Existing;
+  defaultSourceDb?: string;
+  /** Pre-fills (and locks) the company field - the "add another contact at
+   * this company" shortcut from the company page. BMI's own complaint
+   * about Act: adding a second contact at a company already in the CRM
+   * should only ever need a name and an email, not re-searching for the
+   * company you're already looking at. Company picker is hidden entirely
+   * in this mode rather than just pre-filled, since re-showing it would
+   * invite second-guessing a choice that's already obvious from context. */
+  defaultCompany?: { id: string; name: string };
+}) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -41,7 +56,11 @@ export function ContactFormDialog({ existing, defaultSourceDb }: { existing?: Ex
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState<{ id: string; label: string } | null>(
-    existing?.company ? { id: existing.company.id, label: existing.company.name } : null
+    existing?.company
+      ? { id: existing.company.id, label: existing.company.name }
+      : defaultCompany
+        ? { id: defaultCompany.id, label: defaultCompany.name }
+        : null
   );
   const [publications, setPublications] = useState<Publication[]>([]);
   const [sourceDb, setSourceDb] = useState(defaultSourceDb ?? "");
@@ -96,13 +115,15 @@ export function ContactFormDialog({ existing, defaultSourceDb }: { existing?: Ex
       ) : (
         <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
-          Add contact
+          {defaultCompany ? "Add contact here" : "Add contact"}
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{existing ? "Edit contact" : "Add contact"}</DialogTitle>
+            <DialogTitle>
+              {existing ? "Edit contact" : defaultCompany ? `Add contact at ${defaultCompany.name}` : "Add contact"}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             {!existing && publications.length > 0 && (
@@ -148,17 +169,19 @@ export function ContactFormDialog({ existing, defaultSourceDb }: { existing?: Ex
               <Label htmlFor="cf-dept">Department</Label>
               <Input id="cf-dept" value={department} onChange={(e) => setDepartment(e.target.value)} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Company</Label>
-              <EntityPicker
-                label="company"
-                placeholder="Search companies…"
-                search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))}
-                value={company ? { id: company.id, label: company.label } : null}
-                onChange={(v) => setCompany(v)}
-                viewHref={(id) => `/companies/${id}`}
-              />
-            </div>
+            {!defaultCompany && (
+              <div className="flex flex-col gap-1.5">
+                <Label>Company</Label>
+                <EntityPicker
+                  label="company"
+                  placeholder="Search companies…"
+                  search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))}
+                  value={company ? { id: company.id, label: company.label } : null}
+                  onChange={(v) => setCompany(v)}
+                  viewHref={(id) => `/companies/${id}`}
+                />
+              </div>
+            )}
             {!existing && (
               <>
                 <div className="flex flex-col gap-1.5">
