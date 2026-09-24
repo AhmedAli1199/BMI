@@ -11,6 +11,7 @@ from app.api.schemas import (
     GroupCreate,
     GroupDetail,
     GroupListItem,
+    GroupMembersRemoveRequest,
     GroupsPage,
     GroupUpdate,
 )
@@ -106,6 +107,27 @@ def get_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> GroupDetail
             for c, company_name in members
         ],
     )
+
+
+@router.post("/{group_id}/members/remove", status_code=204, response_model=None)
+def remove_group_members(group_id: uuid.UUID, payload: GroupMembersRemoveRequest, db: Session = Depends(get_db)) -> None:
+    """Bulk version of DELETE /contacts/{id}/groups/{id} - the single-remove
+    route works fine for one contact, but BMI's own top complaint about the
+    web version of Act was doing this one at a time on a mailing-prep list
+    (see BACKLOG.md/session notes): each removal reset their scroll
+    position back to the top of a long member list. One request, one
+    transaction, so the frontend can remove every checked row locally
+    without a single round trip per contact."""
+    if not db.get(Group, group_id):
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    db.execute(
+        GroupMembership.__table__.delete().where(
+            GroupMembership.group_id == group_id,
+            GroupMembership.contact_id.in_(payload.contact_ids),
+        )
+    )
+    db.commit()
 
 
 @router.post("", response_model=GroupDetail, status_code=201)

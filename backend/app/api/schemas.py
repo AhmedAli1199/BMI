@@ -384,6 +384,10 @@ class GroupUpdate(BaseModel):
     source_db: str | None = None
 
 
+class GroupMembersRemoveRequest(BaseModel):
+    contact_ids: list[uuid.UUID] = Field(min_length=1)
+
+
 class GroupListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

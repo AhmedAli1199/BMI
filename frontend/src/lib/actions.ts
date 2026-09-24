@@ -121,6 +121,20 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
   revalidatePath(`/groups/${groupId}`);
 }
 
+/** Bulk version of removeContactFromGroup - one request for the whole
+ * selection instead of one per contact, so a large mailing-prep cleanup
+ * doesn't mean N round trips (and N chances for the list to jump back to
+ * the top - see group-members-table.tsx, which removes the selected rows
+ * from its own local state rather than re-fetching after this call). */
+export async function removeGroupMembers(groupId: string, contactIds: string[]) {
+  await backendFetch<void>(`/api/groups/${groupId}/members/remove`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contact_ids: contactIds }),
+  });
+  revalidatePath(`/groups/${groupId}`);
+}
+
 export async function addContactNote(
   contactId: string,
   body: string,

@@ -1,18 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { backendFetch } from "@/lib/backend";
 import type { GroupDetail, GroupListItem, Page } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/clickable-table-row";
+import { GroupMembersTable } from "@/components/group-members-table";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteGroup } from "@/lib/actions";
@@ -66,46 +57,7 @@ export default async function GroupDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {group.members.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Job title</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {group.members.map((c) => (
-                  <ClickableTableRow key={c.id} href={`/contacts/${c.id}`}>
-                    <TableCell>
-                      <Link href={`/contacts/${c.id}`} className="hover:underline">
-                        {c.full_name ||
-                          [c.first_name, c.last_name].filter(Boolean).join(" ") ||
-                          "(no name)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {c.company_id ? (
-                        <Link href={`/companies/${c.company_id}`} className="hover:underline">
-                          {c.company_name}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {c.job_title || <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                  </ClickableTableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No members yet — add contacts to this group from their own contact page.
-            </p>
-          )}
+          <GroupMembersTable groupId={group.id} initialMembers={group.members} />
         </CardContent>
       </Card>
     </div>
