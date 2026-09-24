@@ -1,12 +1,19 @@
 import Link from "next/link";
-import { Building2, Sparkles, Users, UsersRound } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, Sparkles, Users, UsersRound } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { DashboardStats, UserPreferences } from "@/lib/types";
+import type { DashboardStats, Page, ReviewQueueItem, UserPreferences } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
-import { accessLabel, allowedSourceDbSlugs, canAddDatabase, resolveScope } from "@/lib/access";
+import { styleForKind } from "@/lib/automation-style";
+import {
+  accessLabel,
+  allowedSourceDbSlugs,
+  canAddDatabase,
+  canViewAutomationsQueue,
+  resolveScope,
+} from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -77,6 +84,32 @@ export default async function DashboardPage() {
   }
 
   const stats = await backendFetch<DashboardStats>(`/api/dashboard/stats${statsParams.size ? `?${statsParams}` : ""}`);
+
+  // "While you were away" - what BMI Brain's automations surfaced or
+  // resolved since the rep last looked. Same review-queue endpoint the
+  // Automations Hub uses, just the 5 most recent items each side rather
+  // than a full paged list. Gated the same way the sidebar's Today/
+  // Review Queue links are - no point fetching this for a role that
+  // can't open either destination.
+  const showOvernightActivity = canViewAutomationsQueue(session);
+  const [pendingActivity, approvedActivity, rejectedActivity] = showOvernightActivity
+    ? await Promise.all([
+        backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=pending&sort=recent&page_size=5").catch(
+          () => ({ items: [], total: 0, page: 1, page_size: 5 })
+        ),
+        backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=approved&sort=recent&page_size=5").catch(
+          () => ({ items: [], total: 0, page: 1, page_size: 5 })
+        ),
+        backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=rejected&sort=recent&page_size=5").catch(
+          () => ({ items: [], total: 0, page: 1, page_size: 5 })
+        ),
+      ])
+    : [{ items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }];
+
+  const newForReview = pendingActivity.items.slice(0, 5);
+  const recentlyResolved = [...approvedActivity.items, ...rejectedActivity.items]
+    .sort((a, b) => new Date(b.reviewed_at ?? 0).getTime() - new Date(a.reviewed_at ?? 0).getTime())
+    .slice(0, 5);
 
   const KPIS = [
     {
@@ -238,6 +271,120 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* BMI Brain Overnight Activity - what the automations engine
+          surfaced or resolved since the rep last checked. Only shown to
+          roles that can actually act on it (see canViewAutomationsQueue) -
+          not just another read-only KPI, every item here links straight
+          into the review queue. */}
+      {showOvernightActivity && (newForReview.length > 0 || recentlyResolved.length > 0) && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" />
+              <div>
+                <h2 className="editorial-heading text-base font-bold text-foreground">
+                  BMI Brain &middot; Overnight Activity
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  What the automations engine found or resolved since you last checked.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/automations/review"
+              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              Open review queue <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="editorial-card">
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <ClipboardCheck className="size-4 text-amber-600" />
+                  New for your review
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-1 p-3">
+                {newForReview.length > 0 ? (
+                  newForReview.map((item) => {
+                    const style = styleForKind(item.kind);
+                    const Icon = style.icon;
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/automations/review?kind=${item.kind}`}
+                        className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
+                      >
+                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`}>
+                          <Icon className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-bold text-foreground">
+                            {item.payload.summary || "New item"}
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {item.kind.replace(/_/g, " ")}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                          {timeAgo(item.created_at)}
+                        </span>
+                      </Link>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground p-4">Nothing waiting for review.</span>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="editorial-card">
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <CheckCircle2 className="size-4 text-emerald-600" />
+                  Recently resolved
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-1 p-3">
+                {recentlyResolved.length > 0 ? (
+                  recentlyResolved.map((item) => {
+                    const style = styleForKind(item.kind);
+                    const Icon = style.icon;
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/automations/review?kind=${item.kind}&status=${item.status}`}
+                        className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
+                      >
+                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`}>
+                          <Icon className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-bold text-foreground">
+                            {item.payload.summary || "Resolved item"}
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {item.status === "approved" ? "Approved" : "Rejected"} &middot;{" "}
+                            {item.kind.replace(/_/g, " ")}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                          {item.reviewed_at ? timeAgo(item.reviewed_at) : ""}
+                        </span>
+                      </Link>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground p-4">Nothing resolved yet.</span>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Two Column Operational Feed: Recent Contacts & Top Companies */}
       <div className="grid gap-6 lg:grid-cols-2">
