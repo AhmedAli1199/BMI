@@ -46,7 +46,13 @@ export default async function GroupDetailPage({
         </div>
         <div className="flex shrink-0 gap-2">
           <GroupFormDialog existing={group} />
-          <DeleteEntityButton entityLabel={group.name} id={group.id} action={deleteGroup} redirectTo="/groups" />
+          <DeleteEntityButton
+            entityLabel={group.name}
+            id={group.id}
+            action={deleteGroup}
+            redirectTo="/groups"
+            description="This can't be undone. Contacts in this group are not deleted - only their membership in this group is removed. Any sub-groups nested under it are kept, just detached (no longer nested here)."
+          />
         </div>
       </div>
 
