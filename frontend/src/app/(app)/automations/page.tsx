@@ -20,14 +20,25 @@ import {
 } from "@/lib/automation-style";
 import { canUseAutomations } from "@/lib/access";
 import { getSession } from "@/lib/session";
-import type { ReviewKind, ReviewQueueCounts, ScheduledJob } from "@/lib/types";
+import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueItem, ScheduledJob } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhotoUploadDialog } from "@/components/photo-upload-dialog";
 import { RunJobButton } from "@/components/run-job-button";
 import { SOURCE_LABELS } from "@/lib/sources";
+
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
 
 const BUSINESS_CARD_KINDS = new Set(["business_card_new", "business_card_existing"]);
 
@@ -114,10 +125,17 @@ export default async function AutomationsPage({
     );
   }
 
-  const [kinds, counts, jobs] = await Promise.all([
+  const [kinds, counts, jobs, pendingPage, approvedPage, rejectedPage] = await Promise.all([
     backendFetch<ReviewKind[]>("/api/review-queue/kinds"),
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),
     backendFetch<ScheduledJob[]>("/api/automations/jobs"),
+    // The Command Center page was eliminated (redundant with this page's
+    // own KPI strip) except for these two feeds, which earn their place
+    // here - "what's new" and "what just happened" right where the
+    // workstream tabs already live, not a separate destination to visit.
+    backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=pending&sort=recent&page_size=5"),
+    backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=approved&sort=recent&page_size=5"),
+    backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=rejected&sort=recent&page_size=5"),
   ]);
 
   const countFor = (k: string) =>
@@ -126,6 +144,21 @@ export default async function AutomationsPage({
   const totalHandled = counts.reduce((sum, c) => sum + c.approved + c.rejected, 0);
   const jobsLive = jobs.filter((j) => j.enabled).length;
   const publications = Object.keys(SOURCE_LABELS).filter((p) => p !== "manual");
+
+  const recentlyResolved = [...approvedPage.items, ...rejectedPage.items]
+    .sort((a, b) => new Date(b.reviewed_at ?? 0).getTime() - new Date(a.reviewed_at ?? 0).getTime())
+    .slice(0, 5);
+
+  // Pending count per tab, computed once and reused both on the toggle
+  // itself (the "bubble") and inside each panel's own heading - one
+  // source of truth instead of two copies that could drift.
+  const pendingForCategory = (catId: string) =>
+    kinds
+      .filter((k) => categoryForKind(k.kind) === catId && !BUSINESS_CARD_KINDS.has(k.kind))
+      .reduce((sum, k) => sum + countFor(k.kind).pending, 0);
+  const businessCardPending = kinds
+    .filter((k) => BUSINESS_CARD_KINDS.has(k.kind))
+    .reduce((sum, k) => sum + countFor(k.kind).pending, 0);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
@@ -250,43 +283,173 @@ export default async function AutomationsPage({
         </Card>
       </div>
 
-      {/* Each automation kind now appears in exactly one tab - previously
+      {/* Activity feed - the two lists worth keeping from the retired
+          Command Center page (its KPI strip duplicated this page's own,
+          and "Workstreams" duplicated the tabs below - only these two
+          earned a permanent spot). "What's new" and "what just
+          happened", right above the workstreams instead of a separate
+          destination to visit first. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="editorial-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+              <ClipboardCheck className="size-4 text-amber-600" aria-hidden="true" />
+              New for review
+            </CardTitle>
+            <Link href="/automations/review" className="text-xs font-semibold text-primary hover:underline">
+              View all &rarr;
+            </Link>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1 p-3">
+            {pendingPage.items.length > 0 ? (
+              pendingPage.items.map((item) => {
+                const itemStyle = styleForKind(item.kind);
+                const ItemIcon = itemStyle.icon;
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/automations/review?kind=${item.kind}`}
+                    className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
+                  >
+                    <span className={`brand-icon size-9 shrink-0 ${itemStyle.chipBg} ${itemStyle.color}`} aria-hidden="true">
+                      <ItemIcon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-bold text-foreground">
+                        {item.payload.summary || "New item"}
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {item.kind.replace(/_/g, " ")}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                      {timeAgo(item.created_at)}
+                    </span>
+                  </Link>
+                );
+              })
+            ) : (
+              <span className="p-4 text-xs text-muted-foreground">Nothing waiting for review.</span>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="editorial-card">
+          <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+            <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+              <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
+              Recently resolved
+            </CardTitle>
+            <Link href="/automations/review?status=approved" className="text-xs font-semibold text-primary hover:underline">
+              View all &rarr;
+            </Link>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1 p-3">
+            {recentlyResolved.length > 0 ? (
+              recentlyResolved.map((item) => {
+                const itemStyle = styleForKind(item.kind);
+                const ItemIcon = itemStyle.icon;
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/automations/review?kind=${item.kind}&status=${item.status}`}
+                    className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
+                  >
+                    <span className={`brand-icon size-9 shrink-0 ${itemStyle.chipBg} ${itemStyle.color}`} aria-hidden="true">
+                      <ItemIcon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-bold text-foreground">
+                        {item.payload.summary || "Resolved item"}
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {item.status === "approved" ? "Approved" : "Rejected"} &middot; {item.kind.replace(/_/g, " ")}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                      {item.reviewed_at ? timeAgo(item.reviewed_at) : ""}
+                    </span>
+                  </Link>
+                );
+              })
+            ) : (
+              <span className="p-4 text-xs text-muted-foreground">Nothing resolved yet.</span>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Each automation kind appears in exactly one tab - previously
           "pending > 0" kinds were repeated in an Action Center tier AND
           their category tier AND (for business cards) a Photo Intake
           tier, which is what made the page feel duplicated and bloated.
           Progressive disclosure: pick a workstream, see only that
-          workstream's automations. Business card capture gets its own
-          dedicated tab (per BMI's ask) rather than being buried at the
-          end of a long scroll. */}
+          workstream's automations.
+
+          Each toggle is a real, prominent button now (not a thin
+          underlined label) carrying its own pending-count bubble, so the
+          whole page's state - what needs attention, and where - reads
+          at a glance before opening a single tab. Every toggle shares
+          the same shape/border/badge treatment, including Scanners &
+          Settings (an "Active" health badge instead of a pending count,
+          since engine status isn't a review queue) - one consistent
+          switcher, not five different-looking headings. */}
       <Tabs defaultValue={activeTab} className="w-full">
-        <div className="overflow-x-auto border-b border-border/80 bg-muted/30 px-1">
-          <TabsList className="h-auto w-max gap-1 bg-transparent p-0 pt-1">
-            {AUTOMATION_CATEGORIES.filter((cat) => cat.id !== "capture").map((cat) => (
-              <TabsTrigger
-                key={cat.id}
-                value={cat.id}
-                className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
-              >
-                {cat.label}
-              </TabsTrigger>
-            ))}
+        <div className="overflow-x-auto px-1">
+          <TabsList className="h-auto w-max gap-2 bg-transparent p-0">
+            {AUTOMATION_CATEGORIES.filter((cat) => cat.id !== "capture").map((cat) => {
+              const pending = pendingForCategory(cat.id);
+              return (
+                <TabsTrigger
+                  key={cat.id}
+                  value={cat.id}
+                  className="shrink-0 gap-2 whitespace-nowrap rounded-lg border border-border/70 bg-card px-3.5 py-2.5 text-xs font-bold text-foreground shadow-2xs transition-colors hover:border-primary/40 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground"
+                >
+                  {cat.label}
+                  <Badge
+                    variant={pending > 0 ? "default" : "secondary"}
+                    className={`text-[10px] font-bold ${pending > 0 ? "bg-amber-600 hover:bg-amber-700" : ""}`}
+                  >
+                    {pending}
+                  </Badge>
+                </TabsTrigger>
+              );
+            })}
             <TabsTrigger
               value="capture"
-              className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
+              className="shrink-0 gap-2 whitespace-nowrap rounded-lg border border-border/70 bg-card px-3.5 py-2.5 text-xs font-bold text-foreground shadow-2xs transition-colors hover:border-primary/40 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground"
             >
               Lead &amp; Contact Capture
+              <Badge
+                variant={pendingForCategory("capture") > 0 ? "default" : "secondary"}
+                className={`text-[10px] font-bold ${pendingForCategory("capture") > 0 ? "bg-amber-600 hover:bg-amber-700" : ""}`}
+              >
+                {pendingForCategory("capture")}
+              </Badge>
             </TabsTrigger>
             <TabsTrigger
               value="business-cards"
-              className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
+              className="shrink-0 gap-2 whitespace-nowrap rounded-lg border border-border/70 bg-card px-3.5 py-2.5 text-xs font-bold text-foreground shadow-2xs transition-colors hover:border-primary/40 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground"
             >
               Business Card &amp; Photo Capture
+              <Badge
+                variant={businessCardPending > 0 ? "default" : "secondary"}
+                className={`text-[10px] font-bold ${businessCardPending > 0 ? "bg-amber-600 hover:bg-amber-700" : ""}`}
+              >
+                {businessCardPending}
+              </Badge>
             </TabsTrigger>
             <TabsTrigger
               value="engine"
-              className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
+              className="shrink-0 gap-2 whitespace-nowrap rounded-lg border border-border/70 bg-card px-3.5 py-2.5 text-xs font-bold text-foreground shadow-2xs transition-colors hover:border-primary/40 data-[state=active]:border-primary data-[state=active]:bg-primary/5 data-[state=active]:shadow-sm data-[state=inactive]:text-muted-foreground"
             >
               Scanners &amp; Settings
+              <Badge
+                variant="outline"
+                className={jobsLive === jobs.length ? "border-emerald-500/40 text-[10px] font-bold text-emerald-600" : "text-[10px] font-bold"}
+              >
+                {jobsLive}/{jobs.length}
+              </Badge>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -295,26 +458,10 @@ export default async function AutomationsPage({
           const categoryKinds = kinds.filter(
             (k) => categoryForKind(k.kind) === cat.id && !BUSINESS_CARD_KINDS.has(k.kind)
           );
-          const catPending = categoryKinds.reduce((sum, k) => sum + countFor(k.kind).pending, 0);
 
           return (
-            <TabsContent key={cat.id} value={cat.id} className="mt-5 flex flex-col gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="editorial-heading text-base font-bold text-foreground">{cat.label}</h2>
-                    <Badge variant="outline" className={`text-[10px] font-semibold ${cat.badgeColor}`}>
-                      {categoryKinds.length} {categoryKinds.length === 1 ? "automation" : "automations"}
-                    </Badge>
-                    {catPending > 0 && (
-                      <Badge variant="default" className="text-[10px] font-bold">
-                        {catPending} pending
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{cat.tagline}</p>
-                </div>
-              </div>
+            <TabsContent key={cat.id} value={cat.id} className="mt-4 flex flex-col gap-3">
+              <p className="text-xs text-muted-foreground">{cat.tagline}</p>
 
               {categoryKinds.length > 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -338,16 +485,11 @@ export default async function AutomationsPage({
 
         {/* Business Card & Photo Capture - its own tab, not the tail end
             of a long page, so reps know exactly where to find it. */}
-        <TabsContent value="business-cards" className="mt-5 flex flex-col gap-4">
-          <div className="border-b border-border/60 pb-2">
-            <h2 className="editorial-heading text-base font-bold text-foreground">
-              Business Card &amp; Photo Capture
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Photograph trade-show business cards or undeliverable magazine labels. Contact details
-              are parsed, cross-referenced against 70,000+ records, and queued for confirmation.
-            </p>
-          </div>
+        <TabsContent value="business-cards" className="mt-4 flex flex-col gap-4">
+          <p className="text-xs text-muted-foreground">
+            Photograph trade-show business cards or undeliverable magazine labels. Contact details
+            are parsed, cross-referenced against 70,000+ records, and queued for confirmation.
+          </p>
 
           <Card className="editorial-card">
             <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
@@ -377,21 +519,10 @@ export default async function AutomationsPage({
 
         {/* Scanners & Settings - engine/job status, not an automation
             queue, kept out of the workstream tabs above. */}
-        <TabsContent value="engine" className="mt-5 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
-            <div>
-              <h2 className="editorial-heading text-base font-bold text-foreground">
-                Automations Engine &amp; Background Scanners
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Scheduled background workers that discover inbound emails, bounces, and calendar
-                triggers.
-              </p>
-            </div>
-            <Badge variant="outline" className="text-xs font-semibold">
-              {jobsLive} of {jobs.length} Active
-            </Badge>
-          </div>
+        <TabsContent value="engine" className="mt-4 flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">
+            Scheduled background workers that discover inbound emails, bounces, and calendar triggers.
+          </p>
 
           <Card className="editorial-card">
             <CardContent className="flex flex-col divide-y divide-border/70 p-0">
