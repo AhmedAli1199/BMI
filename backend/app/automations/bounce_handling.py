@@ -202,15 +202,21 @@ _OOO_EXTRACTION_PROMPT = (
     "(a real absence notice), as opposed to: a generic auto-acknowledgment template (\"thanks for your "
     "email, we'll respond soon\"), a booking/newsletter confirmation, a customer-service/ticketing "
     "system's auto-reply, or any other automated reply that isn't actually about one named person being "
-    "away. Then, only if genuine: extract the date they're due back (as YYYY-MM-DD - resolve any relative "
-    "or partial date, e.g. \"back on the 2nd\" said in a message sent in September, against that "
-    "message's own send date; null if no return date is stated), and extract every person or shared "
-    "team mailbox named as a replacement/alternative point of contact while they're away, each with "
-    "whatever role or department is stated for them (e.g. \"contact Rebecca or Katie in Marketing, or "
-    "customerservices@... for anything urgent\" is TWO entries, one per named/departmental contact). "
-    "Use null/empty for anything not mentioned - never invent a name, address, or date. Return JSON of "
-    "the exact shape: "
-    '{"is_genuine_absence": true or false, "confidence": a number from 0.0 to 1.0, '
+    "away. Then decide whether this is a PERMANENT departure rather than a temporary absence - the "
+    "person says they've left, resigned, retired, or are no longer employed there (e.g. \"I have now "
+    "departed the company\", \"I've retired\", \"no longer with [company]\", \"my last day was...\"), as "
+    "opposed to going on holiday, leave, or being away temporarily with an expected return. A permanent "
+    "departure is never also a genuine absence (it has no return date - someone who has left isn't "
+    "\"away for a period of time\"). Then, only if this is a genuine absence OR a departure: extract the "
+    "date they're due back (as YYYY-MM-DD - resolve any relative or partial date, e.g. \"back on the "
+    "2nd\" said in a message sent in September, against that message's own send date; null if no return "
+    "date is stated, and always null for a departure), and extract every person or shared team mailbox "
+    "named as a replacement/alternative point of contact, each with whatever role or department is "
+    "stated for them (e.g. \"contact Rebecca or Katie in Marketing, or customerservices@... for urgent "
+    "issues\" is TWO entries, one per named/departmental contact). Use null/empty for anything not "
+    "mentioned - never invent a name, address, or date. Return JSON of the exact shape: "
+    '{"is_genuine_absence": true or false, "is_departure": true or false, '
+    '"confidence": a number from 0.0 to 1.0, '
     '"return_date": "YYYY-MM-DD" or null, '
     '"replacements": [{"name": string or null, "email": string or null, "role": string or null}, ...]}.'
 )
@@ -247,7 +253,7 @@ def _classify_ooo(msg: ParsedMessage) -> dict:
     user_prompt = f"Sent: {msg.received_at.date().isoformat()}\nSubject: {msg.subject}\n\nBody:\n{msg.body_text}"
     result = extract_json(_OOO_EXTRACTION_PROMPT, user_prompt, purpose="bounce_handling.ooo_extraction")
     if not result:
-        return {"is_genuine_absence": True, "confidence": 0.4, "return_date": None, "replacements": []}
+        return {"is_genuine_absence": True, "is_departure": False, "confidence": 0.4, "return_date": None, "replacements": []}
 
     raw_replacements = result.get("replacements")
     replacements: list[dict] = []
@@ -273,10 +279,14 @@ def _classify_ooo(msg: ParsedMessage) -> dict:
         except ValueError:
             return_date = None  # not a real date - never pass an unparseable value downstream
 
+    is_departure = bool(result.get("is_departure", False))
     return {
-        "is_genuine_absence": bool(result.get("is_genuine_absence", True)),
+        "is_genuine_absence": bool(result.get("is_genuine_absence", True)) or is_departure,
+        "is_departure": is_departure,
         "confidence": confidence,
-        "return_date": return_date,
+        # A departure has no "due back" - see the prompt: this is belt-and-braces
+        # against a model that fills the date field in anyway despite the instruction.
+        "return_date": None if is_departure else return_date,
         "replacements": replacements,
     }
 
@@ -395,6 +405,44 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts:
         if first_rep.get("email"):
             ooo_prefill["email"] = first_rep["email"]
 
+    # A permanent departure ("I have now departed the company", "I've
+    # retired", ...) is a different problem from a temporary absence - it
+    # needs a successor confirmed and the contact's records reassigned
+    # (see contact_transfer.py / the CRM's own "Mark as departed" button),
+    # not a handover note. Route it into departure_unconfirmed (CS-003's
+    # review kind) instead of ooo_ambiguous, using whatever named
+    # replacement this message gave us as the researched candidate - the
+    # same shape dedupe.py's duplicate_contact producer uses.
+    if classification["is_departure"]:
+        db.add(ReviewQueueItem(
+            id=uuid.uuid4(), kind="departure_unconfirmed", source_db=original.source_db,
+            entity_type="contact", entity_id=original.id,
+            payload={
+                "summary": (
+                    f"{original.full_name or original.first_name or 'A contact'} has departed"
+                    + (f" - possible replacement: {replacement_summary}" if replacement_summary else "")
+                ),
+                "details": [
+                    {"key": "subject", "label": "Subject", "value": msg.subject},
+                    {"key": "replacements", "label": "Named replacement(s)", "value": replacements_display},
+                ],
+                "related_entities": [
+                    {"type": "contact", "id": str(original.id), "label": original.full_name or msg.from_address or "contact"}
+                ],
+                "candidate": (
+                    {"contact_id": str(replacement_contact.id), "label": replacement_contact.full_name or "", "source": "named in their departure notice"}
+                    if replacement_contact else None
+                ),
+                "original_text": msg.body_text,
+                "message_id": msg.message_id,
+                "replacements": replacements,
+                "prefill": ooo_prefill,
+                "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
+            },
+        ))
+        pending_ooo_contacts.add(original.id)
+        return True
+
     db.add(ReviewQueueItem(
         id=uuid.uuid4(), kind="ooo_ambiguous", source_db=original.source_db,
         entity_type="contact", entity_id=original.id,
@@ -450,18 +498,21 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
         existing_message_ids = set(
             db.scalars(
                 select(ReviewQueueItem.payload["message_id"].astext).where(
-                    ReviewQueueItem.kind.in_(["bounce_uncertain", "bounce_unmatched", "ooo_ambiguous"]),
+                    ReviewQueueItem.kind.in_(["bounce_uncertain", "bounce_unmatched", "ooo_ambiguous", "departure_unconfirmed"]),
                     ReviewQueueItem.status == "pending",
                 )
             ).all()
         )
         # Global across every mailbox in this run, same dedup shape as
         # existing_message_ids above but keyed by contact rather than
-        # message - see _handle_candidate_ooo's docstring.
+        # message - see _handle_candidate_ooo's docstring. Covers
+        # departure_unconfirmed too now that this scan can queue that kind
+        # (see _handle_candidate_ooo's is_departure branch) - one pending
+        # notice per contact regardless of which of the two kinds it landed as.
         pending_ooo_contacts: set[uuid.UUID] = set(
             db.scalars(
                 select(ReviewQueueItem.entity_id).where(
-                    ReviewQueueItem.kind == "ooo_ambiguous",
+                    ReviewQueueItem.kind.in_(["ooo_ambiguous", "departure_unconfirmed"]),
                     ReviewQueueItem.status == "pending",
                     ReviewQueueItem.entity_id.isnot(None),
                 )
