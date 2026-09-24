@@ -9,6 +9,8 @@ import { sourceLabel } from "@/lib/sources";
 import { ActSubbar } from "@/components/act-subbar";
 import { ActContactCard } from "@/components/act-contact-card";
 import { ActTabWorkstation } from "@/components/act-tab-workstation";
+import { FieldChangeHistory } from "@/components/field-change-history";
+import { getContactFieldChanges } from "@/lib/actions";
 
 export default async function ContactDetailPage({
   params,
@@ -103,6 +105,8 @@ export default async function ContactDetailPage({
 
         {/* Tier 1: ACT! Authentic 3-Column Upper Form Card */}
         <ActContactCard contact={contact} />
+
+        <FieldChangeHistory entityId={contact.id} fetchChanges={getContactFieldChanges} />
 
         {/* Tier 2: ACT! Full-Width Bottom Sub-Workstation Tabs */}
         <ActTabWorkstation contact={contact} />

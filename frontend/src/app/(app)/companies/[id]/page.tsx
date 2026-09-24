@@ -19,6 +19,8 @@ import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
 import { ActSubbar } from "@/components/act-subbar";
 import { ActCompanyCard } from "@/components/act-company-card";
+import { FieldChangeHistory } from "@/components/field-change-history";
+import { getCompanyFieldChanges } from "@/lib/actions";
 
 export default async function CompanyDetailPage({
   params,
@@ -98,6 +100,8 @@ export default async function CompanyDetailPage({
 
         {/* Tier 1: ACT! Authentic 3-Column Upper Company Card */}
         <ActCompanyCard company={company} />
+
+        <FieldChangeHistory entityId={company.id} fetchChanges={getCompanyFieldChanges} />
 
         {/* Tier 2: ACT! Full-Width Bottom Sub-Workstation Tabs */}
         <Tabs defaultValue="contacts" className="w-full">

@@ -12,6 +12,7 @@ import type {
   CompanyListItem,
   ContactDetail,
   ContactListItem,
+  FieldChange,
   GroupListItem,
   HistoryOut,
   Page,
@@ -117,6 +118,19 @@ export async function reassignContact(contactId: string, successorId: string) {
   await backendFetch<void>(`/api/contacts/${contactId}/reassign/${successorId}`, { method: "POST" });
   revalidatePath(`/contacts/${contactId}`);
   revalidatePath(`/contacts/${successorId}`);
+}
+
+/** Who changed what on this record, newest first - "the ability to
+ * identify which BMI user has made changes to specific data" (BMI's Act
+ * pain-points doc). Fetched on demand from the expandable history panel
+ * rather than bundled into ContactDetail/CompanyDetail, so a page that
+ * never opens it never pays for it. */
+export async function getContactFieldChanges(contactId: string): Promise<FieldChange[]> {
+  return backendFetch<FieldChange[]>(`/api/contacts/${contactId}/field-changes`);
+}
+
+export async function getCompanyFieldChanges(companyId: string): Promise<FieldChange[]> {
+  return backendFetch<FieldChange[]>(`/api/companies/${companyId}/field-changes`);
 }
 
 export async function addContactToGroup(contactId: string, groupId: string) {

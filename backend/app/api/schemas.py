@@ -351,6 +351,16 @@ class ContactUpdate(BaseModel):
     company_id: uuid.UUID | None = None
 
 
+class FieldChangeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    field: str
+    old_value: str | None = None
+    new_value: str | None = None
+    changed_at: datetime
+    changed_by: UserSummary | None = None
+
+
 class CompanyCreate(BaseModel):
     name: str = Field(min_length=1)
     industry: str | None = None

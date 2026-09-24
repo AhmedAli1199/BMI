@@ -21,6 +21,7 @@ from app.api.schemas import (
     ContactUpdate,
     EmailOut,
     EmailWrite,
+    FieldChangeOut,
     GroupOut,
     HistoryCreate,
     HistoryOut,
@@ -28,22 +29,27 @@ from app.api.schemas import (
     NoteOut,
     PhoneOut,
     PhoneWrite,
+    UserSummary,
 )
 from app.api.routes._channels import create_channel, delete_channel, delete_entity_row, update_channel
 from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
+from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.services.contact_transfer import reassign_contact_records
+from app.services.field_audit import record_field_changes
 from app.models import (
     Activity,
     Company,
     Contact,
     Email,
+    FieldChange,
     Group,
     GroupMembership,
     HistoryEntry,
     Note,
     Opportunity,
+    User,
 )
 from app.models.contact_channel import Address, Phone
 
@@ -428,17 +434,49 @@ def create_contact(payload: ContactCreate, db: Session = Depends(get_db)) -> Con
 
 
 @router.patch("/{contact_id}", response_model=ContactDetail)
-def update_contact(contact_id: uuid.UUID, payload: ContactUpdate, db: Session = Depends(get_db)) -> ContactDetail:
+def update_contact(
+    contact_id: uuid.UUID, payload: ContactUpdate,
+    db: Session = Depends(get_db), identity: Identity = Depends(get_identity),
+) -> ContactDetail:
     contact = db.get(Contact, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     if payload.company_id and not db.get(Company, payload.company_id):
         raise HTTPException(status_code=400, detail="company_id does not exist")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    before = {field: getattr(contact, field) for field in updates}
+    for field, value in updates.items():
         setattr(contact, field, value)
+    record_field_changes(
+        db, entity_type="contact", entity_id=contact.id, before=before, updates=updates,
+        changed_by_user_id=uuid.UUID(identity.user_id) if identity.user_id else None,
+    )
     db.commit()
     return get_contact(contact_id, db)
+
+
+@router.get("/{contact_id}/field-changes", response_model=list[FieldChangeOut])
+def list_contact_field_changes(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> list[FieldChangeOut]:
+    """"This might be a bit obvious but the ability to identify which BMI
+    user has made changes to specific data" - BMI's own Act pain-points
+    doc. Newest first - most useful reading direction for "what just
+    changed on this record"."""
+    rows = db.scalars(
+        select(FieldChange)
+        .where(FieldChange.entity_type == "contact", FieldChange.entity_id == contact_id)
+        .order_by(FieldChange.changed_at.desc())
+        .limit(200)
+    ).all()
+    user_ids = {r.changed_by_user_id for r in rows if r.changed_by_user_id}
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    return [
+        FieldChangeOut(
+            id=r.id, field=r.field, old_value=r.old_value, new_value=r.new_value, changed_at=r.changed_at,
+            changed_by=UserSummary.model_validate(users[r.changed_by_user_id]) if r.changed_by_user_id in users else None,
+        )
+        for r in rows
+    ]
 
 
 @router.post("/{contact_id}/reassign/{successor_id}", status_code=204, response_model=None)

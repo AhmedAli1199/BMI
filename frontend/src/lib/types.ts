@@ -81,6 +81,15 @@ export type ActivityOut = {
 };
 
 export type GroupOut = { id: string; name: string };
+
+export type FieldChange = {
+  id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
+  changed_by: UserSummary | null;
+};
 export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null };
 
 export type ContactDetail = {

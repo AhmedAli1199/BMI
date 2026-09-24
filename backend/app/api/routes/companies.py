@@ -21,18 +21,22 @@ from app.api.schemas import (
     ContactListItem,
     EmailOut,
     EmailWrite,
+    FieldChangeOut,
     HistoryCreate,
     HistoryOut,
     NoteCreate,
     NoteOut,
     PhoneOut,
     PhoneWrite,
+    UserSummary,
 )
 from app.api.routes._channels import create_channel, delete_channel, delete_entity_row, update_channel
 from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
+from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Activity, Company, Contact, Email, HistoryEntry, Note, Opportunity
+from app.services.field_audit import record_field_changes
+from app.models import Activity, Company, Contact, Email, FieldChange, HistoryEntry, Note, Opportunity, User
 from app.models.contact_channel import Address, Phone
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -331,15 +335,43 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)) -> Com
 
 
 @router.patch("/{company_id}", response_model=CompanyDetail)
-def update_company(company_id: uuid.UUID, payload: CompanyUpdate, db: Session = Depends(get_db)) -> CompanyDetail:
+def update_company(
+    company_id: uuid.UUID, payload: CompanyUpdate,
+    db: Session = Depends(get_db), identity: Identity = Depends(get_identity),
+) -> CompanyDetail:
     company = db.get(Company, company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    before = {field: getattr(company, field) for field in updates}
+    for field, value in updates.items():
         setattr(company, field, value)
+    record_field_changes(
+        db, entity_type="company", entity_id=company.id, before=before, updates=updates,
+        changed_by_user_id=uuid.UUID(identity.user_id) if identity.user_id else None,
+    )
     db.commit()
     return get_company(company_id, db)
+
+
+@router.get("/{company_id}/field-changes", response_model=list[FieldChangeOut])
+def list_company_field_changes(company_id: uuid.UUID, db: Session = Depends(get_db)) -> list[FieldChangeOut]:
+    rows = db.scalars(
+        select(FieldChange)
+        .where(FieldChange.entity_type == "company", FieldChange.entity_id == company_id)
+        .order_by(FieldChange.changed_at.desc())
+        .limit(200)
+    ).all()
+    user_ids = {r.changed_by_user_id for r in rows if r.changed_by_user_id}
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    return [
+        FieldChangeOut(
+            id=r.id, field=r.field, old_value=r.old_value, new_value=r.new_value, changed_at=r.changed_at,
+            changed_by=UserSummary.model_validate(users[r.changed_by_user_id]) if r.changed_by_user_id in users else None,
+        )
+        for r in rows
+    ]
 
 
 @router.delete("/{company_id}", status_code=204, response_model=None)
