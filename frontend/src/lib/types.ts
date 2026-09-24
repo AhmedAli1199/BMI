@@ -306,6 +306,9 @@ export type ReviewQueueItem = {
 
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
 
+export type ReviewQueueInsightBucket = { key: string; label: string; count: number };
+export type ReviewQueueInsights = { kind: string; buckets: ReviewQueueInsightBucket[] };
+
 export type DataHealthMetric = {
   key: string;
   label: string;

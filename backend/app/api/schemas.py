@@ -567,6 +567,17 @@ class ReviewQueueCounts(BaseModel):
     rejected: int = 0
 
 
+class ReviewQueueInsightBucket(BaseModel):
+    key: str
+    label: str
+    count: int
+
+
+class ReviewQueueInsights(BaseModel):
+    kind: str
+    buckets: list[ReviewQueueInsightBucket]
+
+
 class ReviewActionRequest(BaseModel):
     note: str | None = None
     contact_id: uuid.UUID | None = None

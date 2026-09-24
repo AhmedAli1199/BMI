@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowDownWideNarrow, ArrowLeft, ArrowUpNarrowWide, Clock, PartyPopper, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
-import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueItem } from "@/lib/types";
+import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueInsights, ReviewQueueItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReviewItemCard } from "@/components/review-item-card";
@@ -24,21 +24,31 @@ const SORT_OPTIONS = [
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string; bucket?: string }>;
 }) {
-  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ } = await searchParams;
+  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ, bucket: activeBucket } = await searchParams;
   const activeStatus = STATUS_TABS.some((t) => t.value === rawStatus) ? rawStatus! : "pending";
   const activeSort = SORT_OPTIONS.some((s) => s.value === rawSort) ? rawSort! : "recent";
   const activeQuery = (rawQ || "").trim();
 
-  const [kinds, counts, page] = await Promise.all([
+  const [kinds, counts, page, insights] = await Promise.all([
     backendFetch<ReviewKind[]>("/api/review-queue/kinds"),
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),
     backendFetch<Page<ReviewQueueItem>>(
       `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}${
         activeQuery ? `&q=${encodeURIComponent(activeQuery)}` : ""
-      }`
+      }${activeBucket ? `&bucket=${activeBucket}` : ""}`
     ),
+    // Queue Insights only has buckets for a handful of kinds (see backend's
+    // _INSIGHT_BUCKETS) - fetching it with no kind selected would be
+    // meaningless (which kind's buckets?), so it's skipped entirely until
+    // the queue is filtered to one. Never blocks the main list: a failed
+    // insights call just means the panel doesn't render, not a broken page.
+    activeKind
+      ? backendFetch<ReviewQueueInsights>(`/api/review-queue/insights?kind=${activeKind}&status=${activeStatus}`).catch(
+          () => ({ kind: activeKind, buckets: [] })
+        )
+      : Promise.resolve(null),
   ]);
 
   const countFor = (k: string) => counts.find((c) => c.kind === k)?.pending ?? 0;
@@ -46,11 +56,19 @@ export default async function ReviewQueuePage({
   const kindByName = new Map(kinds.map((k) => [k.kind, k]));
   const activeStyle = activeKind ? styleForKind(activeKind) : null;
   const statusHref = (status: string) =>
-    `/automations/review?status=${status}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`;
+    `/automations/review?status=${status}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}${activeBucket ? `&bucket=${activeBucket}` : ""}`;
+  // Deliberately drops any active bucket - a bucket key only means
+  // something for the kind it came from (e.g. "high" is a confidence
+  // band for duplicate_contact, meaningless for ooo_ambiguous), so
+  // switching kind must not carry it over.
   const kindHref = (kind?: string) =>
     `/automations/review?status=${activeStatus}${kind ? `&kind=${kind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`;
   const sortHref = (sort: string) =>
-    `/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${sort !== "recent" ? `&sort=${sort}` : ""}`;
+    `/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${sort !== "recent" ? `&sort=${sort}` : ""}${activeBucket ? `&bucket=${activeBucket}` : ""}`;
+  const bucketHref = (bucket?: string) =>
+    `/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}${
+      bucket ? `&bucket=${bucket}` : ""
+    }`;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -171,6 +189,39 @@ export default async function ReviewQueuePage({
         </div>
       </div>
 
+      {/* Queue Insights - a bucketed breakdown of the CURRENT kind's
+          pending items, using a value the automation already computes at
+          ingestion time (confidence / severity / replacements - see
+          backend's _INSIGHT_BUCKETS). Only renders when the backend
+          actually has buckets for this kind, so it's zero weight on every
+          other automation's queue - never a panel with nothing in it. */}
+      {insights && insights.buckets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+          <span className="text-xs font-semibold text-muted-foreground">Queue Insights:</span>
+          {insights.buckets.map((b) => {
+            const isActive = activeBucket === b.key;
+            return (
+              <Link key={b.key} href={bucketHref(isActive ? undefined : b.key)}>
+                <Badge
+                  variant={isActive ? "default" : "outline"}
+                  className={`cursor-pointer gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                    isActive ? "" : "border-border/60 text-foreground hover:border-border"
+                  }`}
+                >
+                  {b.label}
+                  <span className={isActive ? "opacity-80" : "text-muted-foreground"}>{b.count}</span>
+                </Badge>
+              </Link>
+            );
+          })}
+          {activeBucket && (
+            <Link href={bucketHref()} className="text-[11px] font-semibold text-primary hover:underline">
+              Clear
+            </Link>
+          )}
+        </div>
+      )}
+
       {/* Bulk actions - only meaningful once the queue is filtered to one
           kind (an action's meaning is per-kind, so there's no single
           "approve all" across every automation at once) and only on the
@@ -193,6 +244,7 @@ export default async function ReviewQueuePage({
         {activeKind && <input type="hidden" name="kind" value={activeKind} />}
         <input type="hidden" name="status" value={activeStatus} />
         {activeSort !== "recent" && <input type="hidden" name="sort" value={activeSort} />}
+        {activeBucket && <input type="hidden" name="bucket" value={activeBucket} />}
         <input
           type="search"
           name="q"
@@ -202,7 +254,7 @@ export default async function ReviewQueuePage({
         />
         {activeQuery && (
           <Link
-            href={`/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`}
+            href={`/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}${activeBucket ? `&bucket=${activeBucket}` : ""}`}
             className="text-xs font-semibold text-muted-foreground hover:text-foreground"
           >
             Clear

@@ -319,6 +319,10 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
                 "original_text": msg.body_text,
                 "message_id": msg.message_id,
                 "confidence": confidence,
+                # Also top-level, not just inside `details` - lets Queue
+                # Insights (review_queue.py's _bucket_condition) query it
+                # directly instead of unpacking the details array.
+                "severity": severity,
             },
         ))
     else:
@@ -335,6 +339,7 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
                 "original_text": msg.body_text,
                 "message_id": msg.message_id,
                 "confidence": confidence,
+                "severity": severity,
             },
         ))
     return True

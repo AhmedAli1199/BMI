@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Float, cast, func, or_, select
+from sqlalchemy import Float, and_, cast, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -16,6 +16,8 @@ from app.api.schemas import (
     ReviewActionRequest,
     ReviewKindOut,
     ReviewQueueCounts,
+    ReviewQueueInsightBucket,
+    ReviewQueueInsights,
     ReviewQueueItemOut,
     ReviewQueuePage,
 )
@@ -53,6 +55,74 @@ def _apply_scope(stmt, identity: Identity):
             or_(ReviewQueueItem.source_db.is_(None), ReviewQueueItem.source_db.in_(allowed_dbs))
         )
     return stmt
+
+
+def _confidence_expr():
+    return cast(ReviewQueueItem.payload["confidence"].astext, Float)
+
+
+def _replacements_len_expr():
+    # coalesce first: a row with no "replacements" key at all (an older
+    # item, or a kind that never sets it) must count as "no replacement",
+    # not silently drop out of both buckets - jsonb_array_length(NULL) is
+    # NULL, which fails every comparison.
+    replacements = func.coalesce(ReviewQueueItem.payload["replacements"], text("'[]'::jsonb"))
+    return func.jsonb_array_length(replacements)
+
+
+# Queue Insights buckets, kind by kind - deliberately only the 3 kinds
+# that already compute a categorizing value at ingestion time
+# (confidence / severity / replacements), so this is pure aggregation
+# over data that already exists, never a new classification step. A kind
+# with no entry here just gets an empty bucket list from /insights - the
+# frontend hides the panel entirely rather than showing "no insights yet".
+_INSIGHT_BUCKETS: dict[str, list[tuple[str, str]]] = {
+    "duplicate_contact": [
+        ("high", "High confidence (≥90%)"),
+        ("medium", "Medium confidence (70–89%)"),
+        ("low", "Low confidence (<70%)"),
+    ],
+    "bounce_uncertain": [
+        ("hard", "Hard bounce"),
+        ("soft", "Soft bounce"),
+    ],
+    "bounce_unmatched": [
+        ("hard", "Hard bounce"),
+        ("soft", "Soft bounce"),
+    ],
+    "ooo_ambiguous": [
+        ("has_replacement", "Has a named replacement"),
+        ("no_replacement", "Absence only, no replacement named"),
+    ],
+}
+
+
+def _bucket_condition(kind: str, bucket: str):
+    """The SQL condition for one (kind, bucket) pair, or None if that
+    combination isn't a real bucket - callers must check for None rather
+    than silently matching everything, since an unrecognized bucket key
+    should behave as "invalid filter", not "no filter"."""
+    if kind == "duplicate_contact":
+        confidence = _confidence_expr()
+        if bucket == "high":
+            return confidence >= 0.9
+        if bucket == "medium":
+            return and_(confidence >= 0.7, confidence < 0.9)
+        if bucket == "low":
+            return confidence < 0.7
+        return None
+    if kind in ("bounce_uncertain", "bounce_unmatched"):
+        if bucket in ("hard", "soft"):
+            return ReviewQueueItem.payload["severity"].astext == bucket
+        return None
+    if kind == "ooo_ambiguous":
+        replacements_len = _replacements_len_expr()
+        if bucket == "has_replacement":
+            return replacements_len > 0
+        if bucket == "no_replacement":
+            return replacements_len == 0
+        return None
+    return None
 
 
 def _is_visible(item: ReviewQueueItem, identity: Identity) -> bool:
@@ -133,11 +203,51 @@ def list_counts(db: Session = Depends(get_db), identity: Identity = Depends(get_
     ]
 
 
+@router.get("/insights", response_model=ReviewQueueInsights)
+def get_review_insights(
+    kind: str = Query(...),
+    status: str | None = Query("pending"),
+    db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
+) -> ReviewQueueInsights:
+    """Queue Insights: how many pending (or whatever `status`) items of
+    this one kind fall into each of its buckets (see _INSIGHT_BUCKETS) -
+    "587 have a named replacement, 311 don't" instead of a flat unlabeled
+    count. Pure aggregation over data the automation already writes into
+    payload at ingestion time (confidence / severity / replacements) - no
+    new classification step, and cheap enough at this table's real size
+    (hundreds to low thousands of rows per kind) that no caching layer is
+    warranted; add one only if that stops being true.
+
+    Empty bucket list for a kind not in _INSIGHT_BUCKETS - the frontend
+    hides its Queue Insights panel entirely rather than showing an empty
+    one, so adding a kind here is the only step needed to turn it on
+    there too."""
+    bucket_defs = _INSIGHT_BUCKETS.get(kind, [])
+    visible_kinds = _visible_kinds(identity)
+    if visible_kinds is not None and kind not in visible_kinds:
+        return ReviewQueueInsights(kind=kind, buckets=[])
+
+    buckets: list[ReviewQueueInsightBucket] = []
+    for key, label in bucket_defs:
+        condition = _bucket_condition(kind, key)
+        stmt = _apply_scope(
+            select(func.count()).select_from(ReviewQueueItem).where(ReviewQueueItem.kind == kind, condition),
+            identity,
+        )
+        if status:
+            stmt = stmt.where(ReviewQueueItem.status == status)
+        count = db.scalar(stmt) or 0
+        buckets.append(ReviewQueueInsightBucket(key=key, label=label, count=count))
+    return ReviewQueueInsights(kind=kind, buckets=buckets)
+
+
 @router.get("", response_model=ReviewQueuePage)
 def list_review_items(
     kind: str | None = Query(None),
     status: str | None = Query("pending"),
     q: str | None = Query(None, description="Free-text search - every kind's card headline (payload.summary) always names the contact/company, so this doubles as search-by-contact without a join."),
+    bucket: str | None = Query(None, description="One Queue Insights bucket key for this kind (see /insights) - e.g. 'high' for duplicate_contact. Requires kind to be set; an unrecognized (kind, bucket) pair 400s rather than silently matching everything."),
     sort: str = Query("recent"),  # "recent" (default) | "confidence_asc" | "confidence_desc"
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -149,6 +259,13 @@ def list_review_items(
         stmt = stmt.where(ReviewQueueItem.kind == kind)
     if status:
         stmt = stmt.where(ReviewQueueItem.status == status)
+    if bucket:
+        if not kind:
+            raise HTTPException(status_code=400, detail="bucket requires kind to be set too.")
+        condition = _bucket_condition(kind, bucket)
+        if condition is None:
+            raise HTTPException(status_code=400, detail=f"{bucket!r} is not a Queue Insights bucket for {kind!r}.")
+        stmt = stmt.where(condition)
     if q and q.strip():
         needle = f"%{q.strip()}%"
         stmt = stmt.where(

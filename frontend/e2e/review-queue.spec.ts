@@ -32,4 +32,23 @@ test.describe("review queue", () => {
       expect(await ignoreButtons.count()).toBe(before - 1);
     }).toPass({ timeout: 10000 });
   });
+
+  test("Queue Insights panel shows bucketed counts and filters the list", async ({ page }) => {
+    // duplicate_contact is one of the 3 kinds Queue Insights covers (see
+    // backend's _INSIGHT_BUCKETS) - skips like the test above if the
+    // seeded dataset doesn't currently have any, rather than asserting
+    // against data this test doesn't control.
+    await page.goto("/automations/review?kind=duplicate_contact");
+    await page.waitForLoadState("networkidle");
+
+    const panel = page.getByText("Queue Insights:");
+    test.skip(!(await panel.isVisible().catch(() => false)), "No duplicate_contact items in the seeded dataset.");
+
+    const highPill = page.getByRole("link", { name: /High confidence/ });
+    test.skip(!(await highPill.isVisible().catch(() => false)), "No High confidence bucket to click.");
+
+    await highPill.click();
+    await expect(page).toHaveURL(/bucket=high/);
+    await expect(page.getByRole("link", { name: "Clear" })).toBeVisible();
+  });
 });
