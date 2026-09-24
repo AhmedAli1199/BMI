@@ -85,8 +85,8 @@ export default async function DashboardPage() {
       value: stats.total_contacts,
       icon: Users,
       href: "/contacts",
-      color: "text-[#132c6b]",
-      accent: "bg-[#132c6b]",
+      color: "text-chart-1",
+      accent: "bg-chart-1",
     },
     {
       label: "Companies",
@@ -94,8 +94,8 @@ export default async function DashboardPage() {
       value: stats.total_companies,
       icon: Building2,
       href: "/companies",
-      color: "text-[#0099e5]",
-      accent: "bg-[#0099e5]",
+      color: "text-chart-2",
+      accent: "bg-chart-2",
     },
     {
       label: "Groups",
@@ -103,8 +103,8 @@ export default async function DashboardPage() {
       value: stats.total_groups,
       icon: UsersRound,
       href: "/groups",
-      color: "text-[#c0392b]",
-      accent: "bg-[#c0392b]",
+      color: "text-chart-3",
+      accent: "bg-chart-3",
     },
   ];
 

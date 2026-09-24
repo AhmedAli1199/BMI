@@ -3,7 +3,6 @@ import {
   ArrowRight,
   CalendarClock,
   CheckCircle2,
-  ChevronRight,
   ClipboardCheck,
   Power,
   Settings2,
@@ -11,7 +10,6 @@ import {
   ShieldCheck,
   Sparkles,
   Timer,
-  Zap,
 } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import {
@@ -25,10 +23,68 @@ import { getSession } from "@/lib/session";
 import type { ReviewKind, ReviewQueueCounts, ScheduledJob } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PhotoUploadDialog } from "@/components/photo-upload-dialog";
 import { RunJobButton } from "@/components/run-job-button";
 import { SOURCE_LABELS } from "@/lib/sources";
+
+const BUSINESS_CARD_KINDS = new Set(["business_card_new", "business_card_existing"]);
+
+function KindCard({ k, c }: { k: ReviewKind; c: { pending: number; approved: number; rejected: number } }) {
+  const style = styleForKind(k.kind);
+  const Icon = style.icon;
+  const handled = c.approved + c.rejected;
+
+  return (
+    <Link key={k.kind} href={`/automations/review?kind=${k.kind}`} className="group block">
+      <Card className={`editorial-card h-full overflow-hidden transition-all hover:shadow-xs ${style.ring}`}>
+        <div className={`masthead-rule w-full ${style.accent}`} />
+        <CardContent className="flex flex-col justify-between gap-3 p-4">
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={`brand-icon size-8 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg} ${style.color}`}
+                >
+                  <Icon className="size-4" />
+                </span>
+                <div>
+                  <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                    {k.label}
+                  </div>
+                  <div className="text-[10.5px] text-muted-foreground">
+                    {handled.toLocaleString()} handled all-time
+                  </div>
+                </div>
+              </div>
+              <Badge
+                variant={c.pending > 0 ? "default" : "secondary"}
+                className={`shrink-0 text-[10.5px] font-semibold ${
+                  c.pending > 0 ? "bg-amber-600 hover:bg-amber-700" : ""
+                }`}
+              >
+                {c.pending > 0 ? `${c.pending} pending` : "Up to date"}
+              </Badge>
+            </div>
+            <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+              {k.description}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border/70 pt-2 text-[11px]">
+            <span className="text-muted-foreground">
+              {k.actions.length} action{k.actions.length === 1 ? "" : "s"}
+            </span>
+            <span className="flex items-center gap-1 font-semibold text-primary group-hover:translate-x-0.5 transition-transform">
+              Review <ArrowRight className="size-3" />
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
 
 export default async function AutomationsPage() {
   const session = await getSession();
@@ -60,12 +116,6 @@ export default async function AutomationsPage() {
   const totalHandled = counts.reduce((sum, c) => sum + c.approved + c.rejected, 0);
   const jobsLive = jobs.filter((j) => j.enabled).length;
   const publications = Object.keys(SOURCE_LABELS).filter((p) => p !== "manual");
-
-  // Queues that have items needing immediate human review
-  const activeQueues = kinds
-    .map((k) => ({ kind: k, count: countFor(k.kind) }))
-    .filter((item) => item.count.pending > 0)
-    .sort((a, b) => b.count.pending - a.count.pending);
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
@@ -190,114 +240,59 @@ export default async function AutomationsPage() {
         </Card>
       </div>
 
-      {/* Tier 1: Action Center - Surfacing Only Items Requiring Attention */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="editorial-heading text-lg font-bold text-foreground">Action Center</h2>
-            <p className="text-xs text-muted-foreground">
-              Prioritized review queues requiring human confirmation.
-            </p>
-          </div>
-          {activeQueues.length > 0 && (
-            <Link
-              href="/automations/review"
-              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+      {/* Each automation kind now appears in exactly one tab - previously
+          "pending > 0" kinds were repeated in an Action Center tier AND
+          their category tier AND (for business cards) a Photo Intake
+          tier, which is what made the page feel duplicated and bloated.
+          Progressive disclosure: pick a workstream, see only that
+          workstream's automations. Business card capture gets its own
+          dedicated tab (per BMI's ask) rather than being buried at the
+          end of a long scroll. */}
+      <Tabs defaultValue="sales" className="w-full">
+        <div className="overflow-x-auto border-b border-border/80 bg-muted/30 px-1">
+          <TabsList className="h-auto w-max gap-1 bg-transparent p-0 pt-1">
+            {AUTOMATION_CATEGORIES.filter((cat) => cat.id !== "capture").map((cat) => (
+              <TabsTrigger
+                key={cat.id}
+                value={cat.id}
+                className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
+              >
+                {cat.label}
+              </TabsTrigger>
+            ))}
+            <TabsTrigger
+              value="capture"
+              className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
             >
-              View all in review queue <ChevronRight className="size-3.5" />
-            </Link>
-          )}
-        </div>
-
-        {activeQueues.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {activeQueues.map(({ kind: k, count: c }) => {
-              const style = styleForKind(k.kind);
-              const Icon = style.icon;
-              return (
-                <Link
-                  key={k.kind}
-                  href={`/automations/review?kind=${k.kind}`}
-                  className="group block"
-                >
-                  <Card
-                    className={`editorial-card h-full border-l-4 overflow-hidden transition-all hover:shadow-md ${style.ring}`}
-                  >
-                    <div className={`h-1 w-full ${style.accent}`} />
-                    <CardContent className="flex flex-col justify-between gap-4 p-5">
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <span
-                            className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`}
-                          >
-                            <Icon className="size-4.5" />
-                          </span>
-                          <Badge
-                            variant="default"
-                            className="bg-amber-600 font-bold hover:bg-amber-700 text-white"
-                          >
-                            {c.pending} waiting
-                          </Badge>
-                        </div>
-                        <div className="mt-3">
-                          <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                            {k.label}
-                          </h3>
-                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                            {k.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-border/70 pt-3 text-xs font-semibold text-primary">
-                        <span>Review items</span>
-                        <span className="flex items-center gap-1 transition-transform group-hover:translate-x-1">
-                          Open <ArrowRight className="size-3.5" />
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <Card className="editorial-card border-dashed">
-            <CardContent className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-              <div className="flex size-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-                <CheckCircle2 className="size-5" />
-              </div>
-              <p className="text-sm font-bold text-foreground">All queues caught up</p>
-              <p className="max-w-md text-xs text-muted-foreground">
-                No items are currently waiting for review. The automated engine continues to monitor
-                mailboxes and schedules in the background.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Tier 2: Categorized Functional Workstreams */}
-      <div className="flex flex-col gap-8">
-        <div>
-          <h2 className="editorial-heading text-lg font-bold text-foreground">
-            Automation Workstreams
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Every intelligent automation organized by business objective.
-          </p>
+              Lead &amp; Contact Capture
+            </TabsTrigger>
+            <TabsTrigger
+              value="business-cards"
+              className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
+            >
+              Business Card &amp; Photo Capture
+            </TabsTrigger>
+            <TabsTrigger
+              value="engine"
+              className="shrink-0 whitespace-nowrap rounded-t-md rounded-b-none border-b-2 border-transparent px-3.5 py-2 text-xs font-semibold data-[state=active]:border-primary data-[state=active]:bg-card"
+            >
+              Scanners &amp; Settings
+            </TabsTrigger>
+          </TabsList>
         </div>
 
         {AUTOMATION_CATEGORIES.map((cat) => {
-          const categoryKinds = kinds.filter((k) => categoryForKind(k.kind) === cat.id);
+          const categoryKinds = kinds.filter(
+            (k) => categoryForKind(k.kind) === cat.id && !BUSINESS_CARD_KINDS.has(k.kind)
+          );
           const catPending = categoryKinds.reduce((sum, k) => sum + countFor(k.kind).pending, 0);
 
           return (
-            <div key={cat.id} className="flex flex-col gap-3">
+            <TabsContent key={cat.id} value={cat.id} className="mt-5 flex flex-col gap-3">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-foreground">{cat.label}</h3>
+                    <h2 className="editorial-heading text-base font-bold text-foreground">{cat.label}</h2>
                     <Badge variant="outline" className={`text-[10px] font-semibold ${cat.badgeColor}`}>
                       {categoryKinds.length} {categoryKinds.length === 1 ? "automation" : "automations"}
                     </Badge>
@@ -311,157 +306,124 @@ export default async function AutomationsPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {categoryKinds.map((k) => {
-                  const style = styleForKind(k.kind);
-                  const Icon = style.icon;
-                  const c = countFor(k.kind);
-                  const handled = c.approved + c.rejected;
-
-                  return (
-                    <Link
-                      key={k.kind}
-                      href={`/automations/review?kind=${k.kind}`}
-                      className="group block"
-                    >
-                      <Card
-                        className={`editorial-card h-full overflow-hidden transition-all hover:shadow-xs ${style.ring}`}
-                      >
-                        <div className={`masthead-rule w-full ${style.accent}`} />
-                        <CardContent className="flex flex-col justify-between gap-3 p-4">
-                          <div>
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2.5">
-                                <span
-                                  className={`brand-icon size-8 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg} ${style.color}`}
-                                >
-                                  <Icon className="size-4" />
-                                </span>
-                                <div>
-                                  <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
-                                    {k.label}
-                                  </div>
-                                  <div className="text-[10.5px] text-muted-foreground">
-                                    {handled.toLocaleString()} handled all-time
-                                  </div>
-                                </div>
-                              </div>
-                              <Badge
-                                variant={c.pending > 0 ? "default" : "secondary"}
-                                className={`shrink-0 text-[10.5px] font-semibold ${
-                                  c.pending > 0 ? "bg-amber-600 hover:bg-amber-700" : ""
-                                }`}
-                              >
-                                {c.pending > 0 ? `${c.pending} pending` : "Up to date"}
-                              </Badge>
-                            </div>
-                            <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground line-clamp-2">
-                              {k.description}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between border-t border-border/70 pt-2 text-[11px]">
-                            <span className="text-muted-foreground">
-                              {k.actions.length} action{k.actions.length === 1 ? "" : "s"}
-                            </span>
-                            <span className="flex items-center gap-1 font-semibold text-primary group-hover:translate-x-0.5 transition-transform">
-                              Review <ArrowRight className="size-3" />
-                            </span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
+              {categoryKinds.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {categoryKinds.map((k) => (
+                    <KindCard key={k.kind} k={k} c={countFor(k.kind)} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="editorial-card border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                    <CheckCircle2 className="size-6 text-muted-foreground opacity-50" />
+                    <p className="text-xs text-muted-foreground">
+                      No automations in this workstream yet.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
           );
         })}
-      </div>
 
-      {/* Tier 3: Field Photo Intake */}
-      <div>
-        <h2 className="editorial-heading mb-1 text-lg font-bold text-foreground">
-          Field Photo Intake
-        </h2>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Upload photos directly from events or the mail room to initiate automated transcription and matching.
-        </p>
-        <Card className="editorial-card">
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
-            <div className="max-w-xl">
-              <p className="text-xs font-medium text-foreground">
-                Instant AI optical recognition and deduplication
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Photograph trade-show business cards or undeliverable magazine labels. Contact details are
-                parsed, cross-referenced against 70,000+ records, and queued for confirmation.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <PhotoUploadDialog kind="business-card" publications={publications} />
-              <PhotoUploadDialog kind="returned-copy" publications={publications} />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tier 4: Engine Integration & Scanner Status */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="editorial-heading text-lg font-bold text-foreground">
-              Automations Engine &amp; Background Scanners
+        {/* Business Card & Photo Capture - its own tab, not the tail end
+            of a long page, so reps know exactly where to find it. */}
+        <TabsContent value="business-cards" className="mt-5 flex flex-col gap-4">
+          <div className="border-b border-border/60 pb-2">
+            <h2 className="editorial-heading text-base font-bold text-foreground">
+              Business Card &amp; Photo Capture
             </h2>
             <p className="text-xs text-muted-foreground">
-              Scheduled background workers that discover inbound emails, bounces, and calendar triggers.
+              Photograph trade-show business cards or undeliverable magazine labels. Contact details
+              are parsed, cross-referenced against 70,000+ records, and queued for confirmation.
             </p>
           </div>
-          <Badge variant="outline" className="text-xs font-semibold">
-            {jobsLive} of {jobs.length} Active
-          </Badge>
-        </div>
 
-        <Card className="editorial-card">
-          <CardContent className="flex flex-col divide-y divide-border/70 p-0">
-            {jobs.map((j) => (
-              <div key={j.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg border ${
-                      j.enabled
-                        ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
-                        : "border-border bg-muted/60 text-muted-foreground"
-                    }`}
-                  >
-                    <Power className="size-3.5" />
-                  </span>
-                  <div>
-                    <div className="text-xs font-bold text-foreground">{j.label}</div>
-                    <div className="text-[11px] text-muted-foreground">{j.description}</div>
+          <Card className="editorial-card">
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <div className="max-w-xl">
+                <p className="text-xs font-medium text-foreground">
+                  Instant AI optical recognition and deduplication
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Upload a photo to start - no scanner or desktop app required.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <PhotoUploadDialog kind="business-card" publications={publications} />
+                <PhotoUploadDialog kind="returned-copy" publications={publications} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {kinds
+              .filter((k) => BUSINESS_CARD_KINDS.has(k.kind))
+              .map((k) => (
+                <KindCard key={k.kind} k={k} c={countFor(k.kind)} />
+              ))}
+          </div>
+        </TabsContent>
+
+        {/* Scanners & Settings - engine/job status, not an automation
+            queue, kept out of the workstream tabs above. */}
+        <TabsContent value="engine" className="mt-5 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
+            <div>
+              <h2 className="editorial-heading text-base font-bold text-foreground">
+                Automations Engine &amp; Background Scanners
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Scheduled background workers that discover inbound emails, bounces, and calendar
+                triggers.
+              </p>
+            </div>
+            <Badge variant="outline" className="text-xs font-semibold">
+              {jobsLive} of {jobs.length} Active
+            </Badge>
+          </div>
+
+          <Card className="editorial-card">
+            <CardContent className="flex flex-col divide-y divide-border/70 p-0">
+              {jobs.map((j) => (
+                <div key={j.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`flex size-8 shrink-0 items-center justify-center rounded-lg border ${
+                        j.enabled
+                          ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
+                          : "border-border bg-muted/60 text-muted-foreground"
+                      }`}
+                    >
+                      <Power className="size-3.5" />
+                    </span>
+                    <div>
+                      <div className="text-xs font-bold text-foreground">{j.label}</div>
+                      <div className="text-[11px] text-muted-foreground">{j.description}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      {humanizeCron(j.cron)}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        j.enabled
+                          ? "border-emerald-500/40 text-[10px] font-bold text-emerald-600"
+                          : "border-border text-[10px] font-bold text-muted-foreground"
+                      }
+                    >
+                      {j.enabled ? "ACTIVE" : "STANDBY"}
+                    </Badge>
+                    <RunJobButton jobId={j.id} hasCursor={j.has_cursor} />
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    {humanizeCron(j.cron)}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      j.enabled
-                        ? "border-emerald-500/40 text-[10px] font-bold text-emerald-600"
-                        : "border-border text-[10px] font-bold text-muted-foreground"
-                    }
-                  >
-                    {j.enabled ? "ACTIVE" : "STANDBY"}
-                  </Badge>
-                  <RunJobButton jobId={j.id} hasCursor={j.has_cursor} />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

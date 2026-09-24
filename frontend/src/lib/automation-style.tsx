@@ -69,21 +69,34 @@ export function categoryForKind(kind: string): AutomationCategory {
 
 // Keyed by the backend's registry `kind` string (see
 // app/automations/registry.py). Purely cosmetic, never a source of truth.
+//
+// Token audit (BMI Brain rebrand, Phase 0): the 3 kinds below duplicated
+// existing theme tokens exactly (chart-1/chart-2 in every one of morning/
+// evening/night) and now reference them instead. The other 9 kinds still
+// use one-off hex with no token equivalent - 12 automations genuinely
+// need 12 visually distinct colors (more than the 5-slot --chart-* scale
+// covers), and forcing them into 5 slots would lose the real distinction
+// between automations that a rep relies on to tell cards apart at a
+// glance. Promoting all 12 into proper theme-aware custom properties
+// (defined per morning/evening/night, the way --chart-1..5 already are)
+// is real design work - picking accessible, theme-consistent colors 12
+// ways across 3 themes - scoped as a deliberate follow-up, not rushed
+// into this pass.
 const STYLES: Record<string, AutomationStyle> = {
   // Sales Acceleration
   followup_due: {
     icon: CalendarClock,
-    color: "text-[#0099e5]",
-    chipBg: "border-[#0099e5]/30 bg-[#0099e5]/10",
-    accent: "bg-[#0099e5]",
-    ring: "hover:border-[#0099e5]/60",
+    color: "text-chart-2",
+    chipBg: "border-chart-2/30 bg-chart-2/10",
+    accent: "bg-chart-2",
+    ring: "hover:border-chart-2/60",
   },
   signal_trigger: {
     icon: Zap,
-    color: "text-[#132c6b]",
-    chipBg: "border-[#132c6b]/30 bg-[#132c6b]/10",
-    accent: "bg-[#132c6b]",
-    ring: "hover:border-[#132c6b]/60",
+    color: "text-chart-1",
+    chipBg: "border-chart-1/30 bg-chart-1/10",
+    accent: "bg-chart-1",
+    ring: "hover:border-chart-1/60",
   },
   personal_touchpoint_due: {
     icon: Heart,
@@ -140,10 +153,10 @@ const STYLES: Record<string, AutomationStyle> = {
   },
   bounce_uncertain: {
     icon: MailWarning,
-    color: "text-[#c0392b]",
-    chipBg: "border-[#c0392b]/30 bg-[#c0392b]/10",
-    accent: "bg-[#c0392b]",
-    ring: "hover:border-[#c0392b]/60",
+    color: "text-chart-3",
+    chipBg: "border-chart-3/30 bg-chart-3/10",
+    accent: "bg-chart-3",
+    ring: "hover:border-chart-3/60",
   },
   bounce_unmatched: {
     icon: MailQuestion,

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BMI Sales & Editorial Brain",
-  description: "BMI Publishing: Sales, CRM & Circulation Intelligence",
+  title: "BMI Brain",
+  description: "BMI Publishing: Sales, CRM & Automations Intelligence",
 };
 
 export default function RootLayout({

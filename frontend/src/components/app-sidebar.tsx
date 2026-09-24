@@ -115,7 +115,7 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
 
         {canViewAutomationsQueue(session) && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Automations</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">BMI Brain</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1.5">
                 {/* Every icon in this group shares one rule - bright/
