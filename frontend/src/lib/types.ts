@@ -306,6 +306,22 @@ export type ReviewQueueItem = {
 
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
 
+export type DataHealthMetric = {
+  key: string;
+  label: string;
+  description: string;
+  count: number;
+  total: number;
+  entity_type: "contact" | "company" | null;
+  review_kind: string | null;
+};
+
+export type DataHealthStats = {
+  total_contacts: number;
+  total_companies: number;
+  metrics: DataHealthMetric[];
+};
+
 /** SALES-013's read side - a ReviewQueueItem (same shape, so it feeds
  * straight into ReviewItemCard) plus which rep it belongs to. See
  * backend's app/automations/morning_queue.py. */

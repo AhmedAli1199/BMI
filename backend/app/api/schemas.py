@@ -456,6 +456,28 @@ class DashboardStats(BaseModel):
     top_companies: list[TopCompany]
 
 
+class DataHealthMetric(BaseModel):
+    key: str
+    label: str
+    description: str
+    count: int
+    total: int
+    # "contact" | "company" | None - lets the frontend link straight into
+    # the filtered contacts/companies list for the ones that support it;
+    # the automation-backed metrics link into the review queue instead.
+    entity_type: str | None = None
+    # Set only for a metric backed by a review-queue automation kind, so
+    # the frontend can route "Fix now" straight into that kind's queue
+    # instead of a bare contacts/companies filter.
+    review_kind: str | None = None
+
+
+class DataHealthStats(BaseModel):
+    total_contacts: int
+    total_companies: int
+    metrics: list[DataHealthMetric]
+
+
 class GroupDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

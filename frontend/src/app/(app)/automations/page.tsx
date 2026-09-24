@@ -46,6 +46,7 @@ function KindCard({ k, c }: { k: ReviewKind; c: { pending: number; approved: num
               <div className="flex items-center gap-2.5">
                 <span
                   className={`brand-icon size-8 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg} ${style.color}`}
+                  aria-hidden="true"
                 >
                   <Icon className="size-4" />
                 </span>
@@ -167,7 +168,7 @@ export default async function AutomationsPage() {
         <CardContent className="relative flex flex-wrap items-center justify-between gap-4 p-5">
           <div className="flex items-center gap-3.5">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
-              <ShieldCheck className="size-5" />
+              <ShieldCheck className="size-5" aria-hidden="true" />
             </div>
             <div>
               <p className="text-sm font-bold text-foreground">Guaranteed Human Review</p>
@@ -201,7 +202,7 @@ export default async function AutomationsPage() {
               <div className="text-xs text-muted-foreground">Across all active automations</div>
             </div>
             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/60 text-amber-600 dark:text-amber-400">
-              <ClipboardCheck className="size-6" />
+              <ClipboardCheck className="size-6" aria-hidden="true" />
             </span>
           </CardContent>
         </Card>
@@ -217,7 +218,7 @@ export default async function AutomationsPage() {
               <div className="text-xs text-muted-foreground">Decisions confirmed by your team</div>
             </div>
             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/60 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="size-6" />
+              <CheckCircle2 className="size-6" aria-hidden="true" />
             </span>
           </CardContent>
         </Card>
@@ -234,7 +235,7 @@ export default async function AutomationsPage() {
               <div className="text-xs text-muted-foreground">Background mailbox &amp; CRM workers</div>
             </div>
             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/60 text-blue-600 dark:text-blue-400">
-              <Timer className="size-6" />
+              <Timer className="size-6" aria-hidden="true" />
             </span>
           </CardContent>
         </Card>
@@ -315,7 +316,7 @@ export default async function AutomationsPage() {
               ) : (
                 <Card className="editorial-card border-dashed">
                   <CardContent className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-                    <CheckCircle2 className="size-6 text-muted-foreground opacity-50" />
+                    <CheckCircle2 className="size-6 text-muted-foreground opacity-50" aria-hidden="true" />
                     <p className="text-xs text-muted-foreground">
                       No automations in this workstream yet.
                     </p>
@@ -394,6 +395,7 @@ export default async function AutomationsPage() {
                           ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600"
                           : "border-border bg-muted/60 text-muted-foreground"
                       }`}
+                      aria-hidden="true"
                     >
                       <Power className="size-3.5" />
                     </span>

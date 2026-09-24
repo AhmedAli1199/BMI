@@ -263,7 +263,7 @@ export default async function DashboardPage() {
                     {k.sublabel}
                   </div>
                 </div>
-                <span className={`brand-icon size-11 shrink-0 ${k.color}`}>
+                <span className={`brand-icon size-11 shrink-0 ${k.color}`} aria-hidden="true">
                   <k.icon className="size-5" />
                 </span>
               </CardContent>
@@ -281,7 +281,7 @@ export default async function DashboardPage() {
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="size-4 text-primary" />
+              <Sparkles className="size-4 text-primary" aria-hidden="true" />
               <div>
                 <h2 className="editorial-heading text-base font-bold text-foreground">
                   BMI Brain &middot; Overnight Activity
@@ -303,7 +303,7 @@ export default async function DashboardPage() {
             <Card className="editorial-card">
               <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
                 <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                  <ClipboardCheck className="size-4 text-amber-600" />
+                  <ClipboardCheck className="size-4 text-amber-600" aria-hidden="true" />
                   New for your review
                 </CardTitle>
               </CardHeader>
@@ -318,7 +318,7 @@ export default async function DashboardPage() {
                         href={`/automations/review?kind=${item.kind}`}
                         className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
                       >
-                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`}>
+                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`} aria-hidden="true">
                           <Icon className="size-4" />
                         </span>
                         <div className="min-w-0 flex-1">
@@ -344,7 +344,7 @@ export default async function DashboardPage() {
             <Card className="editorial-card">
               <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
                 <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
-                  <CheckCircle2 className="size-4 text-emerald-600" />
+                  <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
                   Recently resolved
                 </CardTitle>
               </CardHeader>
@@ -359,7 +359,7 @@ export default async function DashboardPage() {
                         href={`/automations/review?kind=${item.kind}&status=${item.status}`}
                         className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
                       >
-                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`}>
+                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`} aria-hidden="true">
                           <Icon className="size-4" />
                         </span>
                         <div className="min-w-0 flex-1">

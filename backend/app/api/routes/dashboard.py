@@ -9,18 +9,33 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.schemas import (
     DashboardStats,
+    DataHealthMetric,
+    DataHealthStats,
     RecentCompany,
     RecentContact,
     SourceBreakdown,
     TopCompany,
 )
 from app.db.session import get_db
-from app.models import Company, Contact, Group, GroupMembership, HistoryEntry, Note
+from app.models import Company, Contact, Email, Group, GroupMembership, HistoryEntry, Note, Phone, ReviewQueueItem
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 RECENT_LIMIT = 6
 TOP_COMPANIES_LIMIT = 6
+
+# The automation kinds that represent a data-quality problem rather than a
+# sales workflow (see frontend/src/lib/automation-style.tsx's
+# categoryForKind "hygiene" bucket, mirrored here so the Data Health page
+# and the Automations Hub agree on what counts as hygiene).
+_HYGIENE_KINDS = {
+    "ooo_ambiguous": "Ambiguous out-of-office replies",
+    "departure_unconfirmed": "Unconfirmed departures",
+    "duplicate_contact": "Possible duplicate contacts",
+    "bounce_uncertain": "Uncertain bounces",
+    "bounce_unmatched": "Unmatched bounces",
+    "returned_copy": "Returned copy / undeliverable mail",
+}
 
 
 @router.get("/stats", response_model=DashboardStats)
@@ -188,3 +203,99 @@ def get_dashboard_stats(
         recent_companies=recent_companies,
         top_companies=top_companies,
     )
+
+
+@router.get("/data-health", response_model=DataHealthStats)
+def get_data_health(
+    source_db: str | None = Query(None, description="Restrict every figure to one publication's data"),
+    db: Session = Depends(get_db),
+) -> DataHealthStats:
+    """Data-quality picture for the BMI Brain Data Health page: record
+    completeness (missing email/phone/industry) plus the pending count of
+    every automation that exists specifically to fix bad data (see
+    _HYGIENE_KINDS). Company-only ("keep things simple" - see
+    contact_channel.py) figures aren't group-scoped, matching /stats."""
+    contact_filter = [Contact.source_db == source_db] if source_db else []
+    company_filter = [Company.source_db == source_db] if source_db else []
+
+    total_contacts = db.scalar(select(func.count()).select_from(Contact).where(*contact_filter)) or 0
+    total_companies = db.scalar(select(func.count()).select_from(Company).where(*company_filter)) or 0
+
+    contacts_missing_email = db.scalar(
+        select(func.count())
+        .select_from(Contact)
+        .where(*contact_filter, ~Contact.id.in_(select(Email.contact_id).where(Email.contact_id.isnot(None))))
+    ) or 0
+    contacts_missing_phone = db.scalar(
+        select(func.count())
+        .select_from(Contact)
+        .where(*contact_filter, ~Contact.id.in_(select(Phone.contact_id).where(Phone.contact_id.isnot(None))))
+    ) or 0
+    companies_missing_industry = db.scalar(
+        select(func.count())
+        .select_from(Company)
+        .where(*company_filter, (Company.industry.is_(None)) | (Company.industry == ""))
+    ) or 0
+    unsubscribed_contacts = db.scalar(
+        select(func.count()).select_from(Contact).where(*contact_filter, Contact.is_unsubscribed.is_(True))
+    ) or 0
+
+    hygiene_filter = [ReviewQueueItem.source_db == source_db] if source_db else []
+    hygiene_rows = dict(
+        db.execute(
+            select(ReviewQueueItem.kind, func.count())
+            .where(
+                ReviewQueueItem.status == "pending",
+                ReviewQueueItem.kind.in_(_HYGIENE_KINDS.keys()),
+                *hygiene_filter,
+            )
+            .group_by(ReviewQueueItem.kind)
+        ).all()
+    )
+
+    metrics = [
+        DataHealthMetric(
+            key="missing_email",
+            label="Contacts without an email address",
+            description="Can't be reached for renewals, follow-ups, or automated bounce/OOO detection.",
+            count=contacts_missing_email,
+            total=total_contacts,
+            entity_type="contact",
+        ),
+        DataHealthMetric(
+            key="missing_phone",
+            label="Contacts without a phone number",
+            description="No fallback channel when email goes unanswered or bounces.",
+            count=contacts_missing_phone,
+            total=total_contacts,
+            entity_type="contact",
+        ),
+        DataHealthMetric(
+            key="missing_industry",
+            label="Companies without an industry",
+            description="Weakens segmentation, targeting, and the Top Companies breakdown.",
+            count=companies_missing_industry,
+            total=total_companies,
+            entity_type="company",
+        ),
+        DataHealthMetric(
+            key="unsubscribed",
+            label="Unsubscribed / hard-bounced contacts",
+            description="Confirmed undeliverable by the bounce-handling automation - excluded from outreach.",
+            count=unsubscribed_contacts,
+            total=total_contacts,
+            entity_type="contact",
+        ),
+    ] + [
+        DataHealthMetric(
+            key=kind,
+            label=label,
+            description="Flagged by the automations engine and waiting for a human decision.",
+            count=hygiene_rows.get(kind, 0),
+            total=total_contacts,
+            review_kind=kind,
+        )
+        for kind, label in _HYGIENE_KINDS.items()
+    ]
+
+    return DataHealthStats(total_contacts=total_contacts, total_companies=total_companies, metrics=metrics)

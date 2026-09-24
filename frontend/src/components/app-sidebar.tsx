@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ClipboardCheck, Settings, Sparkles } from "lucide-react";
+import { CalendarClock, ClipboardCheck, HeartPulse, Settings, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -165,6 +165,20 @@ export function AppSidebar({ session }: { session: SessionPayload | null }) {
                         className={`mr-1.5 size-4 ${pathname === "/automations" ? "text-primary" : "text-sidebar-foreground/70"}`}
                       />
                       <span>Automations Hub</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {canUseAutomations(session) && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href="/data-health" />}
+                      isActive={pathname === "/data-health"}
+                      className={NAV_ITEM}
+                    >
+                      <HeartPulse
+                        className={`mr-1.5 size-4 ${pathname === "/data-health" ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
+                      <span>Data Health</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )}
