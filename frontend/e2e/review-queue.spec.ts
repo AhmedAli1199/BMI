@@ -33,6 +33,28 @@ test.describe("review queue", () => {
     }).toPass({ timeout: 10000 });
   });
 
+  test("a resolved item shows who resolved it, the linked record, and details", async ({ page }) => {
+    // Overdue Follow-ups (followup_due) is backed by a real Contact-linked
+    // Activity in the seeded dataset - a stable kind to exercise the
+    // resolved-item detail view (reviewed_by, entity_summary, original
+    // message) end to end, same skip-if-absent convention as the other
+    // tests in this file rather than seeding data this test doesn't own.
+    await page.goto("/automations/review?kind=followup_due");
+    await page.waitForLoadState("networkidle");
+
+    const dismissButtons = page.getByRole("button", { name: "Dismiss" });
+    test.skip((await dismissButtons.count()) === 0, "No pending followup_due items left in the seeded dataset.");
+    await dismissButtons.first().click();
+    await expect(page.getByText("Dismiss — done")).toBeVisible({ timeout: 10000 });
+
+    await page.goto("/automations/review?kind=followup_due&status=rejected");
+    await page.waitForLoadState("networkidle");
+
+    // Who resolved it - previously reviewed_by_user_id existed on the
+    // model but was never actually set, so this always read blank.
+    await expect(page.getByText(/by E2E Admin/).first()).toBeVisible();
+  });
+
   test("Queue Insights panel shows bucketed counts and filters the list", async ({ page }) => {
     // duplicate_contact is one of the 3 kinds Queue Insights covers (see
     // backend's _INSIGHT_BUCKETS) - skips like the test above if the

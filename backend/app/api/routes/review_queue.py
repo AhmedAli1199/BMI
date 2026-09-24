@@ -16,15 +16,17 @@ from app.api.schemas import (
     ReviewActionRequest,
     ReviewKindOut,
     ReviewQueueCounts,
+    ReviewQueueEntitySummary,
     ReviewQueueInsightBucket,
     ReviewQueueInsights,
     ReviewQueueItemOut,
     ReviewQueuePage,
+    UserSummary,
 )
 from app.automations import all_kinds, get_action, get_kind
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import ReviewQueueItem
+from app.models import Company, Contact, Email, Phone, ReviewQueueItem, User
 
 router = APIRouter(prefix="/review-queue", tags=["review-queue"])
 
@@ -123,6 +125,67 @@ def _bucket_condition(kind: str, bucket: str):
             return replacements_len == 0
         return None
     return None
+
+
+def _serialize_items(db: Session, items: list[ReviewQueueItem]) -> list[ReviewQueueItemOut]:
+    """Batch-attaches the two things a plain model_validate(item) can't
+    give you - entity_summary (linked contact/company's name, email,
+    phone, employer) and reviewed_by (who resolved it) - in a handful of
+    IN (...) queries regardless of how many items are being serialized,
+    never one query per item."""
+    contact_ids = {i.entity_id for i in items if i.entity_type == "contact" and i.entity_id}
+    company_ids = {i.entity_id for i in items if i.entity_type == "company" and i.entity_id}
+    reviewer_ids = {i.reviewed_by_user_id for i in items if i.reviewed_by_user_id}
+
+    contacts = {c.id: c for c in db.scalars(select(Contact).where(Contact.id.in_(contact_ids)))} if contact_ids else {}
+    companies = {c.id: c for c in db.scalars(select(Company).where(Company.id.in_(company_ids)))} if company_ids else {}
+    reviewers = {u.id: u for u in db.scalars(select(User).where(User.id.in_(reviewer_ids)))} if reviewer_ids else {}
+
+    # A contact's own employer, needed for entity_summary.company_name -
+    # not necessarily the same set as company_ids above (those are items
+    # whose entity_type IS "company", this is companies *referenced by* a
+    # contact-type item).
+    employer_ids = {c.company_id for c in contacts.values() if c.company_id}
+    missing_employer_ids = employer_ids - companies.keys()
+    if missing_employer_ids:
+        for c in db.scalars(select(Company).where(Company.id.in_(missing_employer_ids))):
+            companies[c.id] = c
+
+    emails_by_contact: dict[uuid.UUID, str] = {}
+    phones_by_contact: dict[uuid.UUID, str] = {}
+    if contacts:
+        for e in db.scalars(
+            select(Email).where(Email.contact_id.in_(contacts.keys())).order_by(Email.is_primary.desc())
+        ):
+            emails_by_contact.setdefault(e.contact_id, e.address)
+        for p in db.scalars(
+            select(Phone).where(Phone.contact_id.in_(contacts.keys())).order_by(Phone.is_primary.desc())
+        ):
+            phones_by_contact.setdefault(p.contact_id, p.number)
+
+    def entity_summary(item: ReviewQueueItem) -> ReviewQueueEntitySummary | None:
+        if item.entity_type == "contact" and item.entity_id in contacts:
+            c = contacts[item.entity_id]
+            employer = companies.get(c.company_id) if c.company_id else None
+            label = c.full_name or " ".join(filter(None, [c.first_name, c.last_name])) or "(no name)"
+            return ReviewQueueEntitySummary(
+                id=c.id, type="contact", label=label, job_title=c.job_title,
+                email=emails_by_contact.get(c.id), phone=phones_by_contact.get(c.id),
+                company_name=employer.name if employer else None,
+            )
+        if item.entity_type == "company" and item.entity_id in companies:
+            comp = companies[item.entity_id]
+            return ReviewQueueEntitySummary(id=comp.id, type="company", label=comp.name)
+        return None
+
+    out = []
+    for item in items:
+        item_out = ReviewQueueItemOut.model_validate(item)
+        item_out.entity_summary = entity_summary(item)
+        if item.reviewed_by_user_id and item.reviewed_by_user_id in reviewers:
+            item_out.reviewed_by = UserSummary.model_validate(reviewers[item.reviewed_by_user_id])
+        out.append(item_out)
+    return out
 
 
 def _is_visible(item: ReviewQueueItem, identity: Identity) -> bool:
@@ -291,7 +354,7 @@ def list_review_items(
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
     items = db.scalars(stmt).all()
     return ReviewQueuePage(
-        items=[ReviewQueueItemOut.model_validate(i) for i in items],
+        items=_serialize_items(db, items),
         total=total, page=page, page_size=page_size,
     )
 
@@ -306,7 +369,7 @@ def get_review_item(
     # exists at this id at all.
     if not item or not _is_visible(item, identity):
         raise HTTPException(status_code=404, detail="Review item not found")
-    return ReviewQueueItemOut.model_validate(item)
+    return _serialize_items(db, [item])[0]
 
 
 @router.post("/{item_id}/actions/{action_id}", response_model=ReviewQueueItemOut)
@@ -362,9 +425,10 @@ def resolve_review_item(
     item.resolved_action = action_id
     item.review_note = payload.note
     item.reviewed_at = datetime.now(timezone.utc)
+    item.reviewed_by_user_id = identity.user_uuid
     db.commit()
     db.refresh(item)
-    return ReviewQueueItemOut.model_validate(item)
+    return _serialize_items(db, [item])[0]
 
 
 @router.post("/{item_id}/redraft", response_model=RedraftResult)
@@ -476,6 +540,7 @@ def bulk_resolve_review_items(
                 item.resolved_action = action_id
                 item.review_note = payload.note
                 item.reviewed_at = datetime.now(timezone.utc)
+                item.reviewed_by_user_id = identity.user_uuid
             succeeded += 1
         except ValueError as e:
             if len(errors) < 20:  # cap - a batch that's failing wholesale doesn't need a 500-line response
@@ -514,6 +579,7 @@ def reopen_review_item(
     item.resolved_action = None
     item.review_note = None
     item.reviewed_at = None
+    item.reviewed_by_user_id = None
     db.commit()
     db.refresh(item)
-    return ReviewQueueItemOut.model_validate(item)
+    return _serialize_items(db, [item])[0]

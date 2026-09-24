@@ -290,6 +290,16 @@ export type ReviewPayload = {
   [key: string]: unknown;
 };
 
+export type ReviewQueueEntitySummary = {
+  id: string;
+  type: "contact" | "company";
+  label: string;
+  job_title: string | null;
+  email: string | null;
+  phone: string | null;
+  company_name: string | null;
+};
+
 export type ReviewQueueItem = {
   id: string;
   kind: string;
@@ -301,7 +311,9 @@ export type ReviewQueueItem = {
   resolved_action: string | null;
   review_note: string | null;
   reviewed_at: string | null;
+  reviewed_by: UserSummary | null;
   created_at: string;
+  entity_summary: ReviewQueueEntitySummary | null;
 };
 
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };

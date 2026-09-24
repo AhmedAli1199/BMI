@@ -1,7 +1,23 @@
 import Link from "next/link";
-import { ArrowDownWideNarrow, ArrowLeft, ArrowUpNarrowWide, Clock, PartyPopper, Sparkles } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ArrowLeft,
+  ArrowUpNarrowWide,
+  Building2,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  ExternalLink,
+  Mail,
+  PartyPopper,
+  Phone,
+  Sparkles,
+  UserCircle,
+} from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
+import { cleanNoteBody } from "@/lib/notes";
 import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueInsights, ReviewQueueItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -315,28 +331,112 @@ export default async function ReviewQueuePage({
  * action buttons - the decision is already made), plus a Reopen button
  * on rejected items only, since that's the only status it's safe to undo
  * from here (see reopen-review-item-button.tsx). */
+/** The audit-trail view for an already-resolved (approved/rejected) item.
+ * Reads back three things the flat summary row used to lose entirely:
+ * who resolved it (reviewed_by - now actually recorded, see backend's
+ * resolve_review_item), a way to open the linked contact/company
+ * directly (entity_summary + item.entity_id/entity_type), and the
+ * original source material (payload.original_text/source_context) so a
+ * reviewer double-checking a past decision doesn't have to take the
+ * summary's word for it. */
 function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKind }) {
   const style = styleForKind(kind.kind);
   const Icon = style.icon;
   const action = kind.actions.find((a) => a.id === item.resolved_action);
+  const entity = item.entity_summary;
+  const hasSourceMaterial = Boolean(item.payload.original_text || item.payload.source_context);
+  const hasDetails = Boolean(item.payload.details && item.payload.details.length > 0);
+
   return (
     <Card className="editorial-card overflow-hidden">
       <div className={`masthead-rule w-full ${style.accent}`} />
-      <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border ${style.chipBg} ${style.color}`}>
-            <Icon className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground">{item.payload.summary || "Review item"}</p>
-            <p className="text-xs text-muted-foreground">
-              {action?.label || item.resolved_action || item.status}
-              {item.reviewed_at ? ` · ${new Date(item.reviewed_at).toLocaleString()}` : ""}
-              {item.review_note ? ` · "${item.review_note}"` : ""}
-            </p>
+      <CardContent className="flex flex-col gap-3 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border ${style.chipBg} ${style.color}`}>
+              <Icon className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground">{item.payload.summary || "Review item"}</p>
+              <p className="text-xs text-muted-foreground">
+                <span className={item.status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-rose-600"}>
+                  {item.status === "approved" ? <Check className="mr-0.5 inline size-3" /> : null}
+                  {action?.label || item.resolved_action || item.status}
+                </span>
+                {item.reviewed_by ? ` by ${item.reviewed_by.name}` : " · no reviewer recorded"}
+                {item.reviewed_at ? ` · ${new Date(item.reviewed_at).toLocaleString()}` : ""}
+                {item.review_note ? ` · "${item.review_note}"` : ""}
+              </p>
+              {item.entity_type && item.entity_id && (
+                <Link
+                  href={`/${item.entity_type === "contact" ? "contacts" : "companies"}/${item.entity_id}`}
+                  className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  Open {item.entity_type} record
+                  <ExternalLink className="size-3" />
+                </Link>
+              )}
+            </div>
           </div>
+          {item.status === "rejected" && <ReopenReviewItemButton itemId={item.id} />}
         </div>
-        {item.status === "rejected" && <ReopenReviewItemButton itemId={item.id} />}
+
+        {/* Contact/company identity strip - enough to confirm who this is
+            about without leaving the list. */}
+        {entity && (
+          <Link
+            href={`/${entity.type === "contact" ? "contacts" : "companies"}/${entity.id}`}
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs transition-colors hover:border-primary/40 hover:bg-muted/40"
+          >
+            <span className="flex items-center gap-1.5 font-semibold text-foreground">
+              <UserCircle className="size-3.5 text-muted-foreground" />
+              {entity.label}
+              {entity.job_title ? <span className="font-normal text-muted-foreground">· {entity.job_title}</span> : null}
+            </span>
+            {entity.company_name && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Building2 className="size-3.5" />
+                {entity.company_name}
+              </span>
+            )}
+            {entity.email && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Mail className="size-3.5" />
+                {entity.email}
+              </span>
+            )}
+            {entity.phone && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Phone className="size-3.5" />
+                {entity.phone}
+              </span>
+            )}
+          </Link>
+        )}
+
+        {hasDetails && (
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 rounded-lg bg-muted/30 p-3 text-xs sm:grid-cols-2">
+            {item.payload.details!.map((d, i) => (
+              <div key={d.key ?? i} className="flex items-baseline justify-between gap-2 sm:justify-start">
+                <dt className="shrink-0 text-muted-foreground">{d.label}</dt>
+                <dd className="whitespace-pre-wrap break-words text-right font-medium text-foreground sm:text-left">{d.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {hasSourceMaterial && (
+          <details className="group rounded-lg border border-border/70">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">
+              <ChevronDown className="size-3.5 transition-transform group-open:hidden" />
+              <ChevronUp className="hidden size-3.5 transition-transform group-open:block" />
+              Original message
+            </summary>
+            <p className="whitespace-pre-wrap border-t border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+              {cleanNoteBody(item.payload.original_text || item.payload.source_context || "")}
+            </p>
+          </details>
+        )}
       </CardContent>
     </Card>
   );

@@ -57,6 +57,85 @@ def test_resolve_review_item_dismiss(client, db_session):
     assert resp.json()["status"] == "rejected"
 
 
+def test_resolving_an_item_records_who_resolved_it(client, db_session):
+    """Regression: reviewed_by_user_id has existed on the model since the
+    audit-trail work, but nothing ever actually set it - approving or
+    rejecting an item silently lost who did it."""
+    rep = make_user(db_session, role="sales", name="Jane Rep")
+    item = _make_followup_item(db_session)
+
+    resp = client.post(
+        f"/api/review-queue/{item.id}/actions/dismiss", json={},
+        headers=identity_headers(rep, access=[("onboard", None)]),
+    )
+    assert resp.status_code == 200
+    assert resp.json()["reviewed_by"]["name"] == "Jane Rep"
+
+    # And it comes back the same way on a plain list/get, not just the
+    # resolve response itself.
+    fetched = client.get(f"/api/review-queue/{item.id}").json()
+    assert fetched["reviewed_by"]["name"] == "Jane Rep"
+
+
+def test_resolving_with_no_identity_leaves_reviewed_by_null(client, db_session):
+    item = _make_followup_item(db_session)
+    resp = client.post(f"/api/review-queue/{item.id}/actions/dismiss", json={})
+    assert resp.status_code == 200
+    assert resp.json()["reviewed_by"] is None
+
+
+def test_reopening_a_rejected_item_clears_reviewed_by(client, db_session):
+    rep = make_user(db_session, role="sales")
+    item = _make_followup_item(db_session)
+    client.post(
+        f"/api/review-queue/{item.id}/actions/dismiss", json={},
+        headers=identity_headers(rep, access=[("onboard", None)]),
+    )
+
+    resp = client.post(f"/api/review-queue/{item.id}/reopen")
+    assert resp.status_code == 200
+    assert resp.json()["reviewed_by"] is None
+    assert resp.json()["status"] == "pending"
+
+
+def test_resolved_item_includes_entity_summary_with_contact_details(client, db_session):
+    """The card needs enough to identify who's being looked at without a
+    click-through - name, job title, email, phone, employer."""
+    from app.models import Company, Email, Phone
+
+    company = Company(id=uuid.uuid4(), source_db="onboard", source_act_id=str(uuid.uuid4()), name="Acme Travel")
+    db_session.add(company)
+    db_session.flush()
+
+    contact = Contact(
+        id=uuid.uuid4(), source_db="onboard", source_act_id=str(uuid.uuid4()),
+        first_name="Neil", last_name="Hicks", job_title="Buyer", company_id=company.id,
+    )
+    db_session.add(contact)
+    db_session.flush()
+    db_session.add(Email(id=uuid.uuid4(), source_db="onboard", source_act_id=str(uuid.uuid4()), contact_id=contact.id, address="neil@acme.example", is_primary=True))
+    db_session.add(Phone(id=uuid.uuid4(), source_db="onboard", source_act_id=str(uuid.uuid4()), contact_id=contact.id, number="+44 123", is_primary=True))
+    db_session.flush()
+
+    item = ReviewQueueItem(
+        id=uuid.uuid4(), kind="duplicate_contact", source_db="onboard",
+        entity_type="contact", entity_id=contact.id,
+        payload={"summary": "Maybe a duplicate", "confidence": 0.9},
+        status="pending",
+    )
+    db_session.add(item)
+    db_session.flush()
+
+    resp = client.get(f"/api/review-queue/{item.id}")
+    assert resp.status_code == 200
+    summary = resp.json()["entity_summary"]
+    assert summary["label"] == "Neil Hicks"
+    assert summary["job_title"] == "Buyer"
+    assert summary["email"] == "neil@acme.example"
+    assert summary["phone"] == "+44 123"
+    assert summary["company_name"] == "Acme Travel"
+
+
 def test_resolve_already_resolved_item_conflicts(client, db_session):
     item = _make_followup_item(db_session, status="approved")
     resp = client.post(f"/api/review-queue/{item.id}/actions/dismiss", json={})

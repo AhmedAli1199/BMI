@@ -519,6 +519,20 @@ class ReviewKindOut(BaseModel):
     audience: str
 
 
+class ReviewQueueEntitySummary(BaseModel):
+    """Just enough to identify the linked contact/company at a glance on
+    an approved/rejected card - name, email, phone, company - without the
+    reviewer having to open the full record first to confirm they're
+    looking at the right person."""
+    id: uuid.UUID
+    type: str  # "contact" | "company"
+    label: str
+    job_title: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    company_name: str | None = None
+
+
 class ReviewQueueItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -531,7 +545,9 @@ class ReviewQueueItemOut(BaseModel):
     resolved_action: str | None = None
     review_note: str | None = None
     reviewed_at: datetime | None = None
+    reviewed_by: UserSummary | None = None
     created_at: datetime
+    entity_summary: ReviewQueueEntitySummary | None = None
 
 
 class ScheduledJobOut(BaseModel):
