@@ -126,7 +126,7 @@ def run_job_now(job_id: str, _staff: Identity = Depends(require_staff)) -> dict:
 
     logger.info("manual run requested for automation job: %s", job.id)
     try:
-        ran = run_job(job)
+        ran = run_job(job, trigger="manual")
     except Exception as exc:
         # The full logs.exception() call below still carries the complete
         # traceback (and, for a SQLAlchemy error, the compiled SQL +

@@ -16,8 +16,11 @@ import type {
   GroupListItem,
   HistoryOut,
   Page,
+  KindDetail,
+  ReviewQueueInsights,
   Publication,
   ReviewQueueItem,
+  StatsRange,
   RoleDef,
   UserAccessEntry,
   UserAccount,
@@ -788,4 +791,14 @@ export async function updateTeamUser(
   });
   revalidatePath("/settings/users");
   return user;
+}
+
+/** The expandable detail under one automation's row on a workstream page -
+ * fetched only when that row is opened. */
+export async function getKindDetail(kind: string, range: StatsRange): Promise<KindDetail> {
+  return backendFetch<KindDetail>(`/api/automations/kinds/${encodeURIComponent(kind)}/detail?range=${range}`);
+}
+
+export async function getQueueInsights(kind: string): Promise<ReviewQueueInsights> {
+  return backendFetch<ReviewQueueInsights>(`/api/review-queue/insights?kind=${encodeURIComponent(kind)}&status=pending`);
 }

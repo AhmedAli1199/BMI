@@ -8,7 +8,9 @@ import { PublicationSwitcher } from "@/components/publication-switcher";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
 import { getPublicationFilter } from "@/lib/publication";
 import { listPublications } from "@/lib/actions";
-import { allowedSourceDbSlugs } from "@/lib/access";
+import { allowedSourceDbSlugs, canUseAutomations } from "@/lib/access";
+import { backendFetch } from "@/lib/backend";
+import type { ScheduledJob, WorkstreamSummary } from "@/lib/types";
 
 export default async function AppLayout({
   children,
@@ -16,9 +18,18 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const [publicationFilter, allPublications] = await Promise.all([
+  const showHub = canUseAutomations(session);
+  // Sidebar badges for the Automations Hub sub-pages. Never allowed to
+  // break the whole app shell: a failed call just means no badges.
+  const [publicationFilter, allPublications, workstreams, jobs] = await Promise.all([
     getPublicationFilter(),
     listPublications(),
+    showHub
+      ? backendFetch<WorkstreamSummary[]>("/api/automations/workstreams").catch(() => [] as WorkstreamSummary[])
+      : Promise.resolve([] as WorkstreamSummary[]),
+    showHub
+      ? backendFetch<ScheduledJob[]>("/api/automations/jobs").catch(() => [] as ScheduledJob[])
+      : Promise.resolve([] as ScheduledJob[]),
   ]);
   // Same rule as the dashboard's own tiles (page.tsx) - a non-admin only
   // ever sees their own granted title(s) as switcher options, never the
@@ -30,7 +41,11 @@ export default async function AppLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar session={session} />
+      <AppSidebar
+        session={session}
+        workstreams={workstreams}
+        scanners={{ active: jobs.filter((j) => j.enabled).length, total: jobs.length }}
+      />
       <SidebarInset>
         <header className="app-topbar flex h-14 shrink-0 items-center gap-3 border-b border-sidebar-border px-4 text-sidebar-foreground">
           <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />

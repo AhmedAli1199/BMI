@@ -8,6 +8,7 @@ from app.models.contact_channel import Address, Email, Phone
 from app.models.email_signal import EmailSignal
 from app.models.email_thread_state import EmailThreadState
 from app.models.field_change import FieldChange
+from app.models.job_run import AutomationJobRun
 from app.models.group import Group, GroupMembership
 from app.models.history import HistoryEntry
 from app.models.llm_usage import LlmUsageEvent
@@ -35,6 +36,7 @@ __all__ = [
     "EmailSignal",
     "EmailThreadState",
     "FieldChange",
+    "AutomationJobRun",
     "Group",
     "GroupMembership",
     "HistoryEntry",

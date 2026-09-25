@@ -15,6 +15,7 @@ import app.automations  # noqa: F401 - import registers every automation's revie
 from app.api.routes import (
     activities,
     auth,
+    automation_stats,
     automations,
     companies,
     contacts,
@@ -73,6 +74,7 @@ api_router.include_router(groups.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(review_queue.router)
 api_router.include_router(automations.router)
+api_router.include_router(automation_stats.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)
 api_router.include_router(diagnostics.router)

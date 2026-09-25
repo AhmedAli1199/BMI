@@ -22,50 +22,8 @@ export type AutomationStyle = {
   ring: string; // hover border color
 };
 
-export type AutomationCategory = "sales" | "capture" | "hygiene";
-
-export type CategoryMeta = {
-  id: AutomationCategory;
-  label: string;
-  tagline: string;
-  badgeColor: string;
-};
-
-export const AUTOMATION_CATEGORIES: CategoryMeta[] = [
-  {
-    id: "sales",
-    label: "Sales Acceleration & Follow-ups",
-    tagline: "Drive deal velocity, timely reach-outs, and commercial revenue continuity",
-    badgeColor: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-  },
-  {
-    id: "capture",
-    label: "Lead & Contact Capture",
-    tagline: "Ingest prospective advertisers and agency contacts from inbound mail and field events",
-    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-  },
-  {
-    id: "hygiene",
-    label: "CRM Data Hygiene & Intelligence",
-    tagline: "Keep 70,000+ contact records accurate, deduplicated, and deliverable",
-    badgeColor: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-  },
-];
-
-export function categoryForKind(kind: string): AutomationCategory {
-  switch (kind) {
-    case "followup_due":
-    case "signal_trigger":
-    case "personal_touchpoint_due":
-      return "sales";
-    case "inbound_contact_unmatched":
-    case "business_card_new":
-    case "business_card_existing":
-      return "capture";
-    default:
-      return "hygiene";
-  }
-}
+// Which workstream each automation belongs to lives in the backend
+// (app/automations/workstreams.py) - the Hub pages read it from the API.
 
 // Keyed by the backend's registry `kind` string (see
 // app/automations/registry.py). Purely cosmetic, never a source of truth.
@@ -196,5 +154,13 @@ export function humanizeCron(cron: string): string {
   const everyNHours = cron.match(/^0 \*\/(\d+) \* \* \*$/);
   if (everyNHours) return `Every ${everyNHours[1]} hours`;
   if (cron === "0 0 * * *") return "Daily at midnight UTC";
+  const hh = (h: string) => `${h.padStart(2, "0")}:00`;
+  const daily = cron.match(/^0 (\d{1,2}) \* \* \*$/);
+  if (daily) return `Daily at ${hh(daily[1])} UTC`;
+  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const weekly = cron.match(/^0 (\d{1,2}) \* \* ([0-6])$/);
+  if (weekly) return `${DAYS[Number(weekly[2])]}s at ${hh(weekly[1])} UTC`;
+  const weekdayHours = cron.match(/^0 (\d{1,2})-(\d{1,2}) \* \* 1-5$/);
+  if (weekdayHours) return `Hourly, ${hh(weekdayHours[1])}–${hh(weekdayHours[2])} UTC weekdays`;
   return cron;
 }

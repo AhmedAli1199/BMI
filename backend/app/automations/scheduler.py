@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import logging
 import threading
+import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Callable
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -100,7 +102,70 @@ _running_job_ids: set[str] = set()
 _running_lock = threading.Lock()
 
 
-def run_job(job: ScheduledJob) -> bool:
+def _start_run_record(job: ScheduledJob, trigger: str):
+    """Best-effort run-history row (see models/job_run.py). Uses its own
+    short-lived session so a job's own transaction can never roll it back,
+    and a failure to write history never stops the job itself from
+    running."""
+    from app.db.session import SessionLocal
+    from app.models import AutomationJobRun
+
+    db = SessionLocal()
+    try:
+        run = AutomationJobRun(id=uuid.uuid4(), job_id=job.id, trigger=trigger, status="running",
+                               started_at=datetime.now(timezone.utc))
+        db.add(run)
+        db.commit()
+        return run.id, run.started_at
+    except Exception:
+        logger.exception("couldn't record run start for %s", job.id)
+        db.rollback()
+        return None, datetime.now(timezone.utc)
+    finally:
+        db.close()
+
+
+def _finish_run_record(job: ScheduledJob, run_id, started_at: datetime, error: BaseException | None) -> None:
+    """Closes the run row, counting the review items this job's kinds
+    gained while it ran (created_at inside the run window) - jobs don't
+    return a count themselves, and this is the one number the Scanners
+    page most needs ("did it find anything?")."""
+    if run_id is None:
+        return
+    from sqlalchemy import func, select
+
+    from app.automations.workstreams import kinds_for_job
+    from app.db.session import SessionLocal
+    from app.models import AutomationJobRun, ReviewQueueItem
+
+    db = SessionLocal()
+    try:
+        finished_at = datetime.now(timezone.utc)
+        kinds = kinds_for_job(job.id)
+        queued = 0
+        if kinds:
+            queued = db.scalar(
+                select(func.count()).select_from(ReviewQueueItem).where(
+                    ReviewQueueItem.kind.in_(kinds),
+                    ReviewQueueItem.created_at >= started_at,
+                    ReviewQueueItem.created_at <= finished_at,
+                )
+            ) or 0
+        run = db.get(AutomationJobRun, run_id)
+        if run:
+            run.finished_at = finished_at
+            run.status = "failed" if error else "success"
+            run.items_queued = queued
+            run.error = f"{type(error).__name__}: {error}"[:2000] if error else None
+            db.commit()
+    except Exception:
+        logger.exception("couldn't record run finish for %s", job.id)
+        db.rollback()
+    finally:
+        db.close()
+
+
+def run_job(job: ScheduledJob, trigger: str = "scheduled") -> bool:
     """The one place a job's func() actually gets called from - both the
     scheduler's cron tick and the manual "Run now" API route go through
     this, so the concurrency guard applies to either trigger source
@@ -114,9 +179,15 @@ def run_job(job: ScheduledJob) -> bool:
             logger.info("automation job skipped (already running): %s", job.id)
             return False
         _running_job_ids.add(job.id)
+    run_id, started_at = _start_run_record(job, trigger)
+    error: BaseException | None = None
     try:
         job.func()
+    except BaseException as e:
+        error = e
+        raise
     finally:
+        _finish_run_record(job, run_id, started_at, error)
         with _running_lock:
             _running_job_ids.discard(job.id)
     return True

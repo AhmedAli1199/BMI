@@ -351,6 +351,82 @@ export type ScheduledJob = {
   has_cursor: boolean;
 };
 
+// ---- Automations Hub workstream stats (backend automation_stats.py) ----
+
+export type StatsRange = "7d" | "30d" | "all";
+
+export type JobRun = {
+  id: string;
+  job_id: string;
+  trigger: "scheduled" | "manual";
+  started_at: string;
+  finished_at: string | null;
+  status: "running" | "success" | "failed";
+  items_queued: number;
+  error: string | null;
+};
+
+export type JobSummary = {
+  id: string;
+  label: string;
+  cron: string;
+  enabled: boolean;
+  last_run: JobRun | null;
+};
+
+export type StatsTotals = {
+  pending: number;
+  oldest_pending_at: string | null;
+  new: number;
+  resolved: number;
+  approved: number;
+  rejected: number;
+  new_prev: number | null;
+  resolved_prev: number | null;
+  acted_on_rate: number | null;
+  median_resolve_seconds: number | null;
+};
+
+export type AutomationStats = StatsTotals & {
+  kind: string;
+  label: string;
+  description: string;
+  job: JobSummary | null;
+  daily_new: number[];
+};
+
+export type WorkstreamStats = {
+  id: string;
+  label: string;
+  tagline: string;
+  range: StatsRange;
+  chart_days: number;
+  totals: StatsTotals;
+  daily: { date: string; new: number; resolved: number; backlog: number }[];
+  automations: AutomationStats[];
+};
+
+export type WorkstreamSummary = {
+  id: string;
+  label: string;
+  tagline: string;
+  kinds: string[];
+  pending: number;
+  new_7d: number;
+  resolved_7d: number;
+  daily_new_7d: number[];
+};
+
+export type KindDetail = {
+  kind: string;
+  outcomes: { action_id: string; label: string; status: string; count: number }[];
+  top_reviewers: { name: string; count: number }[];
+  ai_cost_usd: number | null;
+  ai_calls: number | null;
+  ai_cost_shared_with: string[];
+  recent: { id: string; summary: string; status: string; created_at: string }[];
+};
+
 export type AutomationSettingType = "bool" | "int" | "float" | "csv" | "text";
 
 export type AutomationSetting = {

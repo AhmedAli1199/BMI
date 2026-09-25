@@ -18,11 +18,11 @@ export default async function AutomationSettingsPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div>
         <Link
-          href="/automations"
+          href="/automations/engine"
           className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" />
-          Automations
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          Scanners &amp; Settings
         </Link>
         <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
           <Sparkles className="size-3.5" />
