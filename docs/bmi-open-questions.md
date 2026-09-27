@@ -39,6 +39,14 @@ a record of what was decided and why.
       Without it, the added/updated/skipped summary just gets logged
       server-side instead of posted to a channel - works either way, but
       BMI presumably wants it visible somewhere the team actually looks.
+- [ ] **SOR commission rate - is 2% the standard, and what earns 5%?**
+      Every per-rep "Commission payable" figure across the 2026 SOR works
+      out to exactly 2% of that rep's booked total, except two that are 5%.
+      No booking is ever split between reps (all 517 credited rows go
+      100% to one person), so we're assuming one rep per order at 2%
+      unless a rate is set on the booking. Need BMI to confirm the rule
+      (by title? by rep? new vs renewal?) before commission statements
+      are treated as authoritative.
 
 ## Answered
 
