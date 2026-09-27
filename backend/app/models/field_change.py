@@ -30,7 +30,7 @@ from app.models.base import UUIDPk
 class FieldChange(Base, UUIDPk):
     __tablename__ = "field_changes"
     __table_args__ = (
-        CheckConstraint("entity_type IN ('contact', 'company')", name="ck_field_changes_entity_type"),
+        CheckConstraint("entity_type IN ('contact', 'company', 'sales_order')", name="ck_field_changes_entity_type"),
     )
 
     entity_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)

@@ -292,6 +292,52 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         ),
         group="LLM usage & cost", type="text",
     ),
+    # ---- Sales Order Register ----
+    AutomationSettingDef(
+        key="automations_sor_client_match_scan_enabled", label="Client matching active",
+        description="Daily: links order-register clients to CRM companies (exact matches automatically, likely matches sent for review).",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sor_match_max_per_run", label="Max match suggestions per run",
+        description="Upper limit on new 'is this the same company?' review items created in one run.",
+        group="Sales Order Register", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_sor_invoice_chase_scan_enabled", label="Uninvoiced booking scan active",
+        description="Weekdays: flags booked orders with no invoice number once their issue has published or event has run.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sor_invoice_grace_days", label="Grace period after publication (days)",
+        description="How long after an issue publishes or an event runs before a still-uninvoiced booking is flagged.",
+        group="Sales Order Register", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="sor_invoice_snooze_days", label="'Remind me later' delay (days)",
+        description="How long a booking stays out of the queue after someone chooses 'Not yet - remind me later'.",
+        group="Sales Order Register", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="sor_invoice_max_per_run", label="Max uninvoiced bookings flagged per run",
+        description="Upper limit on new uninvoiced-booking review items created in one run.",
+        group="Sales Order Register", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_sor_renewal_scan_enabled", label="Renewal outreach active",
+        description="Weekdays: drafts a renewal email for last year's advertisers approaching the anniversary of their booking who haven't rebooked (SALES-021).",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sor_renewal_lead_days", label="Renewal lead time (days)",
+        description="How many days before the anniversary of last year's booking the renewal draft is queued.",
+        group="Sales Order Register", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="sor_renewal_max_per_run", label="Max renewals drafted per run",
+        description="Upper limit on renewal drafts created in one run (each may use one AI call).",
+        group="Sales Order Register", type="int", min=1,
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}

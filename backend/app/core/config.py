@@ -224,6 +224,17 @@ class Settings(BaseSettings):
     sales005_no_date_delay_days: int = 1
     sales005_max_per_run: int = 25
 
+    # Sales Order Register automations - see app/automations/sales_orders.py.
+    automations_sor_client_match_scan_enabled: bool = False
+    sor_match_max_per_run: int = 50
+    automations_sor_invoice_chase_scan_enabled: bool = False
+    sor_invoice_grace_days: int = 7  # days after publication/event before an uninvoiced booking is flagged
+    sor_invoice_snooze_days: int = 7  # "remind me later" re-flags after this many days
+    sor_invoice_max_per_run: int = 50
+    automations_sor_renewal_scan_enabled: bool = False
+    sor_renewal_lead_days: int = 60  # start the renewal this many days before the anniversary of last year's booking
+    sor_renewal_max_per_run: int = 25
+
     # SALES-013 (Morning Follow-Up Queue) - see
     # app/automations/morning_queue.py. Ranks each pending signal_trigger/
     # followup_due item by score = w_urgency*urgency + w_value*value, both

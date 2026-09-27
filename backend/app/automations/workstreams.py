@@ -45,6 +45,12 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         tagline="Duplicates, bounces, out-of-office replies and departures that keep the CRM accurate.",
         kinds=("ooo_ambiguous", "departure_unconfirmed", "duplicate_contact", "bounce_uncertain", "bounce_unmatched"),
     ),
+    Workstream(
+        id="revenue",
+        label="Revenue & Orders",
+        tagline="Renewals, uninvoiced bookings and client matching, all run on the Sales Order Register.",
+        kinds=("renewal_due", "sor_invoice_missing", "sor_client_match"),
+    ),
 )
 
 KIND_JOB: dict[str, str | None] = {
@@ -60,6 +66,9 @@ KIND_JOB: dict[str, str | None] = {
     "bounce_unmatched": "cs001_cs002_bounce_ooo_scan",
     "departure_unconfirmed": "cs003_departure_scan",
     "duplicate_contact": "cs004_dedupe_scan",
+    "renewal_due": "sor_renewal_scan",
+    "sor_invoice_missing": "sor_invoice_chase_scan",
+    "sor_client_match": "sor_client_match_scan",
 }
 
 
@@ -81,6 +90,9 @@ KIND_COST_PREFIX: dict[str, str | None] = {
     "bounce_unmatched": "bounce_handling.",
     "departure_unconfirmed": "bounce_handling.",
     "duplicate_contact": None,
+    "renewal_due": "sor_renewal.",
+    "sor_invoice_missing": None,
+    "sor_client_match": None,
 }
 
 

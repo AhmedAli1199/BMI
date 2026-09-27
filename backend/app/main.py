@@ -25,6 +25,7 @@ from app.api.routes import (
     health,
     publications,
     review_queue,
+    sales,
     settings as settings_routes,
     users,
 )
@@ -75,6 +76,7 @@ api_router.include_router(dashboard.router)
 api_router.include_router(review_queue.router)
 api_router.include_router(automations.router)
 api_router.include_router(automation_stats.router)
+api_router.include_router(sales.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)
 api_router.include_router(diagnostics.router)

@@ -42,11 +42,13 @@ a record of what was decided and why.
 - [ ] **SOR commission rate - is 2% the standard, and what earns 5%?**
       Every per-rep "Commission payable" figure across the 2026 SOR works
       out to exactly 2% of that rep's booked total, except two that are 5%.
-      No booking is ever split between reps (all 517 credited rows go
-      100% to one person), so we're assuming one rep per order at 2%
-      unless a rate is set on the booking. Need BMI to confirm the rule
-      (by title? by rep? new vs renewal?) before commission statements
-      are treated as authoritative.
+      Shared bookings do exist but are rare (e.g. BA/Hungary 2025, booked
+      "SP/ST" and credited £3,000 each in the sheet's commission columns) -
+      the register now stores a per-rep credit, taken from those columns.
+      Commission statements assume 2% of each rep's credit unless a rate
+      is set on the booking. Need BMI to confirm the rule (by title? by
+      rep? new vs renewal?) before those statements are treated as
+      authoritative.
 
 ## Answered
 
