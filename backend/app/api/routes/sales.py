@@ -27,6 +27,7 @@ from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import Company, FieldChange, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, User
 from app.roles import CAN_USE_AUTOMATIONS
+from app.sales.matching import normalise
 from app.sales.analytics import BOOKED, edition_totals, equivalent_editions, same_point_last_year
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
@@ -495,22 +496,29 @@ def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview
     this = booked_rows(year)
     last_point = booked_rows(year - 1, cutoff_prev)
     last_all = booked_rows(year - 1)
-    earlier_clients = {r.client_name.strip().lower() for r in db.execute(
+    ck = lambda n: normalise(n) or n.strip().lower()  # noqa: E731 - same client key as renewals
+    earlier_clients = {ck(r.client_name) for r in db.execute(
         select(SalesOrder.client_name).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
         .where(SalesEdition.year < year, SalesOrder.status == BOOKED)).all()}
-    this_clients = {r.client_name.strip().lower() for r in this}
-    last_clients = {r.client_name.strip().lower() for r in last_all}
+    this_clients = {ck(r.client_name) for r in this}
+    last_clients = {ck(r.client_name) for r in last_all if float(r.value_gbp) > 0}
 
-    def month_of(r) -> int | None:
+    def month_of(r, y: int) -> int:
+        """Booking month relative to the edition year: anything booked
+        before 1 January (next year's issue sold early) is the position the
+        year started from, so it lands in January; undated -> January too."""
         d = r.booked_on or r.edition_date
-        return d.month if d else None
+        if not d or d.year < y:
+            return 1
+        return 12 if d.year > y else d.month
 
     monthly = []
     for m in range(1, 13):
         monthly.append(SeriesPoint(
             month=m,
-            this_year=round(sum(float(r.value_gbp) for r in this if month_of(r) == m and (not is_current or (r.booked_on or r.edition_date or today) <= today)), 2),
-            last_year=round(sum(float(r.value_gbp) for r in last_all if month_of(r) == m), 2),
+            this_year=round(sum(float(r.value_gbp) for r in this if month_of(r, year) == m
+                                and (not is_current or not r.booked_on or r.booked_on <= today)), 2),
+            last_year=round(sum(float(r.value_gbp) for r in last_all if month_of(r, year - 1) == m), 2),
         ))
 
     titles = {t.id: t for t in db.scalars(select(SalesTitle))}
@@ -525,7 +533,7 @@ def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview
             title=_title_out(t), booked_gbp=round(sum(float(r.value_gbp) for r in rows), 2), orders=len(rows),
             last_year_same_point_gbp=round(sum(float(r.value_gbp) for r in lp), 2),
             last_year_total_gbp=round(sum(float(r.value_gbp) for r in la), 2),
-            advertisers=len({r.client_name.strip().lower() for r in rows}),
+            advertisers=len({ck(r.client_name) for r in rows}),
         ))
     by_title_rows.sort(key=lambda r: -r.booked_gbp)
 
@@ -956,20 +964,29 @@ def renewal_candidates(db: Session, title_id: uuid.UUID, year: int) -> tuple[lis
             select(SalesOrder, SalesEdition).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
             .where(SalesEdition.title_id == title_id, SalesEdition.year == y, SalesOrder.status == BOOKED)
         ).all()
+    def key(name: str) -> str:
+        return normalise(name) or name.strip().lower()
+
     prev = orders_for(year - 1)
-    now_keys = {o.client_name.strip().lower() for o, _ in orders_for(year)}
-    now_companies = {o.company_id for o, _ in orders_for(year) if o.company_id}
+    now = orders_for(year)
+    # Normalised names, so "Monty's" / "Montys" and "Sky-Blue" / "SkyBlue"
+    # are one advertiser, not a renewal candidate and a rebooking.
+    now_keys = {key(o.client_name) for o, _ in now}
+    now_companies = {o.company_id for o, _ in now if o.company_id}
     groups: dict[str, list] = defaultdict(list)
     for o, e in prev:
-        groups[o.client_name.strip().lower()].append((o, e))
+        groups[key(o.client_name)].append((o, e))
     rows = []
     rebooked = 0
-    for key, items in groups.items():
-        if key in now_keys or any(o.company_id and o.company_id in now_companies for o, _ in items):
+    for k, items in groups.items():
+        if k in now_keys or any(o.company_id and o.company_id in now_companies for o, _ in items):
             rebooked += 1
             continue
+        total = sum(float(o.value_gbp) for o, _ in items)
+        if total <= 0:
+            continue  # only ever free/contra placements - nothing to renew
         last_o, last_e = max(items, key=lambda it: (it[0].booked_on or date.min, it[1].edition_date or date.min))
-        rows.append({"order": last_o, "edition": last_e, "total": sum(float(o.value_gbp) for o, _ in items), "count": len(items)})
+        rows.append({"order": last_o, "edition": last_e, "total": total, "count": len(items)})
     rows.sort(key=lambda r: -r["total"])
     return rows, len(groups), rebooked
 

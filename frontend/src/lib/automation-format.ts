@@ -34,5 +34,5 @@ export function pctChange(current: number, previous: number | null): number | nu
   return (current - previous) / previous;
 }
 
-export const WORKSTREAM_IDS = ["sales", "capture", "business-cards", "hygiene"] as const;
+export const WORKSTREAM_IDS = ["sales", "capture", "business-cards", "hygiene", "revenue"] as const;
 export type WorkstreamId = (typeof WORKSTREAM_IDS)[number];

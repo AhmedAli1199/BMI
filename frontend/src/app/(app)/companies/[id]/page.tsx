@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Layers, Users } from "lucide-react";
+import { ArrowLeft, ExternalLink, Layers, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
@@ -21,6 +21,9 @@ import { ActSubbar } from "@/components/act-subbar";
 import { ActCompanyCard } from "@/components/act-company-card";
 import { FieldChangeHistory } from "@/components/field-change-history";
 import { getCompanyFieldChanges } from "@/lib/actions";
+import { canUseAutomations } from "@/lib/access";
+import type { CompanyBookings, SalesMeta } from "@/lib/sales-types";
+import { CompanyBookingsPanel } from "@/components/sales/company-bookings";
 
 export default async function CompanyDetailPage({
   params,
@@ -60,6 +63,10 @@ export default async function CompanyDetailPage({
   }
 
   const customEntries = Object.entries(company.custom_fields || {});
+  const [bookings, salesMeta] = await Promise.all([
+    backendFetch<CompanyBookings>(`/api/sales/companies/${id}/orders`).catch(() => null),
+    backendFetch<SalesMeta>("/api/sales/meta").catch(() => null),
+  ]);
 
   return (
     <div className="flex w-full flex-col">
@@ -126,6 +133,15 @@ export default async function CompanyDetailPage({
               >
                 <span>Company Notes ({company.notes.length})</span>
               </TabsTrigger>
+              {bookings && (
+                <TabsTrigger
+                  value="bookings"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+                >
+                  <ReceiptText className="size-3.5 text-muted-foreground" />
+                  <span>Bookings ({bookings.orders})</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="custom"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
@@ -252,6 +268,12 @@ export default async function CompanyDetailPage({
           </TabsContent>
 
           {/* TAB 3: Custom Fields */}
+          {bookings && (
+            <TabsContent value="bookings" className="mt-4">
+              <CompanyBookingsPanel data={bookings} reps={salesMeta?.reps ?? []} canDelete={canUseAutomations(session)} />
+            </TabsContent>
+          )}
+
           <TabsContent value="custom" className="mt-4">
             <Card className="editorial-card p-5 border border-border">
               <CardHeader className="p-0 pb-3 border-b mb-3">

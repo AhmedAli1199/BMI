@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ChevronRight, ClipboardCheck, HeartPulse, Settings, Sparkles } from "lucide-react";
+import { CalendarClock, ChevronRight, ClipboardCheck, HeartPulse, ReceiptText, Settings, Sparkles } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,12 +54,21 @@ export function AppSidebar({
   session,
   workstreams = [],
   scanners,
+  salesOverdue = 0,
 }: {
   session: SessionPayload | null;
   workstreams?: WorkstreamSummary[];
   scanners?: { active: number; total: number };
+  salesOverdue?: number;
 }) {
   const pathname = usePathname();
+  const inSales = pathname.startsWith("/sales");
+  const [salesOpen, setSalesOpen] = useState(inSales);
+  const [wasInSales, setWasInSales] = useState(inSales);
+  if (inSales !== wasInSales) {
+    setWasInSales(inSales);
+    if (inSales) setSalesOpen(true);
+  }
   const inHub = isHubPath(pathname);
   const [hubOpen, setHubOpen] = useState(inHub);
   // Navigating into a Hub page from anywhere else (a link, the back
@@ -148,6 +157,50 @@ export function AppSidebar({
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {session && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Sales</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1.5">
+                <Collapsible open={salesOpen} onOpenChange={setSalesOpen} render={<SidebarMenuItem />}>
+                  <CollapsibleTrigger render={<SidebarMenuButton isActive={inSales && !salesOpen} className={NAV_ITEM} />}>
+                    <ReceiptText className={`mr-1.5 size-4 ${inSales ? "text-primary" : "text-sidebar-foreground/70"}`} />
+                    <span>Sales Orders</span>
+                    {!salesOpen && salesOverdue > 0 && (
+                      <span className="ml-auto rounded-full bg-amber-600 px-1.5 py-px text-[10.5px] font-bold text-white tabular-nums" title="Bookings overdue for an invoice">
+                        {salesOverdue.toLocaleString("en-GB")}
+                      </span>
+                    )}
+                    <ChevronRight
+                      aria-hidden="true"
+                      className={`${!salesOpen && salesOverdue > 0 ? "" : "ml-auto"} size-4! shrink-0 text-sidebar-foreground/60 transition-transform duration-200 ${salesOpen ? "rotate-90" : ""}`}
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub className="mt-1">
+                      <HubSubItem href="/sales" label="Overview" active={pathname === "/sales"} />
+                      <HubSubItem href="/sales/editions" label="Editions" active={pathname.startsWith("/sales/editions")} />
+                      <HubSubItem href="/sales/bookings" label="All bookings" active={pathname === "/sales/bookings"} />
+                      <HubSubItem href="/sales/renewals" label="Renewals" active={pathname === "/sales/renewals"} />
+                      <HubSubItem
+                        href="/sales/invoicing"
+                        label="Invoicing"
+                        active={pathname === "/sales/invoicing"}
+                        badge={salesOverdue > 0 ? salesOverdue.toLocaleString("en-GB") : undefined}
+                      />
+                      <HubSubItem
+                        href="/sales/commissions"
+                        label={canUseAutomations(session) ? "Commissions" : "My commission"}
+                        active={pathname === "/sales/commissions"}
+                      />
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {canViewAutomationsQueue(session) && (
           <SidebarGroup>

@@ -12,8 +12,9 @@ Definitions (also shown as info hints in the UI):
   comparison for an edition that's still selling.
 - Equivalent edition: same title, previous year, same name once the year
   is taken out ("Jan 2026" <-> "Jan 2025"); for numbered issues
-  ("OBH 105" <-> "OBH 101") the edition in the same position in the
-  year's running order.
+  ("OBH 105" <-> "OBH 101") the same position among the year's numbered
+  issues; failing both, the edition dated closest to a year earlier
+  (within six weeks).
 """
 from __future__ import annotations
 
@@ -34,8 +35,11 @@ def name_key(name: str) -> str:
     return re.sub(r"\b(19|20)\d{2}\b|\s+|[^a-z0-9]", "", name.lower())
 
 
-def _running_order(eds: list[SalesEdition]) -> list[SalesEdition]:
-    return sorted(eds, key=lambda e: (e.edition_date or date(e.year, 12, 31), e.name))
+def _issue_number(name: str) -> int | None:
+    """105 for "105", "OBH 105" or "OBH105"; None for anything that isn't a
+    plain numbered issue (a year like 2026 doesn't count)."""
+    m = re.fullmatch(r"[A-Za-z ]*?(\d{2,3})", name.strip())
+    return int(m[1]) if m else None
 
 
 def equivalent_editions(db: Session, editions: list[SalesEdition]) -> dict[uuid.UUID, SalesEdition]:
@@ -66,12 +70,24 @@ def equivalent_editions(db: Session, editions: list[SalesEdition]) -> dict[uuid.
             continue
         key = name_key(e.name)
         hit = next((p for p in prev if name_key(p.name) == key and key), None)
-        if not hit and re.fullmatch(r"\D*\d{2,3}\D*", e.name.strip()):
-            ordered_now = _running_order(by_title_year_now[(e.title_id, e.year)])
-            ordered_prev = _running_order(prev)
-            idx = next((i for i, x in enumerate(ordered_now) if x.id == e.id), None)
-            if idx is not None and idx < len(ordered_prev):
-                hit = ordered_prev[idx]
+        if not hit and _issue_number(e.name) is not None:
+            # Numbered issues ("OBH 105" <-> "OBH 101"): same position among
+            # that year's *numbered* issues, by number - supplements and
+            # undated sheets must not shift the pairing.
+            numbered_now = sorted((x for x in by_title_year_now[(e.title_id, e.year)] if _issue_number(x.name) is not None),
+                                  key=lambda x: _issue_number(x.name))
+            numbered_prev = sorted((x for x in prev if _issue_number(x.name) is not None), key=lambda x: _issue_number(x.name))
+            idx = next((i for i, x in enumerate(numbered_now) if x.id == e.id), None)
+            if idx is not None and idx < len(numbered_prev):
+                hit = numbered_prev[idx]
+        if not hit and e.edition_date:
+            # The schedule changed between years ("JanFeb" -> "JanFebMar"):
+            # the edition that published closest to a year earlier, if any
+            # is within six weeks.
+            target = same_point_last_year(e.edition_date)
+            dated = [p for p in prev if p.edition_date and abs((p.edition_date - target).days) <= 42]
+            if dated:
+                hit = min(dated, key=lambda p: abs((p.edition_date - target).days))
         if hit:
             out[e.id] = hit
     return out

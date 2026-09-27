@@ -1,5 +1,8 @@
 import {
   BookOpen,
+  Link2,
+  ReceiptText,
+  RefreshCcw,
   CalendarClock,
   CreditCard,
   Heart,
@@ -131,6 +134,31 @@ const STYLES: Record<string, AutomationStyle> = {
     ring: "hover:border-[#475569]/60",
   },
 };
+
+// Revenue & Orders (Sales Order Register)
+Object.assign(STYLES, {
+  renewal_due: {
+    icon: RefreshCcw,
+    color: "text-chart-2",
+    chipBg: "border-chart-2/30 bg-chart-2/10",
+    accent: "bg-chart-2",
+    ring: "hover:border-chart-2/60",
+  },
+  sor_invoice_missing: {
+    icon: ReceiptText,
+    color: "text-[#b45309]",
+    chipBg: "border-[#b45309]/30 bg-[#b45309]/10",
+    accent: "bg-[#b45309]",
+    ring: "hover:border-[#b45309]/60",
+  },
+  sor_client_match: {
+    icon: Link2,
+    color: "text-chart-1",
+    chipBg: "border-chart-1/30 bg-chart-1/10",
+    accent: "bg-chart-1",
+    ring: "hover:border-chart-1/60",
+  },
+} satisfies Record<string, AutomationStyle>);
 
 const FALLBACK: AutomationStyle = {
   icon: Sparkles,
