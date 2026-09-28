@@ -754,15 +754,25 @@ def list_orders(
         q = q.where(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.is_(None))
     if overdue:
         q = q.where(func.coalesce(SalesEdition.edition_date, func.make_date(SalesEdition.year, 1, 1)) <= date.today())
-    diff = func.abs(SalesOrder.value_gbp - func.coalesce(SalesOrder.invoice_value_gbp, 0)
-                    - func.coalesce(SalesOrder.agency_commission_gbp, 0)) > 1
-    has_reason = func.coalesce(func.trim(SalesOrder.invoice_note), "") != ""
-    if mismatched:
-        # Unexplained only - a difference with a reason for it on the
-        # sheet ("TO BE ON NEXT QUARTER INVOICE") is part_invoiced below.
-        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None), diff, ~has_reason)
-    if part_invoiced:
-        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None), diff, has_reason)
+    if mismatched or part_invoiced:
+        # Compared per client within an edition, not per row: one booking
+        # invoiced in two lines (£1,500 on one invoice, £1,000 "wanted on
+        # separate invoice") matches as a whole. Rows with an invoice
+        # number but no amount entered are unknown, not a difference, and
+        # under £2 is currency-conversion rounding.
+        client_key = func.lower(func.trim(SalesOrder.client_name))
+        g = (select(SalesOrder.edition_id.label("ed"), client_key.label("ck"))
+             .where(SalesOrder.status == BOOKED)
+             .group_by(SalesOrder.edition_id, client_key)
+             .having(func.count(SalesOrder.invoice_value_gbp) > 0)
+             .having(func.abs(func.sum(SalesOrder.value_gbp)
+                              - func.sum(func.coalesce(SalesOrder.invoice_value_gbp, SalesOrder.value_gbp))
+                              - func.sum(func.coalesce(SalesOrder.agency_commission_gbp, 0))) >= 2))
+        reason_any = func.bool_or(func.coalesce(func.trim(SalesOrder.invoice_note), "") != "")
+        g = g.having(reason_any if part_invoiced else ~reason_any).subquery()
+        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None),
+                    SalesOrder.invoice_value_gbp.isnot(None),
+                    select(1).where(g.c.ed == SalesOrder.edition_id, g.c.ck == client_key).exists())
     if warnings:
         q = q.where(SalesOrder.import_warning.isnot(None))
     if unlinked:

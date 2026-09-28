@@ -451,6 +451,11 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                 value, w = parse_money(c.get("gbp")); warnings += [w] if w else []
                 usd, _ = parse_money(c.get("usd"))
                 inv_value, _ = parse_money(c.get("invoice_value"))
+                raw_inv_value = c.get("invoice_value")
+                # Text typed into the invoice-value cell ("part of overpaid
+                # credit of 4K rest on People Awards") is an explanation, not
+                # an amount - kept as the reason, amount left unknown.
+                inv_value_text = raw_inv_value.strip() if isinstance(raw_inv_value, str) and inv_value is None and raw_inv_value.strip() else None
                 booked_on, w = parse_date(c.get("date")); warnings += [w] if w else []
                 status, moved_note, status_reason = _status_for(row)
 
@@ -492,6 +497,8 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                     inv_no = None
                 reason = c.get("reason")
                 reason = None if reason is None or isinstance(reason, float) else str(reason)
+                if inv_value_text and inv_value_text.lower() not in ("value", "invoice value"):
+                    reason = "; ".join(filter(None, [reason, inv_value_text]))
                 notes = moved_note
 
                 wrow = wrows.get((row.row_index, row.client))
