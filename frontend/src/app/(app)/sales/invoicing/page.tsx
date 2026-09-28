@@ -35,7 +35,7 @@ const VIEWS = [
     key: "part",
     label: "Difference explained",
     query: "part_invoiced=true",
-    hint: "The invoice differs from the booking and the sheet records why - usually part-invoiced with the rest to follow (\"to be on next quarter invoice\"), sometimes a refund or extra entries. Not a problem, but the balances still to come need invoicing later.",
+    hint: "The invoice differs from the booking and a reason is recorded (e.g. agency commission, a credit note, \"to be on next quarter invoice\"). Nothing to worry about - the reason is shown on each booking.",
     empty: "No invoice differences with a recorded reason.",
   },
   {
@@ -63,10 +63,8 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
     backendFetch<OrdersPage>(`/api/sales/orders?${view.query}&limit=300`),
     backendFetch<OrdersPage>("/api/sales/orders?overdue=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?mismatched=true&limit=1"),
-    backendFetch<OrdersPage>("/api/sales/orders?part_invoiced=true&limit=300"),
+    backendFetch<OrdersPage>("/api/sales/orders?part_invoiced=true&limit=1"),
   ]);
-  const toCome = part.items.map((o) => o.value_gbp - (o.invoice_value_gbp ?? 0) - (o.agency_commission_gbp ?? 0)).filter((b) => b > 0);
-  const partBalance = toCome.reduce((s, b) => s + b, 0);
   const uninvoiced = view.key === "uninvoiced" ? current : await backendFetch<OrdersPage>("/api/sales/orders?uninvoiced=true&limit=1");
 
   return (
@@ -80,7 +78,7 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile label="Overdue" value={overdue.total.toLocaleString("en-GB")} footer={`${fmtGBP(overdue.total_value_gbp, { compact: true })} published or held, not yet invoiced`} />
         <KpiTile label="Awaiting invoice" value={uninvoiced.total.toLocaleString("en-GB")} footer={`${fmtGBP(uninvoiced.total_value_gbp, { compact: true })} across all editions`} />
-        <KpiTile label="Still to invoice later" value={fmtGBP(partBalance, { compact: true })} footer={`${toCome.length} part-invoiced booking${toCome.length === 1 ? "" : "s"}, reason recorded`} />
+        <KpiTile label="Difference explained" value={part.total.toLocaleString("en-GB")} footer="Invoice differs, reason recorded" />
         <KpiTile label="Unexplained difference" value={mismatched.total.toLocaleString("en-GB")} footer="Invoice differs, no reason given" />
       </section>
 

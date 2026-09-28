@@ -54,7 +54,7 @@ function InvoiceCell({ o }: { o: SalesOrder }) {
       {Math.abs(diff) > 1 &&
         (o.invoice_note ? (
           <span className="text-[11px] text-muted-foreground" title={`Reason for difference: ${o.invoice_note}`}>
-            {diff > 0 ? `${fmtGBP(o.invoice_value_gbp)} so far · ${fmtGBP(diff)} to come` : `over-invoiced by ${fmtGBP(-diff)}`}
+            {fmtGBP(o.invoice_value_gbp)} invoiced · explained
           </span>
         ) : (
           <span className="text-[11px]" style={{ color: "var(--warn)" }} title="Invoiced amount differs from the booking value and no reason is recorded">
