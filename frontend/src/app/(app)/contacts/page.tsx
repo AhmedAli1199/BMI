@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Users } from "lucide-react";
+import { Download, Mail, Search, SlidersHorizontal, Users, X } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
 import { accessLabel, allowedSourceDbSlugs, resolveScope } from "@/lib/access";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
@@ -16,9 +17,29 @@ const PAGE_SIZE = 50;
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+    company?: string;
+    city?: string;
+    country?: string;
+    title?: string;
+    sort?: string;
+    desc?: string;
+  }>;
 }) {
-  const { q, page: pageParam } = await searchParams;
+  const sp = await searchParams;
+  const { q, page: pageParam } = sp;
+  const sort = sp.sort || "name";
+  const desc = sp.desc === "1" || sp.desc === "true";
+  // Act!-style lookup fields - each narrows the list further.
+  const lookup = {
+    company: sp.company?.trim() || "",
+    city: sp.city?.trim() || "",
+    country: sp.country?.trim() || "",
+    title: sp.title?.trim() || "",
+  };
+  const activeLookups = Object.values(lookup).filter(Boolean).length;
   const page = Math.max(1, Number(pageParam) || 1);
   const [rawSourceDb, session, allPublications] = await Promise.all([
     getPublicationFilter(),
@@ -35,6 +56,9 @@ export default async function ContactsPage({
   if (q) params.set("q", q);
   if (source_db) params.set("source_db", source_db);
   if (scope.group_id) params.set("group_id", scope.group_id);
+  for (const [k, v] of Object.entries(lookup)) if (v) params.set(k, v);
+  params.set("sort", sort);
+  if (desc) params.set("desc", "true");
 
   const data = scope.source_db === "__no_access__"
     ? { items: [], total: 0, page: 1, page_size: PAGE_SIZE }
@@ -44,11 +68,41 @@ export default async function ContactsPage({
   // Same filters as the list query above, minus pagination - carried onto
   // each row's link so the detail page's prev/next stepper walks this
   // exact filtered set (see InteractiveContactTable's `queryString` prop).
-  const rowQuery = new URLSearchParams();
-  if (q) rowQuery.set("q", q);
-  if (source_db) rowQuery.set("source_db", source_db);
-  if (scope.group_id) rowQuery.set("group_id", scope.group_id);
+  // `filterParams` = what's being looked up (no sort/page) - shared by the
+  // sort headers, "select all matching", export and mail merge.
+  const filterParams: Record<string, string> = {};
+  if (q) filterParams.q = q;
+  if (source_db) filterParams.source_db = source_db;
+  if (scope.group_id) filterParams.group_id = scope.group_id;
+  for (const [k, v] of Object.entries(lookup)) if (v) filterParams[k] = v;
+  const rowQuery = new URLSearchParams(filterParams);
+  if (sort !== "name") rowQuery.set("sort", sort);
+  if (desc) rowQuery.set("desc", "true");
   const rowQueryString = rowQuery.toString();
+  // Page links keep every filter and the sort.
+  const pageHref = (n: number) => {
+    const p = new URLSearchParams(filterParams);
+    p.delete("source_db");
+    p.delete("group_id");
+    if (sort !== "name") p.set("sort", sort);
+    if (desc) p.set("desc", "1");
+    p.set("page", String(n));
+    return `/contacts?${p}`;
+  };
+  const exportParams = new URLSearchParams(filterParams);
+  exportParams.set("sort", sort);
+  if (desc) exportParams.set("desc", "true");
+  const mergeParams = new URLSearchParams({ source: "lookup", ...filterParams, sort });
+  if (desc) mergeParams.set("desc", "1");
+  // On the mail-merge page `company` means a company id - the lookup's
+  // "company contains" text travels as company_name.
+  if (lookup.company) {
+    mergeParams.delete("company");
+    mergeParams.set("company_name", lookup.company);
+  }
+  const lookupBits = [q, lookup.company, lookup.title, lookup.city, lookup.country].filter(Boolean);
+  const lookupLabel = lookupBits.length ? `Lookup: ${lookupBits.join(", ")}` : "All contacts";
+  const inputCls = "h-8 text-xs";
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
@@ -63,7 +117,7 @@ export default async function ContactsPage({
             Contacts
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {data.total.toLocaleString()} contacts across all titles
+            {data.total.toLocaleString()} {q || activeLookups ? "contacts match this lookup" : "contacts across all titles"}
           </p>
           {scope.group_name && (
             <p className="mt-0.5 text-[11px] font-medium text-primary">
@@ -72,19 +126,74 @@ export default async function ContactsPage({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <form action="/contacts" className="relative w-64 sm:w-72">
-            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-            <Input
-              name="q"
-              placeholder="Search by name, company, email..."
-              defaultValue={q ?? ""}
-              className="pl-8 h-9 text-xs"
-            />
-          </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<a href={`/api/files/contacts/export?${exportParams}`} download />}
+            title="Download this lookup as an Excel sheet (up to 50,000 rows)"
+          >
+            <Download className="size-3.5" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/mail-merge?${mergeParams}`} />}
+            title="Write to everyone in this lookup"
+          >
+            <Mail className="size-3.5" />
+            Mail merge
+          </Button>
           <ContactFormDialog defaultSourceDb={source_db} />
         </div>
       </div>
+
+      {/* Lookup: Act!'s "Lookup > Company / City / Country / Title". Plain
+          GET form, so every lookup is a shareable, bookmarkable URL. */}
+      <form action="/contacts" className="rounded-lg border border-border bg-card p-3 shadow-2xs">
+        <input type="hidden" name="sort" value={sort} />
+        {desc && <input type="hidden" name="desc" value="1" />}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[2fr_1.3fr_1fr_1fr_1.3fr_auto]">
+          <div className="relative col-span-2 sm:col-span-3 lg:col-span-1">
+            <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
+            <Input
+              name="q"
+              aria-label="Search"
+              placeholder="Name, email, company or title…"
+              defaultValue={q ?? ""}
+              className={`pl-8 ${inputCls}`}
+            />
+          </div>
+          <Input name="company" aria-label="Company" placeholder="Company" defaultValue={lookup.company} className={inputCls} />
+          <Input name="city" aria-label="City or town" placeholder="City / town" defaultValue={lookup.city} className={inputCls} />
+          <Input name="country" aria-label="Country" placeholder="Country" defaultValue={lookup.country} className={inputCls} />
+          <Input name="title" aria-label="Job title" placeholder="Job title" defaultValue={lookup.title} className={inputCls} />
+          <div className="col-span-2 flex gap-1.5 sm:col-span-1">
+            <Button type="submit" size="sm" className="h-8 flex-1 gap-1.5">
+              <SlidersHorizontal className="size-3.5" />
+              Look up
+            </Button>
+            {(q || activeLookups > 0) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                nativeButton={false}
+                render={<Link href="/contacts" aria-label="Clear lookup" />}
+              >
+                <X className="size-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Every field is &ldquo;contains&rdquo; and they combine - e.g. Title <em>buyer</em> + Country <em>UK</em>.
+          Click a column heading to sort; tick contacts to group, export or mail-merge them.
+        </p>
+      </form>
 
       {/* Publication Segmentation Strip - same global filter as the header
           switcher (lib/publication.ts); setting it here also applies to
@@ -96,7 +205,16 @@ export default async function ContactsPage({
         </span>
       </div>
 
-      <InteractiveContactTable items={data.items} queryString={rowQueryString} />
+      <InteractiveContactTable
+        items={data.items}
+        queryString={rowQueryString}
+        filterParams={filterParams}
+        sort={sort}
+        desc={desc}
+        total={data.total}
+        sourceDb={source_db}
+        lookupLabel={lookupLabel}
+      />
 
       {/* Pagination Controls */}
       <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
@@ -107,7 +225,7 @@ export default async function ContactsPage({
           {page > 1 && (
             <Link
               className="rounded-md border border-border bg-card px-3 py-1.5 hover:bg-muted font-medium"
-              href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
+              href={pageHref(page - 1)}
             >
               &larr; Previous
             </Link>
@@ -115,7 +233,7 @@ export default async function ContactsPage({
           {page < totalPages && (
             <Link
               className="rounded-md border border-border bg-card px-3 py-1.5 hover:bg-muted font-medium"
-              href={`/contacts?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
+              href={pageHref(page + 1)}
             >
               Next &rarr;
             </Link>

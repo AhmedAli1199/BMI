@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/session";
 import { PublicationSwitcher } from "@/components/publication-switcher";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
+import { NotificationBell } from "@/components/notification-bell";
 import { getPublicationFilter } from "@/lib/publication";
 import { listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, canUseAutomations } from "@/lib/access";
@@ -73,6 +74,11 @@ export default async function AppLayout({
                 </Button>
               }
             />
+          )}
+          {session && (
+            <div className="ml-auto">
+              <NotificationBell />
+            </div>
           )}
         </header>
         <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>

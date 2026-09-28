@@ -7,14 +7,17 @@ import type { PreferenceDef, UserPreferences } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { PreferenceGroup } from "@/components/preference-group";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { OutlookConnectionCard } from "@/components/outlook-connection-card";
+import type { MailStatus } from "@/lib/messaging-types";
 
 export default async function SettingsPage() {
   const session = await getSession();
-  const [defs, prefs] = await Promise.all([
+  const [defs, prefs, mailStatus] = await Promise.all([
     backendFetch<PreferenceDef[]>("/api/settings/definitions"),
     session
       ? backendFetch<UserPreferences>(`/api/users/${session.sub}/preferences`)
       : Promise.resolve<UserPreferences>({ values: {} }),
+    session ? backendFetch<MailStatus>("/api/mail/status").catch(() => null) : Promise.resolve(null),
   ]);
 
   // Grouped by each def's `group` field (e.g. "Dashboard"), in the order
@@ -83,8 +86,13 @@ export default async function SettingsPage() {
         </Card>
       </div>
 
+      <div id="email" className="flex scroll-mt-20 flex-col gap-4">
+        <h2 className="editorial-heading text-lg font-bold text-foreground">Email</h2>
+        <OutlookConnectionCard status={mailStatus} />
+      </div>
+
       {[...groups.entries()].map(([groupName, groupDefs]) => (
-        <div key={groupName} className="flex flex-col gap-4">
+        <div key={groupName} id={groupName.toLowerCase()} className="flex scroll-mt-20 flex-col gap-4">
           <h2 className="editorial-heading text-lg font-bold text-foreground">{groupName}</h2>
           {groupDefs.map((def) => (
             <PreferenceGroup

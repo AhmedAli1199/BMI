@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Layers, ReceiptText, Users } from "lucide-react";
+import { ArrowLeft, ExternalLink, Layers, Mail, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
@@ -18,6 +18,10 @@ import { sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
 import { ActSubbar } from "@/components/act-subbar";
+import { Button } from "@/components/ui/button";
+import { RemindMeDialog } from "@/components/remind-me-dialog";
+import { RecordReminders } from "@/components/record-reminders";
+import type { Reminder } from "@/lib/messaging-types";
 import { ActCompanyCard } from "@/components/act-company-card";
 import { FieldChangeHistory } from "@/components/field-change-history";
 import { getCompanyFieldChanges } from "@/lib/actions";
@@ -41,6 +45,7 @@ export default async function CompanyDetailPage({
   } catch {
     notFound();
   }
+  const reminders = await backendFetch<Reminder[]>(`/api/reminders?company_id=${company.id}`).catch(() => [] as Reminder[]);
 
   // Record-stepper (VCR arrows) - same idea as the contact detail page,
   // walks the filtered/sorted list the user navigated in from.
@@ -103,7 +108,22 @@ export default async function CompanyDetailPage({
               {company.name}
             </span>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <RemindMeDialog companyId={company.id} about={company.name} />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href={`/mail-merge?company=${company.id}`} />}
+            >
+              <Mail className="size-3.5" />
+              Mail merge
+            </Button>
+          </div>
         </div>
+
+        <RecordReminders reminders={reminders} />
 
         {/* Tier 1: ACT! Authentic 3-Column Upper Company Card */}
         <ActCompanyCard company={company} />

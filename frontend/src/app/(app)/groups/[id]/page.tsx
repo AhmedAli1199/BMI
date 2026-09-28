@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Download, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { backendFetch } from "@/lib/backend";
 import type { GroupDetail, GroupListItem, Page } from "@/lib/types";
 import { getSession } from "@/lib/session";
@@ -44,7 +47,26 @@ export default async function GroupDetailPage({
           <h1 className="text-2xl font-semibold">{group.name}</h1>
           {group.description && <p className="text-sm text-muted-foreground">{group.description}</p>}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<a href={`/api/files/groups/${group.id}/export`} download />}
+            title="Download every member (including sub-groups) as an Excel sheet"
+          >
+            <Download className="size-4" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/mail-merge?group=${group.id}`} />}
+          >
+            <Mail className="size-4" />
+            Mail merge
+          </Button>
           <GroupFormDialog existing={group} />
           <DeleteEntityButton
             entityLabel={group.name}
@@ -63,7 +85,12 @@ export default async function GroupDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <GroupMembersTable groupId={group.id} initialMembers={group.members} />
+          <GroupMembersTable
+            groupId={group.id}
+            groupName={group.name}
+            sourceDb={group.source_db}
+            initialMembers={group.members}
+          />
         </CardContent>
       </Card>
     </div>

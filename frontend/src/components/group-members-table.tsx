@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { ClickableTableRow } from "@/components/clickable-table-row";
+import { ContactSelectionActions } from "@/components/contact-selection-actions";
 import { removeGroupMembers } from "@/lib/actions";
 import type { ContactListItem } from "@/lib/types";
 
@@ -34,9 +35,13 @@ import type { ContactListItem } from "@/lib/types";
  */
 export function GroupMembersTable({
   groupId,
+  groupName,
+  sourceDb,
   initialMembers,
 }: {
   groupId: string;
+  groupName?: string;
+  sourceDb?: string;
   initialMembers: ContactListItem[];
 }) {
   const [members, setMembers] = useState(initialMembers);
@@ -84,21 +89,24 @@ export function GroupMembersTable({
 
   return (
     <div className="flex flex-col gap-3">
-      {someSelected && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-accent/40 px-3 py-2">
-          <span className="text-sm font-medium">
-            {selected.size} selected
-          </span>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())} disabled={pending}>
-              Clear
-            </Button>
-            <Button variant="destructive" size="sm" onClick={removeSelected} disabled={pending}>
-              <X className="size-3.5" />
-              {pending ? "Removing…" : `Remove ${selected.size} selected`}
-            </Button>
-          </div>
-        </div>
+      {someSelected ? (
+        <ContactSelectionActions
+          ids={[...selected]}
+          onClear={() => setSelected(new Set())}
+          sourceDb={sourceDb}
+          excludeGroupId={groupId}
+          label={`Group: ${groupName ?? "group"} – ${selected.size} selected`}
+        >
+          <Button variant="destructive" size="sm" className="h-7" onClick={removeSelected} disabled={pending}>
+            <X className="size-3.5" />
+            {pending ? "Removing…" : "Remove from this group"}
+          </Button>
+        </ContactSelectionActions>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Tick members to copy them into another group, start a new (smaller) group, export them, or remove
+          them. To leave a few people out of one mailing only, untick them in the mail merge instead.
+        </p>
       )}
 
       <Table>

@@ -8,6 +8,8 @@ export type ContactListItem = {
   company_id: string | null;
   company_name: string | null;
   primary_email: string | null;
+  city?: string | null;
+  country?: string | null;
 };
 
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number };

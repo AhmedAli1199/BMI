@@ -2,7 +2,6 @@
 templates and mail merges. Everything here is per signed-in user."""
 from __future__ import annotations
 
-import io
 import uuid
 from datetime import datetime, timezone
 

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -132,6 +133,25 @@ def export_contacts(
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f'attachment; filename="BMI contacts {stamp}.xlsx"'})
+
+
+class _ExportSelection(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=50000)
+    title: str | None = None
+
+
+@router.post("/export")
+def export_selected_contacts(payload: _ExportSelection, db: Session = Depends(get_db)):
+    """A hand-picked selection as .xlsx - POST because a big selection
+    doesn't fit in a URL."""
+    from fastapi.responses import StreamingResponse
+
+    from app.services.contact_export import contacts_xlsx
+
+    buf = contacts_xlsx(db, list(dict.fromkeys(payload.ids)))
+    name = (payload.title or "BMI contacts selection").replace('"', "")
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="{name}.xlsx"'})
 
 
 @router.get("/lookup-ids", response_model=list[uuid.UUID])

@@ -9,7 +9,7 @@ import pytest
 
 from app.models import Company, Contact, Email, Group, GroupMembership, HistoryEntry
 from app.models.contact_channel import Address
-from app.models.messaging import MailAccount, MailMerge, MailMergeRecipient, Notification, Reminder
+from app.models.messaging import MailAccount, MailMerge, MailMergeRecipient, Notification
 from app.services import mail_merge as mm
 from app.services import notify, outlook
 from app.services.reminders import fire_due_reminders
@@ -233,3 +233,10 @@ def test_templates_are_shared_but_owner_edits(client, db_session):
     assert [x["name"] for x in client.get("/api/mail/templates", headers=identity_headers(b)).json()] == ["Renewal"]
     assert client.put(f"/api/mail/templates/{t['id']}", headers=identity_headers(b),
                       json={"name": "X", "body": ""}).status_code == 403
+
+
+def test_export_large_selection_by_post(client, people):
+    r = client.post("/api/contacts/export", json={"ids": [str(people["cat"].id), str(people["amy"].id)], "title": "My pick"})
+    assert r.status_code == 200 and 'filename="My pick.xlsx"' in r.headers["content-disposition"]
+    rows = list(openpyxl.load_workbook(io.BytesIO(r.content)).active.values)
+    assert [x[0] for x in rows[1:]] == ["Cat", "Amy"]  # kept in the order given

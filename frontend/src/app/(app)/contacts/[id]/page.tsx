@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactDetail, GroupListItem, Page, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
@@ -11,13 +11,18 @@ import { ActContactCard } from "@/components/act-contact-card";
 import { ActTabWorkstation } from "@/components/act-tab-workstation";
 import { FieldChangeHistory } from "@/components/field-change-history";
 import { getContactFieldChanges } from "@/lib/actions";
+import { Button } from "@/components/ui/button";
+import { RemindMeDialog } from "@/components/remind-me-dialog";
+import { DuplicateContactDialog } from "@/components/duplicate-contact-dialog";
+import { RecordReminders } from "@/components/record-reminders";
+import type { Reminder } from "@/lib/messaging-types";
 
 export default async function ContactDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ q?: string; source_db?: string; group_id?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { id } = await params;
   const navParams = await searchParams;
@@ -34,9 +39,10 @@ export default async function ContactDetailPage({
   // InteractiveContactTable's `queryString` prop), not some other order.
   // Best-effort: if it fails, the stepper just shows disabled arrows.
   const posParams = new URLSearchParams();
-  if (navParams.q) posParams.set("q", navParams.q);
-  if (navParams.source_db) posParams.set("source_db", navParams.source_db);
-  if (navParams.group_id) posParams.set("group_id", navParams.group_id);
+  for (const k of ["q", "source_db", "group_id", "company", "city", "country", "title", "sort", "desc"]) {
+    const v = navParams[k];
+    if (v) posParams.set(k, v);
+  }
   const position = await backendFetch<RecordPosition>(
     `/api/contacts/${id}/position?${posParams}`
   ).catch(() => undefined);
@@ -65,6 +71,7 @@ export default async function ContactDetailPage({
     contact.full_name ||
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
     "(no name)";
+  const reminders = await backendFetch<Reminder[]>(`/api/reminders?contact_id=${contact.id}`).catch(() => [] as Reminder[]);
 
   return (
     <div className="flex w-full flex-col">
@@ -101,7 +108,28 @@ export default async function ContactDetailPage({
               {name}
             </span>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <RemindMeDialog contactId={contact.id} about={name} />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href={`/mail-merge?contact=${contact.id}`} />}
+            >
+              <Mail className="size-3.5" />
+              Write
+            </Button>
+            <DuplicateContactDialog
+              contactId={contact.id}
+              name={name}
+              companyName={contact.company?.name}
+              jobTitle={contact.job_title}
+            />
+          </div>
         </div>
+
+        <RecordReminders reminders={reminders} />
 
         {/* Tier 1: ACT! Authentic 3-Column Upper Form Card */}
         <ActContactCard contact={contact} />

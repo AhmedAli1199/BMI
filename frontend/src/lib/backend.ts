@@ -21,22 +21,29 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
  * In local development, if backend is offline or returns 404 (e.g. port 8000
  * conflict), falls back to rich sample data so UI can be inspected locally.
  */
+/** X-BMI-User-* headers for the current session (empty when signed out
+ * or outside a request) - also used by the file-download route handlers. */
+export async function getIdentityHeaders(): Promise<Record<string, string>> {
+  const identityHeaders: Record<string, string> = {};
+  try {
+    const session = await getSession();
+    if (session) {
+      identityHeaders["X-BMI-User-Id"] = session.sub;
+      identityHeaders["X-BMI-User-Role"] = session.role;
+      identityHeaders["X-BMI-User-Access"] = JSON.stringify(
+        session.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id }))
+      );
+    }
+  } catch {
+    // No request context (or session lookup failed) - proceed without
+    // identity headers, same as any caller that predates them.
+  }
+  return identityHeaders;
+}
+
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
   try {
-    const identityHeaders: Record<string, string> = {};
-    try {
-      const session = await getSession();
-      if (session) {
-        identityHeaders["X-BMI-User-Id"] = session.sub;
-        identityHeaders["X-BMI-User-Role"] = session.role;
-        identityHeaders["X-BMI-User-Access"] = JSON.stringify(
-          session.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id }))
-        );
-      }
-    } catch {
-      // No request context (or session lookup failed) - proceed without
-      // identity headers, same as any caller that predates them.
-    }
+    const identityHeaders = await getIdentityHeaders();
 
     const res = await fetch(`${BACKEND_API_URL}${path}`, {
       ...init,

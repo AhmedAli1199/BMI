@@ -47,9 +47,9 @@ test.describe("groups", () => {
     const checkboxes = page.locator('tbody input[type="checkbox"]');
     await checkboxes.nth(0).check();
     await checkboxes.nth(1).check();
-    await expect(page.getByText("2 selected", { exact: true })).toBeVisible();
+    await expect(page.getByText("2 contacts selected", { exact: true })).toBeVisible();
 
-    await page.getByRole("button", { name: /Remove 2 selected/ }).click();
+    await page.getByRole("button", { name: "Remove from this group" }).click();
 
     await expect(page.getByText("Members (0)")).toBeVisible({ timeout: 10000 });
     await expect(page.locator("tbody tr")).toHaveCount(0);

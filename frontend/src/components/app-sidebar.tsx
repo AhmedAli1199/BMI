@@ -154,6 +154,26 @@ export function AppSidebar({
                   Calendar &amp; Tasks
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/reminders" />}
+                  isActive={pathname.startsWith("/reminders")}
+                  className={NAV_ITEM}
+                >
+                  Reminders
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/mail-merge" />}
+                  isActive={pathname.startsWith("/mail-merge")}
+                  className={NAV_ITEM}
+                >
+                  Mail merge
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
