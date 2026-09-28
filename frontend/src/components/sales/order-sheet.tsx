@@ -38,7 +38,7 @@ const FIELD_LABELS: Record<string, string> = {
   client_name: "client", company_id: "CRM company", rep_id: "salesperson", booked_on: "booking date",
   value_gbp: "value", rate_usd: "US$ rate", agency_commission_gbp: "agency commission", commission_rate: "commission rate",
   invoice_number: "invoice number", invoice_value_gbp: "invoiced amount", invoiced_on: "invoice date",
-  invoice_note: "invoice note", moved_to_edition_id: "moved-to edition",
+  invoice_note: "reason for difference", moved_to_edition_id: "moved-to edition",
 };
 
 function showValue(field: string, v: string, reps: SalesRep[]): string {
@@ -426,8 +426,8 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             <Field label="Agency cut (£)" htmlFor="os-agency" hint="What an agency kept (e.g. 10%), so the invoice is lower than the booking. Stops it showing as a mismatch.">
               <Input id="os-agency" inputMode="decimal" value={agency} onChange={(e) => setAgency(e.target.value)} placeholder="Optional" />
             </Field>
-            <Field label="Invoice note" htmlFor="os-invnote" className="col-span-1 sm:col-span-2">
-              <Input id="os-invnote" value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="e.g. raise on 23rd, need PO" />
+            <Field label="Reason for difference" htmlFor="os-invnote" className="col-span-1 sm:col-span-2" hint="Why the invoice differs from the booking, or when the rest will be invoiced - the sheet's own column. A difference with a reason shows as part-invoiced, not as a problem.">
+              <Input id="os-invnote" value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="e.g. to be on next quarter invoice" />
             </Field>
           </div>
         </Group>
@@ -451,6 +451,11 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             ))}
           </div>
           <p className="text-xs text-muted-foreground">{STATUSES.find((s) => s.value === status)?.hint}</p>
+          {existing?.status_reason && status === existing.status && status !== "booked" && (
+            <p className="rounded-md bg-muted/60 px-2.5 py-1.5 text-xs text-muted-foreground">
+              Marked {existing.status} on import because the sheet said: <span className="font-semibold text-foreground">&ldquo;{existing.status_reason}&rdquo;</span>
+            </p>
+          )}
           {status === "moved" && (
             <Field label="Moved to" htmlFor="os-moved">
               <select id="os-moved" className={selectCls} value={movedTo} onChange={(e) => setMovedTo(e.target.value)}>
@@ -467,6 +472,25 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             <Textarea id="os-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
         </Group>
+
+        {existing && (existing.order_ref || Object.keys(existing.extra ?? {}).length > 0) && (
+          <Group title="Other details from the sheet">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-3">
+              {existing.order_ref && (
+                <div>
+                  <dt className="text-muted-foreground">Order ref</dt>
+                  <dd className="font-medium text-foreground">{existing.order_ref}</dd>
+                </div>
+              )}
+              {Object.entries(existing.extra ?? {}).map(([k, v]) => (
+                <div key={k}>
+                  <dt className="text-muted-foreground">{k}</dt>
+                  <dd className="font-medium break-words text-foreground">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </Group>
+        )}
 
         {existing && (
           <div className="flex flex-col gap-2 border-t border-border/70 pt-4 text-xs text-muted-foreground">

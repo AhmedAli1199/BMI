@@ -55,7 +55,10 @@ export type SalesOrder = {
   invoice_value_gbp: number | null;
   invoiced_on: string | null;
   invoice_note: string | null;
+  order_ref: string | null;
   status: OrderStatus;
+  status_reason: string | null;
+  extra: Record<string, string>;
   moved_to: Ref | null;
   notes: string | null;
   import_warning: string | null;
@@ -81,6 +84,8 @@ export type EditionSummary = {
   orders: number;
   invoiced_gbp: number;
   uninvoiced: number;
+  paid_orders: number;
+  invoiced_orders: number;
   pages: number;
   warnings: number;
   sheet_total_gbp: number | null;

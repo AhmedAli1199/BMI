@@ -27,7 +27,7 @@ import uuid
 from datetime import date
 
 from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -131,10 +131,21 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     # The sheet's "Reason for difference" column - often not about a
     # difference at all ("raise on 23rd", "need po"), so shown as a note.
     invoice_note: Mapped[str | None] = mapped_column(Text)
+    # A ticket/order number from the sheet's invoice column that isn't a
+    # BMI invoice (People Awards seats carry an 8-digit online order ref
+    # and a £0 value) - kept, but never treated as "invoiced".
+    order_ref: Mapped[str | None] = mapped_column(String(60))
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="booked", index=True)
     moved_to_edition_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="SET NULL"))
     notes: Mapped[str | None] = mapped_column(Text)
+    # The sheet text that made the importer mark this row cancelled /
+    # contra / moved ("Judge ticket cancelled 4/9") - shown next to the
+    # status so nobody has to open the spreadsheet to see why.
+    status_reason: Mapped[str | None] = mapped_column(Text)
+    # Sheet columns only some titles have, by their sheet header:
+    # {"Seats": "9", "Table no.": "no. 5", "Paid?": "paid by cc"}.
+    extra: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     source_file: Mapped[str | None] = mapped_column(String(200))

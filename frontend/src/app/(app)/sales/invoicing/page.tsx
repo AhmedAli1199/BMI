@@ -26,10 +26,17 @@ const VIEWS = [
   },
   {
     key: "mismatched",
-    label: "Invoice ≠ booking",
+    label: "Unexplained difference",
     query: "mismatched=true",
-    hint: "Invoiced for a different amount than the booking value (after any agency commission recorded on it) - the sheet's old 'Invoice difference' column.",
-    empty: "Every invoice matches its booking.",
+    hint: "Invoiced for a different amount than the booking value (after any agency cut), with no reason recorded - the sheet's 'Invoice difference' column with its 'Reason for difference' left blank.",
+    empty: "Every invoice matches its booking, or has a reason recorded for the difference.",
+  },
+  {
+    key: "part",
+    label: "Difference explained",
+    query: "part_invoiced=true",
+    hint: "The invoice differs from the booking and the sheet records why - usually part-invoiced with the rest to follow (\"to be on next quarter invoice\"), sometimes a refund or extra entries. Not a problem, but the balances still to come need invoicing later.",
+    empty: "No invoice differences with a recorded reason.",
   },
   {
     key: "check",
@@ -50,13 +57,16 @@ const VIEWS = [
 export default async function InvoicingPage({ searchParams }: { searchParams: Promise<{ view?: string; year?: string }> }) {
   const sp = await searchParams;
   const view = VIEWS.find((v) => v.key === sp.view) ?? VIEWS[0];
-  const [meta, session, current, overdue, mismatched] = await Promise.all([
+  const [meta, session, current, overdue, mismatched, part] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     getSession(),
     backendFetch<OrdersPage>(`/api/sales/orders?${view.query}&limit=300`),
     backendFetch<OrdersPage>("/api/sales/orders?overdue=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?mismatched=true&limit=1"),
+    backendFetch<OrdersPage>("/api/sales/orders?part_invoiced=true&limit=300"),
   ]);
+  const toCome = part.items.map((o) => o.value_gbp - (o.invoice_value_gbp ?? 0) - (o.agency_commission_gbp ?? 0)).filter((b) => b > 0);
+  const partBalance = toCome.reduce((s, b) => s + b, 0);
   const uninvoiced = view.key === "uninvoiced" ? current : await backendFetch<OrdersPage>("/api/sales/orders?uninvoiced=true&limit=1");
 
   return (
@@ -67,10 +77,11 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
         description="Bookings that still need an invoice, invoices that don't match their booking, and imported rows to double-check."
       />
 
-      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-3">
+      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile label="Overdue" value={overdue.total.toLocaleString("en-GB")} footer={`${fmtGBP(overdue.total_value_gbp, { compact: true })} published or held, not yet invoiced`} />
         <KpiTile label="Awaiting invoice" value={uninvoiced.total.toLocaleString("en-GB")} footer={`${fmtGBP(uninvoiced.total_value_gbp, { compact: true })} across all editions`} />
-        <KpiTile label="Invoice ≠ booking" value={mismatched.total.toLocaleString("en-GB")} footer="Amounts to reconcile" />
+        <KpiTile label="Still to invoice later" value={fmtGBP(partBalance, { compact: true })} footer={`${toCome.length} part-invoiced booking${toCome.length === 1 ? "" : "s"}, reason recorded`} />
+        <KpiTile label="Unexplained difference" value={mismatched.total.toLocaleString("en-GB")} footer="Invoice differs, no reason given" />
       </section>
 
       <div className="flex items-start gap-2.5 rounded-lg border border-primary/25 bg-primary/5 px-3.5 py-2.5 text-xs text-muted-foreground">

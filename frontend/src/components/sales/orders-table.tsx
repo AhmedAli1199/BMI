@@ -23,7 +23,15 @@ export function isOverdue(o: SalesOrder): boolean {
 }
 
 function InvoiceCell({ o }: { o: SalesOrder }) {
-  if (o.status !== "booked" || o.value_gbp === 0) return <span className="text-muted-foreground">—</span>;
+  if (o.status !== "booked" || o.value_gbp === 0) {
+    return o.order_ref ? (
+      <span className="text-[11px] text-muted-foreground" title="Ticket / order number from the sheet - not a BMI invoice">
+        Order {o.order_ref}
+      </span>
+    ) : (
+      <span className="text-muted-foreground" title="Nothing to invoice">—</span>
+    );
+  }
   if (!o.invoice_number) {
     const overdue = isOverdue(o);
     return (
@@ -43,11 +51,16 @@ function InvoiceCell({ o }: { o: SalesOrder }) {
   return (
     <span className="flex flex-col leading-tight">
       <span className="font-medium text-foreground">{o.invoice_number}</span>
-      {Math.abs(diff) > 1 && (
-        <span className="text-[11px]" style={{ color: "var(--warn)" }} title="Invoiced amount differs from the booking value">
-          {fmtGBP(o.invoice_value_gbp)} invoiced
-        </span>
-      )}
+      {Math.abs(diff) > 1 &&
+        (o.invoice_note ? (
+          <span className="text-[11px] text-muted-foreground" title={`Reason for difference: ${o.invoice_note}`}>
+            {diff > 0 ? `${fmtGBP(o.invoice_value_gbp)} so far · ${fmtGBP(diff)} to come` : `over-invoiced by ${fmtGBP(-diff)}`}
+          </span>
+        ) : (
+          <span className="text-[11px]" style={{ color: "var(--warn)" }} title="Invoiced amount differs from the booking value and no reason is recorded">
+            {fmtGBP(o.invoice_value_gbp)} invoiced
+          </span>
+        ))}
     </span>
   );
 }
@@ -210,6 +223,11 @@ export function OrdersTable({
                   <td className="px-4 py-2.5">
                     <OrderStatusPill status={o.status} />
                     {o.moved_to && <div className="mt-0.5 text-[11px] text-muted-foreground">→ {o.moved_to.label}</div>}
+                    {o.status !== "booked" && !o.moved_to && o.status_reason && (
+                      <div className="mt-0.5 max-w-44 truncate text-[11px] text-muted-foreground" title={`Sheet said: ${o.status_reason}`}>
+                        “{o.status_reason}”
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

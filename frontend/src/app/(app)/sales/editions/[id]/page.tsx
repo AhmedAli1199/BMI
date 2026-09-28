@@ -142,7 +142,16 @@ export default async function EditionPage({ params }: { params: Promise<{ id: st
         <KpiTile
           label="Invoiced"
           value={fmtPercent(ed.booked_gbp ? ed.invoiced_gbp / ed.booked_gbp : null)}
-          footer={ed.uninvoiced ? `${ed.uninvoiced} booking${ed.uninvoiced === 1 ? "" : "s"} still to invoice` : "Everything booked is invoiced"}
+          footer={
+            <span className="flex items-center gap-1">
+              {ed.invoiced_orders} of {ed.paid_orders} paid booking{ed.paid_orders === 1 ? "" : "s"} invoiced
+              <InfoHint>
+                The percentage is by value: £ invoiced out of £ booked - the same as the sheet&apos;s &ldquo;Total invoiced&rdquo;
+                against its total. Bookings worth £0 (tickets, judges&apos; and guests&apos; seats, contra) have nothing to
+                invoice, so they aren&apos;t counted either way.
+              </InfoHint>
+            </span>
+          }
         />
         {isPrint ? (
           <KpiTile

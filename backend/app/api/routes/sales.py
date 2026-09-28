@@ -98,7 +98,10 @@ class OrderOut(BaseModel):
     invoice_value_gbp: float | None = None
     invoiced_on: date | None = None
     invoice_note: str | None = None
+    order_ref: str | None = None
     status: str
+    status_reason: str | None = None
+    extra: dict[str, str] = {}
     moved_to: Ref | None = None
     notes: str | None = None
     import_warning: str | None = None
@@ -124,6 +127,8 @@ class EditionSummary(BaseModel):
     orders: int
     invoiced_gbp: float
     uninvoiced: int
+    paid_orders: int
+    invoiced_orders: int
     pages: float
     warnings: int
     sheet_total_gbp: float | None = None
@@ -391,7 +396,8 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
             booked_on=o.booked_on, size=o.size, pages=_f(o.pages), series=o.series, position=o.position,
             rate_usd=_f(o.rate_usd), value_gbp=float(o.value_gbp or 0), agency_commission_gbp=_f(o.agency_commission_gbp),
             commission_rate=_f(o.commission_rate), invoice_number=o.invoice_number, invoice_value_gbp=_f(o.invoice_value_gbp),
-            invoiced_on=o.invoiced_on, invoice_note=o.invoice_note, status=o.status,
+            invoiced_on=o.invoiced_on, invoice_note=o.invoice_note, order_ref=o.order_ref, status=o.status,
+            status_reason=o.status_reason, extra=o.extra or {},
             moved_to=Ref(id=moved.id, label=edition_label(titles[moved.title_id], moved)) if moved else None,
             notes=o.notes, import_warning=o.import_warning,
             source=f"{o.source_file} › {o.source_sheet}, row {o.source_row}" if o.source_file else None,
@@ -417,7 +423,8 @@ def _edition_summaries(db: Session, editions: list[SalesEdition], today: date) -
             period_label=e.period_label, edition_date=e.edition_date, kind=e.kind, status=e.status,
             exchange_rate=_f(e.exchange_rate), target_gbp=_f(e.target_gbp),
             booked_gbp=t.get("booked", 0.0), orders=t.get("orders", 0), invoiced_gbp=t.get("invoiced", 0.0),
-            uninvoiced=t.get("uninvoiced", 0), pages=t.get("pages", 0.0), warnings=t.get("warnings", 0),
+            uninvoiced=t.get("uninvoiced", 0), paid_orders=t.get("paid", 0), invoiced_orders=t.get("paid_invoiced", 0),
+            pages=t.get("pages", 0.0), warnings=t.get("warnings", 0),
             sheet_total_gbp=_f(e.sheet_total_gbp),
             previous=Ref(id=p.id, label=edition_label(titles[p.title_id], p)) if p else None,
             previous_booked_gbp=prev_totals.get(p.id, {}).get("booked", 0.0) if p else None,
@@ -725,6 +732,7 @@ def list_orders(
     uninvoiced: bool = False,
     overdue: bool = False,
     mismatched: bool = False,
+    part_invoiced: bool = False,
     warnings: bool = False,
     unlinked: bool = False,
     search: str | None = None,
@@ -746,17 +754,22 @@ def list_orders(
         q = q.where(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.is_(None))
     if overdue:
         q = q.where(func.coalesce(SalesEdition.edition_date, func.make_date(SalesEdition.year, 1, 1)) <= date.today())
+    diff = func.abs(SalesOrder.value_gbp - func.coalesce(SalesOrder.invoice_value_gbp, 0)
+                    - func.coalesce(SalesOrder.agency_commission_gbp, 0)) > 1
+    has_reason = func.coalesce(func.trim(SalesOrder.invoice_note), "") != ""
     if mismatched:
-        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None),
-                    func.abs(SalesOrder.value_gbp - func.coalesce(SalesOrder.invoice_value_gbp, 0)
-                             - func.coalesce(SalesOrder.agency_commission_gbp, 0)) > 1)
+        # Unexplained only - a difference with a reason for it on the
+        # sheet ("TO BE ON NEXT QUARTER INVOICE") is part_invoiced below.
+        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None), diff, ~has_reason)
+    if part_invoiced:
+        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None), diff, has_reason)
     if warnings:
         q = q.where(SalesOrder.import_warning.isnot(None))
     if unlinked:
         q = q.where(SalesOrder.company_id.is_(None), SalesOrder.match_dismissed.is_(False))
     if search:
         like = f"%{search.strip()}%"
-        q = q.where(or_(SalesOrder.client_name.ilike(like), SalesOrder.invoice_number.ilike(like)))
+        q = q.where(or_(SalesOrder.client_name.ilike(like), SalesOrder.invoice_number.ilike(like), SalesOrder.order_ref.ilike(like)))
     sub = q.with_only_columns(SalesOrder.value_gbp).subquery()
     total, value = db.execute(select(func.count(), func.coalesce(func.sum(sub.c.value_gbp), 0)).select_from(sub)).one()
     rows = db.scalars(q.order_by(func.coalesce(SalesEdition.edition_date, func.make_date(SalesEdition.year, 1, 1)).desc(),

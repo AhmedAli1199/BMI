@@ -195,6 +195,7 @@ class ParsedRow:
     text: str
     continuation: bool = False
     raw: list = field(default_factory=list)
+    extra: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -246,6 +247,26 @@ def parse_sheet(name: str, rows: list[list[Cell]]) -> ParsedSheet | None:
     start = max(col.get("reason", 0), col.get("invoice_value", 0)) + 1
     rep_cols = {i: rep_code_for(rows[hdr][i]) for i in range(start, len(rows[hdr]))
                 if rows[hdr][i] is not None and rep_code_for(rows[hdr][i])}
+
+    # Any other labelled column left of the commission block (Seats, Table
+    # no., Paid?, Travel Planner / Online, Page number...) is kept as-is.
+    # Running totals and the computed difference column are not data.
+    def _pretty(i: int) -> str | None:
+        # Headers span two rows ("Page" over "number", "Travel" over
+        # "Planner"); join them, dropping a leading "Rate"/"Invoice" that
+        # belongs to the neighbouring mapped column.
+        parts = [v for v in (top[i], rows[hdr][i] if i < len(rows[hdr]) else None)
+                 if isinstance(v, str) and v.strip() and not re.fullmatch(r"[\d.,\s]+", v)]
+        label = re.sub(r"\s+", " ", " ".join(parts)).strip()
+        if len(parts) == 2:
+            label = re.sub(r"^(rate|invoice)\s+", "", label, flags=re.IGNORECASE)
+        return label or None
+    used = set(col.values()) | {client_col}
+    extra_cols = {}
+    for i in range(start):
+        label = _pretty(i) if i not in used else None
+        if label and _norm(label) not in ("invoice difference", "difference", "total", "invoice", "rate", "number", "value"):
+            extra_cols[i] = label
 
     parsed = ParsedSheet(name=name.strip())
     for r in rows[:hdr]:
@@ -311,6 +332,8 @@ def parse_sheet(name: str, rows: list[list[Cell]]) -> ParsedSheet | None:
             text=text,
             continuation=continuation,
             raw=r,
+            extra={lab: (f"{r[i]:g}" if isinstance(r[i], float) else r[i].strftime("%d/%m/%Y") if isinstance(r[i], datetime) else str(r[i]).strip())
+                   for i, lab in extra_cols.items() if r[i] is not None and r[i] != 0 and str(r[i]).strip()},
         ))
     return parsed
 
@@ -328,16 +351,24 @@ class ImportReport:
     checks: list[tuple[str, int, str, float, float | None]] = field(default_factory=list)
 
 
-def _status_for(row: ParsedRow) -> tuple[str, str | None]:
-    t = row.text.upper()
-    moved_cell = next((str(v).strip() for v in row.raw if isinstance(v, str) and "moved to" in v.lower()), None)
+def _cell_with(row: ParsedRow, pattern: str) -> str | None:
+    return next((str(v).strip() for v in row.raw if isinstance(v, str) and re.search(pattern, v, re.IGNORECASE)), None)
+
+
+def _status_for(row: ParsedRow) -> tuple[str, str | None, str | None]:
+    """(status, moved-to note, the sheet text that decided it). The text is
+    kept so the app can show *why* - e.g. a "Size" cell reading "Judge
+    ticket cancelled 4/9" that Excel clips to "Judge ticket" on screen."""
+    moved_cell = _cell_with(row, r"moved to")
     if moved_cell:
-        return "moved", moved_cell[:200]
-    if re.search(r"\bCANX\b|CANCELL?ED\b", t) and not re.search(r"CANCELLED AGAINST", t):
-        return "cancelled", None
-    if re.search(r"\bCONTRA\b", t):
-        return "contra", None
-    return "booked", None
+        return "moved", moved_cell[:200], moved_cell
+    cancel_cell = _cell_with(row, r"\bCANX\b|CANCELL?ED\b")
+    if cancel_cell and not re.search(r"CANCELLED AGAINST", cancel_cell, re.IGNORECASE):
+        return "cancelled", None, cancel_cell
+    contra_cell = _cell_with(row, r"\bCONTRA\b")
+    if contra_cell:
+        return "contra", None, contra_cell
+    return "booked", None, None
 
 
 def _group_files(root: Path) -> list[tuple[int, Path, Path | None]]:
@@ -421,7 +452,7 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                 usd, _ = parse_money(c.get("usd"))
                 inv_value, _ = parse_money(c.get("invoice_value"))
                 booked_on, w = parse_date(c.get("date")); warnings += [w] if w else []
-                status, moved_note = _status_for(row)
+                status, moved_note, status_reason = _status_for(row)
 
                 raw_rep = c.get("rep")
                 raw_rep = None if raw_rep is None or isinstance(raw_rep, float) else str(raw_rep).strip()
@@ -438,12 +469,24 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                     codes = list(credits)
                 if not credits and codes and value:
                     credits = {k: round(value / len(codes), 2) for k in codes}
-                if value and credits and abs(sum(credits.values()) - value) > 1 and status == "booked":
-                    warnings.append(f"sheet credits reps with £{sum(credits.values()):,.2f} in total, booking value is £{value:,.2f}")
+                credited = sum(credits.values())
+                if (value and credits and status == "booked" and abs(credited - value) > 1
+                        and not (inv_value is not None and abs(credited - inv_value) <= 1)):
+                    # Crediting the invoiced amount (e.g. part-invoiced, rest
+                    # "next quarter") is a normal sheet pattern - only a
+                    # figure matching neither is worth a look.
+                    warnings.append(f"sheet credits reps with £{credited:,.2f} in total - neither the booking value (£{value:,.2f}) nor the amount invoiced")
                 code = codes[0] if codes else None
 
                 inv_no = c.get("invoice_number")
-                inv_no = None if inv_no is None or isinstance(inv_no, float) and inv_no == 0 else str(inv_no).strip()
+                if isinstance(inv_no, float):
+                    inv_no = None if inv_no == 0 else f"{inv_no:.0f}"
+                else:
+                    inv_no = None if inv_no is None else str(inv_no).strip()
+                order_ref = None
+                if inv_no and re.fullmatch(r"\d{7,}", inv_no) and not value:
+                    # An online ticket/order number on a £0 seat - not a BMI invoice.
+                    order_ref, inv_no = inv_no, None
                 if inv_no and not re.search(r"\d", inv_no):  # "Moved to OBH 107", "tbc" - a note, not an invoice
                     moved_note = moved_note or inv_no
                     inv_no = None
@@ -474,10 +517,11 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                     booked_on=booked_on, size=size, pages=parse_pages(size, tdef.product_line),
                     series=num(c.get("series")), position=num(c.get("position")),
                     rate_usd=usd, value_gbp=value or 0, agency_commission_gbp=agency,
-                    invoice_number=inv_no[:60] if inv_no else None, invoice_value_gbp=inv_value if inv_no or inv_value else None,
+                    invoice_number=inv_no[:60] if inv_no else None, invoice_value_gbp=inv_value if inv_no else None,
                     invoice_note=reason, status=status, notes=notes,
                     source_file=f"{year}/{path.name}", source_sheet=sheet_name, source_row=row.row_index,
                     import_warning="; ".join(warnings) or None,
+                    order_ref=order_ref, status_reason=status_reason, extra=row.extra,
                 ))
                 for rc, amount in credits.items():
                     if rc in reps and amount:

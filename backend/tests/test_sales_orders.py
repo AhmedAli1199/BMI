@@ -300,3 +300,40 @@ def test_renewal_scan_drafts_once_per_client(db_session, sor, monkeypatch):
     items = db_session.query(ReviewQueueItem).filter_by(kind="renewal_due").all()
     assert [i.payload["client_name"] for i in items] == ["Lapsed Ltd"]
     assert "a full page in OBH 101" in items[0].payload["original_text"]
+
+
+def test_import_keeps_cancel_reason_order_refs_and_extra_columns(db_session, tmp_path):
+    y = tmp_path / "2026"
+    y.mkdir()
+    header_top = HEADER_TOP[:5] + ["Seats"] + HEADER_TOP[6:]
+    rows = [
+        ["PUBLICATION", None, "People Awards"], [],
+        ["MONTH", None, "15th September", None, None, None, None, None, None, "Exchange rate", 1.7],
+        [],
+        header_top,
+        HEADER,
+        _row("21.04.26", "Deborah Short", "Judge ticket cancelled 4/9", "KH", 0.0, inv=94368633.0),
+        _row("21.04.26", "Guest", "One ticket", "KH", 0.0, inv=94368634.0),
+        _row("28.01.26", "Virgin Atlantic", "Ruby sponsorship", "KH", 10000.0, inv="INV-3250",
+             reason="TO BE ON NEXT QUARTER INVOICE", sp=7012.5),
+    ]
+    rows[-1][13] = 7012.5
+    for r in rows[6:]:
+        r[5] = r[5]  # size stays in column 5 (under "Size")
+    _write_book(y / "TBTM Events 2026.xlsx", {"People Awards": rows})
+    import_sor(db_session, tmp_path)
+    o = {x.client_name: x for x in db_session.query(SalesOrder).all()}
+    assert o["Deborah Short"].status == "cancelled"
+    assert o["Deborah Short"].status_reason == "Judge ticket cancelled 4/9"
+    assert o["Guest"].order_ref == "94368634" and o["Guest"].invoice_number is None
+    assert o["Virgin Atlantic"].import_warning is None  # credit = invoiced amount is a normal sheet pattern
+
+
+def test_explained_differences_are_part_invoiced_not_mismatched(client, db_session, sor):
+    _order(db_session, sor["this"], "Explained", 10000, sor["reps"]["SP"], invoice_number="INV-1",
+           invoice_value_gbp=7012.5, invoice_note="TO BE ON NEXT QUARTER INVOICE")
+    _order(db_session, sor["this"], "Unexplained", 500, sor["reps"]["SP"], invoice_number="INV-2", invoice_value_gbp=400)
+    assert [x["client_name"] for x in client.get("/api/sales/orders?mismatched=true").json()["items"]] == ["Unexplained"]
+    assert [x["client_name"] for x in client.get("/api/sales/orders?part_invoiced=true").json()["items"]] == ["Explained"]
+    ed = client.get(f"/api/sales/editions/{sor['this'].id}").json()
+    assert ed["paid_orders"] == 2 and ed["invoiced_orders"] == 2

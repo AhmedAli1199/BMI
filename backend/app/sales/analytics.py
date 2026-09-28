@@ -105,12 +105,15 @@ def edition_totals(db: Session, edition_ids: list[uuid.UUID], booked_before: dat
         func.count().filter(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.is_(None)),
         func.coalesce(func.sum(SalesOrder.pages).filter(SalesOrder.status == BOOKED), 0),
         func.count().filter(SalesOrder.import_warning.isnot(None)),
+        func.count().filter(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0),
+        func.count().filter(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.isnot(None)),
     ).where(SalesOrder.edition_id.in_(edition_ids)).group_by(SalesOrder.edition_id)
     if booked_before:
         q = q.where(func.coalesce(SalesOrder.booked_on, date.min) <= booked_before)
     return {
         row[0]: {"booked": float(row[1]), "orders": row[2], "invoiced": float(row[3]),
-                 "uninvoiced": row[4], "pages": float(row[5]), "warnings": row[6]}
+                 "uninvoiced": row[4], "pages": float(row[5]), "warnings": row[6],
+                 "paid": row[7], "paid_invoiced": row[8]}
         for row in db.execute(q).all()
     }
 
