@@ -256,5 +256,37 @@ class Settings(BaseSettings):
     # deal looks like; there's no market data to derive this from.
     sales013_value_cap: float = 10000.0
 
+    # ---- Reminders, notifications, automation mailbox -----------------------
+    # See app/services/notify.py. Due reminders become in-app notifications
+    # (always) and an email from the automation mailbox (if one is set).
+    automations_reminders_scan_enabled: bool = True
+    automations_notification_email_enabled: bool = True
+    # A shared mailbox (e.g. automation@bmipublishing.co.uk) the app sends
+    # notification emails FROM, using the Graph app registration above with
+    # the Mail.Send application permission - restrict it to this one mailbox
+    # with an Exchange Application Access Policy. Empty = in-app only.
+    automation_mailbox: str = ""
+    # Public URL of the frontend - used for links inside emails and as the
+    # base of the Outlook sign-in redirect.
+    app_base_url: str = "http://localhost:3000"
+
+    # ---- Mail merge / "Connect Outlook" (delegated OAuth) ------------------
+    # Each user signs in with Microsoft once; mail merge then sends from
+    # THEIR mailbox (/me/sendMail), so messages land in their Sent Items
+    # and replies come back to them. Falls back to the graph_* app
+    # registration when these are empty (one app reg can do both, as long
+    # as it has a web redirect URI and the delegated Mail.Send permission).
+    outlook_client_id: str = ""
+    outlook_client_secret: str = ""
+    outlook_tenant_id: str = ""
+    outlook_redirect_uri: str = ""  # default: {app_base_url}/api/outlook/callback
+    # Fernet key encrypting stored refresh tokens. Empty = derived from
+    # api_key (fine for dev; set a real one in production).
+    mail_token_key: str = ""
+    automations_mail_merge_sender_enabled: bool = True
+    # Exchange Online allows 30 messages/minute per mailbox - stay under it.
+    mail_merge_per_minute: int = 25
+    mail_merge_max_recipients: int = 5000
+
 
 settings = Settings()

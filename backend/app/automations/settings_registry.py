@@ -30,6 +30,32 @@ class AutomationSettingDef:
 
 
 AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
+    # ---- Reminders, notifications & mail merge ----
+    AutomationSettingDef(
+        key="automations_reminders_scan_enabled", label="Reminders fire",
+        description="Turns due reminders into notifications every 5 minutes.",
+        group="Reminders & Notifications", type="bool",
+    ),
+    AutomationSettingDef(
+        key="automations_notification_email_enabled", label="Email notifications",
+        description="Emails notifications from the automation mailbox (needs the mailbox below and Mail.Send on the app registration).",
+        group="Reminders & Notifications", type="bool",
+    ),
+    AutomationSettingDef(
+        key="automation_mailbox", label="Automation mailbox",
+        description="The shared mailbox notification emails are sent from, e.g. automation@bmipublishing.co.uk. Empty = in-app only.",
+        group="Reminders & Notifications", type="text",
+    ),
+    AutomationSettingDef(
+        key="automations_mail_merge_sender_enabled", label="Mail merge sending",
+        description="Sends queued mail-merge emails from each user's connected Outlook.",
+        group="Reminders & Notifications", type="bool",
+    ),
+    AutomationSettingDef(
+        key="mail_merge_per_minute", label="Mail merge emails per minute",
+        description="Per sender. Exchange Online allows 30 a minute per mailbox; keep this below that.",
+        group="Reminders & Notifications", type="int", min=1, max=30,
+    ),
     # ---- CS-001 / CS-002 - bounce & OOO mailbox scan ----
     AutomationSettingDef(
         key="automations_bounce_scan_enabled", label="Mailbox monitoring active",

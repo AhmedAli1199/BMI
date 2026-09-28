@@ -38,6 +38,8 @@ class ContactListItem(BaseModel):
     company_id: uuid.UUID | None = None
     company_name: str | None = None
     primary_email: str | None = None
+    city: str | None = None
+    country: str | None = None
 
 
 class Page(BaseModel):
@@ -385,6 +387,8 @@ class GroupCreate(BaseModel):
     description: str | None = None
     parent_group_id: uuid.UUID | None = None
     source_db: str | None = None
+    # "New group from selection" - start the group with these members.
+    contact_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50000)
 
 
 class GroupUpdate(BaseModel):
@@ -396,6 +400,26 @@ class GroupUpdate(BaseModel):
 
 class GroupMembersRemoveRequest(BaseModel):
     contact_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class GroupMembersAddRequest(BaseModel):
+    contact_ids: list[uuid.UUID] = Field(min_length=1, max_length=50000)
+
+
+class GroupMembersAddResult(BaseModel):
+    added: int
+    already_members: int
+
+
+class ContactDuplicate(BaseModel):
+    """"Duplicate contact" - a new person at the same company: only who
+    they are is typed, everything company-level is copied."""
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    job_title: str | None = None
+    phone: str | None = None
+    copy_groups: bool = True
 
 
 class GroupListItem(BaseModel):

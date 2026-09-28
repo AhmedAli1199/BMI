@@ -23,6 +23,7 @@ from app.api.routes import (
     diagnostics,
     groups,
     health,
+    messaging,
     publications,
     review_queue,
     sales,
@@ -82,6 +83,7 @@ api_router.include_router(publications.router)
 api_router.include_router(diagnostics.router)
 api_router.include_router(users.router)
 api_router.include_router(activities.router)
+api_router.include_router(messaging.router)
 app.include_router(api_router)
 
 

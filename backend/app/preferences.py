@@ -52,6 +52,17 @@ PREFERENCE_DEFS: list[PreferenceDef] = [
         ],
         default="record_edit",
     ),
+    PreferenceDef(
+        key="email_notifications",
+        label="Email me notifications",
+        description="Reminders and other notifications always appear under the bell; this also emails them to you from the automation mailbox.",
+        group="Notifications",
+        options=[
+            PreferenceOption(value="on", label="On", description="Email each notification as well."),
+            PreferenceOption(value="off", label="Off", description="In-app only."),
+        ],
+        default="on",
+    ),
 ]
 
 _BY_KEY: dict[str, PreferenceDef] = {p.key: p for p in PREFERENCE_DEFS}

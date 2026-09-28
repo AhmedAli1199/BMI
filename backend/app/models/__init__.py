@@ -12,6 +12,7 @@ from app.models.job_run import AutomationJobRun
 from app.models.group import Group, GroupMembership
 from app.models.history import HistoryEntry
 from app.models.llm_usage import LlmUsageEvent
+from app.models.messaging import MailAccount, MailAttachment, MailMerge, MailMergeRecipient, MailTemplate, Notification, Reminder
 from app.models.note import Note
 from app.models.opportunity import Opportunity
 from app.models.publication import Publication
@@ -42,6 +43,13 @@ __all__ = [
     "GroupMembership",
     "HistoryEntry",
     "LlmUsageEvent",
+    "MailAccount",
+    "MailAttachment",
+    "MailMerge",
+    "MailMergeRecipient",
+    "MailTemplate",
+    "Notification",
+    "Reminder",
     "Note",
     "Opportunity",
     "Phone",
