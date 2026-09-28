@@ -48,6 +48,52 @@ MONTHS = {m: i for i, m in enumerate(
 
 # ---- Reading --------------------------------------------------------------
 
+def hidden_columns(path: Path) -> dict[str, set[int]]:
+    """Sheet name -> 0-based indexes of columns hidden in Excel. Hidden
+    commission columns often hold stale copied figures (Dec Print 2025:
+    L.Merrigan / S.Thompson / D.Clare hidden, each showing £1,500 on a
+    K.Hicks booking) - the person maintaining the sheet never sees them,
+    so neither should the import."""
+    try:
+        if path.suffix.lower() == ".xlsx":
+            import openpyxl
+            from openpyxl.utils import column_index_from_string
+
+            wb = openpyxl.load_workbook(path, read_only=False)
+            out = {}
+            for ws in wb.worksheets:
+                hidden = set()
+                for key, dim in ws.column_dimensions.items():
+                    if dim.hidden:
+                        lo = column_index_from_string(key) - 1
+                        hi = (dim.max or lo + 1) - 1
+                        hidden.update(range(min(lo, hi), max(lo, hi) + 1))
+                out[ws.title] = hidden
+            return out
+        import xlrd
+
+        book = xlrd.open_workbook(str(path), formatting_info=True)
+        return {sh.name: {c for c, info in sh.colinfo_map.items() if info.hidden} for sh in book.sheets()}
+    except Exception:  # noqa: BLE001 - formatting info is a nicety; never block an import on it
+        return {}
+
+
+def fmt_size(v: Cell) -> str | None:
+    """A size cell as the sheet shows it. Excel stores a typed "2/3" as
+    0.666..., so small fractions are turned back into "2/3"."""
+    if v is None:
+        return None
+    if isinstance(v, float):
+        if 0 < v < 1:
+            from fractions import Fraction
+
+            f = Fraction(v).limit_denominator(12)
+            if abs(float(f) - v) < 1e-6:
+                return f"{f.numerator}/{f.denominator}"
+        return f"{v:g}"
+    return str(v)
+
+
 def read_workbook(path: Path) -> dict[str, list[list[Cell]]]:
     """Sheet name -> rows of plain Python values (str / float / datetime /
     None), for both legacy .xls (xlrd) and .xlsx (openpyxl)."""
@@ -221,7 +267,7 @@ _COLS = {
 }
 
 
-def parse_sheet(name: str, rows: list[list[Cell]]) -> ParsedSheet | None:
+def parse_sheet(name: str, rows: list[list[Cell]], hidden: set[int] | None = None) -> ParsedSheet | None:
     if re.search(r"template|do ?n.?t copy|^(blank|sheet)\s*\d*\b", name.strip(), re.IGNORECASE):
         return None  # the copy-from template and unused placeholder sheets
     hdr = next((i for i, r in enumerate(rows[:15]) if any(_norm(v).endswith("client") for v in r)), None)
@@ -246,7 +292,7 @@ def parse_sheet(name: str, rows: list[list[Cell]]) -> ParsedSheet | None:
     # whose header is a known rep.
     start = max(col.get("reason", 0), col.get("invoice_value", 0)) + 1
     rep_cols = {i: rep_code_for(rows[hdr][i]) for i in range(start, len(rows[hdr]))
-                if rows[hdr][i] is not None and rep_code_for(rows[hdr][i])}
+                if rows[hdr][i] is not None and rep_code_for(rows[hdr][i]) and i not in (hidden or set())}
 
     # Any other labelled column left of the commission block (Seats, Table
     # no., Paid?, Travel Planner / Online, Page number...) is kept as-is.
@@ -410,6 +456,7 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
         title = titles[tdef.slug]
         try:
             book = read_workbook(path)
+            hidden = hidden_columns(path)
         except Exception as exc:  # noqa: BLE001 - one unreadable file shouldn't stop the rest
             report.skipped_files.append(f"{year}/{path.name} ({exc})")
             continue
@@ -417,7 +464,7 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
         working = read_workbook(working_copy) if working_copy else {}
 
         for sheet_name, rows in book.items():
-            sheet = parse_sheet(sheet_name, rows)
+            sheet = parse_sheet(sheet_name, rows, hidden.get(sheet_name))
             if not sheet:
                 continue
             wsheet = parse_sheet(sheet_name, working.get(sheet_name, [])) if sheet_name in working else None
@@ -470,6 +517,13 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                 # them in (that's how a shared "SP/ST" booking gets split),
                 # else the full value to the salesperson(s) named.
                 credits = dict(row.rep_credits)
+                # Credits adding up to more than the booking, spread over
+                # reps the Salesper. column doesn't name, are leftovers in
+                # the sheet - keep only the named rep(s).
+                if codes and value and sum(credits.values()) > value + 1:
+                    named = {k: v for k, v in credits.items() if k in codes}
+                    if named:
+                        credits = named
                 if not codes and credits:
                     codes = list(credits)
                 if not credits and codes and value:
@@ -478,9 +532,16 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                 if (value and credits and status == "booked" and abs(credited - value) > 1
                         and not (inv_value is not None and abs(credited - inv_value) <= 1)):
                     # Crediting the invoiced amount (e.g. part-invoiced, rest
-                    # "next quarter") is a normal sheet pattern - only a
-                    # figure matching neither is worth a look.
-                    warnings.append(f"sheet credits reps with £{credited:,.2f} in total - neither the booking value (£{value:,.2f}) nor the amount invoiced")
+                    # "next quarter") is a normal sheet pattern. A figure
+                    # matching neither is a sheet error - usually the
+                    # commission column shifted a row after rows were
+                    # inserted/sorted (it holds the neighbouring booking's
+                    # value), or a doubled figure. Credit the named rep(s)
+                    # with the booking value instead, and say so.
+                    fallback = codes or list(credits)
+                    credits = {k: round(value / len(fallback), 2) for k in fallback}
+                    warnings.append(f"the sheet's commission column showed £{credited:,.2f} for this £{value:,.2f} booking "
+                                    f"(probably shifted from a neighbouring row) - credited the booking value instead")
                 code = codes[0] if codes else None
 
                 inv_no = c.get("invoice_number")
@@ -514,8 +575,8 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                 if reason and "agency" in reason.lower() and value and inv_value is not None and inv_value < value:
                     agency = round(value - inv_value, 2)
 
-                size = c.get("size")
-                size = None if size is None else (f"{size:g}" if isinstance(size, float) else str(size))[:120]
+                size = fmt_size(c.get("size"))
+                size = size[:120] if size else None
                 num = lambda v: None if v is None else (f"{v:g}" if isinstance(v, float) else str(v))[:60]  # noqa: E731
                 order_id = uuid.uuid4()
                 db.add(SalesOrder(

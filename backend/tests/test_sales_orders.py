@@ -337,3 +337,35 @@ def test_explained_differences_are_part_invoiced_not_mismatched(client, db_sessi
     assert [x["client_name"] for x in client.get("/api/sales/orders?part_invoiced=true").json()["items"]] == ["Explained"]
     ed = client.get(f"/api/sales/editions/{sor['this'].id}").json()
     assert ed["paid_orders"] == 2 and ed["invoiced_orders"] == 2
+
+
+def test_size_fractions_and_hidden_commission_columns(db_session, tmp_path):
+    from app.sales.sor_import import fmt_size
+
+    assert fmt_size(2 / 3) == "2/3" and fmt_size(0.5) == "1/2" and fmt_size(2.0) == "2" and fmt_size("DPS") == "DPS"
+
+    y = tmp_path / "2025"
+    y.mkdir()
+    rows = _sheet_rows([
+        # TripStax: K.Hicks' visible column 1500; the hidden S.Thompson column holds a stale 1500 too.
+        _row("29.01.25", "TripStax", 2 / 3, "KH", 2500.0, "INV-2738", sp=0.0, st=1500.0),
+        # Commission column shifted a row: shows the neighbour's value.
+        _row("30.01.25", "Daytona", "FP", "SP", 2222.22, "INV-1", sp=2750.0),
+    ])
+    rows[5][18], rows[5][19] = "K.Hicks", "S.Thompson"
+    rows[6][18], rows[6][19] = 1500.0, 1500.0
+    rows[6][13] = 1500.0  # invoiced £1,500 on INV-2738 (the rest on a separate invoice)
+    path = y / "TBTM Print and Digital 2025.xlsx"
+    _write_book(path, {"Dec Print": rows})
+    wb = openpyxl.load_workbook(path)
+    wb["Dec Print"].column_dimensions["T"].hidden = True  # S.Thompson
+    wb.save(path)
+
+    import_sor(db_session, tmp_path)
+    reps = {r.id: r.code for r in db_session.query(SalesRep).all()}
+    o = {x.client_name: x for x in db_session.query(SalesOrder).all()}
+    credits = lambda order: {reps[c.rep_id]: float(c.amount_gbp) for c in db_session.query(SalesOrderCredit).filter_by(order_id=order.id)}  # noqa: E731
+    assert o["TripStax"].size == "2/3"
+    assert credits(o["TripStax"]) == {"KH": 1500.0}  # hidden column ignored
+    assert credits(o["Daytona"]) == {"SP": 2222.22}  # misaligned sheet figure replaced by the booking value
+    assert "shifted" in o["Daytona"].import_warning
