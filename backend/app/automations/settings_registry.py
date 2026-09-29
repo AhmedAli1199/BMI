@@ -78,13 +78,6 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Deliverability & Out-of-Office", type="int", min=1,
     ),
 
-    # ---- CS-003 - departure scan ----
-    AutomationSettingDef(
-        key="automations_departure_scan_enabled", label="Departure detection active",
-        description="Enables automatic tracking of contact role departures and successor proposals.",
-        group="Role Departures & Successors", type="bool",
-    ),
-
     # ---- CS-004 - duplicate contact scan ----
     AutomationSettingDef(
         key="automations_dedupe_scan_enabled", label="Duplicate detection active",

@@ -64,7 +64,7 @@ KIND_JOB: dict[str, str | None] = {
     "ooo_ambiguous": "cs001_cs002_bounce_ooo_scan",
     "bounce_uncertain": "cs001_cs002_bounce_ooo_scan",
     "bounce_unmatched": "cs001_cs002_bounce_ooo_scan",
-    "departure_unconfirmed": "cs003_departure_scan",
+    "departure_unconfirmed": "cs001_cs002_bounce_ooo_scan",
     "duplicate_contact": "cs004_dedupe_scan",
     "renewal_due": "sor_renewal_scan",
     "sor_invoice_missing": "sor_invoice_chase_scan",

@@ -620,7 +620,7 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
 register_job(ScheduledJob(
     id="cs001_cs002_bounce_ooo_scan",
     label="Bounce & OOO mailbox scan",
-    description="Scans the shared mailbox for bounces and out-of-office replies (CS-001, CS-002).",
+    description="Scans the shared mailbox for bounces, out-of-office replies and \"has left the company\" replies (CS-001, CS-002, CS-003).",
     cron="*/15 * * * *",  # every 15 minutes, once real - cheap to run often since it's incremental
     func=scan_mailbox_for_bounces_and_ooo,
     enabled_flag="automations_bounce_scan_enabled",
