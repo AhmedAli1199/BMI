@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { KpiTile } from "@/components/automations/hub-ui";
 import { EditionStatusButton } from "@/components/sales/edition-actions";
 import { InfoHint } from "@/components/sales/info-hint";
-import { OrdersTable } from "@/components/sales/orders-table";
+import { OrdersExplorer } from "@/components/sales/orders-explorer";
+import { AddBookingButton } from "@/components/sales/add-booking-button";
 import { PRODUCT_LINE_LABEL, SalesHeader, TitleIcon, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 function ChangeValue({ change }: { change: number | null }) {
@@ -24,8 +25,14 @@ function ChangeValue({ change }: { change: number | null }) {
   );
 }
 
-export default async function EditionPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function EditionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   let ed: EditionDetail;
   try {
     ed = await backendFetch<EditionDetail>(`/api/sales/editions/${id}`);
@@ -40,7 +47,7 @@ export default async function EditionPage({ params }: { params: Promise<{ id: st
   const repTotal = ed.by_rep.reduce((s, r) => s + r.amount_gbp, 0);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
         title={ed.label}
         crumbs={[
@@ -199,13 +206,16 @@ export default async function EditionPage({ params }: { params: Promise<{ id: st
 
       <section aria-labelledby="bookings-heading" className="flex flex-col gap-2">
         <h2 id="bookings-heading" className="sr-only">Bookings</h2>
-        <OrdersTable
-          orders={ed.orders_list}
-          reps={meta.reps}
+        <OrdersExplorer
+          searchParams={sp}
+          meta={meta}
           canDelete={staff}
+          scope={{ edition_id: ed.id }}
+          hide={["year", "title", "line", "edition"]}
           year={ed.year}
-          addTo={{ editionId: ed.id, titleId: ed.title.id, editionLabel: ed.label }}
-          emptyText="No bookings yet - add the first one."
+          showEdition={false}
+          emptyText={ed.orders_list.length ? "No bookings in this edition match these filters." : "No bookings yet - add the first one."}
+          actions={<AddBookingButton edition={{ editionId: ed.id, titleId: ed.title.id, editionLabel: ed.label, year: ed.year }} reps={meta.reps} />}
         />
         {ed.source && <p className="text-[11px] text-muted-foreground">Imported from {ed.source}.</p>}
       </section>

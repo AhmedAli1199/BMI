@@ -59,7 +59,7 @@ export function CompanyBookingsPanel({ data, reps, canDelete }: { data: CompanyB
           </div>
         )}
       </div>
-      <OrdersTable orders={data.items} reps={reps} canDelete={canDelete} year={new Date().getFullYear()} showEdition showFilters={false} />
+      <OrdersTable orders={data.items} reps={reps} canDelete={canDelete} year={new Date().getFullYear()} showEdition />
     </div>
   );
 }

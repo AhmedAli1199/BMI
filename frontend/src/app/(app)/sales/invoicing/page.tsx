@@ -4,9 +4,10 @@ import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
 import type { OrdersPage, SalesMeta } from "@/lib/sales-types";
+import type { OrderFilterKey } from "@/lib/sales-filters";
 import { KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
-import { OrdersTable } from "@/components/sales/orders-table";
+import { OrdersExplorer } from "@/components/sales/orders-explorer";
 import { EmptyState, SalesHeader, fmtGBP } from "@/components/sales/sales-ui";
 
 const VIEWS = [
@@ -14,6 +15,8 @@ const VIEWS = [
     key: "overdue",
     label: "Overdue",
     query: "overdue=true",
+    scope: { overdue: "true" },
+    hide: ["invoiced"] as OrderFilterKey[],
     hint: "Booked, has a value, no invoice number - and the issue has already published or the event has already run.",
     empty: "Nothing overdue - every published edition's bookings have an invoice number.",
   },
@@ -21,6 +24,8 @@ const VIEWS = [
     key: "uninvoiced",
     label: "All awaiting invoice",
     query: "uninvoiced=true",
+    scope: { uninvoiced: "true" },
+    hide: ["invoiced"] as OrderFilterKey[],
     hint: "Every live booking with a value and no invoice number yet, including editions still to come.",
     empty: "Every booking with a value has been invoiced.",
   },
@@ -28,6 +33,8 @@ const VIEWS = [
     key: "mismatched",
     label: "Unexplained difference",
     query: "mismatched=true",
+    scope: { mismatched: "true" },
+    hide: ["invoiced", "status"] as OrderFilterKey[],
     hint: "Invoiced for a different amount than the booking value (after any agency cut), with no reason recorded - the sheet's 'Invoice difference' column with its 'Reason for difference' left blank.",
     empty: "Every invoice matches its booking, or has a reason recorded for the difference.",
   },
@@ -35,6 +42,8 @@ const VIEWS = [
     key: "part",
     label: "Difference explained",
     query: "part_invoiced=true",
+    scope: { part_invoiced: "true" },
+    hide: ["invoiced", "status"] as OrderFilterKey[],
     hint: "The invoice differs from the booking and a reason is recorded (e.g. agency commission, a credit note, \"to be on next quarter invoice\"). Nothing to worry about - the reason is shown on each booking.",
     empty: "No invoice differences with a recorded reason.",
   },
@@ -42,6 +51,8 @@ const VIEWS = [
     key: "check",
     label: "Needs a check",
     query: "warnings=true",
+    scope: { has_warning: "true" },
+    hide: ["check"] as OrderFilterKey[],
     hint: "Rows the spreadsheet import couldn't read with certainty - a missing client name, an unknown salesperson, an unreadable amount. Open one and mark it checked once it's right.",
     empty: "No imported rows are waiting for a check.",
   },
@@ -49,26 +60,35 @@ const VIEWS = [
     key: "unlinked",
     label: "Not linked to CRM",
     query: "unlinked=true",
-    hint: "Bookings whose client isn't linked to a CRM company yet. Linking shows the booking on the company's page and lets renewals reach the right record.",
+    scope: { unlinked: "true" },
+    hide: ["linked"] as OrderFilterKey[],
+    hint: "Every booking whose client isn't linked to a CRM company yet - one row per booking, so a client with 12 bookings appears 12 times. Only clients that closely resemble an existing CRM company get a “Is this the same company?” item in the Review Queue (one item per client, up to 200 at a time); clients with no likely match in the CRM are listed here but never queued. Linking shows the booking on the company's page and lets renewals reach the right record.",
     empty: "Every booking is linked to a CRM company (or confirmed as not in the CRM).",
   },
 ] as const;
 
-export default async function InvoicingPage({ searchParams }: { searchParams: Promise<{ view?: string; year?: string }> }) {
+export default async function InvoicingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const view = VIEWS.find((v) => v.key === sp.view) ?? VIEWS[0];
   const [meta, session, current, overdue, mismatched, part] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     getSession(),
-    backendFetch<OrdersPage>(`/api/sales/orders?${view.query}&limit=300`),
+    backendFetch<OrdersPage>(`/api/sales/orders?${view.query}&limit=1`),
     backendFetch<OrdersPage>("/api/sales/orders?overdue=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?mismatched=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?part_invoiced=true&limit=1"),
   ]);
   const uninvoiced = view.key === "uninvoiced" ? current : await backendFetch<OrdersPage>("/api/sales/orders?uninvoiced=true&limit=1");
+  // Switching view keeps the sidebar filters (e.g. one title, one person) but starts at page 1.
+  const viewHref = (key: string) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (typeof v === "string" && v && k !== "view" && k !== "page") p.set(k, v);
+    p.set("view", key);
+    return `/sales/invoicing?${p}`;
+  };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
         title="Invoicing"
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}
@@ -100,7 +120,7 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
             return (
               <Link
                 key={v.key}
-                href={`/sales/invoicing?view=${v.key}`}
+                href={viewHref(v.key)}
                 aria-current={active ? "page" : undefined}
                 scroll={false}
                 className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
@@ -115,19 +135,15 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
         {current.total === 0 ? (
           <EmptyState icon={CheckCircle2} title="All clear">{view.empty}</EmptyState>
         ) : (
-          <>
-            {current.total > current.items.length && (
-              <p className="mb-2 text-xs text-muted-foreground">Showing the {current.items.length} most recent of {current.total}.</p>
-            )}
-            <OrdersTable
-              orders={current.items}
-              reps={meta.reps}
-              canDelete={canUseAutomations(session)}
-              year={new Date().getFullYear()}
-              showEdition
-              showFilters={false}
-            />
-          </>
+          <OrdersExplorer
+            searchParams={sp}
+            meta={meta}
+            canDelete={canUseAutomations(session)}
+            scope={view.scope}
+            hide={view.hide}
+            year={new Date().getFullYear()}
+            emptyText="No bookings in this view match these filters."
+          />
         )}
       </div>
     </div>

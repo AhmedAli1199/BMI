@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import FieldChangeOut, UserSummary
@@ -28,6 +28,10 @@ from app.db.session import get_db
 from app.models import Company, FieldChange, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, User
 from app.roles import CAN_USE_AUTOMATIONS
 from app.sales.matching import normalise
+from app.sales.order_query import SORTS as ORDER_SORTS
+from app.sales.order_query import OrderQuery
+from app.sales.order_query import facets as order_facets
+from app.sales.order_query import page as order_page
 from app.sales.analytics import BOOKED, edition_totals, equivalent_editions, same_point_last_year
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
@@ -723,12 +727,23 @@ def export_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> Stre
 
 # ---- Orders -------------------------------------------------------------------
 
-@router.get("/orders", response_model=OrdersPage)
-def list_orders(
-    year: int | None = None,
-    title_id: uuid.UUID | None = None,
-    rep_id: uuid.UUID | None = None,
-    status: str | None = None,
+def order_query(
+    year: list[int] = Query(default=[]),
+    title_id: list[uuid.UUID] = Query(default=[]),
+    product_line: list[str] = Query(default=[]),
+    rep_id: list[uuid.UUID] = Query(default=[]),
+    status: list[str] = Query(default=[]),
+    edition_id: uuid.UUID | None = None,
+    company_id: uuid.UUID | None = None,
+    invoiced: bool | None = None,
+    linked: bool | None = None,
+    has_warning: bool | None = None,
+    value_min: float | None = None,
+    value_max: float | None = None,
+    booked_from: date | None = None,
+    booked_to: date | None = None,
+    edition_from: date | None = None,
+    edition_to: date | None = None,
     uninvoiced: bool = False,
     overdue: bool = False,
     mismatched: bool = False,
@@ -736,55 +751,76 @@ def list_orders(
     warnings: bool = False,
     unlinked: bool = False,
     search: str | None = None,
+    sort: str = "edition",
+    desc: bool = True,
+) -> OrderQuery:
+    """Every bookings filter, as query parameters - shared by the list, its
+    facet counts and its export. Multi-value filters repeat the parameter
+    (?status=booked&status=moved)."""
+    return OrderQuery(
+        edition_id=edition_id, company_id=company_id, years=year, title_ids=title_id, product_lines=product_line,
+        rep_ids=rep_id, statuses=status, invoiced=invoiced, linked=linked,
+        has_warning=True if warnings else has_warning, value_min=value_min, value_max=value_max,
+        booked_from=booked_from, booked_to=booked_to, edition_from=edition_from, edition_to=edition_to,
+        uninvoiced=uninvoiced, overdue=overdue, mismatched=mismatched, part_invoiced=part_invoiced, unlinked=unlinked,
+        search=search, sort=sort if sort in ORDER_SORTS else "edition", desc=desc,
+    )
+
+
+@router.get("/orders", response_model=OrdersPage)
+def list_orders(
+    q: OrderQuery = Depends(order_query),
     limit: int = Query(default=100, le=500),
     offset: int = 0,
     db: Session = Depends(get_db),
 ) -> OrdersPage:
-    q = select(SalesOrder).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-    if year:
-        q = q.where(SalesEdition.year == year)
-    if title_id:
-        q = q.where(SalesEdition.title_id == title_id)
-    if rep_id:
-        q = q.where(or_(SalesOrder.rep_id == rep_id, SalesOrder.id.in_(
-            select(SalesOrderCredit.order_id).where(SalesOrderCredit.rep_id == rep_id))))
-    if status:
-        q = q.where(SalesOrder.status == status)
-    if uninvoiced or overdue:
-        q = q.where(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.is_(None))
-    if overdue:
-        q = q.where(func.coalesce(SalesEdition.edition_date, func.make_date(SalesEdition.year, 1, 1)) <= date.today())
-    if mismatched or part_invoiced:
-        # Compared per client within an edition, not per row: one booking
-        # invoiced in two lines (£1,500 on one invoice, £1,000 "wanted on
-        # separate invoice") matches as a whole. Rows with an invoice
-        # number but no amount entered are unknown, not a difference, and
-        # under £2 is currency-conversion rounding.
-        client_key = func.lower(func.trim(SalesOrder.client_name))
-        g = (select(SalesOrder.edition_id.label("ed"), client_key.label("ck"))
-             .where(SalesOrder.status == BOOKED)
-             .group_by(SalesOrder.edition_id, client_key)
-             .having(func.count(SalesOrder.invoice_value_gbp) > 0)
-             .having(func.abs(func.sum(SalesOrder.value_gbp)
-                              - func.sum(func.coalesce(SalesOrder.invoice_value_gbp, SalesOrder.value_gbp))
-                              - func.sum(func.coalesce(SalesOrder.agency_commission_gbp, 0))) >= 2))
-        reason_any = func.bool_or(func.coalesce(func.trim(SalesOrder.invoice_note), "") != "")
-        g = g.having(reason_any if part_invoiced else ~reason_any).subquery()
-        q = q.where(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None),
-                    SalesOrder.invoice_value_gbp.isnot(None),
-                    select(1).where(g.c.ed == SalesOrder.edition_id, g.c.ck == client_key).exists())
-    if warnings:
-        q = q.where(SalesOrder.import_warning.isnot(None))
-    if unlinked:
-        q = q.where(SalesOrder.company_id.is_(None), SalesOrder.match_dismissed.is_(False))
-    if search:
-        like = f"%{search.strip()}%"
-        q = q.where(or_(SalesOrder.client_name.ilike(like), SalesOrder.invoice_number.ilike(like), SalesOrder.order_ref.ilike(like)))
-    sub = q.with_only_columns(SalesOrder.value_gbp).subquery()
-    total, value = db.execute(select(func.count(), func.coalesce(func.sum(sub.c.value_gbp), 0)).select_from(sub)).one()
-    rows = db.scalars(q.order_by(func.coalesce(SalesEdition.edition_date, func.make_date(SalesEdition.year, 1, 1)).desc(),
-                                 SalesOrder.booked_on.desc().nulls_last()).limit(limit).offset(offset)).all()
-    return OrdersPage(items=_orders_out(db, list(rows)), total=total, total_value_gbp=float(value))
+    rows, total, value = order_page(db, q, limit, offset)
+    return OrdersPage(items=_orders_out(db, rows), total=total, total_value_gbp=value)
+
+
+@router.get("/orders/facets")
+def orders_facets(q: OrderQuery = Depends(order_query), db: Session = Depends(get_db)) -> dict[str, dict[str, int]]:
+    """How many bookings each filter option would give, under the other
+    active filters - the counts shown beside every option in the sidebar."""
+    return order_facets(db, q)
+
+
+@router.get("/orders/export")
+def export_orders(q: OrderQuery = Depends(order_query), db: Session = Depends(get_db)) -> StreamingResponse:
+    """Exactly the filtered, sorted list on screen as .xlsx (up to 20,000 rows)."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+
+    rows, _, _ = order_page(db, q, 20000, 0)
+    items = _orders_out(db, rows)
+    title_names = {t.id: t.name for t in db.scalars(select(SalesTitle))}
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Bookings"
+    ws.append(["Client", "CRM company", "Title", "Edition", "Edition date", "Booked", "Size", "Series", "Position",
+               "Salesperson(s)", "Value £", "Agency commission £", "Invoice number", "Invoice value £",
+               "Reason for difference", "Status", "Status note", "Order ref", "Notes", "Needs a check"])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill("solid", fgColor="DDE4F0")
+    for o in items:
+        ws.append([
+            o.client_name, o.company.label if o.company else None, title_names.get(o.title_id), o.edition_label,
+            o.edition_date, o.booked_on, o.size, o.series, o.position,
+            " / ".join(c.code for c in o.credits) or (o.rep.code if o.rep else None), o.value_gbp,
+            o.agency_commission_gbp, o.invoice_number, o.invoice_value_gbp, o.invoice_note, o.status,
+            o.status_reason, o.order_ref, o.notes, o.import_warning,
+        ])
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    for col, width in zip("ABCDEFGHIJKLMNOPQRST", (30, 28, 22, 26, 12, 12, 16, 10, 10, 14, 12, 12, 14, 12, 30, 11, 24, 12, 30, 40)):
+        ws.column_dimensions[col].width = width
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    stamp = date.today().isoformat()
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="BMI bookings {stamp}.xlsx"'})
 
 
 def _get_order(db: Session, order_id: uuid.UUID) -> SalesOrder:

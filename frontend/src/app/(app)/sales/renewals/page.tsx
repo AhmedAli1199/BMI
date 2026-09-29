@@ -20,7 +20,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Pro
   const href = (p: { title?: string; year?: number }) => `/sales/renewals?title=${p.title ?? title.id}&year=${p.year ?? year}`;
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
         title="Renewals"
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}

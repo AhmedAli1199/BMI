@@ -11,6 +11,7 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
  * below are reachable, and the API key never leaves the server. */
 const ALLOWED: RegExp[] = [
   /^contacts\/export$/,
+  /^sales\/orders\/export$/,
   /^groups\/[0-9a-f-]{36}\/export$/,
   /^mail-merge$/,
   /^mail-merge\/attachments$/,

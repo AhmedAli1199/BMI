@@ -1,22 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { AlertTriangle, Building2, Plus, Search } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Building2 } from "lucide-react";
 import type { SalesOrder, SalesRep } from "@/lib/sales-types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SortableTh } from "@/components/data-view/toolbar";
 import { OrderSheet, type OrderSheetTarget } from "@/components/sales/order-sheet";
 import { OrderStatusPill, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
-
-type FilterKey = "all" | "uninvoiced" | "check" | "inactive";
-
-const FILTERS: { key: FilterKey; label: string; test: (o: SalesOrder) => boolean }[] = [
-  { key: "all", label: "All bookings", test: () => true },
-  { key: "uninvoiced", label: "Awaiting invoice", test: (o) => o.status === "booked" && o.value_gbp > 0 && !o.invoice_number },
-  { key: "check", label: "Needs a check", test: (o) => !!o.import_warning },
-  { key: "inactive", label: "Cancelled, contra & moved", test: (o) => o.status !== "booked" },
-];
 
 export function isOverdue(o: SalesOrder): boolean {
   return !!o.edition_date && new Date(o.edition_date) < new Date() && o.status === "booked" && o.value_gbp > 0 && !o.invoice_number;
@@ -65,100 +55,63 @@ function InvoiceCell({ o }: { o: SalesOrder }) {
   );
 }
 
+/** Bookings as a table - click a row to open and edit it. Inside a
+ * <DataView> pass `sortable` to make the headers sort (the page's own
+ * filters live in the sidebar); elsewhere (a company's Bookings tab) it's
+ * a plain list. */
 export function OrdersTable({
   orders,
   reps,
   canDelete,
   year,
   showEdition = false,
-  showFilters = true,
-  addTo,
+  sortable = false,
   emptyText = "No bookings here yet.",
-  initialFilter = "all",
 }: {
   orders: SalesOrder[];
   reps: SalesRep[];
   canDelete: boolean;
   year: number;
   showEdition?: boolean;
-  showFilters?: boolean;
-  addTo?: { editionId: string; titleId: string; editionLabel: string };
+  sortable?: boolean;
   emptyText?: string;
-  initialFilter?: FilterKey;
 }) {
-  const [filter, setFilter] = useState<FilterKey>(initialFilter);
-  const [q, setQ] = useState("");
   const [target, setTarget] = useState<OrderSheetTarget | null>(null);
-
-  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, orders.filter(f.test).length])), [orders]);
-  const shown = useMemo(() => {
-    const f = FILTERS.find((x) => x.key === filter)!;
-    const needle = q.trim().toLowerCase();
-    return orders.filter(
-      (o) => f.test(o) && (!needle || o.client_name.toLowerCase().includes(needle) || (o.invoice_number ?? "").toLowerCase().includes(needle))
-    );
-  }, [orders, filter, q]);
+  const shown = orders;
   const shownTotal = shown.filter((o) => o.status === "booked").reduce((s, o) => s + o.value_gbp, 0);
+  const th = (key: string, label: string, opts: { align?: "left" | "right"; firstDir?: "asc" | "desc"; className?: string } = {}) =>
+    sortable ? (
+      <SortableTh sortKey={key} align={opts.align} firstDir={opts.firstDir} className={opts.className}>
+        {label}
+      </SortableTh>
+    ) : (
+      <th scope="col" className={`px-3 py-2.5 font-semibold ${opts.align === "right" ? "text-right" : ""} ${opts.className ?? ""}`}>
+        {label}
+      </th>
+    );
 
   return (
     <div className="flex flex-col gap-3">
-      {(showFilters || addTo) && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {showFilters ? (
-            <div role="tablist" aria-label="Filter bookings" className="flex flex-wrap gap-1">
-              {FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0).map((f) => (
-                <button
-                  key={f.key}
-                  role="tab"
-                  type="button"
-                  aria-selected={filter === f.key}
-                  onClick={() => setFilter(f.key)}
-                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring ${
-                    filter === f.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {f.label}
-                  <span className={`rounded-full px-1.5 text-[10px] tabular-nums ${filter === f.key ? "bg-primary-foreground/20" : "bg-muted"}`}>{counts[f.key]}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <span />
-          )}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input aria-label="Search client or invoice number" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Client or invoice…" className="h-8 w-52 pl-8 text-xs" />
-            </div>
-            {addTo && (
-              <Button size="sm" className="gap-1.5" onClick={() => setTarget({ mode: "create", ...addTo, year })}>
-                <Plus className="size-3.5" aria-hidden="true" /> Add booking
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
         <table className="w-full min-w-[820px] text-sm">
           <caption className="sr-only">Bookings - select a client to open and edit the booking</caption>
           <thead>
             <tr className="border-b border-border/70 text-left text-xs font-semibold text-muted-foreground">
-              <th scope="col" className="px-4 py-2.5 font-semibold">Client</th>
-              {showEdition && <th scope="col" className="px-3 py-2.5 font-semibold">Edition</th>}
-              <th scope="col" className="px-3 py-2.5 font-semibold">Booked</th>
-              <th scope="col" className="px-3 py-2.5 font-semibold">What</th>
-              <th scope="col" className="px-3 py-2.5 font-semibold">Rep</th>
-              <th scope="col" className="px-3 py-2.5 text-right font-semibold">Value</th>
-              <th scope="col" className="px-3 py-2.5 font-semibold">Invoice</th>
-              <th scope="col" className="px-4 py-2.5 font-semibold">Status</th>
+              {th("client", "Client", { className: "pl-4" })}
+              {showEdition && th("edition", "Edition", { firstDir: "desc" })}
+              {th("booked", "Booked", { firstDir: "desc" })}
+              {th("size", "What")}
+              {th("rep", "Rep")}
+              {th("value", "Value", { align: "right", firstDir: "desc" })}
+              {th("invoice", "Invoice")}
+              {th("status", "Status", { className: "pr-4" })}
             </tr>
           </thead>
           <tbody>
             {shown.length === 0 && (
               <tr>
                 <td colSpan={showEdition ? 8 : 7} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  {q ? `No bookings match “${q}”.` : emptyText}
+                  {emptyText}
                 </td>
               </tr>
             )}
@@ -240,7 +193,7 @@ export function OrdersTable({
                   {shown.length} bookings shown
                 </td>
                 <td className="px-3 py-2 text-right font-bold tabular-nums text-foreground">{fmtGBP(shownTotal)}</td>
-                <td colSpan={2} className="px-4 py-2 text-muted-foreground">booked value (live bookings only)</td>
+                <td colSpan={2} className="px-4 py-2 text-muted-foreground">booked value on this page (live bookings only)</td>
               </tr>
             </tfoot>
           )}

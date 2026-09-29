@@ -241,6 +241,43 @@ def test_order_filters(client, db_session, sor):
     assert client.get("/api/sales/orders?search=invoic").json()["total"] == 2
 
 
+def test_order_multi_filters_sort_facets_and_export(client, db_session, sor):
+    sp, st = sor["reps"]["SP"], sor["reps"]["ST"]
+    _order(db_session, sor["this"], "Beta Air", 500, sp, booked_on=date.today() - timedelta(days=5))
+    _order(db_session, sor["this"], "Alpha Air", 2500, st, booked_on=date.today() - timedelta(days=50),
+           invoice_number="INV-9", invoice_value_gbp=2500)
+    _order(db_session, sor["this"], "Gamma Air", 900, st, status="cancelled")
+    _order(db_session, sor["last"], "Delta Air", 1200, sp)
+    this_year = str(sor["this"].year)
+
+    def names(qs):
+        return [o["client_name"] for o in client.get(f"/api/sales/orders?{qs}").json()["items"]]
+
+    assert names(f"year={this_year}&sort=client&desc=false") == ["Alpha Air", "Beta Air", "Gamma Air"]
+    assert names(f"year={this_year}&sort=value&desc=true")[0] == "Alpha Air"
+    assert set(names("status=booked&status=cancelled&year=" + this_year)) == {"Alpha Air", "Beta Air", "Gamma Air"}
+    assert set(names(f"rep_id={sp.id}")) == {"Beta Air", "Delta Air"}
+    assert names("value_min=1000&value_max=2000") == ["Delta Air"]
+    assert names(f"invoiced=false&year={this_year}") == ["Beta Air"]  # live, valued, no invoice
+    assert names(f"booked_from={(date.today() - timedelta(days=10)).isoformat()}") == ["Beta Air"]
+    assert names(f"edition_id={sor['last'].id}") == ["Delta Air"]
+
+    f = client.get(f"/api/sales/orders/facets?year={this_year}&status=booked").json()
+    # A dimension's own filter is ignored for its counts; the others apply.
+    assert f["status"] == {"booked": 2, "cancelled": 1}
+    assert f["year"][this_year] == 2 and f["year"][str(sor["last"].year)] == 1
+    assert f["rep"][str(st.id)] == 1 and f["rep"][str(sp.id)] == 1
+    assert f["invoiced"] == {"true": 1, "false": 1}
+
+    r = client.get(f"/api/sales/orders/export?year={this_year}&sort=client&desc=false")
+    assert r.status_code == 200
+    import io
+
+    import openpyxl
+    rows = list(openpyxl.load_workbook(io.BytesIO(r.content)).active.values)
+    assert [x[0] for x in rows[1:]] == ["Alpha Air", "Beta Air", "Gamma Air"]
+
+
 # ---- Automations ----------------------------------------------------------------
 
 class _NoCloseSession:
