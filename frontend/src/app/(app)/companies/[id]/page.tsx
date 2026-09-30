@@ -1,28 +1,43 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Layers, Users } from "lucide-react";
+import { ArrowLeft, ExternalLink, Layers, Mail, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { CompanyDetail } from "@/lib/types";
+import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { allowedSourceDbSlugs } from "@/lib/access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EntityAvatar } from "@/components/entity-avatar";
-import { AddNoteDialog } from "@/components/add-note-dialog";
-import { addCompanyNote } from "@/lib/actions";
+import { TouchpointBar } from "@/components/touchpoint-bar";
+import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
 import { cleanNoteBody } from "@/lib/notes";
+import { deleteCompanyNote } from "@/lib/actions";
+import { DeleteItemButton } from "@/components/delete-item-button";
 import { sourceLabel } from "@/lib/sources";
-import { CompanyDossier } from "@/components/company-dossier";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
+import { ActSubbar } from "@/components/act-subbar";
+import { Button } from "@/components/ui/button";
+import { RemindMeDialog } from "@/components/remind-me-dialog";
+import { RecordReminders } from "@/components/record-reminders";
+import type { Reminder } from "@/lib/messaging-types";
+import { ActCompanyCard } from "@/components/act-company-card";
+import { FieldChangeHistory } from "@/components/field-change-history";
+import { getCompanyFieldChanges } from "@/lib/actions";
+import { canUseAutomations } from "@/lib/access";
+import type { CompanyBookings, SalesMeta } from "@/lib/sales-types";
+import { CompanyBookingsPanel } from "@/components/sales/company-bookings";
 
 export default async function CompanyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string; source_db?: string }>;
 }) {
   const { id } = await params;
+  const navParams = await searchParams;
 
   let company: CompanyDetail;
   try {
@@ -30,6 +45,18 @@ export default async function CompanyDetailPage({
   } catch {
     notFound();
   }
+  const reminders = await backendFetch<Reminder[]>(`/api/reminders?company_id=${company.id}`).catch(() => [] as Reminder[]);
+
+  // Record-stepper (VCR arrows) - same idea as the contact detail page,
+  // walks the filtered/sorted list the user navigated in from.
+  const posParams = new URLSearchParams();
+  if (navParams.q) posParams.set("q", navParams.q);
+  if (navParams.source_db) posParams.set("source_db", navParams.source_db);
+  const position = await backendFetch<RecordPosition>(
+    `/api/companies/${id}/position?${posParams}`
+  ).catch(() => undefined);
+  const navSuffix = posParams.toString() ? `?${posParams}` : "";
+  const hrefFor = (recordId: string | null) => (recordId ? `/companies/${recordId}${navSuffix}` : null);
 
   // Defense in depth against a guessed/direct URL - companies aren't
   // group-scoped (see contacts/[id]/page.tsx's comment on why), so
@@ -41,202 +68,266 @@ export default async function CompanyDetailPage({
   }
 
   const customEntries = Object.entries(company.custom_fields || {});
+  const [bookings, salesMeta] = await Promise.all([
+    backendFetch<CompanyBookings>(`/api/sales/companies/${id}/orders`).catch(() => null),
+    backendFetch<SalesMeta>("/api/sales/meta").catch(() => null),
+  ]);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
-      {/* Top Editorial Breadcrumb */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/companies"
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>Back to Companies</span>
-          </Link>
-          <span className="text-muted-foreground/50">/</span>
-          <span className="text-xs font-medium text-muted-foreground">
-            {sourceLabel(company.source_db)}
-          </span>
-          <span className="text-muted-foreground/50">/</span>
-          <span className="text-xs font-bold text-foreground truncate max-w-[200px]">
-            {company.name}
-          </span>
-        </div>
+    <div className="flex w-full flex-col">
+      {/* ACT! Sub-header Navigation Ribbon */}
+      <ActSubbar
+        module="companies"
+        currentRecordIndex={position?.position ?? undefined}
+        totalRecords={position?.total}
+        firstHref={position && position.position && position.position > 1 ? hrefFor(position.first_id) : null}
+        prevHref={hrefFor(position?.prev_id ?? null)}
+        nextHref={hrefFor(position?.next_id ?? null)}
+        lastHref={
+          position && position.position && position.position < position.total ? hrefFor(position.last_id) : null
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[11px] font-mono">
-            {company.source_act_id || `ID: ${company.id.slice(0, 8)}`}
-          </Badge>
-        </div>
-      </div>
-
-      {/* 3-Zone Split-Pane Company Canvas */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Zone 1: Sticky Company Dossier (Left Column, 4 cols) */}
-        <aside className="lg:col-span-4 xl:col-span-4">
-          <div className="sticky top-4 flex flex-col gap-4">
-            <CompanyDossier company={company} />
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
+        {/* Top Editorial Breadcrumb */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <Link
+              href="/companies"
+              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Back to Companies</span>
+            </Link>
+            <span className="text-muted-foreground/50">/</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {sourceLabel(company.source_db)}
+            </span>
+            <span className="text-muted-foreground/50">/</span>
+            <span className="text-xs font-bold text-foreground truncate max-w-[240px]">
+              {company.name}
+            </span>
           </div>
-        </aside>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <RemindMeDialog companyId={company.id} about={company.name} />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href={`/mail-merge?company=${company.id}`} />}
+            >
+              <Mail className="size-3.5" />
+              Mail merge
+            </Button>
+          </div>
+        </div>
 
-        {/* Zone 2 & 3: Right Tabbed Canvas (8 cols) */}
-        <main className="lg:col-span-8 xl:col-span-8 flex flex-col gap-5">
-          <Tabs defaultValue="contacts" className="w-full">
-            <div className="flex items-center justify-between border-b border-border/80 pb-1">
-              <TabsList className="bg-transparent gap-2 sm:gap-4 p-0">
-                <TabsTrigger
-                  value="contacts"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
-                >
-                  Contacts ({company.contacts.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="notes"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
-                >
-                  Notes ({company.notes.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="custom"
-                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none px-3 py-2 text-xs sm:text-sm font-semibold cursor-pointer"
-                >
-                  Custom Fields ({customEntries.length})
-                </TabsTrigger>
-              </TabsList>
+        <RecordReminders reminders={reminders} />
 
-              <AddNoteDialog id={company.id} action={addCompanyNote} />
+        {/* Tier 1: ACT! Authentic 3-Column Upper Company Card */}
+        <ActCompanyCard company={company} />
+
+        <FieldChangeHistory entityId={company.id} fetchChanges={getCompanyFieldChanges} />
+
+        {/* Tier 2: ACT! Full-Width Bottom Sub-Workstation Tabs */}
+        <Tabs defaultValue="contacts" className="w-full">
+          <div className="flex items-center justify-between border-b border-border/80 bg-muted/30 px-3 pt-1">
+            <TabsList className="bg-transparent gap-1 p-0 h-auto">
+              <TabsTrigger
+                value="contacts"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              >
+                <Users className="size-3.5 text-blue-600" />
+                <span>Associated Contacts ({company.contacts.length})</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="activity"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              >
+                <span>Activity &amp; History ({company.history.length + company.activities.length})</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="notes"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              >
+                <span>Company Notes ({company.notes.length})</span>
+              </TabsTrigger>
+              {bookings && (
+                <TabsTrigger
+                  value="bookings"
+                  className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+                >
+                  <ReceiptText className="size-3.5 text-muted-foreground" />
+                  <span>Bookings ({bookings.orders})</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger
+                value="custom"
+                className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
+              >
+                <Layers className="size-3.5 text-muted-foreground" />
+                <span>User Fields ({customEntries.length})</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* TAB 1: Associated Contacts Directory */}
+          <TabsContent value="contacts" className="mt-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Contacts linked to {company.name}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Key decision-makers, media directors, and editorial contacts
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <AddExistingContactPicker companyId={company.id} companyName={company.name} />
+                <ContactFormDialog
+                  defaultSourceDb={company.source_db}
+                  defaultCompany={{ id: company.id, name: company.name }}
+                />
+              </div>
             </div>
 
-            {/* TAB 1: Associated Contacts Directory */}
-            <TabsContent value="contacts" className="mt-4 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    Contacts
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    People linked to {company.name}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AddExistingContactPicker companyId={company.id} companyName={company.name} />
-                  <ContactFormDialog defaultSourceDb={company.source_db} />
-                </div>
-              </div>
-
-              {company.contacts.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {company.contacts.map((c) => {
-                    const cname =
-                      c.full_name ||
-                      [c.first_name, c.last_name].filter(Boolean).join(" ") ||
-                      "(no name)";
-                    return (
-                      <Link
-                        key={c.id}
-                        href={`/contacts/${c.id}`}
-                        className="group flex items-start gap-3 rounded-lg border border-border bg-card p-3.5 transition-all hover:border-primary/50 hover:shadow-xs"
-                      >
-                        <EntityAvatar
-                          name={cname}
-                          className="size-10 text-xs font-semibold shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                            {cname}
-                          </div>
-                          {c.job_title && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              {c.job_title}
-                            </div>
-                          )}
-                          {c.primary_email && (
-                            <div className="mt-1 text-[11px] font-mono text-muted-foreground truncate">
-                              {c.primary_email}
-                            </div>
-                          )}
+            {company.contacts.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {company.contacts.map((c) => {
+                  const cname =
+                    c.full_name ||
+                    [c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                    "(no name)";
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/contacts/${c.id}`}
+                      className="group flex items-start gap-3 rounded-lg border border-border bg-card p-3.5 transition-all hover:border-primary/50 hover:shadow-xs"
+                    >
+                      <EntityAvatar
+                        name={cname}
+                        className="size-10 text-xs font-semibold shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                          {cname}
                         </div>
-                        <ExternalLink className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-                  <Users className="size-8 mx-auto mb-2 opacity-40" />
-                  <p className="font-medium">No contacts associated with this company yet.</p>
-                  <p className="text-xs mt-1">Use the &apos;New contact&apos; button above to link a person.</p>
-                </div>
-              )}
-            </TabsContent>
+                        {c.job_title && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {c.job_title}
+                          </div>
+                        )}
+                        {c.primary_email && (
+                          <div className="mt-1 text-[11px] font-mono text-muted-foreground truncate">
+                            {c.primary_email}
+                          </div>
+                        )}
+                      </div>
+                      <ExternalLink className="size-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+                <Users className="size-8 mx-auto mb-2 opacity-40" />
+                <p className="font-medium">No contacts associated with this company yet.</p>
+                <p className="text-xs mt-1">Use the &apos;Link Existing Contact&apos; or &apos;New Contact&apos; button above to connect people.</p>
+              </div>
+            )}
+          </TabsContent>
 
-            {/* TAB 2: Notes */}
-            <TabsContent value="notes" className="mt-4 flex flex-col gap-3">
-              {company.notes.length > 0 ? (
-                company.notes.map((n) => (
-                  <div
-                    key={n.id}
-                    className="rounded-lg border border-border bg-card p-4 shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                      <Badge variant="outline" className="text-[10px]">
-                        {n.note_type || "Note"}
-                      </Badge>
+          {/* TAB 2: Activity & History */}
+          <TabsContent value="activity" className="mt-4 flex flex-col gap-4">
+            <TouchpointBar companyId={company.id} contactName={company.name} sourceDb={company.source_db} />
+            <UnifiedActivityTimeline
+              notes={[]}
+              history={company.history}
+              activities={company.activities}
+              entityType="company"
+              entityId={company.id}
+            />
+          </TabsContent>
+
+          {/* TAB 3: Notes */}
+          <TabsContent value="notes" className="mt-4 flex flex-col gap-3">
+            {company.notes.length > 0 ? (
+              company.notes.map((n) => (
+                <div
+                  key={n.id}
+                  className="rounded-lg border border-border bg-card p-4 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                    <Badge variant="outline" className="text-[10px]">
+                      {n.note_type || "Note"}
+                    </Badge>
+                    <div className="flex items-center gap-1.5">
                       <time>
                         {n.act_created_at
                           ? new Date(n.act_created_at).toLocaleDateString()
                           : ""}
                       </time>
+                      <DeleteItemButton
+                        label="Delete note"
+                        confirmMessage="Delete this note? This can't be undone."
+                        onDelete={() => deleteCompanyNote(company.id, n.id)}
+                      />
                     </div>
-                    <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">
-                      {cleanNoteBody(n.body) || "No content."}
-                    </p>
                   </div>
-                ))
-              ) : (
-                <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-                  No notes recorded for this company.
+                  <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">
+                    {cleanNoteBody(n.body) || "No content."}
+                  </p>
                 </div>
-              )}
-            </TabsContent>
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+                No notes recorded for this company.
+              </div>
+            )}
+          </TabsContent>
 
-            {/* TAB 3: Custom Fields */}
-            <TabsContent value="custom" className="mt-4">
-              <Card className="editorial-card p-4">
-                <CardHeader className="p-0 pb-3">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Layers className="size-4 text-primary" />
-                    <span>Custom Fields</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {customEntries.length > 0 ? (
-                    <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
-                      {customEntries.map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="flex flex-col justify-center rounded border border-border/60 bg-muted/20 p-2.5"
-                        >
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {key}
-                          </span>
-                          <span className="font-medium text-foreground mt-0.5">
-                            {String(value)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">
-                      No custom fields recorded.
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
+          {/* TAB 3: Custom Fields */}
+          {bookings && (
+            <TabsContent value="bookings" className="mt-4">
+              <CompanyBookingsPanel data={bookings} reps={salesMeta?.reps ?? []} canDelete={canUseAutomations(session)} />
             </TabsContent>
-          </Tabs>
-        </main>
+          )}
+
+          <TabsContent value="custom" className="mt-4">
+            <Card className="editorial-card p-5 border border-border">
+              <CardHeader className="p-0 pb-3 border-b mb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Layers className="size-4 text-primary" />
+                  <span>Act! Custom Database Fields</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {customEntries.length > 0 ? (
+                  <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+                    {customEntries.map(([key, value]) => (
+                      <div
+                        key={key}
+                        className="flex flex-col justify-center rounded border border-border/60 bg-muted/20 p-2.5"
+                      >
+                        <span className="text-[11px] text-muted-foreground font-mono">
+                          {key}
+                        </span>
+                        <span className="font-medium text-foreground mt-0.5">
+                          {String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">
+                    No custom fields recorded.
+                  </span>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ import { ClickableTableRow } from "@/components/clickable-table-row";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { sourceLabel } from "@/lib/sources";
+import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 
@@ -53,6 +53,14 @@ export default async function CompaniesPage({
     ? { items: [], total: 0, page: 1, page_size: PAGE_SIZE }
     : await backendFetch<Page<CompanyListItem>>(`/api/companies?${params}`);
   const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
+
+  // Same filters as the list query above, minus pagination - carried onto
+  // each row's link so the detail page's prev/next stepper walks this
+  // exact filtered set.
+  const rowQuery = new URLSearchParams();
+  if (q) rowQuery.set("q", q);
+  if (source_db) rowQuery.set("source_db", source_db);
+  const rowSuffix = rowQuery.toString() ? `?${rowQuery}` : "";
 
   return (
     <div className="flex w-full flex-col gap-5 p-6">
@@ -91,9 +99,9 @@ export default async function CompaniesPage({
           </TableHeader>
           <TableBody>
             {data.items.map((c) => (
-              <ClickableTableRow key={c.id} href={`/companies/${c.id}`}>
+              <ClickableTableRow key={c.id} href={`/companies/${c.id}${rowSuffix}`}>
                 <TableCell>
-                  <Link href={`/companies/${c.id}`} className="flex items-center gap-3">
+                  <Link href={`/companies/${c.id}${rowSuffix}`} className="flex items-center gap-3">
                     <EntityAvatar name={c.name || "(no name)"} square />
                     <span className="font-medium hover:underline">{c.name || "(no name)"}</span>
                   </Link>
@@ -107,7 +115,9 @@ export default async function CompaniesPage({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{sourceLabel(c.source_db)}</Badge>
+                  <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(c.source_db)}`}>
+                    {sourceLabel(c.source_db)}
+                  </Badge>
                 </TableCell>
               </ClickableTableRow>
             ))}

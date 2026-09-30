@@ -38,6 +38,8 @@ class ContactListItem(BaseModel):
     company_id: uuid.UUID | None = None
     company_name: str | None = None
     primary_email: str | None = None
+    city: str | None = None
+    country: str | None = None
 
 
 class Page(BaseModel):
@@ -49,6 +51,18 @@ class Page(BaseModel):
 
 class ContactsPage(Page):
     items: list[ContactListItem]
+
+
+class ContactPosition(BaseModel):
+    """Powers the record-stepper (VCR arrows) on the contact detail page -
+    where this record sits within whatever filtered/sorted list the user
+    navigated in from, and the neighbouring ids to step to."""
+    position: int | None = None
+    total: int
+    prev_id: uuid.UUID | None = None
+    next_id: uuid.UUID | None = None
+    first_id: uuid.UUID | None = None
+    last_id: uuid.UUID | None = None
 
 
 class AddressOut(BaseModel):
@@ -99,17 +113,38 @@ class EmailWrite(BaseModel):
     address: str | None = None
 
 
+class UserSummary(BaseModel):
+    """Just enough to show "who logged this" - never the full UserOut
+    (email, role, access) on a Note/History/Activity payload."""
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+
+
 class NoteOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     note_type: str | None = None
     body: str | None = None
+    is_private: bool = False
     act_created_at: datetime | None = None
+    created_by: UserSummary | None = None
+    # Where this note actually came from - one of app.models.base.SOURCE_DBS
+    # for a real Act!-migrated note, or MANUAL_SOURCE_DB ("manual") for
+    # anything written directly in this CRM. A "manual" note with no
+    # created_by is always automation-authored (every UI-driven note-add
+    # sets created_by_user_id from the logged-in session; no automation
+    # ever does) - the frontend uses that combination to label a note
+    # "AI / Automation" instead of the misleading blanket "Act! Manual" it
+    # used to show for every single note regardless of real origin.
+    source_db: str
 
 
 class NoteCreate(BaseModel):
     body: str = Field(min_length=1)
     note_type: str = "Note"
+    is_private: bool = False
+    created_by_user_id: uuid.UUID | None = None
 
 
 class HistoryOut(BaseModel):
@@ -117,7 +152,89 @@ class HistoryOut(BaseModel):
     id: uuid.UUID
     history_type: str
     subject: str | None = None
+    details: str | None = None
+    duration_minutes: int | None = None
+    is_private: bool = False
     occurred_at: datetime
+    created_by: UserSummary | None = None
+
+
+class HistoryCreate(BaseModel):
+    # Act!'s dialog splits "History type" (Call/Meeting/...) from a
+    # "Result" dropdown (Call Attempted/Call Completed/...) but stores one
+    # combined string - see app/models/history.py's HISTORY_TYPES_KEPT for
+    # the allowed values, which is exactly Act!'s own Result vocabulary.
+    history_type: str = Field(min_length=1, max_length=64)
+    subject: str | None = None
+    details: str | None = None
+    duration_minutes: int | None = None
+    is_private: bool = False
+    occurred_at: datetime
+    created_by_user_id: uuid.UUID | None = None
+
+
+class ActivityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    activity_type: str | None = None
+    subject: str | None = None
+    details: str | None = None
+    location: str | None = None
+    start_at: datetime
+    end_at: datetime | None = None
+    is_timeless: bool = False
+    is_cleared: bool = False
+    is_private: bool = False
+    priority: str = "normal"
+    duration_minutes: int | None = None
+    organized_by_name: str | None = None
+    has_attachments: bool = False
+    recurrence: str = "never"
+    contact_id: uuid.UUID | None = None
+    company_id: uuid.UUID | None = None
+    contact_name: str | None = None
+    company_name: str | None = None
+    created_by: UserSummary | None = None
+
+
+class ActivityCreate(BaseModel):
+    activity_type: str = Field(min_length=1, max_length=128)  # "Call" / "Meeting" / "To-do"
+    subject: str | None = None
+    details: str | None = None
+    location: str | None = None
+    start_at: datetime
+    end_at: datetime | None = None
+    is_timeless: bool = False
+    is_private: bool = False
+    priority: str = "normal"
+    duration_minutes: int | None = None
+    organized_by_name: str | None = None
+    recurrence: str = "never"
+    contact_id: uuid.UUID | None = None
+    company_id: uuid.UUID | None = None
+    source_db: str
+    created_by_user_id: uuid.UUID | None = None
+
+
+class ActivityUpdate(BaseModel):
+    activity_type: str | None = None
+    subject: str | None = None
+    details: str | None = None
+    location: str | None = None
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+    is_timeless: bool | None = None
+    is_cleared: bool | None = None
+    is_private: bool | None = None
+    priority: str | None = None
+    duration_minutes: int | None = None
+    organized_by_name: str | None = None
+    recurrence: str | None = None
+
+
+class ActivitiesPage(Page):
+    items: list[ActivityOut]
+
 
 
 class GroupOut(BaseModel):
@@ -153,6 +270,7 @@ class ContactDetail(BaseModel):
     groups: list[GroupOut] = []
     notes: list[NoteOut] = []
     history: list[HistoryOut] = []
+    activities: list[ActivityOut] = []
 
 
 class CompanyListItem(BaseModel):
@@ -167,6 +285,16 @@ class CompanyListItem(BaseModel):
 
 class CompaniesPage(Page):
     items: list[CompanyListItem]
+
+
+class CompanyPosition(BaseModel):
+    """See ContactPosition - same idea, for the company record stepper."""
+    position: int | None = None
+    total: int
+    prev_id: uuid.UUID | None = None
+    next_id: uuid.UUID | None = None
+    first_id: uuid.UUID | None = None
+    last_id: uuid.UUID | None = None
 
 
 class CompanyDetail(BaseModel):
@@ -188,6 +316,8 @@ class CompanyDetail(BaseModel):
     emails: list[EmailOut] = []
     contacts: list[ContactListItem] = []
     notes: list[NoteOut] = []
+    history: list[HistoryOut] = []
+    activities: list[ActivityOut] = []
 
 
 # ---- Write schemas (CRUD) --------------------------------------------------
@@ -223,6 +353,16 @@ class ContactUpdate(BaseModel):
     company_id: uuid.UUID | None = None
 
 
+class FieldChangeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    field: str
+    old_value: str | None = None
+    new_value: str | None = None
+    changed_at: datetime
+    changed_by: UserSummary | None = None
+
+
 class CompanyCreate(BaseModel):
     name: str = Field(min_length=1)
     industry: str | None = None
@@ -246,12 +386,40 @@ class GroupCreate(BaseModel):
     name: str = Field(min_length=1)
     description: str | None = None
     parent_group_id: uuid.UUID | None = None
+    source_db: str | None = None
+    # "New group from selection" - start the group with these members.
+    contact_ids: list[uuid.UUID] = Field(default_factory=list, max_length=50000)
 
 
 class GroupUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     description: str | None = None
     parent_group_id: uuid.UUID | None = None
+    source_db: str | None = None
+
+
+class GroupMembersRemoveRequest(BaseModel):
+    contact_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class GroupMembersAddRequest(BaseModel):
+    contact_ids: list[uuid.UUID] = Field(min_length=1, max_length=50000)
+
+
+class GroupMembersAddResult(BaseModel):
+    added: int
+    already_members: int
+
+
+class ContactDuplicate(BaseModel):
+    """"Duplicate contact" - a new person at the same company: only who
+    they are is typed, everything company-level is copied."""
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    job_title: str | None = None
+    phone: str | None = None
+    copy_groups: bool = True
 
 
 class GroupListItem(BaseModel):
@@ -312,6 +480,28 @@ class DashboardStats(BaseModel):
     top_companies: list[TopCompany]
 
 
+class DataHealthMetric(BaseModel):
+    key: str
+    label: str
+    description: str
+    count: int
+    total: int
+    # "contact" | "company" | None - lets the frontend link straight into
+    # the filtered contacts/companies list for the ones that support it;
+    # the automation-backed metrics link into the review queue instead.
+    entity_type: str | None = None
+    # Set only for a metric backed by a review-queue automation kind, so
+    # the frontend can route "Fix now" straight into that kind's queue
+    # instead of a bare contacts/companies filter.
+    review_kind: str | None = None
+
+
+class DataHealthStats(BaseModel):
+    total_contacts: int
+    total_companies: int
+    metrics: list[DataHealthMetric]
+
+
 class GroupDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -339,6 +529,7 @@ class ReviewActionOut(BaseModel):
     requires_contact_picker: bool
     extra_fields: list[dict]
     confirm_message: str | None = None
+    requires_related_entity_choice: bool = False
 
 
 class ReviewKindOut(BaseModel):
@@ -346,12 +537,31 @@ class ReviewKindOut(BaseModel):
     label: str
     description: str
     actions: list[ReviewActionOut]
+    # Phase 1 labeling only (see registry.py's ReviewKind.audience) - not
+    # yet enforced server-side; exposed now so Phase 2 has a real field to
+    # gate on rather than adding one later.
+    audience: str
+
+
+class ReviewQueueEntitySummary(BaseModel):
+    """Just enough to identify the linked contact/company at a glance on
+    an approved/rejected card - name, email, phone, company - without the
+    reviewer having to open the full record first to confirm they're
+    looking at the right person."""
+    id: uuid.UUID
+    type: str  # "contact" | "company"
+    label: str
+    job_title: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    company_name: str | None = None
 
 
 class ReviewQueueItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     kind: str
+    source_db: str | None = None
     entity_type: str | None = None
     entity_id: uuid.UUID | None = None
     payload: dict
@@ -359,7 +569,9 @@ class ReviewQueueItemOut(BaseModel):
     resolved_action: str | None = None
     review_note: str | None = None
     reviewed_at: datetime | None = None
+    reviewed_by: UserSummary | None = None
     created_at: datetime
+    entity_summary: ReviewQueueEntitySummary | None = None
 
 
 class ScheduledJobOut(BaseModel):
@@ -368,6 +580,24 @@ class ScheduledJobOut(BaseModel):
     description: str
     cron: str
     enabled: bool
+    has_cursor: bool = False
+
+
+class AutomationSettingOut(BaseModel):
+    key: str
+    label: str
+    description: str
+    group: str
+    type: str  # "bool" | "int" | "float" | "csv"
+    value: object  # the effective value right now - a stored override if one exists, else the env default
+    default: object  # what it would be with no override - lets the UI show "(default)" or offer a reset
+    is_overridden: bool
+    min: float | None = None
+    max: float | None = None
+
+
+class AutomationSettingUpdate(BaseModel):
+    value: object
 
 
 class ReviewQueueCounts(BaseModel):
@@ -377,14 +607,84 @@ class ReviewQueueCounts(BaseModel):
     rejected: int = 0
 
 
+class ReviewQueueInsightBucket(BaseModel):
+    key: str
+    label: str
+    count: int
+
+
+class ReviewQueueInsights(BaseModel):
+    kind: str
+    buckets: list[ReviewQueueInsightBucket]
+
+
 class ReviewActionRequest(BaseModel):
     note: str | None = None
     contact_id: uuid.UUID | None = None
     fields: dict[str, str] = {}
+    # Which of this item's own related_entities the reviewer picked, for an
+    # action with requires_related_entity_choice=True (e.g. CS-004's merge -
+    # which contact survives) - kept separate from contact_id, which is for
+    # picking an unrelated contact via search (e.g. "match this bounce to
+    # someone"), a different kind of choice with a different UI.
+    chosen_entity_id: uuid.UUID | None = None
 
 
 class ReviewQueuePage(Page):
     items: list[ReviewQueueItemOut]
+
+
+class RedraftRequest(BaseModel):
+    instructions: str = Field(min_length=1, max_length=2000)
+
+
+class RedraftResult(BaseModel):
+    draft: str
+
+
+class BulkReviewActionRequest(BaseModel):
+    note: str | None = None
+
+
+class BulkReviewActionResult(BaseModel):
+    matched: int  # how many pending items matched kind/status before this ran
+    succeeded: int
+    failed: int
+    errors: list[str] = []  # "<item id>: <message>" for whichever items failed, capped
+
+
+# ---- LLM usage / cost dashboard ----------------------------------------
+
+class LlmUsageBucket(BaseModel):
+    """One row of the usage-over-time table - a fixed-width time bucket
+    (see the `granularity` query param) with its own call counts and cost."""
+    bucket_start: datetime
+    call_count: int
+    success_count: int
+    failure_count: int
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float
+
+
+class LlmUsageByPurpose(BaseModel):
+    purpose: str
+    provider: str
+    call_count: int
+    failure_count: int
+    cost_usd: float
+
+
+class LlmUsageSummary(BaseModel):
+    range_start: datetime
+    range_end: datetime
+    total_calls: int
+    total_failures: int
+    total_cost_usd: float
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    buckets: list[LlmUsageBucket]
+    by_purpose: list[LlmUsageByPurpose]
 
 
 # ---- Preferences / settings -------------------------------------------

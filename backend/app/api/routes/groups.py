@@ -11,6 +11,9 @@ from app.api.schemas import (
     GroupCreate,
     GroupDetail,
     GroupListItem,
+    GroupMembersAddRequest,
+    GroupMembersAddResult,
+    GroupMembersRemoveRequest,
     GroupsPage,
     GroupUpdate,
 )
@@ -108,6 +111,60 @@ def get_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> GroupDetail
     )
 
 
+@router.post("/{group_id}/members/remove", status_code=204, response_model=None)
+def remove_group_members(group_id: uuid.UUID, payload: GroupMembersRemoveRequest, db: Session = Depends(get_db)) -> None:
+    """Bulk version of DELETE /contacts/{id}/groups/{id} - the single-remove
+    route works fine for one contact, but BMI's own top complaint about the
+    web version of Act was doing this one at a time on a mailing-prep list
+    (see BACKLOG.md/session notes): each removal reset their scroll
+    position back to the top of a long member list. One request, one
+    transaction, so the frontend can remove every checked row locally
+    without a single round trip per contact."""
+    if not db.get(Group, group_id):
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    db.execute(
+        GroupMembership.__table__.delete().where(
+            GroupMembership.group_id == group_id,
+            GroupMembership.contact_id.in_(payload.contact_ids),
+        )
+    )
+    db.commit()
+
+
+@router.post("/{group_id}/members/add", response_model=GroupMembersAddResult)
+def add_group_members(group_id: uuid.UUID, payload: GroupMembersAddRequest, db: Session = Depends(get_db)) -> GroupMembersAddResult:
+    """Bulk add - "add these selected contacts (or this whole lookup) to a
+    group", and the second half of "build a smaller group from a big
+    one". Contacts already in the group are skipped, not duplicated."""
+    if not db.get(Group, group_id):
+        raise HTTPException(status_code=404, detail="Group not found")
+    wanted = list(dict.fromkeys(payload.contact_ids))
+    existing = set(db.scalars(select(GroupMembership.contact_id).where(
+        GroupMembership.group_id == group_id, GroupMembership.contact_id.in_(wanted))).all())
+    valid = set(db.scalars(select(Contact.id).where(Contact.id.in_(wanted))).all())
+    new = [cid for cid in wanted if cid in valid and cid not in existing]
+    db.add_all(GroupMembership(id=uuid.uuid4(), group_id=group_id, contact_id=cid) for cid in new)
+    db.commit()
+    return GroupMembersAddResult(added=len(new), already_members=len(existing))
+
+
+@router.get("/{group_id}/export")
+def export_group(group_id: uuid.UUID, db: Session = Depends(get_db)):
+    from fastapi.responses import StreamingResponse
+
+    from app.services.contact_export import contacts_xlsx
+    from app.services.contact_lookup import LookupFilters, lookup_ids
+
+    group = db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    buf = contacts_xlsx(db, lookup_ids(db, LookupFilters(group_id=group_id), limit=50000), title=group.name)
+    safe = "".join(ch for ch in group.name if ch.isalnum() or ch in " -_")[:60].strip() or "group"
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="{safe}.xlsx"'})
+
+
 @router.post("", response_model=GroupDetail, status_code=201)
 def create_group(payload: GroupCreate, db: Session = Depends(get_db)) -> GroupDetail:
     if payload.parent_group_id and not db.get(Group, payload.parent_group_id):
@@ -115,7 +172,7 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db)) -> GroupDe
 
     group = Group(
         id=uuid.uuid4(),
-        source_db="manual",
+        source_db=payload.source_db or "manual",
         source_act_id=str(uuid.uuid4()),
         name=payload.name,
         description=payload.description,
@@ -123,6 +180,10 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db)) -> GroupDe
         custom_fields={},
     )
     db.add(group)
+    db.flush()
+    if payload.contact_ids:
+        valid = db.scalars(select(Contact.id).where(Contact.id.in_(set(payload.contact_ids)))).all()
+        db.add_all(GroupMembership(id=uuid.uuid4(), group_id=group.id, contact_id=cid) for cid in valid)
     db.commit()
     return get_group(group.id, db)
 

@@ -24,7 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AddressBlock } from "@/components/address-block";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
-import { sourceLabel } from "@/lib/sources";
+import { sourceLabel, sourceBadgeStyle } from "@/lib/sources";
 import {
   deleteCompany,
   removeCompanyAddress,
@@ -164,29 +164,16 @@ export function CompanyDossier({ company }: { company: CompanyDetail }) {
     });
   }
 
-  const publicationBadgeStyle = (source: string) => {
-    switch (source) {
-      case "onboard":
-        return "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400";
-      case "sellingtravel":
-        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-      case "prospects":
-        return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-      default:
-        return "border-border bg-muted text-muted-foreground";
-    }
-  };
-
   return (
     <Card className="editorial-card overflow-hidden">
-      <div className="h-2 w-full bg-gradient-to-r from-emerald-600/60 via-primary to-blue-700/60" />
+      <div className="masthead-rule w-full bg-primary" />
       <CardHeader className="p-5 pb-3">
         <div className="flex items-start justify-between gap-3">
-          <div className="flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
-            <Building2 className="size-7" />
+          <div className="brand-icon size-14 text-primary">
+            <Building2 className="size-6" />
           </div>
           <div className="flex items-center gap-1.5">
-            <Badge variant="outline" className={`text-[11px] font-medium ${publicationBadgeStyle(company.source_db)}`}>
+            <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(company.source_db)}`}>
               {sourceLabel(company.source_db)}
             </Badge>
             {editing ? (

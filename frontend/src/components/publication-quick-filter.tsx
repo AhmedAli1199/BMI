@@ -32,13 +32,22 @@ export function PublicationQuickFilter({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Badge
-        variant={!current ? "default" : "outline"}
-        onClick={() => select("")}
-        className={`cursor-pointer text-xs font-medium px-3 py-1 ${pending ? "opacity-60" : ""}`}
-      >
-        All Titles
-      </Badge>
+      {/* "All Titles" is only a real choice when there's more than one
+          database to choose from - `publications` here is already
+          filtered to this session's own access (see each page's own
+          allowedSourceDbSlugs filter), so a single-database user never
+          gets a same-page "All Titles" chip that just gets clamped
+          straight back to their one database when clicked - same class
+          of dead-click bug as the header PublicationSwitcher had. */}
+      {publications.length > 1 && (
+        <Badge
+          variant={!current ? "default" : "outline"}
+          onClick={() => select("")}
+          className={`cursor-pointer text-xs font-medium px-3 py-1 ${pending ? "opacity-60" : ""}`}
+        >
+          All Titles
+        </Badge>
+      )}
       {publications.map((pub) => {
         const isActive = current === pub.slug;
         const style = styleForColor(pub.color);

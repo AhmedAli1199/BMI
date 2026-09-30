@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { TableRow } from "@/components/ui/table";
 import type { ComponentProps } from "react";
+import { startTransition } from "react";
 
 /**
  * A TableRow that navigates on click anywhere in the row, not just the name
@@ -26,7 +27,11 @@ export function ClickableTableRow({
     <TableRow
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("a")) return;
-        router.push(href);
+        // Wrapped in its own transition (not just relying on router.push's
+        // internal one) - without this, a row click doesn't reliably show
+        // the destination route's loading.tsx the way clicking a <Link>
+        // does, so the app looks stuck during any real network delay.
+        startTransition(() => router.push(href));
       }}
       className={`cursor-pointer ${className ?? ""}`}
       {...props}

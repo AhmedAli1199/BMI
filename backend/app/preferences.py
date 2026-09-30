@@ -36,34 +36,32 @@ PREFERENCE_DEFS: list[PreferenceDef] = [
     PreferenceDef(
         key="recent_activity_sort",
         label="“Recently Active” sort",
-        description=(
-            "What counts as “active” on the dashboard's Recently Active "
-            "Contacts and Companies cards."
-        ),
+        description="What counts as “active” on your dashboard's Recently Active cards.",
         group="Dashboard",
         options=[
             PreferenceOption(
                 value="record_edit",
                 label="Last record edit",
-                description=(
-                    "Most recently edited contact/company record - includes any field "
-                    "change carried over from Act!, not just sales activity. Never "
-                    "empty, but a record can rank highly purely from a data edit with "
-                    "no notes or calls behind it."
-                ),
+                description="Shows a record as soon as any of its details change.",
             ),
             PreferenceOption(
                 value="engagement",
                 label="Last note or call",
-                description=(
-                    "Most recent Note or logged call/meeting/email against the record. "
-                    "Reflects real engagement, but a record with no notes or history "
-                    "yet simply won't appear here - it does not fall back to the "
-                    "record-edit date."
-                ),
+                description="Shows a record only after a note, call, or meeting is logged.",
             ),
         ],
         default="record_edit",
+    ),
+    PreferenceDef(
+        key="email_notifications",
+        label="Email me notifications",
+        description="Reminders and other notifications always appear under the bell; this also emails them to you from the automation mailbox.",
+        group="Notifications",
+        options=[
+            PreferenceOption(value="on", label="On", description="Email each notification as well."),
+            PreferenceOption(value="off", label="Off", description="In-app only."),
+        ],
+        default="on",
     ),
 ]
 

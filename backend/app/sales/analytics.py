@@ -1,0 +1,186 @@
+"""Shared calculations over the Sales Order Register, used by both the
+/sales API and the SOR automations - kept in one place so "booked", "last
+year's equivalent edition" and "not rebooked yet" mean exactly the same
+thing on every page and in every automation.
+
+Definitions (also shown as info hints in the UI):
+- Booked value: the £ value of orders with status "booked". Cancelled,
+  contra (free swap) and moved orders are excluded - a moved order counts
+  in the edition it moved to, where it's re-entered.
+- Same point last year: last year's editions of the same title, counting
+  only orders booked on or before today's date one year ago - the fair
+  comparison for an edition that's still selling.
+- Equivalent edition: same title, previous year, same name once the year
+  is taken out ("Jan 2026" <-> "Jan 2025"); for numbered issues
+  ("OBH 105" <-> "OBH 101") the same position among the year's numbered
+  issues; failing both, the edition dated closest to a year earlier
+  (within six weeks).
+"""
+from __future__ import annotations
+
+import re
+import uuid
+from collections import defaultdict
+from datetime import date, timedelta
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.models import SalesEdition, SalesOrder
+
+BOOKED = "booked"
+
+
+def name_key(name: str) -> str:
+    return re.sub(r"\b(19|20)\d{2}\b|\s+|[^a-z0-9]", "", name.lower())
+
+
+def _issue_number(name: str) -> int | None:
+    """105 for "105", "OBH 105" or "OBH105"; None for anything that isn't a
+    plain numbered issue (a year like 2026 doesn't count)."""
+    m = re.fullmatch(r"[A-Za-z ]*?(\d{2,3})", name.strip())
+    return int(m[1]) if m else None
+
+
+def equivalent_editions(db: Session, editions: list[SalesEdition]) -> dict[uuid.UUID, SalesEdition]:
+    """edition.id -> the same title's equivalent edition one year earlier."""
+    wanted = {(e.title_id, e.year - 1) for e in editions}
+    if not wanted:
+        return {}
+    prev_rows = db.scalars(select(SalesEdition).where(
+        SalesEdition.title_id.in_({t for t, _ in wanted}),
+        SalesEdition.year.in_({y for _, y in wanted}),
+    )).all()
+    by_title_year: dict[tuple, list[SalesEdition]] = defaultdict(list)
+    for p in prev_rows:
+        by_title_year[(p.title_id, p.year)].append(p)
+
+    this_year_rows = db.scalars(select(SalesEdition).where(
+        SalesEdition.title_id.in_({e.title_id for e in editions}),
+        SalesEdition.year.in_({e.year for e in editions}),
+    )).all()
+    by_title_year_now: dict[tuple, list[SalesEdition]] = defaultdict(list)
+    for e in this_year_rows:
+        by_title_year_now[(e.title_id, e.year)].append(e)
+
+    out = {}
+    for e in editions:
+        prev = by_title_year.get((e.title_id, e.year - 1), [])
+        if not prev:
+            continue
+        key = name_key(e.name)
+        hit = next((p for p in prev if name_key(p.name) == key and key), None)
+        if not hit and _issue_number(e.name) is not None:
+            # Numbered issues ("OBH 105" <-> "OBH 101"): same position among
+            # that year's *numbered* issues, by number - supplements and
+            # undated sheets must not shift the pairing.
+            numbered_now = sorted((x for x in by_title_year_now[(e.title_id, e.year)] if _issue_number(x.name) is not None),
+                                  key=lambda x: _issue_number(x.name))
+            numbered_prev = sorted((x for x in prev if _issue_number(x.name) is not None), key=lambda x: _issue_number(x.name))
+            idx = next((i for i, x in enumerate(numbered_now) if x.id == e.id), None)
+            if idx is not None and idx < len(numbered_prev):
+                hit = numbered_prev[idx]
+        if not hit and e.edition_date:
+            # The schedule changed between years ("JanFeb" -> "JanFebMar"):
+            # the edition that published closest to a year earlier, if any
+            # is within six weeks.
+            target = same_point_last_year(e.edition_date)
+            dated = [p for p in prev if p.edition_date and abs((p.edition_date - target).days) <= 42]
+            if dated:
+                hit = min(dated, key=lambda p: abs((p.edition_date - target).days))
+        if hit:
+            out[e.id] = hit
+    return out
+
+
+def edition_totals(db: Session, edition_ids: list[uuid.UUID], booked_before: date | None = None) -> dict[uuid.UUID, dict]:
+    """Per edition: booked £, orders, invoiced £, uninvoiced count, pages."""
+    if not edition_ids:
+        return {}
+    q = select(
+        SalesOrder.edition_id,
+        func.coalesce(func.sum(SalesOrder.value_gbp).filter(SalesOrder.status == BOOKED), 0),
+        func.count().filter(SalesOrder.status == BOOKED),
+        func.coalesce(func.sum(SalesOrder.invoice_value_gbp).filter(SalesOrder.status == BOOKED), 0),
+        func.count().filter(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.is_(None)),
+        func.coalesce(func.sum(SalesOrder.pages).filter(SalesOrder.status == BOOKED), 0),
+        func.count().filter(SalesOrder.import_warning.isnot(None)),
+        func.count().filter(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0),
+        func.count().filter(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.isnot(None)),
+    ).where(SalesOrder.edition_id.in_(edition_ids)).group_by(SalesOrder.edition_id)
+    if booked_before:
+        q = q.where(func.coalesce(SalesOrder.booked_on, date.min) <= booked_before)
+    return {
+        row[0]: {"booked": float(row[1]), "orders": row[2], "invoiced": float(row[3]),
+                 "uninvoiced": row[4], "pages": float(row[5]), "warnings": row[6],
+                 "paid": row[7], "paid_invoiced": row[8]}
+        for row in db.execute(q).all()
+    }
+
+
+def same_point_last_year(today: date) -> date:
+    try:
+        return today.replace(year=today.year - 1)
+    except ValueError:  # 29 Feb
+        return today - timedelta(days=365)
+
+
+# ---- Edition pace (SALES-026 dashboard, SALES-028 alerts) ------------------------
+
+def comparison_cutoff(edition: SalesEdition, prev: SalesEdition, today: date) -> date:
+    """The date on last cycle's edition to compare against: the same
+    distance before *its* publication as today is before this edition's
+    ("issue-relative", so an issue that moved a fortnight isn't judged
+    against a calendar date). Falls back to the calendar date one year ago
+    when either edition has no date."""
+    if edition.edition_date and prev.edition_date:
+        return prev.edition_date - (edition.edition_date - today)
+    return same_point_last_year(today)
+
+
+def edition_pace(db: Session, today: date, *, threshold: float, min_prior_gbp: float, min_prior_orders: int,
+                 past_days: int = 30, editions: list[SalesEdition] | None = None) -> list[dict]:
+    """Every edition still selling (open, publishing/running from
+    `past_days` ago onwards), with what it has booked against what its
+    equivalent edition had booked at the same point before publication.
+
+    state: "behind" | "on_pace" | "ahead" | "not_comparable". An edition is
+    not_comparable (never judged) when it has no equivalent edition last
+    cycle, or that equivalent's booked value / booking count at the same
+    point is under the minimums - too little data to call it early. Sorted
+    most-behind first, then not_comparable last.
+    """
+    if editions is None:
+        editions = list(db.scalars(select(SalesEdition).where(
+            SalesEdition.status == "open", SalesEdition.edition_date.isnot(None),
+            SalesEdition.edition_date >= today - timedelta(days=past_days)).order_by(SalesEdition.edition_date)))
+    if not editions:
+        return []
+    prev_map = equivalent_editions(db, editions)
+    now_totals = edition_totals(db, [e.id for e in editions])
+    prev_full = edition_totals(db, list({p.id for p in prev_map.values()}))
+    out: list[dict] = []
+    for e in editions:
+        booked = now_totals.get(e.id, {}).get("booked", 0.0)
+        orders = now_totals.get(e.id, {}).get("orders", 0)
+        prev = prev_map.get(e.id)
+        row = {"edition": e, "prev": prev, "booked": booked, "orders": orders, "prev_point_gbp": None,
+               "prev_point_orders": None, "prev_total_gbp": None, "gap_gbp": None, "gap_pct": None,
+               "state": "not_comparable", "reason": "No equivalent edition last cycle"}
+        if prev is not None:
+            cutoff = comparison_cutoff(e, prev, today)
+            point = edition_totals(db, [prev.id], booked_before=cutoff).get(prev.id, {})
+            pg, po = point.get("booked", 0.0), point.get("orders", 0)
+            row.update(prev_point_gbp=pg, prev_point_orders=po,
+                       prev_total_gbp=prev_full.get(prev.id, {}).get("booked", 0.0))
+            if pg < min_prior_gbp or po < min_prior_orders:
+                row["reason"] = "Last cycle had too little booked at this point to compare fairly"
+            else:
+                gap = booked - pg
+                pct_gap = gap / pg
+                row.update(gap_gbp=round(gap, 2), gap_pct=pct_gap, reason=None,
+                           state="behind" if pct_gap <= -threshold else "ahead" if pct_gap >= threshold else "on_pace")
+        out.append(row)
+    order = {"behind": 0, "on_pace": 1, "ahead": 2, "not_comparable": 3}
+    out.sort(key=lambda r: (order[r["state"]], r["gap_pct"] if r["gap_pct"] is not None else 0, r["edition"].edition_date))
+    return out

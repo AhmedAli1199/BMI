@@ -8,9 +8,20 @@ export type ContactListItem = {
   company_id: string | null;
   company_name: string | null;
   primary_email: string | null;
+  city?: string | null;
+  country?: string | null;
 };
 
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number };
+
+export type RecordPosition = {
+  position: number | null;
+  total: number;
+  prev_id: string | null;
+  next_id: string | null;
+  first_id: string | null;
+  last_id: string | null;
+};
 
 export type AddressOut = {
   id: string; type_label: string | null;
@@ -19,9 +30,68 @@ export type AddressOut = {
 };
 export type PhoneOut = { id: string; type_label: string | null; number: string | null };
 export type EmailOut = { id: string; type_label: string | null; address: string | null };
-export type NoteOut = { id: string; note_type: string | null; body: string | null; act_created_at: string | null };
-export type HistoryOut = { id: string; history_type: string; subject: string | null; occurred_at: string };
+export type UserSummary = { id: string; name: string };
+export type NoteOut = {
+  id: string;
+  note_type: string | null;
+  body: string | null;
+  is_private: boolean;
+  act_created_at: string | null;
+  created_by: UserSummary | null;
+  // One of the real Act! source databases, or "manual" for anything
+  // written directly in this CRM (by a person via the UI, or by an
+  // automation) - see noteSourceLabel() in act-tab-workstation.tsx for
+  // how "manual" is split into a real name vs. "AI / Automation".
+  source_db: string;
+};
+export type HistoryOut = {
+  id: string;
+  history_type: string;
+  subject: string | null;
+  details: string | null;
+  duration_minutes: number | null;
+  is_private: boolean;
+  occurred_at: string;
+  created_by: UserSummary | null;
+};
+/** "never" is the only value the UI offers today - see backend's
+ * app/models/activity.py RECURRENCE_VALUES for the other three. */
+export type ActivityRecurrence = "never" | "daily" | "weekly" | "monthly";
+export type ActivityPriority = "high" | "normal" | "low";
+
+export type ActivityOut = {
+  id: string;
+  activity_type: string | null;
+  subject: string | null;
+  details: string | null;
+  location: string | null;
+  start_at: string;
+  end_at: string | null;
+  is_timeless: boolean;
+  is_cleared: boolean;
+  is_private: boolean;
+  priority?: ActivityPriority | string;
+  duration_minutes?: number | null;
+  organized_by_name?: string | null;
+  has_attachments?: boolean;
+  recurrence: ActivityRecurrence;
+  contact_id: string | null;
+  company_id: string | null;
+  contact_name: string | null;
+  company_name: string | null;
+  created_by: UserSummary | null;
+};
+
 export type GroupOut = { id: string; name: string };
+
+export type FieldChange = {
+  id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
+  changed_by: UserSummary | null;
+};
 export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null };
 
 export type ContactDetail = {
@@ -50,6 +120,7 @@ export type ContactDetail = {
   groups: GroupOut[];
   notes: NoteOut[];
   history: HistoryOut[];
+  activities: ActivityOut[];
 };
 
 export type CompanyListItem = {
@@ -79,6 +150,8 @@ export type CompanyDetail = {
   emails: EmailOut[];
   contacts: ContactListItem[];
   notes: NoteOut[];
+  history: HistoryOut[];
+  activities: ActivityOut[];
 };
 
 export type GroupListItem = {
@@ -98,6 +171,8 @@ export type GroupDetail = {
   parent_group_id: string | null;
   members: ContactListItem[];
 };
+
+export type ActivitiesPage = Page<ActivityOut>;
 
 export type SourceBreakdown = { source_db: string; count: number };
 
@@ -147,6 +222,7 @@ export type ReviewExtraField = {
   label: string;
   placeholder: string;
   required: boolean;
+  field_type: "text" | "bool";
 };
 
 export type ReviewAction = {
@@ -158,6 +234,7 @@ export type ReviewAction = {
   requires_contact_picker: boolean;
   extra_fields: ReviewExtraField[];
   confirm_message: string | null;
+  requires_related_entity_choice: boolean;
 };
 
 export type ReviewKind = {
@@ -165,6 +242,9 @@ export type ReviewKind = {
   label: string;
   description: string;
   actions: ReviewAction[];
+  /** Phase 1 labeling only (see backend registry.py's ReviewKind.audience)
+   * - not yet enforced; "sales" vs "admin" who a kind is meant for. */
+  audience: "sales" | "admin";
 };
 
 export type ReviewDetail = { key?: string; label: string; value: string; editable?: boolean };
@@ -175,15 +255,57 @@ export type ReviewPayload = {
   summary?: string;
   details?: ReviewDetail[];
   original_text?: string;
+  source_context?: string | null;
   related_entities?: ReviewRelatedEntity[];
   suggested_contact?: { id: string; label: string } | null;
   candidate?: ReviewCandidate | null;
   confidence?: number | null;
+  /** Keyed to match ReviewAction.extra_fields[].key exactly - whatever an
+   * automation could confidently identify (a signature parse, a domain
+   * match) pre-filled into that action's form, never a guess it can't
+   * back up. Generic across every kind: any automation can set this and
+   * the form seeds itself from it, no per-kind frontend wiring needed. */
+  prefill?: Record<string, string>;
+  source_db?: string;
+  signature?: {
+    full_name?: string | null;
+    job_title?: string | null;
+    company_name?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | null;
+  replacements?: Array<{
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    role?: string | null;
+  }> | null;
+  card?: {
+    full_name?: string | null;
+    job_title?: string | null;
+    company_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
+  } | null;
+  suggested_groups?: string[] | null;
+  [key: string]: unknown;
+};
+
+export type ReviewQueueEntitySummary = {
+  id: string;
+  type: "contact" | "company";
+  label: string;
+  job_title: string | null;
+  email: string | null;
+  phone: string | null;
+  company_name: string | null;
 };
 
 export type ReviewQueueItem = {
   id: string;
   kind: string;
+  source_db: string | null;
   entity_type: string | null;
   entity_id: string | null;
   payload: ReviewPayload;
@@ -191,12 +313,169 @@ export type ReviewQueueItem = {
   resolved_action: string | null;
   review_note: string | null;
   reviewed_at: string | null;
+  reviewed_by: UserSummary | null;
   created_at: string;
+  entity_summary: ReviewQueueEntitySummary | null;
 };
 
 export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
 
-export type ScheduledJob = { id: string; label: string; description: string; cron: string; enabled: boolean };
+export type ReviewQueueInsightBucket = { key: string; label: string; count: number };
+export type ReviewQueueInsights = { kind: string; buckets: ReviewQueueInsightBucket[] };
+
+export type DataHealthMetric = {
+  key: string;
+  label: string;
+  description: string;
+  count: number;
+  total: number;
+  entity_type: "contact" | "company" | null;
+  review_kind: string | null;
+};
+
+export type DataHealthStats = {
+  total_contacts: number;
+  total_companies: number;
+  metrics: DataHealthMetric[];
+};
+
+/** SALES-013's read side - a ReviewQueueItem (same shape, so it feeds
+ * straight into ReviewItemCard) plus which rep it belongs to. See
+ * backend's app/automations/morning_queue.py. */
+export type TodayItem = ReviewQueueItem & { owner_user_id: string | null; owner_name: string };
+
+export type ScheduledJob = {
+  id: string;
+  label: string;
+  description: string;
+  cron: string;
+  enabled: boolean;
+  has_cursor: boolean;
+};
+
+// ---- Automations Hub workstream stats (backend automation_stats.py) ----
+
+export type StatsRange = "7d" | "30d" | "all";
+
+export type JobRun = {
+  id: string;
+  job_id: string;
+  trigger: "scheduled" | "manual";
+  started_at: string;
+  finished_at: string | null;
+  status: "running" | "success" | "failed";
+  items_queued: number;
+  error: string | null;
+};
+
+export type JobSummary = {
+  id: string;
+  label: string;
+  cron: string;
+  enabled: boolean;
+  last_run: JobRun | null;
+};
+
+export type StatsTotals = {
+  pending: number;
+  oldest_pending_at: string | null;
+  new: number;
+  resolved: number;
+  approved: number;
+  rejected: number;
+  new_prev: number | null;
+  resolved_prev: number | null;
+  acted_on_rate: number | null;
+  median_resolve_seconds: number | null;
+};
+
+export type AutomationStats = StatsTotals & {
+  kind: string;
+  label: string;
+  description: string;
+  job: JobSummary | null;
+  daily_new: number[];
+};
+
+export type WorkstreamStats = {
+  id: string;
+  label: string;
+  tagline: string;
+  range: StatsRange;
+  chart_days: number;
+  totals: StatsTotals;
+  daily: { date: string; new: number; resolved: number; backlog: number }[];
+  automations: AutomationStats[];
+};
+
+export type WorkstreamSummary = {
+  id: string;
+  label: string;
+  tagline: string;
+  kinds: string[];
+  pending: number;
+  new_7d: number;
+  resolved_7d: number;
+  daily_new_7d: number[];
+};
+
+export type KindDetail = {
+  kind: string;
+  outcomes: { action_id: string; label: string; status: string; count: number }[];
+  top_reviewers: { name: string; count: number }[];
+  ai_cost_usd: number | null;
+  ai_calls: number | null;
+  ai_cost_shared_with: string[];
+  recent: { id: string; summary: string; status: string; created_at: string }[];
+};
+
+export type AutomationSettingType = "bool" | "int" | "float" | "csv" | "text";
+
+export type AutomationSetting = {
+  key: string;
+  label: string;
+  description: string;
+  group: string;
+  type: AutomationSettingType;
+  value: boolean | number | string;
+  default: boolean | number | string;
+  is_overridden: boolean;
+  min: number | null;
+  max: number | null;
+};
+
+// Mirrors backend/app/api/schemas.py's LlmUsage* shapes - see
+// GET /api/automations/llm-usage (backend/app/automations/llm.py logs one
+// LlmUsageEvent per real Gemini/OpenAI call; this is the aggregated view).
+export type LlmUsageBucket = {
+  bucket_start: string;
+  call_count: number;
+  success_count: number;
+  failure_count: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost_usd: number;
+};
+
+export type LlmUsageByPurpose = {
+  purpose: string;
+  provider: string;
+  call_count: number;
+  failure_count: number;
+  cost_usd: number;
+};
+
+export type LlmUsageSummary = {
+  range_start: string;
+  range_end: string;
+  total_calls: number;
+  total_failures: number;
+  total_cost_usd: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  buckets: LlmUsageBucket[];
+  by_purpose: LlmUsageByPurpose[];
+};
 
 export type PreferenceOption = { value: string; label: string; description: string };
 

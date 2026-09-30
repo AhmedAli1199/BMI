@@ -9,25 +9,34 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
+    ActivityOut,
     AddressOut,
     AddressWrite,
     CompaniesPage,
     CompanyCreate,
     CompanyDetail,
     CompanyListItem,
+    CompanyPosition,
     CompanyUpdate,
     ContactListItem,
     EmailOut,
     EmailWrite,
+    FieldChangeOut,
+    HistoryCreate,
+    HistoryOut,
     NoteCreate,
     NoteOut,
     PhoneOut,
     PhoneWrite,
+    UserSummary,
 )
-from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._channels import create_channel, delete_channel, delete_entity_row, update_channel
+from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
+from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Activity, Company, Contact, Email, HistoryEntry, Note, Opportunity
+from app.services.field_audit import record_field_changes
+from app.models import Activity, Company, Contact, Email, FieldChange, HistoryEntry, Note, Opportunity, User
 from app.models.contact_channel import Address, Phone
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -73,6 +82,39 @@ def list_companies(
     return CompaniesPage(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.get("/{company_id}/position", response_model=CompanyPosition)
+def get_company_position(
+    company_id: uuid.UUID,
+    q: str | None = Query(None),
+    source_db: str | None = Query(None),
+    db: Session = Depends(get_db),
+) -> CompanyPosition:
+    """Powers the VCR-style record stepper on the company detail page - see
+    contacts.py's get_contact_position for the same idea."""
+    stmt = select(Company.id).order_by(Company.name.asc())
+    if source_db:
+        stmt = stmt.where(Company.source_db == source_db)
+    if q:
+        stmt = stmt.where(Company.name.ilike(f"%{q}%"))
+    ids = [str(row) for row in db.scalars(stmt).all()]
+    first_id = ids[0] if ids else None
+    last_id = ids[-1] if ids else None
+
+    try:
+        index = ids.index(str(company_id))
+    except ValueError:
+        return CompanyPosition(position=None, total=len(ids), prev_id=None, next_id=None, first_id=first_id, last_id=last_id)
+
+    return CompanyPosition(
+        position=index + 1,
+        total=len(ids),
+        prev_id=ids[index - 1] if index > 0 else None,
+        next_id=ids[index + 1] if index < len(ids) - 1 else None,
+        first_id=first_id,
+        last_id=last_id,
+    )
+
+
 @router.get("/{company_id}", response_model=CompanyDetail)
 def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> CompanyDetail:
     company = db.get(Company, company_id)
@@ -90,8 +132,35 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
     notes = db.scalars(
         select(Note).where(Note.entity_type == "company", Note.entity_id == company_id)
         .order_by(Note.act_created_at.desc().nulls_last())
-        .limit(100)
+        .limit(500)
     ).all()
+    history = db.scalars(
+        select(HistoryEntry).where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == company_id)
+        .order_by(HistoryEntry.occurred_at.desc())
+        .limit(500)
+    ).all()
+    activities = db.scalars(
+        select(Activity).where(Activity.company_id == company_id)
+        .order_by(Activity.start_at.desc())
+        .limit(500)
+    ).all()
+
+    creators = resolve_creators(db, [*notes, *history, *activities])
+
+    def _note_out(n: Note) -> NoteOut:
+        out = NoteOut.model_validate(n)
+        out.created_by = creator_summary(n, creators)
+        return out
+
+    def _history_out(h: HistoryEntry) -> HistoryOut:
+        out = HistoryOut.model_validate(h)
+        out.created_by = creator_summary(h, creators)
+        return out
+
+    def _activity_out(a: Activity) -> ActivityOut:
+        out = ActivityOut.model_validate(a)
+        out.created_by = creator_summary(a, creators)
+        return out
 
     return CompanyDetail(
         id=company.id,
@@ -117,7 +186,9 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
             )
             for c in contacts
         ],
-        notes=[NoteOut.model_validate(n) for n in notes],
+        notes=[_note_out(n) for n in notes],
+        history=[_history_out(h) for h in history],
+        activities=[_activity_out(a) for a in activities],
     )
 
 
@@ -134,11 +205,51 @@ def add_company_note(company_id: uuid.UUID, payload: NoteCreate, db: Session = D
         entity_id=company_id,
         note_type=payload.note_type,
         body=payload.body,
+        is_private=payload.is_private,
         act_created_at=datetime.now(timezone.utc),
+        created_by_user_id=payload.created_by_user_id,
     )
     db.add(note)
     db.commit()
-    return NoteOut.model_validate(note)
+    out = NoteOut.model_validate(note)
+    out.created_by = creator_summary(note, resolve_creators(db, [note]))
+    return out
+
+
+@router.post("/{company_id}/history", response_model=HistoryOut, status_code=201)
+def add_company_history(company_id: uuid.UUID, payload: HistoryCreate, db: Session = Depends(get_db)) -> HistoryOut:
+    if not db.get(Company, company_id):
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    entry = HistoryEntry(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),
+        entity_type="company",
+        entity_id=company_id,
+        history_type=payload.history_type,
+        subject=payload.subject,
+        details=payload.details,
+        duration_minutes=payload.duration_minutes,
+        is_private=payload.is_private,
+        occurred_at=payload.occurred_at,
+        created_by_user_id=payload.created_by_user_id,
+    )
+    db.add(entry)
+    db.commit()
+    out = HistoryOut.model_validate(entry)
+    out.created_by = creator_summary(entry, resolve_creators(db, [entry]))
+    return out
+
+
+@router.delete("/{company_id}/notes/{note_id}", status_code=204, response_model=None)
+def delete_company_note(company_id: uuid.UUID, note_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    delete_entity_row(db, Note, "company", company_id, note_id)
+
+
+@router.delete("/{company_id}/history/{history_id}", status_code=204, response_model=None)
+def delete_company_history(company_id: uuid.UUID, history_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    delete_entity_row(db, HistoryEntry, "company", company_id, history_id)
 
 
 def _require_company(db: Session, company_id: uuid.UUID) -> None:
@@ -224,15 +335,43 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)) -> Com
 
 
 @router.patch("/{company_id}", response_model=CompanyDetail)
-def update_company(company_id: uuid.UUID, payload: CompanyUpdate, db: Session = Depends(get_db)) -> CompanyDetail:
+def update_company(
+    company_id: uuid.UUID, payload: CompanyUpdate,
+    db: Session = Depends(get_db), identity: Identity = Depends(get_identity),
+) -> CompanyDetail:
     company = db.get(Company, company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    before = {field: getattr(company, field) for field in updates}
+    for field, value in updates.items():
         setattr(company, field, value)
+    record_field_changes(
+        db, entity_type="company", entity_id=company.id, before=before, updates=updates,
+        changed_by_user_id=identity.user_uuid,
+    )
     db.commit()
     return get_company(company_id, db)
+
+
+@router.get("/{company_id}/field-changes", response_model=list[FieldChangeOut])
+def list_company_field_changes(company_id: uuid.UUID, db: Session = Depends(get_db)) -> list[FieldChangeOut]:
+    rows = db.scalars(
+        select(FieldChange)
+        .where(FieldChange.entity_type == "company", FieldChange.entity_id == company_id)
+        .order_by(FieldChange.changed_at.desc())
+        .limit(200)
+    ).all()
+    user_ids = {r.changed_by_user_id for r in rows if r.changed_by_user_id}
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    return [
+        FieldChangeOut(
+            id=r.id, field=r.field, old_value=r.old_value, new_value=r.new_value, changed_at=r.changed_at,
+            changed_by=UserSummary.model_validate(users[r.changed_by_user_id]) if r.changed_by_user_id in users else None,
+        )
+        for r in rows
+    ]
 
 
 @router.delete("/{company_id}", status_code=204, response_model=None)

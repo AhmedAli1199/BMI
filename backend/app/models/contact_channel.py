@@ -63,6 +63,7 @@ class Phone(Base, UUIDPk, ProvenanceMixin):
 
     number: Mapped[str | None] = mapped_column(String(64))
     country_code: Mapped[int | None] = mapped_column(SmallInteger)
+    extension: Mapped[str | None] = mapped_column(String(32))  # Act!'s SUFFIX - dropped by the original migration
 
 
 class Email(Base, UUIDPk, ProvenanceMixin):

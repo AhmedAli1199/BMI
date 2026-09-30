@@ -4,134 +4,203 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select, text
+from pydantic import BaseModel, Field
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
     AddressOut,
     AddressWrite,
+    ActivityOut,
     CompanySummary,
     ContactCreate,
     ContactDetail,
+    ContactDuplicate,
     ContactListItem,
+    ContactPosition,
     ContactsPage,
     ContactUpdate,
     EmailOut,
     EmailWrite,
+    FieldChangeOut,
     GroupOut,
+    HistoryCreate,
     HistoryOut,
     NoteCreate,
     NoteOut,
     PhoneOut,
     PhoneWrite,
+    UserSummary,
 )
-from app.api.routes._channels import create_channel, delete_channel, update_channel
+from app.api.routes._channels import create_channel, delete_channel, delete_entity_row, update_channel
+from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
+from app.core.identity import Identity, get_identity
 from app.db.session import get_db
+from app.services.contact_transfer import reassign_contact_records
+from app.services.contact_lookup import SORTS, LookupFilters, apply_filters, apply_sort, lookup_ids, primary_address_expr, primary_email_expr
+from app.services.field_audit import record_field_changes
 from app.models import (
     Activity,
     Company,
     Contact,
     Email,
+    FieldChange,
     Group,
     GroupMembership,
     HistoryEntry,
     Note,
     Opportunity,
+    User,
 )
 from app.models.contact_channel import Address, Phone
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
+def _filters(q, source_db, company_id, group_id, company=None, city=None, country=None, title=None,
+             sort="name", desc=False, ids=None) -> LookupFilters:
+    return LookupFilters(q=q, source_db=source_db, company_id=company_id, group_id=group_id, company=company,
+                         city=city, country=country, title=title, sort=sort if sort in SORTS else "name", desc=desc,
+                         contact_ids=list(ids or []))
+
+
 @router.get("", response_model=ContactsPage)
 def list_contacts(
-    q: str | None = Query(None, description="Search by name or email"),
+    q: str | None = Query(None, description="Name, email, company or job title"),
     source_db: str | None = Query(None),
     company_id: uuid.UUID | None = Query(None),
     group_id: uuid.UUID | None = Query(
         None, description="Restrict to this group's members plus every descendant subgroup's - used for group-scoped user access, see app/models/user_access.py"
     ),
+    company: str | None = Query(None, description="Company name contains"),
+    city: str | None = Query(None, description="City / town contains"),
+    country: str | None = Query(None),
+    title: str | None = Query(None, description="Job title contains"),
+    sort: str = Query("name"),
+    desc: bool = Query(False),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> ContactsPage:
-    # Primary email per contact, via a scalar subquery - cheap correlated
-    # lookup, fine at this row count (~118k contacts across all sources).
-    primary_email_subq = (
-        select(Email.address)
-        .where(Email.contact_id == Contact.id)
-        .order_by(Email.is_primary.desc())
-        .limit(1)
-        .correlate(Contact)
-        .scalar_subquery()
-    )
-
-    stmt = (
-        select(
-            Contact,
-            Company.name.label("company_name"),
-            primary_email_subq.label("primary_email"),
-        )
-        .outerjoin(Company, Contact.company_id == Company.id)
-    )
-
-    if source_db:
-        stmt = stmt.where(Contact.source_db == source_db)
-    if company_id:
-        stmt = stmt.where(Contact.company_id == company_id)
-    if group_id:
-        # Groups are hierarchical (see Group.parent_group_id) - a
-        # group-scoped grant covers the whole subtree, not just direct
-        # members, so someone scoped to "BUSINESS" also sees contacts
-        # filed under its subfolders, matching how Act!'s own group view
-        # works.
-        subtree_ids = db.execute(
-            text(
-                "WITH RECURSIVE subtree AS ("
-                "  SELECT id FROM groups WHERE id = :gid"
-                "  UNION ALL"
-                "  SELECT g.id FROM groups g JOIN subtree s ON g.parent_group_id = s.id"
-                ") SELECT id FROM subtree"
-            ),
-            {"gid": str(group_id)},
-        ).scalars().all()
-        stmt = stmt.where(
-            Contact.id.in_(select(GroupMembership.contact_id).where(GroupMembership.group_id.in_(subtree_ids)))
-        )
-    if q:
-        like = f"%{q}%"
-        stmt = stmt.where(
-            or_(
-                Contact.full_name.ilike(like),
-                Contact.first_name.ilike(like),
-                Contact.last_name.ilike(like),
-                Contact.id.in_(select(Email.contact_id).where(Email.address.ilike(like))),
-            )
-        )
-
-    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-
-    stmt = stmt.order_by(Contact.last_name.asc().nulls_last(), Contact.first_name.asc().nulls_last())
-    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
-
-    rows = db.execute(stmt).all()
+    f = _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc)
+    stmt = select(
+        Contact,
+        Company.name.label("company_name"),
+        primary_email_expr().label("primary_email"),
+        primary_address_expr(Address.city).label("city"),
+        primary_address_expr(Address.country).label("country"),
+    ).outerjoin(Company, Contact.company_id == Company.id)
+    stmt = apply_filters(db, stmt, f)
+    total = db.scalar(select(func.count()).select_from(apply_filters(db, select(Contact.id), f).subquery())) or 0
+    stmt = apply_sort(stmt, f, Company.name).offset((page - 1) * page_size).limit(page_size)
     items = [
         ContactListItem(
-            id=contact.id,
-            source_db=contact.source_db,
-            full_name=contact.full_name,
-            first_name=contact.first_name,
-            last_name=contact.last_name,
-            job_title=contact.job_title,
-            company_id=contact.company_id,
-            company_name=company_name,
-            primary_email=primary_email,
+            id=contact.id, source_db=contact.source_db, full_name=contact.full_name, first_name=contact.first_name,
+            last_name=contact.last_name, job_title=contact.job_title, company_id=contact.company_id,
+            company_name=company_name or contact.company_name_freetext, primary_email=primary_email,
+            city=city_, country=country_,
         )
-        for contact, company_name, primary_email in rows
+        for contact, company_name, primary_email, city_, country_ in db.execute(stmt).all()
     ]
     return ContactsPage(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/export")
+def export_contacts(
+    q: str | None = Query(None),
+    source_db: str | None = Query(None),
+    company_id: uuid.UUID | None = Query(None),
+    group_id: uuid.UUID | None = Query(None),
+    company: str | None = Query(None),
+    city: str | None = Query(None),
+    country: str | None = Query(None),
+    title: str | None = Query(None),
+    sort: str = Query("name"),
+    desc: bool = Query(False),
+    ids: list[uuid.UUID] = Query(default=[]),
+    db: Session = Depends(get_db),
+):
+    """The current lookup (or a selection) as an .xlsx - Act!'s "export
+    lookup to Excel", same filters and order as the list on screen."""
+    from fastapi.responses import StreamingResponse
+
+    from app.services.contact_export import contacts_xlsx
+
+    f = _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc, ids)
+    buf = contacts_xlsx(db, lookup_ids(db, f, limit=50000))
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="BMI contacts {stamp}.xlsx"'})
+
+
+class _ExportSelection(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=50000)
+    title: str | None = None
+
+
+@router.post("/export")
+def export_selected_contacts(payload: _ExportSelection, db: Session = Depends(get_db)):
+    """A hand-picked selection as .xlsx - POST because a big selection
+    doesn't fit in a URL."""
+    from fastapi.responses import StreamingResponse
+
+    from app.services.contact_export import contacts_xlsx
+
+    buf = contacts_xlsx(db, list(dict.fromkeys(payload.ids)))
+    name = (payload.title or "BMI contacts selection").replace('"', "")
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="{name}.xlsx"'})
+
+
+@router.get("/lookup-ids", response_model=list[uuid.UUID])
+def lookup_contact_ids(
+    q: str | None = Query(None),
+    source_db: str | None = Query(None),
+    company_id: uuid.UUID | None = Query(None),
+    group_id: uuid.UUID | None = Query(None),
+    company: str | None = Query(None),
+    city: str | None = Query(None),
+    country: str | None = Query(None),
+    title: str | None = Query(None),
+    db: Session = Depends(get_db),
+) -> list[uuid.UUID]:
+    """Every contact id in a lookup - for "select all N matching" (add the
+    whole lookup to a group, mail-merge the whole lookup)."""
+    return lookup_ids(db, _filters(q, source_db, company_id, group_id, company, city, country, title), limit=50000)
+
+
+@router.get("/{contact_id}/position", response_model=ContactPosition)
+def get_contact_position(
+    contact_id: uuid.UUID,
+    q: str | None = Query(None),
+    source_db: str | None = Query(None),
+    company_id: uuid.UUID | None = Query(None),
+    group_id: uuid.UUID | None = Query(None),
+    company: str | None = Query(None),
+    city: str | None = Query(None),
+    country: str | None = Query(None),
+    title: str | None = Query(None),
+    sort: str = Query("name"),
+    desc: bool = Query(False),
+    db: Session = Depends(get_db),
+) -> ContactPosition:
+    """Powers the VCR-style record stepper on the contact detail page - same
+    filters and order as whatever list view the user came from."""
+    ids = [str(i) for i in lookup_ids(db, _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc))]
+    first_id = ids[0] if ids else None
+    last_id = ids[-1] if ids else None
+    try:
+        index = ids.index(str(contact_id))
+    except ValueError:
+        return ContactPosition(position=None, total=len(ids), prev_id=None, next_id=None, first_id=first_id, last_id=last_id)
+    return ContactPosition(
+        position=index + 1, total=len(ids),
+        prev_id=ids[index - 1] if index > 0 else None,
+        next_id=ids[index + 1] if index < len(ids) - 1 else None,
+        first_id=first_id, last_id=last_id,
+    )
 
 
 @router.get("/{contact_id}", response_model=ContactDetail)
@@ -151,13 +220,35 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
     notes = db.scalars(
         select(Note).where(Note.entity_type == "contact", Note.entity_id == contact_id)
         .order_by(Note.act_created_at.desc().nulls_last())
-        .limit(100)
+        .limit(500)
     ).all()
     history = db.scalars(
         select(HistoryEntry).where(HistoryEntry.entity_type == "contact", HistoryEntry.entity_id == contact_id)
         .order_by(HistoryEntry.occurred_at.desc())
-        .limit(100)
+        .limit(500)
     ).all()
+    activities = db.scalars(
+        select(Activity).where(Activity.contact_id == contact_id)
+        .order_by(Activity.start_at.desc())
+        .limit(500)
+    ).all()
+
+    creators = resolve_creators(db, [*notes, *history, *activities])
+
+    def _note_out(n: Note) -> NoteOut:
+        out = NoteOut.model_validate(n)
+        out.created_by = creator_summary(n, creators)
+        return out
+
+    def _history_out(h: HistoryEntry) -> HistoryOut:
+        out = HistoryOut.model_validate(h)
+        out.created_by = creator_summary(h, creators)
+        return out
+
+    def _activity_out(a: Activity) -> ActivityOut:
+        out = ActivityOut.model_validate(a)
+        out.created_by = creator_summary(a, creators)
+        return out
 
     return ContactDetail(
         id=contact.id,
@@ -183,8 +274,9 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         phones=[PhoneOut.model_validate(p) for p in phones],
         emails=[EmailOut.model_validate(e) for e in emails],
         groups=[GroupOut.model_validate(g) for g in groups],
-        notes=[NoteOut.model_validate(n) for n in notes],
-        history=[HistoryOut.model_validate(h) for h in history],
+        notes=[_note_out(n) for n in notes],
+        history=[_history_out(h) for h in history],
+        activities=[_activity_out(a) for a in activities],
     )
 
 
@@ -201,11 +293,51 @@ def add_contact_note(contact_id: uuid.UUID, payload: NoteCreate, db: Session = D
         entity_id=contact_id,
         note_type=payload.note_type,
         body=payload.body,
+        is_private=payload.is_private,
         act_created_at=datetime.now(timezone.utc),
+        created_by_user_id=payload.created_by_user_id,
     )
     db.add(note)
     db.commit()
-    return NoteOut.model_validate(note)
+    out = NoteOut.model_validate(note)
+    out.created_by = creator_summary(note, resolve_creators(db, [note]))
+    return out
+
+
+@router.post("/{contact_id}/history", response_model=HistoryOut, status_code=201)
+def add_contact_history(contact_id: uuid.UUID, payload: HistoryCreate, db: Session = Depends(get_db)) -> HistoryOut:
+    if not db.get(Contact, contact_id):
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    entry = HistoryEntry(
+        id=uuid.uuid4(),
+        source_db=MANUAL_SOURCE_DB,
+        source_act_id=str(uuid.uuid4()),
+        entity_type="contact",
+        entity_id=contact_id,
+        history_type=payload.history_type,
+        subject=payload.subject,
+        details=payload.details,
+        duration_minutes=payload.duration_minutes,
+        is_private=payload.is_private,
+        occurred_at=payload.occurred_at,
+        created_by_user_id=payload.created_by_user_id,
+    )
+    db.add(entry)
+    db.commit()
+    out = HistoryOut.model_validate(entry)
+    out.created_by = creator_summary(entry, resolve_creators(db, [entry]))
+    return out
+
+
+@router.delete("/{contact_id}/notes/{note_id}", status_code=204, response_model=None)
+def delete_contact_note(contact_id: uuid.UUID, note_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    delete_entity_row(db, Note, "contact", contact_id, note_id)
+
+
+@router.delete("/{contact_id}/history/{history_id}", status_code=204, response_model=None)
+def delete_contact_history(contact_id: uuid.UUID, history_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    delete_entity_row(db, HistoryEntry, "contact", contact_id, history_id)
 
 
 def _require_contact(db: Session, contact_id: uuid.UUID) -> None:
@@ -308,18 +440,133 @@ def create_contact(payload: ContactCreate, db: Session = Depends(get_db)) -> Con
     return get_contact(contact.id, db)
 
 
+@router.post("/{contact_id}/duplicate", response_model=ContactDetail, status_code=201)
+def duplicate_contact(contact_id: uuid.UUID, payload: ContactDuplicate, db: Session = Depends(get_db),
+                      identity: Identity = Depends(get_identity)) -> ContactDetail:
+    """Act!'s "Duplicate contact": a new person at the same company. Copies
+    the company link, database, owner, the business addresses and the
+    switchboard/office phone(s) - never the personal ones (mobile, home
+    address, email) - and, optionally, the group memberships. Only the
+    new person's name/email/title/phone come from the form."""
+    src = db.get(Contact, contact_id)
+    if not src:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    if not (payload.first_name or payload.last_name):
+        raise HTTPException(status_code=422, detail="Enter the new contact's name.")
+    new = Contact(
+        id=uuid.uuid4(), source_db=src.source_db, source_act_id=str(uuid.uuid4()),
+        first_name=payload.first_name, last_name=payload.last_name,
+        full_name=" ".join(filter(None, [payload.first_name, payload.last_name])) or None,
+        job_title=payload.job_title, company_id=src.company_id, company_name_freetext=src.company_name_freetext,
+        owner_user_id=src.owner_user_id, custom_fields={},
+    )
+    db.add(new)
+    db.flush()
+    for a in db.scalars(select(Address).where(Address.contact_id == src.id)):
+        if "home" in (a.type_label or "").lower():
+            continue
+        db.add(Address(id=uuid.uuid4(), source_db=src.source_db, source_act_id=str(uuid.uuid4()), contact_id=new.id,
+                       type_label=a.type_label, is_primary=a.is_primary, line1=a.line1, line2=a.line2, line3=a.line3,
+                       city=a.city, state=a.state, postal_code=a.postal_code, country=a.country))
+    if payload.phone:
+        db.add(Phone(id=uuid.uuid4(), source_db=src.source_db, source_act_id=str(uuid.uuid4()), contact_id=new.id,
+                     number=payload.phone, is_primary=True))
+    for p in db.scalars(select(Phone).where(Phone.contact_id == src.id)):
+        label = (p.type_label or "").lower()
+        if any(k in label for k in ("mob", "cell", "home", "personal")):
+            continue
+        db.add(Phone(id=uuid.uuid4(), source_db=src.source_db, source_act_id=str(uuid.uuid4()), contact_id=new.id,
+                     type_label=p.type_label, number=p.number, country_code=p.country_code, is_primary=not payload.phone and p.is_primary))
+    if payload.email:
+        db.add(Email(id=uuid.uuid4(), source_db=src.source_db, source_act_id=str(uuid.uuid4()), contact_id=new.id,
+                     address=payload.email.strip(), is_primary=True))
+    if payload.copy_groups:
+        for gid in db.scalars(select(GroupMembership.group_id).where(GroupMembership.contact_id == src.id)).all():
+            db.add(GroupMembership(id=uuid.uuid4(), contact_id=new.id, group_id=gid))
+    db.add(HistoryEntry(
+        id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()), entity_type="contact",
+        entity_id=new.id, history_type="Contact created", subject=f"Duplicated from {src.full_name or 'another contact'}",
+        occurred_at=datetime.now(timezone.utc), created_by_user_id=identity.user_uuid,
+    ))
+    db.commit()
+    return get_contact(new.id, db)
+
+
 @router.patch("/{contact_id}", response_model=ContactDetail)
-def update_contact(contact_id: uuid.UUID, payload: ContactUpdate, db: Session = Depends(get_db)) -> ContactDetail:
+def update_contact(
+    contact_id: uuid.UUID, payload: ContactUpdate,
+    db: Session = Depends(get_db), identity: Identity = Depends(get_identity),
+) -> ContactDetail:
     contact = db.get(Contact, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     if payload.company_id and not db.get(Company, payload.company_id):
         raise HTTPException(status_code=400, detail="company_id does not exist")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    # full_name is derived from first/last at create time (see
+    # create_contact) but was never recomputed here - clearing both name
+    # fields left the old full_name behind, so the record still displayed
+    # its old name everywhere (the header, contacts list, EntityAvatar)
+    # even though first_name/last_name had genuinely changed underneath.
+    # Skipped only if the caller explicitly set full_name itself.
+    if ("first_name" in updates or "last_name" in updates) and "full_name" not in updates:
+        new_first = updates.get("first_name", contact.first_name)
+        new_last = updates.get("last_name", contact.last_name)
+        updates["full_name"] = " ".join(filter(None, [new_first, new_last])) or None
+    before = {field: getattr(contact, field) for field in updates}
+    for field, value in updates.items():
         setattr(contact, field, value)
+    record_field_changes(
+        db, entity_type="contact", entity_id=contact.id, before=before, updates=updates,
+        changed_by_user_id=identity.user_uuid,
+    )
     db.commit()
     return get_contact(contact_id, db)
+
+
+@router.get("/{contact_id}/field-changes", response_model=list[FieldChangeOut])
+def list_contact_field_changes(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> list[FieldChangeOut]:
+    """"This might be a bit obvious but the ability to identify which BMI
+    user has made changes to specific data" - BMI's own Act pain-points
+    doc. Newest first - most useful reading direction for "what just
+    changed on this record"."""
+    rows = db.scalars(
+        select(FieldChange)
+        .where(FieldChange.entity_type == "contact", FieldChange.entity_id == contact_id)
+        .order_by(FieldChange.changed_at.desc())
+        .limit(200)
+    ).all()
+    user_ids = {r.changed_by_user_id for r in rows if r.changed_by_user_id}
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    return [
+        FieldChangeOut(
+            id=r.id, field=r.field, old_value=r.old_value, new_value=r.new_value, changed_at=r.changed_at,
+            changed_by=UserSummary.model_validate(users[r.changed_by_user_id]) if r.changed_by_user_id in users else None,
+        )
+        for r in rows
+    ]
+
+
+@router.post("/{contact_id}/reassign/{successor_id}", status_code=204, response_model=None)
+def reassign_contact(contact_id: uuid.UUID, successor_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    """"When a contact leaves a particular company, we can easily move
+    notes in ACT from that person to a new person" - BMI's own Act pain-
+    points doc. A manual, rep-initiated action (the rep already knows who
+    left and who replaced them) - see app/services/contact_transfer.py's
+    docstring for why the actual move logic lives there rather than here,
+    shared with a future CS-003 automation instead of being reimplemented."""
+    if contact_id == successor_id:
+        raise HTTPException(status_code=400, detail="Pick a different contact to move records to.")
+    source = db.get(Contact, contact_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    destination = db.get(Contact, successor_id)
+    if not destination:
+        raise HTTPException(status_code=400, detail="The contact to move records to doesn't exist.")
+
+    reassign_contact_records(db, source=source, destination=destination)
+    db.commit()
 
 
 @router.delete("/{contact_id}", status_code=204, response_model=None)

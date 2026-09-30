@@ -201,6 +201,26 @@ Once everyone has actually stopped using Act! day-to-day, stop doing
 refreshes - from that point the CRM's own edits are the only ones that
 matter, and an old `.bak` would just be a stale copy of the past.
 
+### Adding a new table to already-migrated data (e.g. this gap-fill pass)
+
+This is a different case from a refresh: not "pick up edits since last
+time", but "we just taught the ETL about a table it never touched before,
+run it again against the *same* `.bak`/database to get that new data in."
+Same command, no special flag needed - just run `etl.py` again per source
+database, same as always.
+
+The one thing that has to be correct for this to work safely:
+**already-migrated contacts/companies/groups/activities/etc. must keep
+their existing ids**, or every new row (an `activity_contacts` link, say)
+referencing "this activity" would point at the wrong id and fail its
+foreign key. `IdMap.preload()` (in `etl.py`) handles this automatically -
+at the start of every run it seeds the id map from whatever's already in
+Postgres for that `source_db`, so a re-run resolves old ids to their real,
+persisted UUIDs rather than minting new random ones that don't match
+anything. You don't need to do anything for this beyond running the
+script normally; it's mentioned here so it's clear *why* re-running is
+safe, not just that it is.
+
 ## Applying the schema (do this before the first ETL run, anywhere)
 
 ```bash
@@ -220,14 +240,28 @@ tested applying and rolling back cleanly against a real Postgres 16).
   unified person. (Explicit decision, 2026-09-11.)
 - Addresses/Phones/Emails attach to a Contact or a Company only - the rare
   Group/Opportunity-level ones in Act! are not migrated.
-- Notes/History attach to exactly one entity (Contact or Company), even
-  though Act!'s schema technically allows many-to-many - matches how the
-  data is actually used in practice (verified, see schema docs).
-- `Activity` rows are migrated flat, unlinked to a specific contact -
-  Act!'s schema has no reliable Activity→Contact link table to migrate
-  from (only a user-assignment/"cleared" table, which isn't the same
-  thing). If BMI needs that link, it isn't recoverable from Act! and would
-  need to be re-established in the new CRM directly.
+- Notes/History attach to exactly one entity (Contact, Company, Group, or
+  Opportunity as of the 2026-09-17 gap-fill pass), even though a note or
+  history row could in principle be junctioned to more than one of Act!'s
+  entity types at once - matches how the data is actually used in practice
+  (verified, see schema docs).
+- **Corrected 2026-09-17**: an earlier version of this note claimed "Act!'s
+  schema has no reliable Activity→Contact link table" - that was wrong.
+  `TBL_CONTACT_ACTIVITY`/`TBL_COMPANY_ACTIVITY`/`TBL_GROUP_ACTIVITY` are
+  real junction tables with real data (2,333 contact-activity links alone
+  in Prospects) - they just weren't queried by the original ETL pass. As
+  of the gap-fill migration, `Activity.contact_id`/`company_id` are
+  backfilled when the junction data resolves to exactly one unambiguous
+  link, and the full many-to-many picture (including cases with several
+  links) is in `activity_contacts`/`activity_companies`/`activity_groups`/
+  `activity_invitees` (see `app/models/activity_link.py`).
 - `Opportunity` is linked to a contact/company only where Act!'s junction
   tables had an unambiguous single link - fine given the total volume is 7
   rows across all three databases.
+- Record ownership (who created/organized/last-edited a row - Act!'s
+  `ORGANIZEUSERID`/`CREATEUSERID`/`EDITUSERID`, pointing at `TBL_ACCESSOR`)
+  is still not linked to our own `users` table - that needs a human
+  decision (which Act! accessor = which of our user accounts) parked for
+  the final cutover migration, see BACKLOG.md. `Activity.organized_by_name`
+  denormalizes just the display name in the meantime so it renders
+  correctly without waiting on that mapping.

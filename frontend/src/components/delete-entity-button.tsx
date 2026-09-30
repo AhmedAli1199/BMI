@@ -20,6 +20,7 @@ export function DeleteEntityButton({
   id,
   action,
   redirectTo,
+  description,
 }: {
   /** Shown in the confirmation copy, e.g. "Jane Doe" or "this company". */
   entityLabel: string;
@@ -30,6 +31,11 @@ export function DeleteEntityButton({
   action: (id: string) => Promise<void>;
   /** Where to send the user after a successful delete - omit to just refresh in place (list pages). */
   redirectTo?: string;
+  /** Override the default "addresses, phones, emails" copy below, which
+   * describes what a contact/company delete actually cascades into - a
+   * group (its only other caller) owns none of those, so it needs its
+   * own accurate wording instead of this generic one. */
+  description?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -69,8 +75,8 @@ export function DeleteEntityButton({
         <DialogHeader>
           <DialogTitle>Delete {entityLabel}?</DialogTitle>
           <DialogDescription>
-            This can&apos;t be undone. Linked records (addresses, phones, emails, group memberships) are
-            removed too; anything else that only references it is unlinked, not deleted.
+            {description ??
+              "This can't be undone. Linked records (addresses, phones, emails, group memberships) are removed too; anything else that only references it is unlinked, not deleted."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

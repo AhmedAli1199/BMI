@@ -27,7 +27,7 @@ import { EntityPicker } from "@/components/entity-picker";
 import { AddressBlock } from "@/components/address-block";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
-import { sourceLabel } from "@/lib/sources";
+import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 import {
   deleteContact,
   removeContactAddress,
@@ -187,18 +187,6 @@ export function ContactDossier({ contact }: { contact: ContactDetail }) {
     });
   }
 
-  const publicationBadgeStyle = (source: string) => {
-    switch (source) {
-      case "onboard":
-        return "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400";
-      case "sellingtravel":
-        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-      case "prospects":
-        return "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-      default:
-        return "border-border bg-muted text-muted-foreground";
-    }
-  };
 
   return (
     <div className="flex flex-col gap-4">

@@ -8,8 +8,24 @@ export function isAdmin(session: SessionPayload | null): boolean {
   return session?.role === "admin";
 }
 
+/** The Automations Hub (job status/control, Settings, LLM cost, the
+ * data-reset action) - admin/data_manager only, mirroring backend
+ * app/roles.py's CAN_USE_AUTOMATIONS exactly (kept the same name/value
+ * there since that's the narrower, hub-facing set its name always meant).
+ * A sales rep's own Today/Review Queue views are a separate, wider grant -
+ * see canViewAutomationsQueue below. */
 export function canUseAutomations(session: SessionPayload | null): boolean {
   return session?.role === "admin" || session?.role === "data_manager";
+}
+
+/** Whether this session can see a Today/Review Queue view at all - every
+ * role now, including sales (mirrors backend app/roles.py's
+ * CAN_VIEW_OWN_QUEUE). WHAT they see within it is scoped server-side by
+ * kind audience + database (+ owner for a sales rep's Today queue) - see
+ * backend/app/api/routes/review_queue.py's _apply_scope and
+ * automations.py's get_today_queue. */
+export function canViewAutomationsQueue(session: SessionPayload | null): boolean {
+  return session?.role === "admin" || session?.role === "data_manager" || session?.role === "sales";
 }
 
 export function canManageUsers(session: SessionPayload | null): boolean {

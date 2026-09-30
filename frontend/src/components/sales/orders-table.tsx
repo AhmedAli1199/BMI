@@ -1,0 +1,206 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { AlertTriangle, Building2 } from "lucide-react";
+import type { SalesOrder, SalesRep } from "@/lib/sales-types";
+import { SortableTh } from "@/components/data-view/toolbar";
+import { OrderSheet, type OrderSheetTarget } from "@/components/sales/order-sheet";
+import { OrderStatusPill, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+
+export function isOverdue(o: SalesOrder): boolean {
+  return !!o.edition_date && new Date(o.edition_date) < new Date() && o.status === "booked" && o.value_gbp > 0 && !o.invoice_number;
+}
+
+function InvoiceCell({ o }: { o: SalesOrder }) {
+  if (o.status !== "booked" || o.value_gbp === 0) {
+    return o.order_ref ? (
+      <span className="text-[11px] text-muted-foreground" title="Ticket / order number from the sheet - not a BMI invoice">
+        Order {o.order_ref}
+      </span>
+    ) : (
+      <span className="text-muted-foreground" title="Nothing to invoice">—</span>
+    );
+  }
+  if (!o.invoice_number) {
+    const overdue = isOverdue(o);
+    return (
+      <span
+        className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style={{
+          color: overdue ? "var(--warn)" : "var(--muted-foreground)",
+          background: overdue ? "color-mix(in oklab, var(--warn) 12%, transparent)" : "var(--muted)",
+        }}
+        title={overdue ? "The edition has published / the event has run and there's still no invoice" : "Not invoiced yet"}
+      >
+        {overdue ? "Overdue" : "Not yet"}
+      </span>
+    );
+  }
+  const diff = o.invoice_value_gbp !== null ? o.value_gbp - o.invoice_value_gbp - (o.agency_commission_gbp ?? 0) : 0;
+  return (
+    <span className="flex flex-col leading-tight">
+      <span className="font-medium text-foreground">{o.invoice_number}</span>
+      {Math.abs(diff) > 1 &&
+        (o.invoice_note ? (
+          <span className="text-[11px] text-muted-foreground" title={`Reason for difference: ${o.invoice_note}`}>
+            {fmtGBP(o.invoice_value_gbp)} invoiced · explained
+          </span>
+        ) : (
+          <span className="text-[11px]" style={{ color: "var(--warn)" }} title="Invoiced amount differs from the booking value and no reason is recorded">
+            {fmtGBP(o.invoice_value_gbp)} invoiced
+          </span>
+        ))}
+    </span>
+  );
+}
+
+/** Bookings as a table - click a row to open and edit it. Inside a
+ * <DataView> pass `sortable` to make the headers sort (the page's own
+ * filters live in the sidebar); elsewhere (a company's Bookings tab) it's
+ * a plain list. */
+export function OrdersTable({
+  orders,
+  reps,
+  canDelete,
+  year,
+  showEdition = false,
+  sortable = false,
+  emptyText = "No bookings here yet.",
+}: {
+  orders: SalesOrder[];
+  reps: SalesRep[];
+  canDelete: boolean;
+  year: number;
+  showEdition?: boolean;
+  sortable?: boolean;
+  emptyText?: string;
+}) {
+  const [target, setTarget] = useState<OrderSheetTarget | null>(null);
+  const shown = orders;
+  const shownTotal = shown.filter((o) => o.status === "booked").reduce((s, o) => s + o.value_gbp, 0);
+  const th = (key: string, label: string, opts: { align?: "left" | "right"; firstDir?: "asc" | "desc"; className?: string } = {}) =>
+    sortable ? (
+      <SortableTh sortKey={key} align={opts.align} firstDir={opts.firstDir} className={opts.className}>
+        {label}
+      </SortableTh>
+    ) : (
+      <th scope="col" className={`px-3 py-2.5 font-semibold ${opts.align === "right" ? "text-right" : ""} ${opts.className ?? ""}`}>
+        {label}
+      </th>
+    );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
+        <table className="w-full min-w-[820px] text-sm">
+          <caption className="sr-only">Bookings - select a client to open and edit the booking</caption>
+          <thead>
+            <tr className="border-b border-border/70 text-left text-xs font-semibold text-muted-foreground">
+              {th("client", "Client", { className: "pl-4" })}
+              {showEdition && th("edition", "Edition", { firstDir: "desc" })}
+              {th("booked", "Booked", { firstDir: "desc" })}
+              {th("size", "What")}
+              {th("rep", "Rep")}
+              {th("value", "Value", { align: "right", firstDir: "desc" })}
+              {th("invoice", "Invoice")}
+              {th("status", "Status", { className: "pr-4" })}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={showEdition ? 8 : 7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  {emptyText}
+                </td>
+              </tr>
+            )}
+            {shown.map((o) => {
+              const inactive = o.status !== "booked";
+              return (
+                <tr
+                  key={o.id}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("a,button")) return;
+                    setTarget({ mode: "edit", order: o, year });
+                  }}
+                  className="cursor-pointer border-b border-border/60 align-top transition-colors last:border-0 hover:bg-accent/40"
+                >
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-start gap-1.5">
+                      <button
+                        type="button"
+                        className={`text-left font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring ${inactive ? "text-muted-foreground" : "text-foreground"}`}
+                        onClick={() => setTarget({ mode: "edit", order: o, year })}
+                      >
+                        {o.client_name}
+                      </button>
+                      {o.import_warning && (
+                        <AlertTriangle className="mt-0.5 size-3.5 shrink-0" style={{ color: "var(--warn)" }} aria-label="Needs a check" />
+                      )}
+                    </div>
+                    {o.company && (
+                      <Link href={`/companies/${o.company.id}`} className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary">
+                        <Building2 className="size-3" aria-hidden="true" />
+                        {o.company.label}
+                      </Link>
+                    )}
+                  </td>
+                  {showEdition && (
+                    <td className="px-3 py-2.5 text-xs">
+                      <Link href={`/sales/editions/${o.edition_id}`} className="font-medium text-foreground hover:text-primary hover:underline">
+                        {o.edition_label}
+                      </Link>
+                      {o.edition_date && <div className="text-[11px] text-muted-foreground">{fmtDate(o.edition_date)}</div>}
+                    </td>
+                  )}
+                  <td className="px-3 py-2.5 text-xs whitespace-nowrap text-muted-foreground">{fmtDate(o.booked_on)}</td>
+                  <td className="px-3 py-2.5 text-xs">
+                    <span className="text-foreground">{o.size ?? "—"}</span>
+                    {o.series && <span className="text-muted-foreground"> · {o.series}</span>}
+                    {o.position && <div className="text-[11px] text-muted-foreground">p. {o.position}</div>}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs whitespace-nowrap">
+                    {o.credits.length > 1 ? (
+                      <span title={o.credits.map((c) => `${c.name}: ${fmtGBP(c.amount_gbp)}`).join("\n")}>{o.credits.map((c) => c.code).join(" / ")}</span>
+                    ) : (
+                      <span title={o.rep?.name}>{o.rep?.code ?? <span className="text-muted-foreground">—</span>}</span>
+                    )}
+                  </td>
+                  <td className={`px-3 py-2.5 text-right tabular-nums whitespace-nowrap ${inactive ? "text-muted-foreground line-through decoration-muted-foreground/50" : "font-semibold text-foreground"}`}>
+                    {fmtGBP(o.value_gbp)}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs">
+                    <InvoiceCell o={o} />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <OrderStatusPill status={o.status} />
+                    {o.moved_to && <div className="mt-0.5 text-[11px] text-muted-foreground">→ {o.moved_to.label}</div>}
+                    {o.status !== "booked" && !o.moved_to && o.status_reason && (
+                      <div className="mt-0.5 max-w-44 truncate text-[11px] text-muted-foreground" title={`Sheet said: ${o.status_reason}`}>
+                        “{o.status_reason}”
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          {shown.length > 1 && (
+            <tfoot>
+              <tr className="border-t border-border/70 bg-muted/30 text-xs">
+                <td colSpan={showEdition ? 5 : 4} className="px-4 py-2 font-semibold text-muted-foreground">
+                  {shown.length} bookings shown
+                </td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-foreground">{fmtGBP(shownTotal)}</td>
+                <td colSpan={2} className="px-4 py-2 text-muted-foreground">booked value on this page (live bookings only)</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      <OrderSheet target={target} reps={reps} canDelete={canDelete} onClose={() => setTarget(null)} />
+    </div>
+  );
+}

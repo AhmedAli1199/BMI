@@ -1,18 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Download, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { backendFetch } from "@/lib/backend";
 import type { GroupDetail, GroupListItem, Page } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/clickable-table-row";
+import { GroupMembersTable } from "@/components/group-members-table";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteGroup } from "@/lib/actions";
@@ -53,9 +47,34 @@ export default async function GroupDetailPage({
           <h1 className="text-2xl font-semibold">{group.name}</h1>
           {group.description && <p className="text-sm text-muted-foreground">{group.description}</p>}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<a href={`/api/files/groups/${group.id}/export`} download />}
+            title="Download every member (including sub-groups) as an Excel sheet"
+          >
+            <Download className="size-4" />
+            Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/mail-merge?group=${group.id}`} />}
+          >
+            <Mail className="size-4" />
+            Mail merge
+          </Button>
           <GroupFormDialog existing={group} />
-          <DeleteEntityButton entityLabel={group.name} id={group.id} action={deleteGroup} redirectTo="/groups" />
+          <DeleteEntityButton
+            entityLabel={group.name}
+            id={group.id}
+            action={deleteGroup}
+            redirectTo="/groups"
+            description="This can't be undone. Contacts in this group are not deleted - only their membership in this group is removed. Any sub-groups nested under it are kept, just detached (no longer nested here)."
+          />
         </div>
       </div>
 
@@ -66,46 +85,12 @@ export default async function GroupDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {group.members.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Job title</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {group.members.map((c) => (
-                  <ClickableTableRow key={c.id} href={`/contacts/${c.id}`}>
-                    <TableCell>
-                      <Link href={`/contacts/${c.id}`} className="hover:underline">
-                        {c.full_name ||
-                          [c.first_name, c.last_name].filter(Boolean).join(" ") ||
-                          "(no name)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {c.company_id ? (
-                        <Link href={`/companies/${c.company_id}`} className="hover:underline">
-                          {c.company_name}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {c.job_title || <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                  </ClickableTableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No members yet — add contacts to this group from their own contact page.
-            </p>
-          )}
+          <GroupMembersTable
+            groupId={group.id}
+            groupName={group.name}
+            sourceDb={group.source_db}
+            initialMembers={group.members}
+          />
         </CardContent>
       </Card>
     </div>

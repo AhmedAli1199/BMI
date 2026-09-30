@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Numeric, SmallInteger, String, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -36,3 +36,8 @@ class Opportunity(Base, UUIDPk, ProvenanceMixin):
     open_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     estimated_close_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     actual_close_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # USER1-8 custom fields - the original ETL only ever called
+    # discover_custom_columns() for TBL_CONTACT/COMPANY/GROUP, never
+    # TBL_OPPORTUNITY, so these were silently dropped.
+    custom_fields: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

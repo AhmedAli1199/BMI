@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
-from app.automations.scheduler import ScheduledJob, register_job
 from app.models import Contact, Note, ReviewQueueItem
 
 
@@ -99,51 +98,24 @@ def _handle_departure(db: Session, item: ReviewQueueItem, action_id: str, input_
 
 register(ReviewKind(
     kind="departure_unconfirmed",
-    label="Departure & successor",
-    description=(
-        "A contact appears to have left their role. We may have researched a successor, but every "
-        "path here needs a human to confirm before any record is updated - a wrong successor means "
-        "the wrong person gets pitched or mailed."
-    ),
+    label="Executive Role Departures",
+    description="Contacts detected as having moved on, with proposed same-company successors ready for review.",
     actions=[
         ReviewAction(
-            id="confirm_successor", label="Confirm researched successor", style="primary", outcome="approved",
-            confirm_message="This updates every record this person holds across all titles. Continue?",
+            id="confirm_successor", label="Confirm successor", style="primary", outcome="approved",
+            confirm_message="This updates the contact record across all active publication titles. Continue?",
         ),
-        ReviewAction(id="pick_different_successor", label="Pick someone else", style="secondary", outcome="approved", requires_contact_picker=True),
+        ReviewAction(id="pick_different_successor", label="Assign different contact", style="secondary", outcome="approved", requires_contact_picker=True),
         ReviewAction(
             id="use_fallback", label="Use general company address", style="secondary", outcome="approved",
             extra_fields=[ExtraField(key="fallback_email", label="General company email", placeholder="info@company.com")],
         ),
-        ReviewAction(id="dismiss_false_alarm", label="False alarm, dismiss", style="destructive", outcome="rejected", confirm_message="Dismiss this departure signal entirely?"),
+        ReviewAction(id="dismiss_false_alarm", label="Dismiss (contact remains)", style="secondary", outcome="rejected", confirm_message="Dismiss this departure signal?"),
     ],
     handler=_handle_departure,
 ))
 
 
-def scan_for_departures() -> None:
-    """CS-003 producer: scans recent mailbox signals (bounces, OOO text
-    mentioning a departure, etc.) plus whatever research step finds a
-    likely successor, and writes a `departure_unconfirmed` row.
-
-    Not implemented yet - depends on the same Graph/Gemini wiring as
-    scan_mailbox_for_bounces_and_ooo (see bounce_handling.py), plus
-    whatever successor-research step (LinkedIn search, company website,
-    ...) CS-003 ends up using. Wired into the scheduler now so enabling
-    CS-003 later is only: fill this body in, set
-    AUTOMATIONS_DEPARTURE_SCAN_ENABLED=true, restart.
-    """
-    raise NotImplementedError(
-        "Departure scanning for CS-003 isn't built yet - "
-        "see scan_for_departures's docstring."
-    )
-
-
-register_job(ScheduledJob(
-    id="cs003_departure_scan",
-    label="Departure & successor scan",
-    description="Looks for departure signals and researches a likely successor (CS-003).",
-    cron="0 */6 * * *",  # every 6 hours - lower-frequency, higher-stakes signal than the bounce scan
-    func=scan_for_departures,
-    enabled_flag="automations_departure_scan_enabled",
-))
+# No scheduled job of its own: departure_unconfirmed items are queued by the
+# mailbox scan (bounce_handling.py) when an auto-reply says the person has
+# left, using any replacement it names as the suggested successor.

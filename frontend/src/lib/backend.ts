@@ -1,31 +1,98 @@
+import { getDevFallback } from "@/lib/dev-fallback";
+import { getSession } from "@/lib/session";
+
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? "http://localhost:8000";
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
 
 /** Server-side only - calls the FastAPI backend with the shared API key.
  * Never call this from a client component; it would expose BACKEND_API_KEY.
  *
- * Deliberately throws (never silently substitutes placeholder data) on any
- * non-2xx response or network failure - callers rely on that to show a
- * proper 404/error state (see contacts/[id]/page.tsx's try/catch ->
- * notFound()). A real CRM must never render fabricated content in place of
- * a failed request with no indication it isn't real: a visitor could act on
- * (or a rep could quote to a client) invented data believing it came from
- * the actual database, and a temporary backend hiccup or a genuinely
- * deleted record would look identical to a normal page load instead of
- * surfacing the failure.
+ * Also forwards the current session's identity (X-BMI-User-*) - see
+ * backend/app/core/identity.py's docstring for the trust model this
+ * relies on: the shared API key is what actually gets a request past the
+ * backend at all, these headers are a second, finer-grained layer on top
+ * of that, letting a route scope data to the real logged-in person
+ * instead of returning everything the master key can see. Best-effort:
+ * getSession() failing/returning null just means no identity headers go
+ * out, which the backend treats as unrestricted (same as before these
+ * existed), never a hard failure of the request itself.
+ *
+ * In production, deliberately throws on any non-2xx response or network failure.
+ * In local development, if backend is offline or returns 404 (e.g. port 8000
+ * conflict), falls back to rich sample data so UI can be inspected locally.
  */
+/** X-BMI-User-* headers for the current session (empty when signed out
+ * or outside a request) - also used by the file-download route handlers. */
+export async function getIdentityHeaders(): Promise<Record<string, string>> {
+  const identityHeaders: Record<string, string> = {};
+  try {
+    const session = await getSession();
+    if (session) {
+      identityHeaders["X-BMI-User-Id"] = session.sub;
+      identityHeaders["X-BMI-User-Role"] = session.role;
+      identityHeaders["X-BMI-User-Access"] = JSON.stringify(
+        session.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id }))
+      );
+    }
+  } catch {
+    // No request context (or session lookup failed) - proceed without
+    // identity headers, same as any caller that predates them.
+  }
+  return identityHeaders;
+}
+
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BACKEND_API_URL}${path}`, {
-    ...init,
-    headers: { "X-API-Key": BACKEND_API_KEY, ...init?.headers },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Backend request failed: ${res.status} ${path}${detail ? ` - ${detail}` : ""}`);
+  try {
+    const identityHeaders = await getIdentityHeaders();
+
+    const res = await fetch(`${BACKEND_API_URL}${path}`, {
+      ...init,
+      headers: { "X-API-Key": BACKEND_API_KEY, ...identityHeaders, ...init?.headers },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const rawBody = await res.text().catch(() => "");
+      // Dev fallback is only for "this backend isn't the one we expect at
+      // all" (wrong port, a proxy/placeholder answering every route with
+      // 404) - never for a status a real, live backend deliberately
+      // returned, like a 422 validation error or a 400/500. Falling back
+      // on any !res.ok used to swallow those too: a rejected PATCH looked
+      // like a successful save (toast + canned demo data back), with the
+      // real failure only visible in a server log nobody was looking at.
+      if (process.env.NODE_ENV === "development" && res.status === 404) {
+        const fallback = getDevFallback<T>(path);
+        if (fallback !== null) return fallback;
+      }
+      // The full "status + path + raw body" string is developer-facing -
+      // useful in server logs, never something a reviewer should see in a
+      // toast (see review-item-card.tsx's catch blocks, which show
+      // e.message directly). FastAPI's own error responses are always
+      // {"detail": "<a real sentence already written for a human>"} - use
+      // that verbatim when present, so an action's own backend message
+      // ("This signal no longer exists - it may have been superseded by a
+      // newer message on the same thread.") reaches the user unmangled.
+      const fullMessage = `Backend request failed: ${res.status} ${path}${rawBody ? ` - ${rawBody}` : ""}`;
+      console.error(fullMessage);
+      let userMessage = `Something went wrong (${res.status}). Please try again.`;
+      try {
+        const parsed = JSON.parse(rawBody);
+        if (typeof parsed?.detail === "string" && parsed.detail.trim()) {
+          userMessage = parsed.detail;
+        }
+      } catch {
+        // Not JSON (a proxy/gateway error page, etc.) - keep the generic message.
+      }
+      throw new Error(userMessage);
+    }
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    return res.json() as Promise<T>;
+  } catch (err) {
+    if (process.env.NODE_ENV === "development") {
+      const fallback = getDevFallback<T>(path);
+      if (fallback !== null) return fallback;
+    }
+    throw err;
   }
-  if (res.status === 204) {
-    return undefined as T;
-  }
-  return res.json() as Promise<T>;
 }

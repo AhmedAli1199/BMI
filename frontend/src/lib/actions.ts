@@ -3,18 +3,39 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
+import { getSession } from "@/lib/session";
 import { PUBLICATION_COOKIE } from "@/lib/publication";
 import type {
+  ActivityOut,
+  ActivitiesPage,
+  ActivityRecurrence,
   CompanyListItem,
   ContactDetail,
   ContactListItem,
+  FieldChange,
   GroupListItem,
+  HistoryOut,
   Page,
+  KindDetail,
+  ReviewQueueInsights,
   Publication,
+  ReviewQueueItem,
+  StatsRange,
   RoleDef,
   UserAccessEntry,
   UserAccount,
 } from "@/lib/types";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** session.sub is "local-dev" under the auth bypass (see lib/session.ts) -
+ * never a real user id. The backend's created_by_user_id columns are typed
+ * UUID, so sending that literal string would 422 rather than gracefully
+ * becoming "no user" - filter it out here, the one place every caller in
+ * this file goes through. */
+function currentUserId(sub: string | undefined): string | null {
+  return sub && UUID_RE.test(sub) ? sub : null;
+}
 
 /** Every CRUD mutation for Contacts/Companies/Groups, callable straight from
  * client components (Next.js server actions run on the server regardless of
@@ -61,6 +82,29 @@ function cleanPayload<T extends Record<string, unknown>>(input: T): Partial<T> {
   return out;
 }
 
+/** Same as cleanPayload but for a PATCH/update, where an empty string is a
+ * real, intentional edit ("clear this field out") rather than "field not
+ * filled in yet" - dropping it here silently turned "clear the name" into
+ * a no-op that never reached the backend, so nothing changed on the page,
+ * on reload, or in the field-change history. Only `undefined` (a key the
+ * form never touched) is dropped; `null` and `""` are sent as-is. */
+function cleanUpdatePayload<T extends Record<string, unknown>>(input: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    // An empty string is "clear this field" for a text field, but the
+    // backend's typed fields (birthdate: date, company_id: uuid) reject ""
+    // outright - Pydantic can't parse it as a date/uuid at all, which used
+    // to 422 the *entire* PATCH (every other field in the same request
+    // included) the moment a date field was touched while empty. null is
+    // what every field type actually accepts as "no value" - and reads the
+    // same as "" everywhere a field is displayed (see field-change-
+    // history.tsx: `new_value || "(cleared)"` treats both identically).
+    out[key as keyof T] = (value === "" ? null : value) as T[keyof T];
+  }
+  return out;
+}
+
 export async function createContact(input: ContactFormInput) {
   const contact = await backendFetch<ContactDetail>("/api/contacts", {
     method: "POST",
@@ -76,7 +120,7 @@ export async function updateContact(id: string, input: ContactFormInput) {
   const contact = await backendFetch<ContactDetail>(`/api/contacts/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cleanPayload(input)),
+    body: JSON.stringify(cleanUpdatePayload(input)),
   });
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${id}`);
@@ -92,6 +136,29 @@ export async function deleteContact(id: string) {
   revalidatePath("/contacts");
 }
 
+/** Moves every note/history entry from one contact to another - "when a
+ * contact leaves a particular company, we can easily move notes in ACT
+ * from that person to a new person" (BMI's own Act pain-points doc). See
+ * backend/app/services/contact_transfer.py for what actually moves. */
+export async function reassignContact(contactId: string, successorId: string) {
+  await backendFetch<void>(`/api/contacts/${contactId}/reassign/${successorId}`, { method: "POST" });
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath(`/contacts/${successorId}`);
+}
+
+/** Who changed what on this record, newest first - "the ability to
+ * identify which BMI user has made changes to specific data" (BMI's Act
+ * pain-points doc). Fetched on demand from the expandable history panel
+ * rather than bundled into ContactDetail/CompanyDetail, so a page that
+ * never opens it never pays for it. */
+export async function getContactFieldChanges(contactId: string): Promise<FieldChange[]> {
+  return backendFetch<FieldChange[]>(`/api/contacts/${contactId}/field-changes`);
+}
+
+export async function getCompanyFieldChanges(companyId: string): Promise<FieldChange[]> {
+  return backendFetch<FieldChange[]>(`/api/companies/${companyId}/field-changes`);
+}
+
 export async function addContactToGroup(contactId: string, groupId: string) {
   await backendFetch<void>(`/api/contacts/${contactId}/groups/${groupId}`, { method: "POST" });
   revalidatePath(`/contacts/${contactId}`);
@@ -104,13 +171,151 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
   revalidatePath(`/groups/${groupId}`);
 }
 
-export async function addContactNote(contactId: string, body: string, note_type: string = "Note") {
+/** Bulk version of removeContactFromGroup - one request for the whole
+ * selection instead of one per contact, so a large mailing-prep cleanup
+ * doesn't mean N round trips (and N chances for the list to jump back to
+ * the top - see group-members-table.tsx, which removes the selected rows
+ * from its own local state rather than re-fetching after this call). */
+export async function removeGroupMembers(groupId: string, contactIds: string[]) {
+  await backendFetch<void>(`/api/groups/${groupId}/members/remove`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contact_ids: contactIds }),
+  });
+  revalidatePath(`/groups/${groupId}`);
+}
+
+export async function addContactNote(
+  contactId: string,
+  body: string,
+  note_type: string = "Note",
+  is_private: boolean = false
+) {
+  const session = await getSession();
   await backendFetch(`/api/contacts/${contactId}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body, note_type }),
+    body: JSON.stringify({ body, note_type, is_private, created_by_user_id: currentUserId(session?.sub) }),
   });
   revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteContactNote(contactId: string, noteId: string) {
+  await backendFetch(`/api/contacts/${contactId}/notes/${noteId}`, { method: "DELETE" });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export type LogHistoryInput = {
+  history_type: string;
+  subject?: string;
+  details?: string;
+  duration_minutes?: number;
+  is_private?: boolean;
+  occurred_at: string;
+};
+
+export async function logContactHistory(contactId: string, input: LogHistoryInput) {
+  const session = await getSession();
+  const entry = await backendFetch<HistoryOut>(`/api/contacts/${contactId}/history`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, created_by_user_id: currentUserId(session?.sub) }),
+  });
+  revalidatePath(`/contacts/${contactId}`);
+  return entry;
+}
+
+export async function logCompanyHistory(companyId: string, input: LogHistoryInput) {
+  const session = await getSession();
+  const entry = await backendFetch<HistoryOut>(`/api/companies/${companyId}/history`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, created_by_user_id: currentUserId(session?.sub) }),
+  });
+  revalidatePath(`/companies/${companyId}`);
+  return entry;
+}
+
+export async function deleteContactHistory(contactId: string, historyId: string) {
+  await backendFetch(`/api/contacts/${contactId}/history/${historyId}`, { method: "DELETE" });
+  revalidatePath(`/contacts/${contactId}`);
+}
+
+export async function deleteCompanyHistory(companyId: string, historyId: string) {
+  await backendFetch(`/api/companies/${companyId}/history/${historyId}`, { method: "DELETE" });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export type ScheduleActivityInput = {
+  activity_type: string;
+  subject?: string;
+  details?: string;
+  location?: string;
+  start_at: string;
+  end_at?: string;
+  is_timeless?: boolean;
+  is_private?: boolean;
+  recurrence?: ActivityRecurrence;
+  contact_id?: string | null;
+  company_id?: string | null;
+  source_db: string;
+};
+
+export async function createActivity(input: ScheduleActivityInput) {
+  const session = await getSession();
+  const activity = await backendFetch<ActivityOut>("/api/activities", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, created_by_user_id: currentUserId(session?.sub) }),
+  });
+  if (input.contact_id) revalidatePath(`/contacts/${input.contact_id}`);
+  if (input.company_id) revalidatePath(`/companies/${input.company_id}`);
+  revalidatePath("/activities");
+  return activity;
+}
+
+export async function setActivityDone(id: string, is_cleared: boolean, revalidate?: { contactId?: string; companyId?: string }) {
+  await backendFetch<ActivityOut>(`/api/activities/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_cleared }),
+  });
+  if (revalidate?.contactId) revalidatePath(`/contacts/${revalidate.contactId}`);
+  if (revalidate?.companyId) revalidatePath(`/companies/${revalidate.companyId}`);
+  revalidatePath("/activities");
+}
+
+export async function deleteActivity(id: string, revalidate?: { contactId?: string; companyId?: string }) {
+  await backendFetch<void>(`/api/activities/${id}`, { method: "DELETE" });
+  if (revalidate?.contactId) revalidatePath(`/contacts/${revalidate.contactId}`);
+  if (revalidate?.companyId) revalidatePath(`/companies/${revalidate.companyId}`);
+  revalidatePath("/activities");
+}
+
+export async function listActivities(params: {
+  source_db?: string;
+  assigned_user_id?: string;
+  is_cleared?: boolean;
+  priority?: string;
+  activity_type?: string;
+  q?: string;
+  start_after?: string;
+  start_before?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<ActivitiesPage> {
+  const q = new URLSearchParams();
+  if (params.source_db) q.set("source_db", params.source_db);
+  if (params.assigned_user_id) q.set("assigned_user_id", params.assigned_user_id);
+  if (params.is_cleared !== undefined) q.set("is_cleared", String(params.is_cleared));
+  if (params.priority) q.set("priority", params.priority);
+  if (params.activity_type) q.set("activity_type", params.activity_type);
+  if (params.q) q.set("q", params.q);
+  if (params.start_after) q.set("start_after", params.start_after);
+  if (params.start_before) q.set("start_before", params.start_before);
+  q.set("page", String(params.page ?? 1));
+  q.set("page_size", String(params.page_size ?? 100));
+  return backendFetch<ActivitiesPage>(`/api/activities?${q}`);
 }
 
 // ---- Contact channels (email/phone/address) --------------------------------
@@ -236,7 +441,7 @@ export async function updateCompany(id: string, input: Partial<CompanyFormInput>
   await backendFetch<void>(`/api/companies/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cleanPayload(input)),
+    body: JSON.stringify(cleanUpdatePayload(input)),
   });
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
@@ -247,12 +452,18 @@ export async function deleteCompany(id: string) {
   revalidatePath("/companies");
 }
 
-export async function addCompanyNote(companyId: string, body: string) {
+export async function addCompanyNote(companyId: string, body: string, is_private: boolean = false) {
+  const session = await getSession();
   await backendFetch(`/api/companies/${companyId}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({ body, is_private, created_by_user_id: currentUserId(session?.sub) }),
   });
+  revalidatePath(`/companies/${companyId}`);
+}
+
+export async function deleteCompanyNote(companyId: string, noteId: string) {
+  await backendFetch(`/api/companies/${companyId}/notes/${noteId}`, { method: "DELETE" });
   revalidatePath(`/companies/${companyId}`);
 }
 
@@ -261,6 +472,8 @@ export async function addCompanyNote(companyId: string, body: string) {
 export type GroupFormInput = {
   name: string;
   description?: string;
+  source_db?: string;
+  parent_group_id?: string | null;
 };
 
 export async function createGroup(input: GroupFormInput) {
@@ -277,7 +490,7 @@ export async function updateGroup(id: string, input: Partial<GroupFormInput>) {
   await backendFetch<void>(`/api/groups/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cleanPayload(input)),
+    body: JSON.stringify(cleanUpdatePayload(input)),
   });
   revalidatePath("/groups");
   revalidatePath(`/groups/${id}`);
@@ -336,15 +549,112 @@ export async function searchContacts(q: string): Promise<ContactListItem[]> {
 export async function resolveReviewItem(
   itemId: string,
   actionId: string,
-  input: { note?: string; contact_id?: string; fields?: Record<string, string> }
+  input: { note?: string; contact_id?: string; fields?: Record<string, string>; chosen_entity_id?: string }
 ) {
-  await backendFetch(`/api/review-queue/${itemId}/actions/${actionId}`, {
+  const resolved = await backendFetch<ReviewQueueItem>(`/api/review-queue/${itemId}/actions/${actionId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
   revalidatePath("/automations");
   revalidatePath("/automations/review");
+  revalidatePath("/automations/today");
+  // Every other write in this file revalidates the exact contact/company
+  // page it touched - this one didn't, so a note/field-update from here
+  // (e.g. SALES-012's "Draft follow-up") could sit behind a stale cached
+  // page if that contact was already open in the same tab.
+  if (resolved.entity_type === "contact" && resolved.entity_id) revalidatePath(`/contacts/${resolved.entity_id}`);
+  if (resolved.entity_type === "company" && resolved.entity_id) revalidatePath(`/companies/${resolved.entity_id}`);
+  // requires_related_entity_choice actions (e.g. CS-004's merge) act on a
+  // record named in related_entities, not entity_id - revalidate those too.
+  for (const related of resolved.payload?.related_entities ?? []) {
+    revalidatePath(`/${related.type === "contact" ? "contacts" : "companies"}/${related.id}`);
+  }
+}
+
+/** Regenerates an AI-drafted follow-up with extra reviewer instructions -
+ * see backend's POST /api/review-queue/{id}/redraft. Deliberately does
+ * NOT resolve the item (no revalidate of the review queue itself needed
+ * for that reason) - it's a preview step the reviewer can call as many
+ * times as they like before actually approving via resolveReviewItem. */
+export async function redraftReviewItem(itemId: string, instructions: string): Promise<string> {
+  const result = await backendFetch<{ draft: string }>(`/api/review-queue/${itemId}/redraft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ instructions }),
+  });
+  return result.draft;
+}
+
+/** Applies one action to every currently-pending item of one kind - see
+ * backend's POST /api/review-queue/bulk-actions/{action_id}. Always scoped
+ * to a single kind (bulk actions can't span kinds, since actions are
+ * defined per kind) and rejected up front by the backend for any action
+ * that needs per-item input it can't collect in bulk (a contact picker, a
+ * required extra field). Throws with the backend's own message on that
+ * rejection; on success, returns the counts so the caller can report
+ * "412 dismissed" / "3 failed" rather than a bare success toast. */
+export async function bulkResolveReviewItems(
+  kind: string,
+  actionId: string,
+  note?: string
+): Promise<{ matched: number; succeeded: number; failed: number; errors: string[] }> {
+  const result = await backendFetch<{ matched: number; succeeded: number; failed: number; errors: string[] }>(
+    `/api/review-queue/bulk-actions/${actionId}?${new URLSearchParams({ kind })}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    }
+  );
+  revalidatePath("/automations");
+  revalidatePath("/automations/review");
+  revalidatePath("/automations/today");
+  return result;
+}
+
+/** Puts a rejected review item back to pending - see backend's
+ * POST /api/review-queue/{id}/reopen for why this only works on a
+ * rejected item, never an approved one. */
+export async function reopenReviewItem(itemId: string) {
+  await backendFetch(`/api/review-queue/${itemId}/reopen`, { method: "POST" });
+  revalidatePath("/automations");
+  revalidatePath("/automations/review");
+}
+
+/** Sets (or replaces) a runtime override for an automation tunable - see
+ * backend's PUT /api/automations/settings/{key}. Takes effect on that
+ * setting's next read (a scan's next tick, or the next "Run now" click),
+ * never a restart. */
+export async function updateAutomationSetting(key: string, value: boolean | number | string) {
+  await backendFetch(`/api/automations/settings/${key}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  revalidatePath("/automations/settings");
+  revalidatePath("/automations");
+}
+
+/** Clears a stored override, reverting a setting to its env var default. */
+export async function resetAutomationSetting(key: string) {
+  await backendFetch(`/api/automations/settings/${key}`, { method: "DELETE" });
+  revalidatePath("/automations/settings");
+  revalidatePath("/automations");
+}
+
+/** SALES-002's one-confirm batch write - resolves every still-pending
+ * business-card review item from one upload's batch_id with its sensible
+ * default action (see backend's business_card.resolve_batch). Returns the
+ * added/updated/logged/failed counts so the caller can show them. */
+export async function confirmBusinessCardBatch(batchId: string): Promise<{
+  added: number; updated: number; logged: number; failed: number;
+}> {
+  const result = await backendFetch<{ added: number; updated: number; logged: number; failed: number }>(
+    `/api/automations/business-cards/batches/${batchId}/confirm`, { method: "POST" }
+  );
+  revalidatePath("/automations/review");
+  return result;
 }
 
 // ---- Settings / preferences -------------------------------------------
@@ -368,7 +678,36 @@ export async function updateUserPreferences(userId: string, values: Record<strin
 // (source_db value), never an actual new Postgres database.
 
 export async function listPublications(): Promise<Publication[]> {
-  return backendFetch<Publication[]>("/api/publications");
+  try {
+    return await backendFetch<Publication[]>("/api/publications");
+  } catch {
+    return [
+      {
+        id: "pub_1",
+        name: "Onboard Hospitality",
+        slug: "onboard",
+        description: "Inflight catering & onboard services",
+        color: "blue",
+        icon: "plane",
+      },
+      {
+        id: "pub_2",
+        name: "Selling Travel",
+        slug: "sellingtravel",
+        description: "Travel trade & agent distribution",
+        color: "emerald",
+        icon: "compass",
+      },
+      {
+        id: "pub_3",
+        name: "Prospects",
+        slug: "prospects",
+        description: "Global leads & brand directory",
+        color: "amber",
+        icon: "globe",
+      },
+    ];
+  }
 }
 
 export type PublicationFormInput = {
@@ -452,4 +791,14 @@ export async function updateTeamUser(
   });
   revalidatePath("/settings/users");
   return user;
+}
+
+/** The expandable detail under one automation's row on a workstream page -
+ * fetched only when that row is opened. */
+export async function getKindDetail(kind: string, range: StatsRange): Promise<KindDetail> {
+  return backendFetch<KindDetail>(`/api/automations/kinds/${encodeURIComponent(kind)}/detail?range=${range}`);
+}
+
+export async function getQueueInsights(kind: string): Promise<ReviewQueueInsights> {
+  return backendFetch<ReviewQueueInsights>(`/api/review-queue/insights?kind=${encodeURIComponent(kind)}&status=pending`);
 }

@@ -1,12 +1,19 @@
 import Link from "next/link";
-import { Building2, Sparkles, Users, UsersRound } from "lucide-react";
+import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, Sparkles, Users, UsersRound } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { DashboardStats, UserPreferences } from "@/lib/types";
+import type { DashboardStats, Page, ReviewQueueItem, UserPreferences } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
-import { accessLabel, allowedSourceDbSlugs, canAddDatabase, resolveScope } from "@/lib/access";
+import { styleForKind } from "@/lib/automation-style";
+import {
+  accessLabel,
+  allowedSourceDbSlugs,
+  canAddDatabase,
+  canViewAutomationsQueue,
+  resolveScope,
+} from "@/lib/access";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EntityAvatar } from "@/components/entity-avatar";
@@ -52,8 +59,11 @@ export default async function DashboardPage() {
   // back and passed it to the stats call, so it silently kept using the
   // default no matter what was chosen.
   const recentActivitySort = session
-    ? (await backendFetch<UserPreferences>(`/api/users/${session.sub}/preferences`)).values
-        .recent_activity_sort
+    ? (
+        await backendFetch<UserPreferences>(
+          `/api/users/${session.sub}/preferences`
+        ).catch(() => undefined)
+      )?.values?.recent_activity_sort
     : undefined;
 
   const statsParams = new URLSearchParams();
@@ -75,6 +85,32 @@ export default async function DashboardPage() {
 
   const stats = await backendFetch<DashboardStats>(`/api/dashboard/stats${statsParams.size ? `?${statsParams}` : ""}`);
 
+  // "While you were away" - what BMI Brain's automations surfaced or
+  // resolved since the rep last looked. Same review-queue endpoint the
+  // Automations Hub uses, just the 5 most recent items each side rather
+  // than a full paged list. Gated the same way the sidebar's Today/
+  // Review Queue links are - no point fetching this for a role that
+  // can't open either destination.
+  const showOvernightActivity = canViewAutomationsQueue(session);
+  const [pendingActivity, approvedActivity, rejectedActivity] = showOvernightActivity
+    ? await Promise.all([
+        backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=pending&sort=recent&page_size=5").catch(
+          () => ({ items: [], total: 0, page: 1, page_size: 5 })
+        ),
+        backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=approved&sort=recent&page_size=5").catch(
+          () => ({ items: [], total: 0, page: 1, page_size: 5 })
+        ),
+        backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=rejected&sort=recent&page_size=5").catch(
+          () => ({ items: [], total: 0, page: 1, page_size: 5 })
+        ),
+      ])
+    : [{ items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }];
+
+  const newForReview = pendingActivity.items.slice(0, 5);
+  const recentlyResolved = [...approvedActivity.items, ...rejectedActivity.items]
+    .sort((a, b) => new Date(b.reviewed_at ?? 0).getTime() - new Date(a.reviewed_at ?? 0).getTime())
+    .slice(0, 5);
+
   const KPIS = [
     {
       label: "Total Contacts",
@@ -82,8 +118,8 @@ export default async function DashboardPage() {
       value: stats.total_contacts,
       icon: Users,
       href: "/contacts",
-      color: "text-amber-600 dark:text-amber-400",
-      accent: "from-amber-600 to-amber-700",
+      color: "text-chart-1",
+      accent: "bg-chart-1",
     },
     {
       label: "Companies",
@@ -91,8 +127,8 @@ export default async function DashboardPage() {
       value: stats.total_companies,
       icon: Building2,
       href: "/companies",
-      color: "text-blue-600 dark:text-blue-400",
-      accent: "from-blue-600 to-blue-700",
+      color: "text-chart-2",
+      accent: "bg-chart-2",
     },
     {
       label: "Groups",
@@ -100,8 +136,8 @@ export default async function DashboardPage() {
       value: stats.total_groups,
       icon: UsersRound,
       href: "/groups",
-      color: "text-emerald-600 dark:text-emerald-400",
-      accent: "from-emerald-600 to-emerald-700",
+      color: "text-chart-3",
+      accent: "bg-chart-3",
     },
   ];
 
@@ -137,66 +173,75 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Magazine Title Quick Switcher Cards - clicking one sets the global
-          publication filter (persists across every tab) and stays right
-          here, rather than navigating away. Renders entirely from
-          `publications` (fetched from /api/publications) - adding a
-          database via the tile below shows up here immediately, same
-          styling as the three original titles. */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        {publications.map((pub) => {
-          const style = styleForColor(pub.color);
-          const Icon = iconForKey(pub.icon);
-          const isActive = sourceDb === pub.slug;
-          return (
-            <PublicationTileButton key={pub.slug} sourceDb={pub.slug} className="group">
-              <Card
-                className={`editorial-card h-full transition-all hover:shadow-xs hover:border-primary/40 ${
-                  isActive ? "border-primary/50 ring-1 ring-primary/30" : ""
-                }`}
-              >
-                <CardContent className="flex items-start gap-4 p-5">
-                  <div
-                    className={`flex size-11 shrink-0 items-center justify-center rounded-xl border transition-transform group-hover:scale-105 ${style.chipBg}`}
-                  >
-                    <Icon className="size-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm font-bold text-foreground transition-colors">
-                      {pub.name}
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                      {pub.description || "No description yet"}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                      <span>{contactsFor(pub.slug).toLocaleString()} Contacts</span>
-                      <span className="text-muted-foreground">&rarr;</span>
+      {/* Magazine Title Quick Switcher Cards - only shown on "All Titles"
+          (no sourceDb filter). Once a specific title is selected, showing
+          the other two titles' "0 Contacts" tiles here is just clutter -
+          nothing on this page reads them at that point, the single-line
+          "Showing X only" strip below already says which title is active.
+          Clicking one sets the global publication filter (persists across
+          every tab) and stays right here, rather than navigating away.
+          Renders entirely from `publications` (fetched from
+          /api/publications) - adding a database via the tile below shows
+          up here immediately, same styling as the three original titles. */}
+      {!sourceDb && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {publications.map((pub) => {
+            const style = styleForColor(pub.color);
+            const Icon = iconForKey(pub.icon);
+            return (
+              <PublicationTileButton key={pub.slug} sourceDb={pub.slug} className="group">
+                <Card className="editorial-card h-full overflow-hidden transition-all hover:shadow-xs hover:border-primary/40">
+                  <div className={`masthead-rule w-full ${style.accent}`} />
+                  <CardContent className="flex items-start gap-4 p-5">
+                    <div
+                      className={`brand-icon size-10 shrink-0 transition-transform group-hover:scale-105 ${style.chipBg}`}
+                    >
+                      <Icon className="size-4.5" />
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </PublicationTileButton>
-          );
-        })}
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-bold text-foreground transition-colors">
+                        {pub.name}
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {pub.description || "No description yet"}
+                      </p>
+                      <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                        <span>{contactsFor(pub.slug).toLocaleString()} Contacts</span>
+                        <span className="text-muted-foreground">&rarr;</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </PublicationTileButton>
+            );
+          })}
 
-        {/* "Add a database" - not a separate Postgres database, a new
-            source_db label any contact/company can be filed under (see
-            backend/app/models/publication.py). Admin-only. */}
-        {canAddDatabase(session) && (
-          <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
-            <PublicationFormDialog />
-          </Card>
-        )}
-      </div>
+          {/* "Add a database" - not a separate Postgres database, a new
+              source_db label any contact/company can be filed under (see
+              backend/app/models/publication.py). Admin-only. */}
+          {canAddDatabase(session) && (
+            <Card className="editorial-card flex h-full items-center justify-center border-dashed p-5">
+              <PublicationFormDialog />
+            </Card>
+          )}
+        </div>
+      )}
 
       {sourceDb && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>
             Showing <span className="font-semibold text-foreground">{sourceDb}</span> only.
           </span>
-          <PublicationTileButton sourceDb="">
-            <span className="font-semibold text-primary hover:underline">Clear filter</span>
-          </PublicationTileButton>
+          {/* "Show all titles" is only a real option for someone who can
+              actually see more than one database - for anyone locked to a
+              single title (see scope.locked / resolveScope), this link
+              used to appear and do nothing when clicked, since the scope
+              would just clamp straight back to their one allowed database. */}
+          {!scope.locked && (
+            <PublicationTileButton sourceDb="">
+              <span className="font-semibold text-primary hover:underline">Show all titles</span>
+            </PublicationTileButton>
+          )}
         </div>
       )}
 
@@ -205,7 +250,7 @@ export default async function DashboardPage() {
         {KPIS.map((k) => (
           <Link key={k.label} href={k.href} className="group">
             <Card className="editorial-card h-full overflow-hidden transition-all hover:border-primary/50 hover:shadow-xs">
-              <div className={`h-1 w-full bg-gradient-to-r ${k.accent}`} />
+              <div className={`masthead-rule w-full ${k.accent}`} />
               <CardContent className="flex items-center justify-between p-6">
                 <div>
                   <div className="editorial-stat text-3xl sm:text-4xl font-serif font-bold text-foreground tracking-tight">
@@ -218,14 +263,128 @@ export default async function DashboardPage() {
                     {k.sublabel}
                   </div>
                 </div>
-                <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl bg-muted/60 ${k.color} border border-border`}>
-                  <k.icon className="size-6" />
+                <span className={`brand-icon size-11 shrink-0 ${k.color}`} aria-hidden="true">
+                  <k.icon className="size-5" />
                 </span>
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
+
+      {/* BMI Brain Overnight Activity - what the automations engine
+          surfaced or resolved since the rep last checked. Only shown to
+          roles that can actually act on it (see canViewAutomationsQueue) -
+          not just another read-only KPI, every item here links straight
+          into the review queue. */}
+      {showOvernightActivity && (newForReview.length > 0 || recentlyResolved.length > 0) && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" aria-hidden="true" />
+              <div>
+                <h2 className="editorial-heading text-base font-bold text-foreground">
+                  BMI Brain &middot; Overnight Activity
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  What the automations engine found or resolved since you last checked.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/automations/review"
+              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              Open review queue <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card className="editorial-card">
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <ClipboardCheck className="size-4 text-amber-600" aria-hidden="true" />
+                  New for your review
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-1 p-3">
+                {newForReview.length > 0 ? (
+                  newForReview.map((item) => {
+                    const style = styleForKind(item.kind);
+                    const Icon = style.icon;
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/automations/review?kind=${item.kind}`}
+                        className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
+                      >
+                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`} aria-hidden="true">
+                          <Icon className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-bold text-foreground">
+                            {item.payload.summary || "New item"}
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {item.kind.replace(/_/g, " ")}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                          {timeAgo(item.created_at)}
+                        </span>
+                      </Link>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground p-4">Nothing waiting for review.</span>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="editorial-card">
+              <CardHeader className="flex flex-row items-center justify-between border-b pb-3">
+                <CardTitle className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+                  <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
+                  Recently resolved
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-1 p-3">
+                {recentlyResolved.length > 0 ? (
+                  recentlyResolved.map((item) => {
+                    const style = styleForKind(item.kind);
+                    const Icon = style.icon;
+                    return (
+                      <Link
+                        key={item.id}
+                        href={`/automations/review?kind=${item.kind}&status=${item.status}`}
+                        className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
+                      >
+                        <span className={`brand-icon size-9 shrink-0 ${style.chipBg} ${style.color}`} aria-hidden="true">
+                          <Icon className="size-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-xs font-bold text-foreground">
+                            {item.payload.summary || "Resolved item"}
+                          </div>
+                          <div className="truncate text-[11px] text-muted-foreground">
+                            {item.status === "approved" ? "Approved" : "Rejected"} &middot;{" "}
+                            {item.kind.replace(/_/g, " ")}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                          {item.reviewed_at ? timeAgo(item.reviewed_at) : ""}
+                        </span>
+                      </Link>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground p-4">Nothing resolved yet.</span>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Two Column Operational Feed: Recent Contacts & Top Companies */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -307,7 +466,7 @@ export default async function DashboardPage() {
                   href={`/companies/${c.id}`}
                   className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-accent/50"
                 >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  <div className="brand-icon size-9 shrink-0 text-primary">
                     <Building2 className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">

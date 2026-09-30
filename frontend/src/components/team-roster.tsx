@@ -13,9 +13,9 @@ import { UserFormDialog } from "@/components/user-form-dialog";
 import type { Publication, RoleDef, UserAccount } from "@/lib/types";
 
 const ROLE_BADGE: Record<string, string> = {
-  admin: "border-violet-500/30 bg-violet-500/10 text-violet-600",
-  data_manager: "border-blue-500/30 bg-blue-500/10 text-blue-600",
-  sales: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+  admin: "border-[#5b3e8f] text-[#5b3e8f]",
+  data_manager: "border-[#0099e5] text-[#0077b3]",
+  sales: "border-[#1e7a52] text-[#1e7a52]",
 };
 
 export function TeamRoster({
