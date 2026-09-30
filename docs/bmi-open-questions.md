@@ -10,17 +10,6 @@ a record of what was decided and why.
 
 ## Open
 
-- [ ] **Does a dedicated inbound-enquiry mailbox exist for SALES-011?**
-      We need the address of an inbox that receives first-contact emails
-      from people not already in the CRM (something like `enquiries@` /
-      `info@` / `sales@`), separate from any salesperson's personal inbox
-      and from the bounce-handling shared mailbox. Without this, SALES-011
-      (inbound contact capture) has nothing to scan.
-- [ ] **Which Act! database (Prospects / OnBoard / SellingTravel) does
-      each such mailbox belong to?** Companies and Groups live in
-      separate per-database tables, so a lead's suggested company/group
-      depends on knowing which brand's mailbox it came in on. Needed as a
-      `mailbox → database` mapping for every mailbox SALES-011 watches.
 - [ ] **What is BMI's real "proposal sent" convention?** (SALES-009 -
       Proposal Logging). Do reps send proposals from a specific mailbox
       folder, with a consistent subject-line pattern, or a template? Or
@@ -52,4 +41,14 @@ a record of what was decided and why.
 
 ## Answered
 
-*(none yet)*
+- [x] **Dedicated inbound-enquiry mailbox for SALES-011, and which database?**
+      (Sep 2026) `enquiries@bmipublishing.co.uk`, monitored by Shani and Kay,
+      shown on all three sites - sales, editorial and deadline mail mixed
+      together. Configured as `enquiries@bmipublishing.co.uk:*` (not tied to
+      one brand). Subscription forms (STM -> Shani, TBTM -> Kay) arrive via
+      Wufoo into those two people's personal inboxes, not a shared mailbox.
+- [x] **Which mailboxes receive bounces/OOO for CS-001/002/003?** (Sep 2026)
+      `noreply@onboardhospitality.com` and `noreply@thebusinesstravelmag.com`
+      (Kay) receive all OOO from OBH + TBTM mailings;
+      `online-editor@sellingtravel.co.uk` (Shani) receives all OOO from STM
+      and its associated products.

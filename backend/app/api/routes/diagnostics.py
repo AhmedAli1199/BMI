@@ -24,6 +24,7 @@ CANDIDATE_MAILBOXES = [
     "online-editor@sellingtravel.co.uk",
     "kay.fisher@bmipublishing.co.uk",
     "shani.kunar@bmipublishing.co.uk",
+    "enquiries@bmipublishing.co.uk",
 ]
 
 
