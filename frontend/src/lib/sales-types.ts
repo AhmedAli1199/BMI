@@ -201,3 +201,41 @@ export type OrderInput = {
   credits?: { rep_id: string; amount_gbp: number }[];
   clear_warning?: boolean;
 };
+
+export type PaceState = "behind" | "on_pace" | "ahead" | "not_comparable";
+
+export type PaceRow = {
+  edition: Ref;
+  title: SalesTitle;
+  edition_date: string | null;
+  kind: string;
+  booked_gbp: number;
+  orders: number;
+  previous: Ref | null;
+  previous_point_gbp: number | null;
+  previous_point_orders: number | null;
+  previous_total_gbp: number | null;
+  gap_gbp: number | null;
+  gap_pct: number | null;
+  state: PaceState;
+  reason: string | null;
+};
+
+export type SalesDashboard = {
+  as_of: string;
+  threshold_pct: number;
+  min_prior_gbp: number;
+  min_prior_orders: number;
+  pace: PaceRow[];
+  weekly: { week_start: string; orders: number; value_gbp: number; last_year_value_gbp: number }[];
+  activity_days: number;
+  activity: {
+    rep: SalesRep;
+    bookings: number;
+    booked_gbp: number;
+    followups_actioned: number | null;
+    followups_outstanding: number | null;
+  }[];
+  unattributed: { orders: number; value_gbp: number };
+  unattributed_year: number;
+};

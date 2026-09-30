@@ -200,6 +200,7 @@ export function AppSidebar({
                   <CollapsibleContent>
                     <SidebarMenuSub className="mt-1">
                       <HubSubItem href="/sales" label="Overview" active={pathname === "/sales"} />
+                      <HubSubItem href="/sales/dashboard" label="Dashboard" active={pathname === "/sales/dashboard"} />
                       <HubSubItem href="/sales/editions" label="Editions" active={pathname.startsWith("/sales/editions")} />
                       <HubSubItem href="/sales/bookings" label="All bookings" active={pathname === "/sales/bookings"} />
                       <HubSubItem href="/sales/renewals" label="Renewals" active={pathname === "/sales/renewals"} />

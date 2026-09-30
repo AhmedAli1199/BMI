@@ -123,3 +123,64 @@ def same_point_last_year(today: date) -> date:
         return today.replace(year=today.year - 1)
     except ValueError:  # 29 Feb
         return today - timedelta(days=365)
+
+
+# ---- Edition pace (SALES-026 dashboard, SALES-028 alerts) ------------------------
+
+def comparison_cutoff(edition: SalesEdition, prev: SalesEdition, today: date) -> date:
+    """The date on last cycle's edition to compare against: the same
+    distance before *its* publication as today is before this edition's
+    ("issue-relative", so an issue that moved a fortnight isn't judged
+    against a calendar date). Falls back to the calendar date one year ago
+    when either edition has no date."""
+    if edition.edition_date and prev.edition_date:
+        return prev.edition_date - (edition.edition_date - today)
+    return same_point_last_year(today)
+
+
+def edition_pace(db: Session, today: date, *, threshold: float, min_prior_gbp: float, min_prior_orders: int,
+                 past_days: int = 30, editions: list[SalesEdition] | None = None) -> list[dict]:
+    """Every edition still selling (open, publishing/running from
+    `past_days` ago onwards), with what it has booked against what its
+    equivalent edition had booked at the same point before publication.
+
+    state: "behind" | "on_pace" | "ahead" | "not_comparable". An edition is
+    not_comparable (never judged) when it has no equivalent edition last
+    cycle, or that equivalent's booked value / booking count at the same
+    point is under the minimums - too little data to call it early. Sorted
+    most-behind first, then not_comparable last.
+    """
+    if editions is None:
+        editions = list(db.scalars(select(SalesEdition).where(
+            SalesEdition.status == "open", SalesEdition.edition_date.isnot(None),
+            SalesEdition.edition_date >= today - timedelta(days=past_days)).order_by(SalesEdition.edition_date)))
+    if not editions:
+        return []
+    prev_map = equivalent_editions(db, editions)
+    now_totals = edition_totals(db, [e.id for e in editions])
+    prev_full = edition_totals(db, list({p.id for p in prev_map.values()}))
+    out: list[dict] = []
+    for e in editions:
+        booked = now_totals.get(e.id, {}).get("booked", 0.0)
+        orders = now_totals.get(e.id, {}).get("orders", 0)
+        prev = prev_map.get(e.id)
+        row = {"edition": e, "prev": prev, "booked": booked, "orders": orders, "prev_point_gbp": None,
+               "prev_point_orders": None, "prev_total_gbp": None, "gap_gbp": None, "gap_pct": None,
+               "state": "not_comparable", "reason": "No equivalent edition last cycle"}
+        if prev is not None:
+            cutoff = comparison_cutoff(e, prev, today)
+            point = edition_totals(db, [prev.id], booked_before=cutoff).get(prev.id, {})
+            pg, po = point.get("booked", 0.0), point.get("orders", 0)
+            row.update(prev_point_gbp=pg, prev_point_orders=po,
+                       prev_total_gbp=prev_full.get(prev.id, {}).get("booked", 0.0))
+            if pg < min_prior_gbp or po < min_prior_orders:
+                row["reason"] = "Last cycle had too little booked at this point to compare fairly"
+            else:
+                gap = booked - pg
+                pct_gap = gap / pg
+                row.update(gap_gbp=round(gap, 2), gap_pct=pct_gap, reason=None,
+                           state="behind" if pct_gap <= -threshold else "ahead" if pct_gap >= threshold else "on_pace")
+        out.append(row)
+    order = {"behind": 0, "on_pace": 1, "ahead": 2, "not_comparable": 3}
+    out.sort(key=lambda r: (order[r["state"]], r["gap_pct"] if r["gap_pct"] is not None else 0, r["edition"].edition_date))
+    return out
