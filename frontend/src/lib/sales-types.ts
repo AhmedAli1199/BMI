@@ -239,3 +239,28 @@ export type SalesDashboard = {
   unattributed: { orders: number; value_gbp: number };
   unattributed_year: number;
 };
+
+export type SummarySection = {
+  key: string;
+  title: string;
+  paragraphs: string[];
+  bullets: { text: string; href: string | null }[];
+};
+
+export type WeeklySummaryListItem = { id: string; week_of: string; source: "ai" | "template"; generated_at: string; headline: string };
+export type WeeklySummary = WeeklySummaryListItem & { brief_markdown: string; sections: SummarySection[]; metrics_snapshot: Record<string, unknown> };
+
+export type ManagementAlert = {
+  id: string;
+  subject_type: string;
+  subject_id: string;
+  subject_label: string;
+  comparison_label: string | null;
+  prior_value: number;
+  current_value: number;
+  gap: number;
+  gap_pct: number;
+  message: string;
+  records_ref: { type: string; id: string; label: string }[];
+  fired_at: string;
+};

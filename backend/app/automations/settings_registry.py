@@ -384,6 +384,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Management Reporting", type="int", min=0,
     ),
     AutomationSettingDef(
+        key="management_recipients", label="Alert & summary recipients",
+        description="Comma-separated login emails who get the behind-last-cycle alerts and the weekly summary. Leave empty to send to every active administrator.",
+        group="Management Reporting", type="csv",
+    ),
+    AutomationSettingDef(
         key="sales_alert_cooldown_days", label="Alert cooldown (days)",
         description="The same edition is not alerted again within this many days.",
         group="Management Reporting", type="int", min=1,

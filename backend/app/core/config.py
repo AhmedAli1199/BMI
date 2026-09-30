@@ -245,6 +245,8 @@ class Settings(BaseSettings):
     sales_pace_min_prior_gbp: float = 2000.0
     sales_pace_min_prior_orders: int = 3
     automations_management_alerts_enabled: bool = False  # SALES-028 daily "behind last cycle" alerts
+    # Comma-separated emails who get the alerts and the weekly brief. Empty = every active admin.
+    management_recipients: str = ""
     sales_alert_cooldown_days: int = 14  # don't re-alert the same edition within this many days
     automations_weekly_summary_enabled: bool = False  # SALES-028 Monday-morning leadership brief
 
