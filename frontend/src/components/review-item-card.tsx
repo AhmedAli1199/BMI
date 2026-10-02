@@ -40,6 +40,14 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   signal_trigger: "draft_followup",
   followup_due: "mark_sent",
   personal_touchpoint_due: "draft_touchpoint",
+  renewal_due: "send",
+};
+
+/** Kinds whose draft can go straight out from the reviewer's own Outlook:
+ * the dialog's main button sends (DRAFT_REVIEW_ACTIONS), and this second
+ * action just logs the draft to the CRM for sending another way. */
+const DRAFT_LOG_ONLY_ACTIONS: Record<string, string> = {
+  renewal_due: "approve",
 };
 
 const STYLE_CLASSES: Record<ReviewAction["style"], string> = {
@@ -318,7 +326,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   }
 
   function handleActionClick(action: ReviewAction) {
-    if (DRAFT_REVIEW_ACTIONS[kind.kind] === action.id) {
+    if (DRAFT_REVIEW_ACTIONS[kind.kind] === action.id || DRAFT_LOG_ONLY_ACTIONS[kind.kind] === action.id) {
       setDraftDialogOpen(true);
       return;
     }
@@ -459,7 +467,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
                   when it's actually the generated draft. Every other kind
                   really is showing the original source message, so keeps
                   that accurate label. */}
-              {DRAFT_REVIEW_ACTIONS[kind.kind] ? "Drafted note" : "Original message"}
+              {payload.original_label ?? (DRAFT_REVIEW_ACTIONS[kind.kind] ? "Drafted note" : "Original message")}
             </summary>
             <p className="whitespace-pre-wrap border-t border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
               {cleanNoteBody(payload.original_text)}
@@ -558,6 +566,15 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
             actionId={DRAFT_REVIEW_ACTIONS[kind.kind]}
             actionLabel={kind.actions.find((a) => a.id === DRAFT_REVIEW_ACTIONS[kind.kind])?.label ?? "Approve"}
             initialDraft={payload.original_text ?? ""}
+            send={
+              DRAFT_LOG_ONLY_ACTIONS[kind.kind]
+                ? {
+                    defaultTo: payload.suggested_to ?? "",
+                    logOnlyActionId: DRAFT_LOG_ONLY_ACTIONS[kind.kind],
+                    logOnlyLabel: kind.actions.find((a) => a.id === DRAFT_LOG_ONLY_ACTIONS[kind.kind])?.label ?? "Log only",
+                  }
+                : undefined
+            }
             onApproved={(label) => {
               toast.success(`${label} — done`);
               setJustResolvedLabel(label);

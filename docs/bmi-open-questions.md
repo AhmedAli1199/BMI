@@ -39,6 +39,42 @@ a record of what was decided and why.
       rep? new vs renewal?) before those statements are treated as
       authoritative.
 
+- [ ] **Rate card (price list) per title, for this year.** (SALES-021 renewals;
+      also SALES-020 proposals - spec §4 SALES-021 "current rate card" and §6.)
+      What each product costs - full page, half page, DPS, banner, sponsorship -
+      for OBH, Selling Travel, TBTM, the events etc. Any format is fine (PDF,
+      Excel, media pack). Entered on Sales Orders › Rate card; until then
+      renewal emails quote no price.
+- [ ] **Digital-edition platform and a stable link per advertiser.** (SALES-021;
+      spec §6 item 9: "What hosts the digital editions, and can we get a stable
+      per-advertiser page URL?") Which service hosts the online flip-books
+      (Issuu, Yumpu, their own site...)? Does each issue have a fixed address,
+      and can a link open a specific page? Two example links (an issue, and a
+      page inside it) let us set the pattern on Sales Orders › Rate card.
+- [ ] **Microsoft app registration changes for "Connect Outlook".** Add the web
+      redirect URI `{APP_BASE_URL}/api/outlook/callback`, delegated Mail.Send,
+      User.Read and offline_access, and grant admin consent. Blocks sending
+      mail merges and renewal emails from reps' own mailboxes.
+- [ ] **Automation mailbox (e.g. automation@) + Mail.Send restricted to it** by
+      an Exchange Application Access Policy. Blocks emailed reminders, the
+      weekly management summary and alerts by email.
+- [ ] **Xero API access and which organisation(s).** (SALES-026 dashboard,
+      spec §6 item 6.) Without it the dashboard shows booked value only, not
+      invoiced/paid.
+- [ ] **Delivery stages and expected timings for sold work.** (SALES-027.)
+      e.g. booked -> artwork received -> in production -> published, and how
+      long each should take, per product type; plus who owns each stage.
+- [ ] **Reps' current pipeline spreadsheets/notebooks.** (SALES-024 migration.)
+- [ ] **Example contact with the "useful box" and "Ad agency" fields filled in**,
+      to identify which imported Act! fields they are.
+- [ ] **Who in editorial needs logins**, for the Editorial role.
+- [ ] **Teams / Zoom call transcripts - available, and from which platform?**
+      (SALES-008 call-note capture, spec §6 item 3.)
+- [ ] **Successor research method for departures** - an enrichment provider,
+      or manual-assist only? (CS-003/004, spec §6 item 5.)
+- [ ] **Wufoo subscription forms -> enquiries@ as well?** and **do hard-bounce
+      reports land in the shared mailboxes or with the sender?**
+
 ## Answered
 
 - [x] **Dedicated inbound-enquiry mailbox for SALES-011, and which database?**

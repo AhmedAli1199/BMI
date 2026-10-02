@@ -40,12 +40,18 @@ from sqlalchemy.orm import Session
 from app.automations import runtime_settings
 from app.models import Company, Contact, Opportunity, ReviewQueueItem, User
 
-_SOURCE_KINDS = ("signal_trigger", "followup_due", "personal_touchpoint_due")
+_SOURCE_KINDS = ("signal_trigger", "followup_due", "personal_touchpoint_due", "renewal_due")
 
 
 def _resolve_owner(db: Session, item: ReviewQueueItem) -> tuple[str | None, str]:
     """(owner_user_id, owner_name) for one pending item, or (None,
     "Unassigned") when it can't be resolved."""
+    # An automation that already knows whose item it is (a renewal goes to
+    # the rep who sold it last time) says so in the payload.
+    if item.payload.get("owner_user_id"):
+        owner = db.get(User, item.payload["owner_user_id"])
+        if owner:
+            return (str(owner.id), owner.name)
     contact_id = None
     if item.entity_type == "contact" and item.entity_id:
         contact_id = item.entity_id

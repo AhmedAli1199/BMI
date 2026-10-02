@@ -30,7 +30,7 @@ from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.db.session import SessionLocal
-from app.models import Company, Note, ReviewQueueItem, SalesEdition, SalesOrder, SalesRep, SalesTitle
+from app.models import Company, Note, ReviewQueueItem, SalesEdition, SalesOrder, SalesRep, SalesTitle, User
 from app.sales.analytics import BOOKED
 from app.sales.matching import MATCH_KIND, match_clients
 
@@ -210,8 +210,11 @@ _RENEWAL_PROMPT = (
     "You draft a short renewal email a BMI Publishing salesperson can send to an advertiser who booked with one of "
     "BMI's titles last year and hasn't rebooked yet. Mention their actual previous placement (the edition and what "
     "they booked) naturally, say the new edition is now open for bookings, and ask if they'd like to secure their "
-    "space again - friendly, professional, 3-5 sentences, no invented prices, dates or statistics. Return JSON of "
-    "the exact shape {\"subject\": string, \"body\": string}; body is the email text only."
+    "space again - friendly, professional, 3-5 sentences. If a link to their previous ad is given, include it "
+    "exactly as given. If this year's price is given, state it exactly as given; if no price is given, do not "
+    "mention any price. Never invent prices, dates, figures or links. Write in the first person as the salesperson; "
+    "sign off with the salesperson's first name if given. Return JSON of the exact shape "
+    "{\"subject\": string, \"body\": string}; body is the email text only."
 )
 
 
@@ -228,54 +231,231 @@ def describe_size(size: str | None) -> str | None:
     return _SIZE_WORDS.get(size.strip().lower(), size.strip())
 
 
-def _renewal_draft(client: str, title: str, last_label: str, size: str | None, extra: str = "") -> tuple[str, bool]:
+def _renewal_draft(client: str, title: str, last_label: str, size: str | None, extra: str = "", *,
+                   price: str | None = None, link: str | None = None, sender: str | None = None) -> tuple[str, bool]:
     words = describe_size(size)
     what = f"{words} in {last_label}" if words else f"space in {last_label}"
     if is_configured():
         prompt = _RENEWAL_PROMPT + (f"\n\nThe reviewer asked for this revision - follow it: {extra}" if extra else "")
-        result = extract_json(prompt, f"Advertiser: {client}\nTitle: {title}\nLast year they booked: {what}",
-                              purpose="sor_renewal.draft")
+        facts = [f"Advertiser: {client}", f"Title: {title}", f"Last year they booked: {what}"]
+        if link:
+            facts.append(f"Link to their previous ad: {link}")
+        if price:
+            facts.append(f"This year's price for the same: {price}")
+        if sender:
+            facts.append(f"Salesperson: {sender}")
+        result = extract_json(prompt, "\n".join(facts), purpose="sor_renewal.draft")
         subject, body = (result or {}).get("subject", "").strip(), (result or {}).get("body", "").strip()
         if subject and body:
             return f"Subject: {subject}\n\n{body}", True
-    body = (f"Hi,\n\nThank you again for booking {what} last year. The new {title} edition is now open for "
-            f"bookings, and I wanted to give you first refusal on the same space before it goes.\n\n"
-            f"Would you like me to reserve it for you again?\n\nBest regards")
+    paras = [f"Hi,\n\nThank you again for booking {what} last year."
+             + (f" You can see it again here: {link}" if link else "")]
+    paras.append(f"The new {title} edition is now open for bookings, and I wanted to give you first refusal on "
+                 f"the same space before it goes." + (f" This year the same placement is {price}." if price else ""))
+    paras.append("Would you like me to reserve it for you again?")
+    paras.append("Best regards" + (f"\n{sender}" if sender else ""))
+    body = "\n\n".join(paras)
     return f"Subject: {title} - securing your space again\n\n{body}", False
 
 
+def _split_draft(draft: str) -> tuple[str, str]:
+    """"Subject: X\n\nbody" -> (X, body)."""
+    text = (draft or "").strip()
+    if text.lower().startswith("subject:"):
+        first, _, rest = text.partition("\n")
+        return first[len("subject:"):].strip(), rest.strip()
+    return "", text
+
+
+def _renewal_facts(db: Session, title: SalesTitle, ed: SalesEdition, order: SalesOrder, target_year: int) -> dict:
+    """Price, link, owner and recipient for one renewal - each one either
+    known for certain or flagged as missing, never guessed."""
+    from app.sales import renewals as rn
+
+    rate = rn.current_price(db, title.id, target_year, order.size)
+    link = rn.placement_link(title, ed, order)
+    owner_id = rn.owner_user_id(db, order)
+    owner = db.get(User, owner_id) if owner_id else None
+    recipient = rn.best_recipient(db, order.company_id)
+    return {
+        "price": _money(rate.price_gbp) if rate else None,
+        "price_note": f"{_money(rate.price_gbp)} ({rate.product}, {target_year} rate card)" if rate
+        else f"Not on the {target_year} rate card - add it, then Regenerate (the draft quotes no price)",
+        "link": link.url, "link_level": link.level, "link_note": link.note,
+        "owner_user_id": str(owner_id) if owner_id else None,
+        "owner_name": owner.name if owner else None,
+        "suggested_to": recipient[0] if recipient else "",
+        "suggested_to_name": recipient[1] if recipient else "",
+    }
+
+
+def _renewal_details(order: SalesOrder, last_label: str, total: float, count: int, rep: SalesRep | None,
+                     facts: dict, was_ai: bool) -> list[dict]:
+    return [
+        {"key": "client", "label": "Advertiser", "value": order.client_name},
+        {"key": "last", "label": "Last booking", "value": f"{order.size or 'Space'} in {last_label}"
+                                                          + (f", booked {order.booked_on:%d %b %Y}" if order.booked_on else "")},
+        {"key": "value", "label": "Spent with this title last year", "value": f"{_money(total)} across {count} booking(s)"},
+        {"key": "rep", "label": "Their salesperson", "value": rep.name if rep else "-"},
+        {"key": "price", "label": "This year's price", "value": facts["price_note"]},
+        {"key": "link", "label": "Previous ad online", "value": facts["link"] or facts["link_note"]},
+        {"key": "to", "label": "Suggested recipient", "value": (f"{facts['suggested_to_name']} <{facts['suggested_to']}>".strip()
+                                                               if facts["suggested_to"] else "No contact with an email at this company yet")},
+        {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
+    ]
+
+
+def queue_renewal(db: Session, title: SalesTitle, order: SalesOrder, ed: SalesEdition, total: float, count: int,
+                  target_year: int, *, reason: str, due: date | None, seen: set[str], reps: dict) -> ReviewQueueItem | None:
+    """One renewal item, unless this advertiser already has one for this
+    title this year (from the anniversary scan or an edition's renewal
+    pass - the same key, so nobody is approached twice)."""
+    key = f"{title.id}:{order.client_name.strip().lower()}:{target_year}"
+    if key in seen:
+        return None
+    last_label = _edition_label(db, ed)
+    facts = _renewal_facts(db, title, ed, order, target_year)
+    rep = reps.get(order.rep_id)
+    draft, was_ai = _renewal_draft(order.client_name, title.name, last_label, order.size,
+                                   price=facts["price"], link=facts["link"],
+                                   sender=(facts["owner_name"] or (rep.name if rep else "") or "").split(" ")[0] or None)
+    item = ReviewQueueItem(
+        id=uuid.uuid4(), kind=RENEWAL_KIND, source_db=title.crm_source_db,
+        entity_type="company" if order.company_id else None, entity_id=order.company_id,
+        payload={
+            "summary": f"Renewal due: {order.client_name} - {title.name} (booked {_money(total)} last year)",
+            "details": _renewal_details(order, last_label, total, count, rep, facts, was_ai),
+            "original_text": draft,
+            "original_label": "Draft email",
+            "related_entities": [{"type": "company", "id": str(order.company_id), "label": order.client_name}] if order.company_id else [],
+            "client_name": order.client_name, "title_name": title.name, "title_id": str(title.id),
+            "edition_id": str(ed.id), "order_id": str(order.id),
+            "last_edition_label": last_label, "size": order.size, "target_year": target_year,
+            "company_id": str(order.company_id) if order.company_id else None,
+            "owner_user_id": facts["owner_user_id"], "owner_name": facts["owner_name"],
+            "suggested_to": facts["suggested_to"],
+            "total": total, "count": count, "reason": reason,
+            "dedupe_key": key, "due_date": due.isoformat() if due else None,
+        },
+    )
+    db.add(item)
+    seen.add(key)
+    return item
+
+
+def _close_if_rebooked(db: Session, item: ReviewQueueItem) -> None:
+    from app.sales.renewals import rebooked
+
+    p = item.payload
+    year = p.get("target_year") or date.today().year
+    if p.get("title_id") and rebooked(db, uuid.UUID(p["title_id"]), year, p.get("client_name", ""),
+                                      uuid.UUID(p["company_id"]) if p.get("company_id") else None):
+        raise ValueError(f"{p.get('client_name')} has already booked {p.get('title_name')} for {year} - "
+                         "no renewal needed. Use “Skip this year” to clear it.")
+
+
+def _log_renewal(db: Session, item: ReviewQueueItem, text: str, note_type: str) -> None:
+    company_id = item.payload.get("company_id")
+    if company_id and db.get(Company, company_id):
+        db.add(Note(
+            id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+            entity_type="company", entity_id=company_id, note_type=note_type,
+            body=text, act_created_at=datetime.now(timezone.utc),
+        ))
+
+
 def _handle_renewal(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
+    draft = (input_data.get("note") or "").strip() or item.payload.get("original_text") or ""
     if action_id == "approve":
-        company_id = item.payload.get("company_id")
-        draft = (input_data.get("note") or "").strip() or item.payload.get("original_text") or ""
-        if company_id and db.get(Company, company_id):
-            db.add(Note(
-                id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
-                entity_type="company", entity_id=company_id, note_type="Renewal outreach",
-                body=draft, act_created_at=datetime.now(timezone.utc),
-            ))
+        _close_if_rebooked(db, item)
+        _log_renewal(db, item, draft, "Renewal outreach")
+    elif action_id == "send":
+        _close_if_rebooked(db, item)
+        _send_renewal(db, item, draft, input_data)
     elif action_id != "skip":
         raise ValueError(f"Unknown action {action_id!r} for {RENEWAL_KIND}")
 
 
+def _send_renewal(db: Session, item: ReviewQueueItem, draft: str, input_data: dict) -> None:
+    """Sends the (possibly edited) draft from the reviewer's own Outlook -
+    it lands in their Sent Items and replies come back to them - then logs
+    it on the company."""
+    import re as _re
+
+    from app.models.messaging import MailAccount
+    from app.services import outlook
+    from app.services.mail_merge import to_html
+
+    to = (input_data.get("to") or item.payload.get("suggested_to") or "").strip()
+    if not _re.fullmatch(r"[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+", to):
+        raise ValueError("Enter the email address to send this to.")
+    actor = input_data.get("_actor_user_id")
+    acct = db.scalar(select(MailAccount).where(MailAccount.user_id == uuid.UUID(actor))) if actor else None
+    if not acct:
+        raise ValueError("Connect your Outlook first (Settings › Email) - renewals are sent from your own mailbox. "
+                         "Or use “Approve & log to CRM” and send it yourself.")
+    subject, body = _split_draft(draft)
+    if not subject:
+        subject = f"{item.payload.get('title_name', 'BMI')} - securing your space again"
+    try:
+        outlook.send_mail(db, acct, to=[to], subject=subject, html_body=to_html(body))
+    except outlook.OutlookAuthError as exc:
+        raise ValueError(f"{exc} Reconnect Outlook in Settings, then try again.") from exc
+    except outlook.RateLimited as exc:
+        raise ValueError("Outlook is asking us to slow down - try again in a minute.") from exc
+    except RuntimeError as exc:
+        raise ValueError(str(exc)) from exc
+    _log_renewal(db, item, f"Sent to {to} from {acct.email}\n\nSubject: {subject}\n\n{body}", "Renewal sent")
+    item.payload = {**item.payload, "sent_to": to, "sent_from": acct.email}
+
+
 def _redraft_renewal(db: Session, item: ReviewQueueItem, extra: str) -> str:
+    """Rebuilds from current facts too, so a price added to the rate card
+    (or a link set up) after the item was queued shows up on Regenerate."""
     p = item.payload
-    draft, _ = _renewal_draft(p.get("client_name", ""), p.get("title_name", ""), p.get("last_edition_label", ""), p.get("size"), extra)
+    title = db.get(SalesTitle, uuid.UUID(p["title_id"])) if p.get("title_id") else None
+    ed = db.get(SalesEdition, uuid.UUID(p["edition_id"])) if p.get("edition_id") else None
+    order = db.get(SalesOrder, uuid.UUID(p["order_id"])) if p.get("order_id") else None
+    facts = {"price": None, "link": None, "owner_name": p.get("owner_name")}
+    if title and ed and order:
+        facts = _renewal_facts(db, title, ed, order, p.get("target_year") or date.today().year)
+        rep = db.get(SalesRep, order.rep_id) if order.rep_id else None
+        item.payload = {**p, "details": _renewal_details(order, p.get("last_edition_label", ""), p.get("total", 0),
+                                                        p.get("count", 1), rep, facts, True),
+                        "suggested_to": p.get("suggested_to") or facts["suggested_to"]}
+    draft, _ = _renewal_draft(p.get("client_name", ""), p.get("title_name", ""), p.get("last_edition_label", ""),
+                              p.get("size"), extra, price=facts.get("price"), link=facts.get("link"),
+                              sender=(facts.get("owner_name") or "").split(" ")[0] or None)
     return draft
 
 
 register(ReviewKind(
     kind=RENEWAL_KIND,
     label="Renewal Outreach",
-    description="Last year's advertisers coming up to the anniversary of their booking who haven't rebooked yet - with a drafted renewal email quoting their previous placement.",
+    description="Last year's advertisers who haven't rebooked yet - with a drafted renewal email quoting their previous placement, a link to it and this year's price.",
     actions=[
-        ReviewAction(id="approve", label="Approve & log to CRM", style="primary", outcome="approved"),
+        ReviewAction(id="send", label="Send from my Outlook", style="primary", outcome="approved",
+                     extra_fields=[ExtraField(key="to", label="Send to", placeholder="name@company.com", required=False)]),
+        ReviewAction(id="approve", label="Log to CRM only", style="secondary", outcome="approved"),
         ReviewAction(id="skip", label="Skip this year", style="secondary", outcome="rejected"),
     ],
     handler=_handle_renewal,
     redraft=_redraft_renewal,
     audience="sales",
 ))
+
+
+def _notify_owners(db: Session, items: list[ReviewQueueItem]) -> None:
+    """One "N renewals ready" notification per rep, not one per item."""
+    from collections import Counter
+
+    from app.services.notify import create_notification
+
+    per_owner = Counter(i.payload.get("owner_user_id") for i in items if i.payload.get("owner_user_id"))
+    for owner_id, n in per_owner.items():
+        create_notification(db, uuid.UUID(owner_id), "renewal", f"{n} renewal email{'s' if n != 1 else ''} ready to review",
+                            "Drafted from last year's bookings - check, edit and send from the Today page.",
+                            "/automations/today", email=False)
 
 
 def scan_renewals() -> None:
@@ -291,11 +471,11 @@ def scan_renewals() -> None:
         max_per_run = runtime_settings.get_int(db, "sor_renewal_max_per_run")
         seen = set(db.scalars(select(ReviewQueueItem.payload["dedupe_key"].astext).where(ReviewQueueItem.kind == RENEWAL_KIND)).all())
         reps = {r.id: r for r in db.scalars(select(SalesRep))}
-        queued = 0
+        queued: list[ReviewQueueItem] = []
         for title in db.scalars(select(SalesTitle).where(SalesTitle.active.is_(True)).order_by(SalesTitle.sort_order)):
             rows, _, _ = renewal_candidates(db, title.id, today.year)
             for r in rows:
-                if queued >= max_per_run:
+                if len(queued) >= max_per_run:
                     break
                 order, ed = r["order"], r["edition"]
                 anchor = order.booked_on or ed.edition_date
@@ -307,39 +487,55 @@ def scan_renewals() -> None:
                     anniversary = anchor + timedelta(days=365)
                 if not (anniversary - timedelta(days=lead) <= today <= anniversary + timedelta(days=90)):
                     continue
-                key = f"{title.id}:{order.client_name.strip().lower()}:{today.year}"
-                if key in seen:
-                    continue
-                last_label = _edition_label(db, ed)
-                draft, was_ai = _renewal_draft(order.client_name, title.name, last_label, order.size)
-                rep = reps.get(order.rep_id)
-                db.add(ReviewQueueItem(
-                    id=uuid.uuid4(), kind=RENEWAL_KIND, source_db=title.crm_source_db,
-                    entity_type="company" if order.company_id else None, entity_id=order.company_id,
-                    payload={
-                        "summary": f"Renewal due: {order.client_name} - {title.name} (booked {_money(r['total'])} last year)",
-                        "details": [
-                            {"key": "client", "label": "Advertiser", "value": order.client_name},
-                            {"key": "last", "label": "Last booking", "value": f"{order.size or 'Space'} in {last_label}"
-                                                                              + (f", booked {order.booked_on:%d %b %Y}" if order.booked_on else "")},
-                            {"key": "value", "label": "Spent with this title last year", "value": f"{_money(r['total'])} across {r['count']} booking(s)"},
-                            {"key": "rep", "label": "Their salesperson", "value": rep.name if rep else "-"},
-                            {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
-                        ],
-                        "original_text": draft,
-                        "related_entities": [{"type": "company", "id": str(order.company_id), "label": order.client_name}] if order.company_id else [],
-                        "client_name": order.client_name, "title_name": title.name, "title_id": str(title.id),
-                        "last_edition_label": last_label, "size": order.size,
-                        "company_id": str(order.company_id) if order.company_id else None,
-                        "dedupe_key": key, "due_date": anniversary.isoformat(),
-                    },
-                ))
-                seen.add(key)
-                queued += 1
+                item = queue_renewal(db, title, order, ed, r["total"], r["count"], today.year,
+                                     reason="anniversary", due=anniversary, seen=seen, reps=reps)
+                if item:
+                    queued.append(item)
+        _notify_owners(db, queued)
         db.commit()
-        logger.info("sor renewal scan: %d renewal(s) queued", queued)
+        logger.info("sor renewal scan: %d renewal(s) queued", len(queued))
     finally:
         db.close()
+
+
+def start_renewal_pass(db: Session, edition: SalesEdition) -> dict:
+    """The spec's "open renewal pass for {title, edition}": everyone who
+    advertised in this edition's equivalent last cycle and hasn't booked
+    this title again this year gets a renewal draft now, whatever the
+    anniversary scan would have done. Anyone already queued this year is
+    skipped (same key), so running it twice - or after the scan - never
+    double-approaches anyone. Caller commits."""
+    from app.sales.analytics import equivalent_editions
+    from app.sales.matching import normalise
+    from app.sales.renewals import rebooked
+
+    title = db.get(SalesTitle, edition.title_id)
+    prev = equivalent_editions(db, [edition]).get(edition.id)
+    if not title or not prev:
+        raise ValueError("There's no equivalent edition last year to renew from.")
+    rows = db.scalars(select(SalesOrder).where(SalesOrder.edition_id == prev.id, SalesOrder.status == BOOKED,
+                                               SalesOrder.value_gbp > 0)).all()
+    groups: dict[str, list[SalesOrder]] = {}
+    for o in rows:
+        groups.setdefault(normalise(o.client_name) or o.client_name.strip().lower(), []).append(o)
+    seen = set(db.scalars(select(ReviewQueueItem.payload["dedupe_key"].astext).where(ReviewQueueItem.kind == RENEWAL_KIND)).all())
+    reps = {r.id: r for r in db.scalars(select(SalesRep))}
+    queued: list[ReviewQueueItem] = []
+    already_booked = already_queued = 0
+    for orders in groups.values():
+        last = max(orders, key=lambda o: o.booked_on or date.min)
+        if rebooked(db, title.id, edition.year, last.client_name, last.company_id):
+            already_booked += 1
+            continue
+        item = queue_renewal(db, title, last, prev, sum(float(o.value_gbp) for o in orders), len(orders), edition.year,
+                             reason=f"renewal pass for {edition.name}", due=edition.edition_date, seen=seen, reps=reps)
+        if item:
+            queued.append(item)
+        else:
+            already_queued += 1
+    _notify_owners(db, queued)
+    return {"previous_edition": _edition_label(db, prev), "advertisers": len(groups), "queued": len(queued),
+            "already_booked": already_booked, "already_queued": already_queued}
 
 
 register_job(ScheduledJob(

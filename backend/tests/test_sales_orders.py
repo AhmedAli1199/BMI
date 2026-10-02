@@ -339,6 +339,115 @@ def test_renewal_scan_drafts_once_per_client(db_session, sor, monkeypatch):
     assert "a full page in OBH 101" in items[0].payload["original_text"]
 
 
+def test_renewal_quotes_rate_card_links_ad_and_routes_to_rep(db_session, sor, monkeypatch):
+    from app.models import Contact, Email, SalesRate
+    from app.sales.renewals import page_number, product_key
+
+    monkeypatch.setattr(sor_automations, "SessionLocal", lambda: _NoCloseSession(db_session))
+    monkeypatch.setattr(sor_automations, "is_configured", lambda: False)
+    rep_user = make_user(db_session, name="Sally Parker")
+    sor["reps"]["SP"].user_id = rep_user.id
+    co = Company(id=uuid.uuid4(), name="Lapsed Ltd", source_db="onboard", source_act_id=str(uuid.uuid4()))
+    db_session.add(co)
+    db_session.flush()
+    c = Contact(id=uuid.uuid4(), source_db="onboard", source_act_id=str(uuid.uuid4()), first_name="Lee", last_name="Pse",
+                full_name="Lee Pse", company_id=co.id)
+    db_session.add(c)
+    db_session.flush()
+    db_session.add(Email(id=uuid.uuid4(), source_db="onboard", source_act_id=str(uuid.uuid4()), contact_id=c.id,
+                         address="lee@lapsed.com", is_primary=True))
+    sor["title"].digital_page_url = "https://read.example.com/obh/{edition}/page/{page}"
+    db_session.add(SalesRate(id=uuid.uuid4(), title_id=sor["title"].id, year=date.today().year, product="Full page", price_gbp=4950))
+    soon = date.today().replace(year=date.today().year - 1) + timedelta(days=20)
+    o = _order(db_session, sor["last"], "Lapsed Ltd", 4500, sor["reps"]["SP"], booked_on=soon, size="FP",
+               position="p. 23", company_id=co.id)
+    assert page_number(o) == 23 and product_key("FP") == product_key("full page")
+
+    sor_automations.scan_renewals()
+    item = db_session.query(ReviewQueueItem).filter_by(kind="renewal_due").one()
+    p = item.payload
+    assert "£4,950" in p["original_text"] and "https://read.example.com/obh/101/page/23" in p["original_text"]
+    assert p["owner_user_id"] == str(rep_user.id) and p["suggested_to"] == "lee@lapsed.com"
+    assert p["original_label"] == "Draft email"
+    from app.models.messaging import Notification
+    assert db_session.query(Notification).filter_by(user_id=rep_user.id, kind="renewal").count() == 1
+
+
+def test_renewal_without_price_or_link_says_so_and_never_invents(db_session, sor, monkeypatch):
+    monkeypatch.setattr(sor_automations, "SessionLocal", lambda: _NoCloseSession(db_session))
+    monkeypatch.setattr(sor_automations, "is_configured", lambda: False)
+    soon = date.today().replace(year=date.today().year - 1) + timedelta(days=20)
+    _order(db_session, sor["last"], "Nolink Ltd", 1000, sor["reps"]["SP"], booked_on=soon, size="1/2")
+    sor_automations.scan_renewals()
+    p = db_session.query(ReviewQueueItem).filter_by(kind="renewal_due").one().payload
+    details = {d["key"]: d["value"] for d in p["details"]}
+    assert details["price"].startswith("Not on the") and "£" not in p["original_text"].split("last year")[1]
+    assert details["link"] == "No online link set up for this title"
+
+
+def test_renewal_pass_excludes_booked_and_never_double_approaches(client, db_session, sor, monkeypatch):
+    monkeypatch.setattr(sor_automations, "is_configured", lambda: False)
+    _order(db_session, sor["last"], "Back Again", 900, sor["reps"]["SP"])
+    _order(db_session, sor["last"], "Not Yet", 1200, sor["reps"]["SP"])
+    _order(db_session, sor["last"], "Freebie", 0, sor["reps"]["SP"])
+    _order(db_session, sor["this"], "Back Again", 900, sor["reps"]["SP"])
+    admin = make_user(db_session, role="admin")
+    r = client.post(f"/api/sales/editions/{sor['this'].id}/renewal-pass", headers=identity_headers(admin)).json()
+    assert (r["queued"], r["already_booked"]) == (1, 1)
+    again = client.post(f"/api/sales/editions/{sor['this'].id}/renewal-pass", headers=identity_headers(admin)).json()
+    assert (again["queued"], again["already_queued"]) == (0, 1)
+    rep = make_user(db_session, role="sales")
+    assert client.post(f"/api/sales/editions/{sor['this'].id}/renewal-pass", headers=identity_headers(rep)).status_code == 403
+
+
+def test_renewal_send_uses_my_outlook_and_rechecks_booking(client, db_session, sor, monkeypatch):
+    from app.models import Note
+    from app.models.messaging import MailAccount
+    from app.services import outlook
+
+    monkeypatch.setattr(sor_automations, "is_configured", lambda: False)
+    co = Company(id=uuid.uuid4(), name="Sendco", source_db="onboard", source_act_id=str(uuid.uuid4()))
+    db_session.add(co)
+    db_session.flush()
+    _order(db_session, sor["last"], "Sendco", 800, sor["reps"]["SP"], company_id=co.id)
+    _order(db_session, sor["last"], "Rebooker", 800, sor["reps"]["SP"])
+    sor_automations.start_renewal_pass(db_session, sor["this"])
+    db_session.flush()
+    items = {i.payload["client_name"]: i for i in db_session.query(ReviewQueueItem).filter_by(kind="renewal_due")}
+    me = make_user(db_session, role="sales")
+    db_session.commit()  # an expected 400 below rolls back anything uncommitted
+    h = identity_headers(me, access=[("onboard", None)])
+
+    r = client.post(f"/api/review-queue/{items['Sendco'].id}/actions/send", headers=h, json={"fields": {"to": "buyer@sendco.com"}})
+    assert r.status_code == 400 and "Connect your Outlook" in r.json()["detail"]
+    db_session.add(MailAccount(id=uuid.uuid4(), user_id=me.id, email="me@bmi.test", refresh_token_enc=outlook.encrypt("x")))
+    db_session.flush()
+    sent = []
+    monkeypatch.setattr(outlook, "send_mail", lambda db, acct, **kw: sent.append(kw))
+    r = client.post(f"/api/review-queue/{items['Sendco'].id}/actions/send", headers=h,
+                    json={"fields": {"to": "buyer@sendco.com"}, "note": "Subject: Renew?\n\nHi there"})
+    assert r.status_code == 200, r.text
+    assert sent[0]["to"] == ["buyer@sendco.com"] and sent[0]["subject"] == "Renew?"
+    assert db_session.query(Note).filter_by(entity_id=co.id, note_type="Renewal sent").count() == 1
+
+    _order(db_session, sor["this"], "Rebooker", 800, sor["reps"]["SP"])
+    r = client.post(f"/api/review-queue/{items['Rebooker'].id}/actions/approve", headers=h, json={})
+    assert r.status_code == 400 and "already booked" in r.json()["detail"]
+
+
+def test_rate_card_is_staff_edited(client, db_session, sor):
+    admin, rep = make_user(db_session, role="admin"), make_user(db_session, role="sales")
+    body = {"title_id": str(sor["title"].id), "year": 2027, "product": "FP", "price_gbp": 5000}
+    assert client.post("/api/sales/rates", headers=identity_headers(rep), json=body).status_code == 403
+    r = client.post("/api/sales/rates", headers=identity_headers(admin), json=body)
+    assert r.status_code == 201
+    assert client.post("/api/sales/rates", headers=identity_headers(admin), json=body).status_code == 409
+    assert [x["product"] for x in client.get(f"/api/sales/rates?year=2027&title_id={sor['title'].id}").json()] == ["FP"]
+    r = client.put(f"/api/sales/titles/{sor['title'].id}/links", headers=identity_headers(admin),
+                   json={"digital_issue_url": "https://read.example.com/{edition}"})
+    assert r.json()["digital_issue_url"] == "https://read.example.com/{edition}"
+
+
 def test_import_keeps_cancel_reason_order_refs_and_extra_columns(db_session, tmp_path):
     y = tmp_path / "2026"
     y.mkdir()

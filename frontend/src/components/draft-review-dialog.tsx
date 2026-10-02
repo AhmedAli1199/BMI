@@ -39,6 +39,7 @@ export function DraftReviewDialog({
   actionId,
   actionLabel,
   initialDraft,
+  send,
   onApproved,
 }: {
   open: boolean;
@@ -47,6 +48,10 @@ export function DraftReviewDialog({
   actionId: string;
   actionLabel: string;
   initialDraft: string;
+  /** For a draft that can be emailed from the reviewer's own Outlook: the
+   * main button sends to `to` (editable, pre-filled), and a second button
+   * just logs it to the CRM instead. */
+  send?: { defaultTo: string; logOnlyActionId: string; logOnlyLabel: string };
   /** Called right after a successful approve, so the parent card can play
    * its own "done, folding away" animation - this dialog doesn't own that
    * transition, it just closes itself. */
@@ -56,6 +61,7 @@ export function DraftReviewDialog({
   const [instructions, setInstructions] = useState("");
   const [regenerating, startRegenerate] = useTransition();
   const [approving, startApprove] = useTransition();
+  const [to, setTo] = useState(send?.defaultTo ?? "");
 
   function handleRegenerate() {
     if (!instructions.trim()) return;
@@ -71,16 +77,22 @@ export function DraftReviewDialog({
     });
   }
 
-  function handleApprove() {
+  function handleApprove(which: "main" | "log" = "main") {
     if (!draft.trim()) {
       toast.error("The draft is empty - write something or regenerate before approving.");
       return;
     }
+    if (send && which === "main" && !/^[^@\s,;]+@[^@\s,;]+\.[^@\s,;]+$/.test(to.trim())) {
+      toast.error("Enter the email address to send this to.");
+      return;
+    }
+    const id = send && which === "log" ? send.logOnlyActionId : actionId;
+    const label = send && which === "log" ? send.logOnlyLabel : actionLabel;
     startApprove(async () => {
       try {
-        await resolveReviewItem(itemId, actionId, { note: draft });
+        await resolveReviewItem(itemId, id, { note: draft, fields: send && which === "main" ? { to: to.trim() } : undefined });
         onOpenChange(false);
-        onApproved(actionLabel);
+        onApproved(send && which === "main" ? `Sent to ${to.trim()}` : label);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Couldn't save this draft");
       }
@@ -98,12 +110,33 @@ export function DraftReviewDialog({
             Review the draft
           </DialogTitle>
           <DialogDescription>
-            Edit it directly, ask for a revision, or approve as-is. Approving saves it as a note on the
-            contact&apos;s record — copy it into your own email or phone call to actually send it.
+            {send
+              ? "Edit it, ask for a revision, then send it from your own Outlook - it lands in your Sent Items, replies come back to you, and a copy is logged on the company. Or just log it and send it yourself."
+              : "Edit it directly, ask for a revision, or approve as-is. Approving saves it as a note on the contact's record — copy it into your own email or phone call to actually send it."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
+          {send && (
+            <div>
+              <Label htmlFor="draft-to" className="mb-1 block text-xs text-muted-foreground">
+                Send to
+              </Label>
+              <Input
+                id="draft-to"
+                type="email"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                placeholder="name@company.com"
+                disabled={busy}
+              />
+              {!send.defaultTo && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  No contact with an email is linked to this company yet - type the address.
+                </p>
+              )}
+            </div>
+          )}
           <div className="relative">
             <Textarea
               value={draft}
@@ -158,8 +191,13 @@ export function DraftReviewDialog({
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" disabled={busy} onClick={handleApprove}>
-            {approving ? "Saving…" : actionLabel}
+          {send && (
+            <Button type="button" variant="outline" disabled={busy} onClick={() => handleApprove("log")}>
+              {send.logOnlyLabel}
+            </Button>
+          )}
+          <Button type="button" disabled={busy} onClick={() => handleApprove("main")}>
+            {approving ? (send ? "Sending…" : "Saving…") : actionLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

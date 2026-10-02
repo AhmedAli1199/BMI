@@ -18,7 +18,7 @@ from app.models.note import Note
 from app.models.opportunity import Opportunity
 from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
-from app.models.sales import SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
+from app.models.sales import SalesEdition, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle
 from app.models.user import User
 from app.models.user_access import UserAccess
 
@@ -60,6 +60,7 @@ __all__ = [
     "SalesEdition",
     "SalesOrder",
     "SalesOrderCredit",
+    "SalesRate",
     "SalesRep",
     "SalesTitle",
     "User",

@@ -9,6 +9,26 @@ export type SalesTitle = {
   name: string;
   product_line: ProductLine;
   crm_source_db: string;
+  /** Online-edition link templates - {edition}, {year}, {page} placeholders. */
+  digital_page_url?: string | null;
+  digital_issue_url?: string | null;
+};
+
+export type SalesRate = {
+  id: string;
+  title_id: string;
+  year: number;
+  product: string;
+  price_gbp: number;
+  notes: string | null;
+};
+
+export type RenewalPassResult = {
+  previous_edition: string;
+  advertisers: number;
+  queued: number;
+  already_booked: number;
+  already_queued: number;
 };
 
 export type SalesRep = {
@@ -103,6 +123,8 @@ export type EditionDetail = EditionSummary & {
   next_edition: Ref | null;
   prev_in_year: Ref | null;
   next_in_year: Ref | null;
+  digital_url: string | null;
+  renews_from: Ref | null;
 };
 
 export type OrdersPage = { items: SalesOrder[]; total: number; total_value_gbp: number };

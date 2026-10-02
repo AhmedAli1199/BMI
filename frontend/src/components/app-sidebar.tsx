@@ -207,6 +207,7 @@ export function AppSidebar({
                       <HubSubItem href="/sales/editions" label="Editions" active={pathname.startsWith("/sales/editions")} />
                       <HubSubItem href="/sales/bookings" label="All bookings" active={pathname === "/sales/bookings"} />
                       <HubSubItem href="/sales/renewals" label="Renewals" active={pathname === "/sales/renewals"} />
+                      <HubSubItem href="/sales/rate-card" label="Rate card" active={pathname === "/sales/rate-card"} />
                       <HubSubItem
                         href="/sales/invoicing"
                         label="Invoicing"

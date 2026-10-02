@@ -12,6 +12,8 @@ import { EditionStatusButton } from "@/components/sales/edition-actions";
 import { InfoHint } from "@/components/sales/info-hint";
 import { OrdersExplorer } from "@/components/sales/orders-explorer";
 import { AddBookingButton } from "@/components/sales/add-booking-button";
+import { RenewalPassButton } from "@/components/sales/renewal-pass-button";
+import { EditionLinkButton } from "@/components/sales/edition-link-button";
 import { PRODUCT_LINE_LABEL, SalesHeader, TitleIcon, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 function ChangeValue({ change }: { change: number | null }) {
@@ -104,6 +106,10 @@ export default async function EditionPage({
             <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false} render={<a href={`/api/sales/editions/${ed.id}/export`} download />}>
               <Download className="size-3.5" aria-hidden="true" /> Export .xlsx
             </Button>
+            {staff && <EditionLinkButton editionId={ed.id} url={ed.digital_url} />}
+            {staff && ed.renews_from && ed.status === "open" && (
+              <RenewalPassButton editionId={ed.id} editionLabel={ed.label} renewsFrom={ed.renews_from.label} />
+            )}
             <EditionStatusButton editionId={ed.id} status={ed.status} />
           </>
         }

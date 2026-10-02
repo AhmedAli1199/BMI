@@ -408,6 +408,8 @@ def resolve_review_item(
             raise HTTPException(status_code=400, detail=f"{f.label} is required.")
 
     input_data: dict = dict(payload.fields)
+    # Who clicked - for actions done "as me" (send from my Outlook).
+    input_data["_actor_user_id"] = str(identity.user_uuid) if identity.user_uuid else None
     if payload.note:
         input_data["note"] = payload.note
     if payload.contact_id:
@@ -519,7 +521,7 @@ def bulk_resolve_review_items(
     if action.requires_note and not (payload.note or "").strip():
         raise HTTPException(status_code=400, detail=f"\"{action.label}\" requires a note - add one to apply it in bulk.")
 
-    input_data: dict = {}
+    input_data: dict = {"_actor_user_id": str(identity.user_uuid) if identity.user_uuid else None}
     if payload.note:
         input_data["note"] = payload.note
 

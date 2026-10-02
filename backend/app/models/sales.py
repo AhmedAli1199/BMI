@@ -48,6 +48,28 @@ class SalesTitle(Base, UUIDPk):
     crm_source_db: Mapped[str] = mapped_column(String(64), nullable=False, default="sellingtravel")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Where last year's ad can be seen online (SALES-021 renewal emails link
+    # to it). Templates with {edition}, {year} and {page} placeholders, e.g.
+    # "https://example.com/obh/{edition}/page/{page}". The page link is used
+    # when the booking's page number is known, else the issue link.
+    digital_page_url: Mapped[str | None] = mapped_column(String(500))
+    digital_issue_url: Mapped[str | None] = mapped_column(String(500))
+
+
+class SalesRate(Base, UUIDPk, TimestampMixin):
+    """The rate card - this year's price for a product in a title (a full
+    page in OBH, a banner on STO). Renewal emails quote it; nothing is
+    ever priced from a guess."""
+    __tablename__ = "sales_rates"
+    __table_args__ = (UniqueConstraint("title_id", "year", "product", name="uq_sales_rates_title_year_product"),)
+
+    title_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_titles.id", ondelete="CASCADE"), nullable=False, index=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # As the sheets write it ("FP", "1/2", "DPS", "Banner") - matched to a
+    # booking's size, so it should use the same shorthand.
+    product: Mapped[str] = mapped_column(String(120), nullable=False)
+    price_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    notes: Mapped[str | None] = mapped_column(String(300))
 
 
 class SalesEdition(Base, UUIDPk, TimestampMixin):
@@ -72,6 +94,9 @@ class SalesEdition(Base, UUIDPk, TimestampMixin):
     exchange_rate: Mapped[float | None] = mapped_column(Numeric(8, 4))
     # For the booking-value target shown as a progress bar - optional.
     target_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    # This edition's own online link (SALES-021) - overrides the title's
+    # issue-link template when the address doesn't follow a pattern.
+    digital_url: Mapped[str | None] = mapped_column(String(500))
     notes: Mapped[str | None] = mapped_column(Text)
 
     # Import provenance + the sheet's own totals, kept for the

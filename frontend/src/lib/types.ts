@@ -255,6 +255,10 @@ export type ReviewPayload = {
   summary?: string;
   details?: ReviewDetail[];
   original_text?: string;
+  /** What original_text is, when it isn't the source message - e.g. "Draft email". */
+  original_label?: string;
+  /** Pre-filled recipient for a draft that can be sent straight from Outlook. */
+  suggested_to?: string;
   source_context?: string | null;
   related_entities?: ReviewRelatedEntity[];
   suggested_contact?: { id: string; label: string } | null;

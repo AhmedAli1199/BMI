@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
 import { sourceLabel } from "@/lib/sources";
-import type { ClientSuggestion, EditionSummary, OrderInput, SalesOrder } from "@/lib/sales-types";
+import type { ClientSuggestion, EditionSummary, OrderInput, RenewalPassResult, SalesOrder, SalesRate, SalesTitle } from "@/lib/sales-types";
 import type { CompanyListItem, FieldChange } from "@/lib/types";
 
 /** Server actions for the Sales Order Register - callable from client
@@ -80,7 +80,7 @@ export async function createEdition(input: {
 
 export async function updateEdition(
   editionId: string,
-  input: { status?: "open" | "closed"; target_gbp?: number | null; notes?: string | null; edition_date?: string | null; period_label?: string | null; name?: string }
+  input: { status?: "open" | "closed"; target_gbp?: number | null; notes?: string | null; edition_date?: string | null; period_label?: string | null; name?: string; digital_url?: string | null }
 ): Promise<EditionSummary> {
   const ed = await backendFetch<EditionSummary>(`/api/sales/editions/${editionId}`, {
     method: "PATCH",
@@ -89,4 +89,40 @@ export async function updateEdition(
   });
   revalidateSales(editionId);
   return ed;
+}
+
+// ---- Renewals: rate card, online links, renewal pass (SALES-021) ----------
+
+export async function startRenewalPass(editionId: string): Promise<RenewalPassResult> {
+  const r = await backendFetch<RenewalPassResult>(`/api/sales/editions/${editionId}/renewal-pass`, { method: "POST" });
+  revalidatePath("/automations", "layout");
+  return r;
+}
+
+export async function saveRate(
+  input: { title_id: string; year: number; product: string; price_gbp: number; notes?: string | null },
+  id?: string
+): Promise<SalesRate> {
+  const r = await backendFetch<SalesRate>(id ? `/api/sales/rates/${id}` : "/api/sales/rates", {
+    method: id ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  revalidatePath("/sales/rate-card");
+  return r;
+}
+
+export async function deleteRate(id: string) {
+  await backendFetch(`/api/sales/rates/${id}`, { method: "DELETE" });
+  revalidatePath("/sales/rate-card");
+}
+
+export async function saveTitleLinks(titleId: string, links: { digital_page_url: string | null; digital_issue_url: string | null }): Promise<SalesTitle> {
+  const t = await backendFetch<SalesTitle>(`/api/sales/titles/${titleId}/links`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(links),
+  });
+  revalidatePath("/sales/rate-card");
+  return t;
 }

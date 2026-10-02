@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import FieldChangeOut, UserSummary
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Company, FieldChange, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, User
+from app.models import Company, FieldChange, SalesEdition, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, User
 from app.roles import CAN_USE_AUTOMATIONS
 from app.sales.matching import normalise
 from app.sales.order_query import SORTS as ORDER_SORTS
@@ -48,6 +48,8 @@ class TitleOut(BaseModel):
     name: str
     product_line: str
     crm_source_db: str
+    digital_page_url: str | None = None
+    digital_issue_url: str | None = None
 
 
 class RepOut(BaseModel):
@@ -143,6 +145,9 @@ class EditionSummary(BaseModel):
 
 class EditionDetail(EditionSummary):
     notes: str | None = None
+    digital_url: str | None = None
+    # Last cycle's equivalent edition - what a renewal pass renews from.
+    renews_from: Ref | None = None
     source: str | None = None
     orders_list: list[OrderOut]
     by_rep: list[CreditOut]
@@ -175,6 +180,7 @@ class EditionPatch(BaseModel):
     exchange_rate: float | None = None
     target_gbp: float | None = None
     notes: str | None = None
+    digital_url: str | None = Field(default=None, max_length=500)
 
 
 class CreditIn(BaseModel):
@@ -392,7 +398,8 @@ def _f(v) -> float | None:
 
 
 def _title_out(t: SalesTitle) -> TitleOut:
-    return TitleOut(id=t.id, slug=t.slug, name=t.name, product_line=t.product_line, crm_source_db=t.crm_source_db)
+    return TitleOut(id=t.id, slug=t.slug, name=t.name, product_line=t.product_line, crm_source_db=t.crm_source_db,
+                    digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url)
 
 
 def _rep_out(r: SalesRep) -> RepOut:
@@ -771,6 +778,7 @@ def get_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> Edition
     return EditionDetail(
         **summary.model_dump(),
         notes=ed.notes, source=f"{ed.source_file} › {ed.source_sheet}" if ed.source_file else None,
+        digital_url=ed.digital_url, renews_from=ref(equivalent_editions(db, [ed]).get(ed.id)),
         orders_list=orders_out, by_rep=sorted(by_rep.values(), key=lambda c: -c.amount_gbp),
         cancelled_or_moved=sum(1 for o in orders_out if o.status in ("cancelled", "moved")),
         next_edition=ref(nxt),
@@ -809,6 +817,111 @@ def update_edition(edition_id: uuid.UUID, payload: EditionPatch, db: Session = D
         setattr(ed, k, v.strip() if isinstance(v, str) else v)
     db.commit()
     return _edition_summaries(db, [ed], date.today())[0]
+
+
+@router.post("/editions/{edition_id}/renewal-pass")
+def renewal_pass(edition_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Draft renewal emails now for everyone who advertised in this
+    edition's equivalent last cycle and hasn't rebooked (SALES-021's
+    "open a renewal pass"). Safe to run more than once."""
+    from app.automations.sales_orders import start_renewal_pass
+
+    if not _is_staff(identity):
+        raise HTTPException(status_code=403, detail="Only admins and data managers can start a renewal pass.")
+    try:
+        result = start_renewal_pass(db, _get_edition(db, edition_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return result
+
+
+# ---- Rate card & online links (SALES-021) -------------------------------------
+
+class RateIn(BaseModel):
+    title_id: uuid.UUID
+    year: int = Field(ge=2000, le=2100)
+    product: str = Field(min_length=1, max_length=120)
+    price_gbp: float = Field(ge=0)
+    notes: str | None = Field(default=None, max_length=300)
+
+
+class RateOut(RateIn):
+    id: uuid.UUID
+
+
+class TitleLinks(BaseModel):
+    digital_page_url: str | None = Field(default=None, max_length=500)
+    digital_issue_url: str | None = Field(default=None, max_length=500)
+
+
+def _rate_out(r: SalesRate) -> RateOut:
+    return RateOut(id=r.id, title_id=r.title_id, year=r.year, product=r.product, price_gbp=float(r.price_gbp), notes=r.notes)
+
+
+@router.get("/rates", response_model=list[RateOut])
+def list_rates(year: int | None = None, title_id: uuid.UUID | None = None, db: Session = Depends(get_db)) -> list[RateOut]:
+    q = select(SalesRate)
+    if year:
+        q = q.where(SalesRate.year == year)
+    if title_id:
+        q = q.where(SalesRate.title_id == title_id)
+    return [_rate_out(r) for r in db.scalars(q.order_by(SalesRate.year.desc(), SalesRate.price_gbp.desc()))]
+
+
+def _staff_only(identity: Identity) -> None:
+    if not _is_staff(identity):
+        raise HTTPException(status_code=403, detail="Only admins and data managers can change the rate card.")
+
+
+@router.post("/rates", response_model=RateOut, status_code=201)
+def create_rate(payload: RateIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> RateOut:
+    _staff_only(identity)
+    if not db.get(SalesTitle, payload.title_id):
+        raise HTTPException(status_code=422, detail="Unknown title")
+    product = payload.product.strip()
+    if db.scalars(select(SalesRate).where(SalesRate.title_id == payload.title_id, SalesRate.year == payload.year,
+                                          func.lower(SalesRate.product) == product.lower())).first():
+        raise HTTPException(status_code=409, detail=f"“{product}” already has a {payload.year} price for this title - edit it instead.")
+    r = SalesRate(id=uuid.uuid4(), **{**payload.model_dump(), "product": product})
+    db.add(r)
+    db.commit()
+    return _rate_out(r)
+
+
+@router.put("/rates/{rate_id}", response_model=RateOut)
+def update_rate(rate_id: uuid.UUID, payload: RateIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> RateOut:
+    _staff_only(identity)
+    r = db.get(SalesRate, rate_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Rate not found")
+    for k, v in payload.model_dump().items():
+        setattr(r, k, v.strip() if isinstance(v, str) else v)
+    db.commit()
+    return _rate_out(r)
+
+
+@router.delete("/rates/{rate_id}", status_code=204, response_model=None)
+def delete_rate(rate_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> None:
+    _staff_only(identity)
+    r = db.get(SalesRate, rate_id)
+    if r:
+        db.delete(r)
+        db.commit()
+
+
+@router.put("/titles/{title_id}/links", response_model=TitleOut)
+def update_title_links(title_id: uuid.UUID, payload: TitleLinks, db: Session = Depends(get_db),
+                       identity: Identity = Depends(get_identity)) -> TitleOut:
+    """Where a title's digital edition lives - see SalesTitle.digital_page_url."""
+    _staff_only(identity)
+    t = db.get(SalesTitle, title_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Title not found")
+    t.digital_page_url = (payload.digital_page_url or "").strip() or None
+    t.digital_issue_url = (payload.digital_issue_url or "").strip() or None
+    db.commit()
+    return _title_out(t)
 
 
 @router.get("/editions/{edition_id}/export")
