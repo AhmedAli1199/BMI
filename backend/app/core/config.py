@@ -303,5 +303,17 @@ class Settings(BaseSettings):
     mail_merge_per_minute: int = 25
     mail_merge_max_recipients: int = 5000
 
+    # ---- Xero (read-only accounting link) ----------------------------------
+    # A Xero "Web app" registered at developer.xero.com. An admin connects it
+    # once (Settings > Integrations); sales invoices then sync every hour and
+    # each booking shows whether its invoice is paid. Tokens are encrypted
+    # with mail_token_key, same as Outlook's.
+    xero_client_id: str = ""
+    xero_client_secret: str = ""
+    xero_redirect_uri: str = ""  # default: {app_base_url}/api/xero/callback
+    xero_scopes: str = "offline_access accounting.transactions.read accounting.contacts.read"
+    automations_xero_sync_enabled: bool = True
+    xero_sync_from: str = "2023-01-01"  # first sync pulls invoices dated from here
+
 
 settings = Settings()

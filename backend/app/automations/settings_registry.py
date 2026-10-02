@@ -30,6 +30,12 @@ class AutomationSettingDef:
 
 
 AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
+    # ---- Xero ----
+    AutomationSettingDef(
+        key="automations_xero_sync_enabled", label="Xero invoice sync",
+        description="Hourly copy of sales invoices from Xero (read-only), matched to bookings by invoice number.",
+        group="Xero", type="bool",
+    ),
     # ---- Reminders, notifications & mail merge ----
     AutomationSettingDef(
         key="automations_reminders_scan_enabled", label="Reminders fire",

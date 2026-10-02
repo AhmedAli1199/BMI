@@ -20,6 +20,7 @@ from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
 from app.models.sales import SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle
 from app.models.user import User
+from app.models.xero import XeroConnection, XeroInvoice
 from app.models.user_access import UserAccess
 
 __all__ = [
@@ -65,6 +66,8 @@ __all__ = [
     "SalesRep",
     "SalesTitle",
     "User",
+    "XeroConnection",
+    "XeroInvoice",
     "WeeklySummary",
     "UserAccess",
 ]

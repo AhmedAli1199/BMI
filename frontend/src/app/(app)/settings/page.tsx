@@ -2,22 +2,25 @@ import Link from "next/link";
 import { ChevronRight, Settings as SettingsIcon, Sparkles, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
-import { canManageUsers } from "@/lib/access";
+import { canManageUsers, canUseAutomations } from "@/lib/access";
 import type { PreferenceDef, UserPreferences } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { PreferenceGroup } from "@/components/preference-group";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { OutlookConnectionCard } from "@/components/outlook-connection-card";
 import type { MailStatus } from "@/lib/messaging-types";
+import { XeroConnectionCard } from "@/components/xero-connection-card";
+import type { XeroStatus } from "@/lib/xero-actions";
 
 export default async function SettingsPage() {
   const session = await getSession();
-  const [defs, prefs, mailStatus] = await Promise.all([
+  const [defs, prefs, mailStatus, xeroStatus] = await Promise.all([
     backendFetch<PreferenceDef[]>("/api/settings/definitions"),
     session
       ? backendFetch<UserPreferences>(`/api/users/${session.sub}/preferences`)
       : Promise.resolve<UserPreferences>({ values: {} }),
     session ? backendFetch<MailStatus>("/api/mail/status").catch(() => null) : Promise.resolve(null),
+    canUseAutomations(session) ? backendFetch<XeroStatus>("/api/integrations/xero").catch(() => null) : Promise.resolve(null),
   ]);
 
   // Grouped by each def's `group` field (e.g. "Dashboard"), in the order
@@ -90,6 +93,13 @@ export default async function SettingsPage() {
         <h2 className="editorial-heading text-lg font-bold text-foreground">Email</h2>
         <OutlookConnectionCard status={mailStatus} />
       </div>
+
+      {xeroStatus && (
+        <div id="integrations" className="flex scroll-mt-20 flex-col gap-4">
+          <h2 className="editorial-heading text-lg font-bold text-foreground">Integrations</h2>
+          <XeroConnectionCard status={xeroStatus} />
+        </div>
+      )}
 
       {[...groups.entries()].map(([groupName, groupDefs]) => (
         <div key={groupName} id={groupName.toLowerCase()} className="flex scroll-mt-20 flex-col gap-4">

@@ -23,6 +23,7 @@ from app.api.routes import (
     diagnostics,
     groups,
     health,
+    integrations,
     management,
     messaging,
     publications,
@@ -85,6 +86,7 @@ api_router.include_router(diagnostics.router)
 api_router.include_router(users.router)
 api_router.include_router(activities.router)
 api_router.include_router(messaging.router)
+api_router.include_router(integrations.router)
 api_router.include_router(management.router)
 app.include_router(api_router)
 

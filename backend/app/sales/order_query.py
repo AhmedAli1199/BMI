@@ -13,10 +13,10 @@ import uuid
 from dataclasses import dataclass, field, fields, replace
 from datetime import date
 
-from sqlalchemy import Select, and_, func, or_, select, union_all
+from sqlalchemy import Select, and_, case, func, or_, select, union_all
 from sqlalchemy.orm import Session
 
-from app.models import Company, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
+from app.models import Company, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, XeroInvoice
 from app.sales.analytics import BOOKED
 
 SORTS = ("edition", "booked", "client", "value", "invoice", "rep", "status", "title", "size")
@@ -50,6 +50,8 @@ class OrderQuery:
     mismatched: bool = False
     part_invoiced: bool = False
     unlinked: bool = False
+    # Payment state in Xero: paid, part_paid, unpaid, overdue, voided, not_in_xero
+    xero: list[str] = field(default_factory=list)
     search: str | None = None
     sort: str = "edition"
     desc: bool = True
@@ -89,6 +91,29 @@ def _difference_groups(explained: bool):
     return and_(SalesOrder.status == BOOKED, SalesOrder.invoice_number.isnot(None),
                 SalesOrder.invoice_value_gbp.isnot(None),
                 select(1).where(g.c.ed == SalesOrder.edition_id, g.c.ck == client_key).exists())
+
+
+XERO_STATES = ("paid", "part_paid", "unpaid", "overdue", "voided", "not_in_xero")
+
+
+def xero_state():
+    """The booking's payment state in Xero, matched by invoice number
+    (spaces and case ignored). NULL when the booking has no invoice."""
+    key = func.upper(func.replace(SalesOrder.invoice_number, " ", ""))
+    state = (
+        select(case(
+            (XeroInvoice.status.in_(("VOIDED", "DELETED")), "voided"),
+            (func.coalesce(XeroInvoice.amount_due, 0) <= 0, "paid"),
+            (XeroInvoice.due_on < date.today(), "overdue"),
+            (func.coalesce(XeroInvoice.amount_paid, 0) > 0, "part_paid"),
+            else_="unpaid",
+        ))
+        .where(XeroInvoice.number_key == key)
+        .order_by(XeroInvoice.updated_at_xero.desc().nulls_last())
+        .limit(1)
+        .scalar_subquery()
+    )
+    return case((SalesOrder.invoice_number.is_(None), None), else_=func.coalesce(state, "not_in_xero"))
 
 
 def conditions(q: OrderQuery) -> list:
@@ -142,6 +167,8 @@ def conditions(q: OrderQuery) -> list:
         c.append(_difference_groups(explained=True))
     if q.unlinked:
         c.extend([SalesOrder.company_id.is_(None), SalesOrder.match_dismissed.is_(False)])
+    if q.xero:
+        c.append(xero_state().in_(q.xero))
     if q.search and q.search.strip():
         like = f"%{q.search.strip()}%"
         c.append(or_(
@@ -196,6 +223,7 @@ def facets(db: Session, q: OrderQuery) -> dict[str, dict[str, int]]:
     grouped("title", SalesEdition.title_id, "title_ids")
     line = select(SalesTitle.product_line).where(SalesTitle.id == SalesEdition.title_id).scalar_subquery()
     grouped("product_line", line, "product_lines")
+    grouped("xero", xero_state(), "xero")
 
     # A booking counts for every rep it credits, not only its main rep.
     ids = base(q.without("rep_ids"), SalesOrder.id).subquery()

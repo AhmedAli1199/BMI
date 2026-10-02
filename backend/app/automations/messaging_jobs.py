@@ -53,3 +53,15 @@ register_job(ScheduledJob(
     description="Every minute: sends the next batch of each queued mail merge from the sender's Outlook, within Exchange's rate limit.",
     cron="* * * * *", func=_with_db(_merge), enabled_flag="automations_mail_merge_sender_enabled",
 ))
+
+
+def _xero(db):
+    from app.services.xero import sync
+    return sync(db)
+
+
+register_job(ScheduledJob(
+    id="xero_invoice_sync", label="Xero invoice sync",
+    description="Hourly: copies sales invoices changed in Xero since the last run, so each booking shows whether it's been paid. Read-only - nothing is written to Xero.",
+    cron="20 * * * *", func=_with_db(_xero), enabled_flag="automations_xero_sync_enabled",
+))

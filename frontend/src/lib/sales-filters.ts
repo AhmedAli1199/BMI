@@ -19,10 +19,19 @@ export const PRODUCT_LINE_OPTIONS = [
   { value: "awards", label: "Awards" },
 ];
 
+export const XERO_OPTIONS = [
+  { value: "paid", label: "Paid" },
+  { value: "part_paid", label: "Part paid" },
+  { value: "unpaid", label: "Unpaid", hint: "Not yet due" },
+  { value: "overdue", label: "Overdue", hint: "Past its due date in Xero with money still owed" },
+  { value: "voided", label: "Voided" },
+  { value: "not_in_xero", label: "Not found in Xero", hint: "Has an invoice number that no Xero invoice matches - often a typo" },
+];
+
 const shortTitle = (name: string) => name.replace(/\s*\(.*\)/, "");
 
 /** Keys of the bookings filters - `hide` drops any that make no sense on a page (e.g. year/title on one edition). */
-export type OrderFilterKey = "q" | "year" | "title" | "line" | "rep" | "status" | "invoiced" | "linked" | "check" | "value" | "booked" | "edition";
+export type OrderFilterKey = "q" | "year" | "title" | "line" | "rep" | "status" | "invoiced" | "xero" | "linked" | "check" | "value" | "booked" | "edition";
 
 export function orderFilterDefs(meta: SalesMeta, hide: OrderFilterKey[] = []): FilterDef[] {
   const defs: FilterDef[] = [
@@ -42,6 +51,10 @@ export function orderFilterDefs(meta: SalesMeta, hide: OrderFilterKey[] = []): F
     {
       kind: "tristate", key: "invoiced", label: "Invoice", section: "State", yes: "Invoiced", no: "Awaiting invoice",
       hint: "“Awaiting invoice” = live bookings with a value and no invoice number yet.",
+    },
+    {
+      kind: "multi", key: "xero", label: "Payment (Xero)", section: "State", options: XERO_OPTIONS,
+      hint: "From BMI's Xero, matched on invoice number. Synced hourly once Xero is connected in Settings.",
     },
     {
       kind: "tristate", key: "linked", label: "CRM company", section: "State", yes: "Linked", no: "Not linked",
@@ -72,6 +85,7 @@ export function orderBackendQuery(values: FilterValues, sort: SortState, extra: 
   list(values.line).forEach((v) => qs.append("product_line", v));
   list(values.rep).forEach((v) => qs.append("rep_id", v));
   list(values.status).forEach((v) => qs.append("status", v));
+  list(values.xero).forEach((v) => qs.append("xero", v));
   one("search", values.q);
   one("invoiced", values.invoiced);
   one("linked", values.linked);
@@ -96,6 +110,7 @@ export function orderFacetsForSidebar(f: Record<string, Record<string, number>>)
     rep: f.rep ?? {},
     status: f.status ?? {},
     invoiced: f.invoiced ?? {},
+    xero: f.xero ?? {},
     linked: f.linked ?? {},
     check: f.has_warning ?? {},
   };

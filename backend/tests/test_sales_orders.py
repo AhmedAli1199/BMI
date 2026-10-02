@@ -573,3 +573,48 @@ def test_size_fractions_and_hidden_commission_columns(db_session, tmp_path):
     assert credits(o["TripStax"]) == {"KH": 1500.0}  # hidden column ignored
     assert credits(o["Daytona"]) == {"SP": 2222.22}  # misaligned sheet figure replaced by the booking value
     assert "shifted" in o["Daytona"].import_warning
+
+
+# ---- Xero ----------------------------------------------------------------------
+
+def test_xero_sync_matches_bookings_and_filters_by_payment(client, db_session, sor, monkeypatch):
+    from app.models import XeroConnection
+    from app.services import xero
+    from app.services.outlook import encrypt
+
+    db_session.add(XeroConnection(id=uuid.uuid4(), tenant_id="t1", tenant_name="BMI Publishing", refresh_token_enc=encrypt("r1")))
+    db_session.commit()
+    monkeypatch.setattr(xero, "_token", lambda data: {"access_token": "a2", "refresh_token": "r2", "expires_in": 1800})
+    past = (date.today() - timedelta(days=10)).isoformat()
+    pages = [[
+        {"InvoiceID": "x1", "InvoiceNumber": "INV 1", "Status": "PAID", "AmountDue": 0, "AmountPaid": 120, "Total": 120,
+         "FullyPaidOnDate": "/Date(1767225600000+0000)/", "CurrencyCode": "GBP"},
+        {"InvoiceID": "x2", "InvoiceNumber": "inv-2", "Status": "AUTHORISED", "AmountDue": 60, "AmountPaid": 0, "Total": 60,
+         "DueDateString": f"{past}T00:00:00"},
+    ]]
+    monkeypatch.setattr(xero, "fetch_invoices", lambda token, tenant, since, page: pages[page - 1] if page <= len(pages) else [])
+    assert xero.sync(db_session) == {"invoices": 2}
+    assert xero.decrypt(xero.connection(db_session).refresh_token_enc) == "r2"  # rotated token kept
+
+    _order(db_session, sor["this"], "Paid Ltd", 100, invoice_number="INV1")
+    _order(db_session, sor["this"], "Late Ltd", 50, invoice_number="INV-2")
+    _order(db_session, sor["this"], "Missing Ltd", 50, invoice_number="INV-9")
+    _order(db_session, sor["this"], "Not invoiced", 50)
+    items = {o["client_name"]: o for o in client.get("/api/sales/orders").json()["items"]}
+    assert items["Paid Ltd"]["xero"]["state"] == "paid"
+    assert items["Late Ltd"]["xero"]["state"] == "overdue" and items["Late Ltd"]["xero"]["amount_due"] == 60
+    assert items["Missing Ltd"]["xero"] is None
+    names = lambda qs: sorted(o["client_name"] for o in client.get(f"/api/sales/orders?{qs}").json()["items"])  # noqa: E731
+    assert names("xero=overdue") == ["Late Ltd"]
+    assert names("xero=not_in_xero&xero=paid") == ["Missing Ltd", "Paid Ltd"]
+    facets = client.get("/api/sales/orders/facets").json()
+    assert facets["xero"] == {"paid": 1, "overdue": 1, "not_in_xero": 1}
+
+
+def test_xero_settings_need_staff_and_config(client, db_session):
+    rep = make_user(db_session, role="sales")
+    admin = make_user(db_session, role="admin")
+    db_session.commit()
+    assert client.get("/api/integrations/xero", headers=identity_headers(rep)).status_code == 403
+    status = client.get("/api/integrations/xero", headers=identity_headers(admin)).json()
+    assert status["connected"] is False and status["redirect_uri"].endswith("/api/xero/callback")

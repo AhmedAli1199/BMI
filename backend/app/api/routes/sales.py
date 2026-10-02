@@ -25,17 +25,18 @@ from sqlalchemy.orm import Session
 from app.api.schemas import FieldChangeOut, UserSummary
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Company, FieldChange, SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, User
+from app.models import Company, FieldChange, SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, User, XeroInvoice
 from app.roles import CAN_USE_AUTOMATIONS
 from app.sales.matching import normalise
 from app.sales.order_query import SORTS as ORDER_SORTS
-from app.sales.order_query import OrderQuery
+from app.sales.order_query import XERO_STATES, OrderQuery
 from app.sales.order_query import facets as order_facets
 from app.sales.order_query import page as order_page
 from app.sales.analytics import BOOKED, edition_pace, edition_totals, equivalent_editions, same_point_last_year
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
 from app.services.field_audit import record_field_changes
+from app.services.xero import number_key
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
@@ -81,6 +82,18 @@ class CreditOut(BaseModel):
     amount_gbp: float
 
 
+class XeroRef(BaseModel):
+    """The matching sales invoice in Xero (read-only)."""
+    state: str  # paid | part_paid | unpaid | overdue | voided
+    status: str
+    currency: str | None = None
+    total: float | None = None
+    amount_paid: float | None = None
+    amount_due: float | None = None
+    due_on: date | None = None
+    paid_on: date | None = None
+
+
 class OrderOut(BaseModel):
     id: uuid.UUID
     edition_id: uuid.UUID
@@ -115,6 +128,7 @@ class OrderOut(BaseModel):
     edition_date: date | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    xero: XeroRef | None = None
 
 
 class EditionSummary(BaseModel):
@@ -467,6 +481,12 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
     credits: dict[uuid.UUID, list[SalesOrderCredit]] = defaultdict(list)
     for c in db.scalars(select(SalesOrderCredit).where(SalesOrderCredit.order_id.in_([o.id for o in orders]))):
         credits[c.order_id].append(c)
+    keys = {number_key(o.invoice_number) for o in orders} - {None}
+    xero: dict[str, XeroInvoice] = {}
+    if keys:
+        for inv in db.scalars(select(XeroInvoice).where(XeroInvoice.number_key.in_(keys))
+                              .order_by(XeroInvoice.updated_at_xero.asc().nulls_first())):
+            xero[inv.number_key] = inv  # latest wins
 
     out = []
     for o in orders:
@@ -490,8 +510,20 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
             notes=o.notes, import_warning=o.import_warning,
             source=f"{o.source_file} › {o.source_sheet}, row {o.source_row}" if o.source_file else None,
             edition_date=ed.edition_date, created_at=o.created_at, updated_at=o.updated_at,
+            xero=_xero_ref(xero.get(number_key(o.invoice_number) or "")),
         ))
     return out
+
+
+def _xero_ref(inv: XeroInvoice | None) -> XeroRef | None:
+    if not inv:
+        return None
+    due = float(inv.amount_due or 0)
+    state = ("voided" if inv.status in ("VOIDED", "DELETED") else "paid" if due <= 0
+             else "overdue" if inv.due_on and inv.due_on < date.today()
+             else "part_paid" if float(inv.amount_paid or 0) > 0 else "unpaid")
+    return XeroRef(state=state, status=inv.status, currency=inv.currency, total=_f(inv.total),
+                   amount_paid=_f(inv.amount_paid), amount_due=_f(inv.amount_due), due_on=inv.due_on, paid_on=inv.paid_on)
 
 
 def _edition_summaries(db: Session, editions: list[SalesEdition], today: date) -> list[EditionSummary]:
@@ -1086,6 +1118,7 @@ def order_query(
     part_invoiced: bool = False,
     warnings: bool = False,
     unlinked: bool = False,
+    xero: list[str] = Query(default=[]),
     search: str | None = None,
     sort: str = "edition",
     desc: bool = True,
@@ -1099,7 +1132,7 @@ def order_query(
         has_warning=True if warnings else has_warning, value_min=value_min, value_max=value_max,
         booked_from=booked_from, booked_to=booked_to, edition_from=edition_from, edition_to=edition_to,
         uninvoiced=uninvoiced, overdue=overdue, mismatched=mismatched, part_invoiced=part_invoiced, unlinked=unlinked,
-        search=search, sort=sort if sort in ORDER_SORTS else "edition", desc=desc,
+        xero=[x for x in xero if x in XERO_STATES], search=search, sort=sort if sort in ORDER_SORTS else "edition", desc=desc,
     )
 
 

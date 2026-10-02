@@ -51,6 +51,36 @@ function InvoiceCell({ o }: { o: SalesOrder }) {
             {fmtGBP(o.invoice_value_gbp)} invoiced
           </span>
         ))}
+      <XeroPayment o={o} />
+    </span>
+  );
+}
+
+const XERO_TONE: Record<string, [string, string]> = {
+  paid: ["Paid", "var(--ok)"],
+  part_paid: ["Part paid", "var(--warn)"],
+  unpaid: ["Unpaid", "var(--muted-foreground)"],
+  overdue: ["Overdue", "var(--bad)"],
+  voided: ["Voided", "var(--muted-foreground)"],
+};
+
+/** Payment state from Xero, matched on invoice number. */
+function XeroPayment({ o }: { o: SalesOrder }) {
+  const x = o.xero;
+  if (!x) return null;
+  const [label, color] = XERO_TONE[x.state] ?? [x.status, "var(--muted-foreground)"];
+  const cur = x.currency && x.currency !== "GBP" ? `${x.currency} ` : "£";
+  const money = (n: number | null) => `${cur}${(n ?? 0).toLocaleString("en-GB", { maximumFractionDigits: 2 })}`;
+  const detail =
+    x.state === "paid"
+      ? `Paid in full${x.paid_on ? ` on ${fmtDate(x.paid_on)}` : ""}`
+      : x.state === "voided"
+        ? "Voided in Xero"
+        : `${money(x.amount_due)} owed of ${money(x.total)}${x.due_on ? ` · due ${fmtDate(x.due_on)}` : ""}`;
+  return (
+    <span className="text-[11px] font-semibold" style={{ color }} title={`Xero: ${detail}`}>
+      {label}
+      {x.state !== "paid" && x.state !== "voided" && <span className="font-normal text-muted-foreground"> · {money(x.amount_due)} owed</span>}
     </span>
   );
 }

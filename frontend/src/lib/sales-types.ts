@@ -52,6 +52,17 @@ export type Ref = { id: string; label: string };
 
 export type Credit = { rep_id: string; code: string; name: string; amount_gbp: number };
 
+export type XeroRef = {
+  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  status: string;
+  currency: string | null;
+  total: number | null;
+  amount_paid: number | null;
+  amount_due: number | null;
+  due_on: string | null;
+  paid_on: string | null;
+};
+
 export type SalesOrder = {
   id: string;
   edition_id: string;
@@ -86,6 +97,7 @@ export type SalesOrder = {
   edition_date: string | null;
   created_at: string | null;
   updated_at: string | null;
+  xero?: XeroRef | null;
 };
 
 export type EditionSummary = {
