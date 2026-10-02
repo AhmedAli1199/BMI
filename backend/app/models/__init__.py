@@ -12,6 +12,7 @@ from app.models.job_run import AutomationJobRun
 from app.models.group import Group, GroupMembership
 from app.models.history import HistoryEntry
 from app.models.llm_usage import LlmUsageEvent
+from app.models.management import ManagementAlert, WeeklySummary
 from app.models.messaging import MailAccount, MailAttachment, MailMerge, MailMergeRecipient, MailTemplate, Notification, Reminder
 from app.models.note import Note
 from app.models.opportunity import Opportunity
@@ -44,6 +45,7 @@ __all__ = [
     "HistoryEntry",
     "LlmUsageEvent",
     "MailAccount",
+    "ManagementAlert",
     "MailAttachment",
     "MailMerge",
     "MailMergeRecipient",
@@ -61,5 +63,6 @@ __all__ = [
     "SalesRep",
     "SalesTitle",
     "User",
+    "WeeklySummary",
     "UserAccess",
 ]

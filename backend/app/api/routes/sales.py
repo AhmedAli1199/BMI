@@ -32,7 +32,7 @@ from app.sales.order_query import SORTS as ORDER_SORTS
 from app.sales.order_query import OrderQuery
 from app.sales.order_query import facets as order_facets
 from app.sales.order_query import page as order_page
-from app.sales.analytics import BOOKED, edition_totals, equivalent_editions, same_point_last_year
+from app.sales.analytics import BOOKED, edition_pace, edition_totals, equivalent_editions, same_point_last_year
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
 from app.services.field_audit import record_field_changes
@@ -272,6 +272,56 @@ class Overview(BaseModel):
     by_title: list[TitleRow]
     by_rep: list[RepRow]
     upcoming: list[EditionSummary]
+
+
+class PaceRow(BaseModel):
+    edition: Ref
+    title: TitleOut
+    edition_date: date | None = None
+    kind: str
+    booked_gbp: float
+    orders: int
+    previous: Ref | None = None
+    previous_point_gbp: float | None = None
+    previous_point_orders: int | None = None
+    previous_total_gbp: float | None = None
+    gap_gbp: float | None = None
+    gap_pct: float | None = None
+    state: str  # behind | on_pace | ahead | not_comparable
+    reason: str | None = None
+
+
+class WeekPoint(BaseModel):
+    week_start: date
+    orders: int
+    value_gbp: float
+    last_year_value_gbp: float
+
+
+class ActivityRow(BaseModel):
+    rep: RepOut
+    bookings: int
+    booked_gbp: float
+    followups_actioned: int | None = None  # None: this rep has no login, so no queue to action
+    followups_outstanding: int | None = None
+
+
+class Unattributed(BaseModel):
+    orders: int
+    value_gbp: float
+
+
+class Dashboard(BaseModel):
+    as_of: date
+    threshold_pct: float
+    min_prior_gbp: float
+    min_prior_orders: int
+    pace: list[PaceRow]
+    weekly: list[WeekPoint]
+    activity_days: int
+    activity: list[ActivityRow]
+    unattributed: Unattributed
+    unattributed_year: int
 
 
 class CommissionEditionRow(BaseModel):
@@ -575,6 +625,97 @@ def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview
         renewal_candidates=len(last_clients - this_clients),
         monthly=monthly, by_title=by_title_rows, by_rep=by_rep,
         upcoming=_edition_summaries(db, list(upcoming_eds), today),
+    )
+
+
+# ---- Dashboard (SALES-026) ---------------------------------------------------------
+
+DASHBOARD_WEEKS = 12
+ACTIVITY_DAYS = 30
+
+
+@router.get("/dashboard", response_model=Dashboard)
+def dashboard(db: Session = Depends(get_db)) -> Dashboard:
+    """The management view: how each selling edition is tracking against its
+    equivalent last cycle, weekly booking flow, what each person has
+    actually done recently, and anything the register can't attribute.
+    Every figure is a deterministic sum over the order register (plus the
+    review-queue counts for follow-ups); nothing here uses a model.
+    Activity is presented alphabetically, not ranked - it is a picture of
+    what is happening, not a league table."""
+    from app.automations import runtime_settings
+    from app.automations.metrics import get_rep_metrics
+
+    today = date.today()
+    threshold = runtime_settings.get_float(db, "sales_pace_threshold_pct")
+    min_gbp = runtime_settings.get_float(db, "sales_pace_min_prior_gbp")
+    min_orders = runtime_settings.get_int(db, "sales_pace_min_prior_orders")
+    titles = {t.id: t for t in db.scalars(select(SalesTitle))}
+    pace = [
+        PaceRow(
+            edition=Ref(id=r["edition"].id, label=edition_label(titles[r["edition"].title_id], r["edition"])),
+            title=_title_out(titles[r["edition"].title_id]), edition_date=r["edition"].edition_date, kind=r["edition"].kind,
+            booked_gbp=r["booked"], orders=r["orders"],
+            previous=Ref(id=r["prev"].id, label=edition_label(titles[r["prev"].title_id], r["prev"])) if r["prev"] else None,
+            previous_point_gbp=r["prev_point_gbp"], previous_point_orders=r["prev_point_orders"],
+            previous_total_gbp=r["prev_total_gbp"], gap_gbp=r["gap_gbp"], gap_pct=r["gap_pct"],
+            state=r["state"], reason=r["reason"],
+        )
+        for r in edition_pace(db, today, threshold=threshold, min_prior_gbp=min_gbp, min_prior_orders=min_orders)
+    ]
+
+    # Weekly booking flow, Monday-start, this year's last 12 weeks against
+    # the same 12 weeks 364 days earlier (so weekdays line up).
+    this_monday = today - timedelta(days=today.weekday())
+    first_week = this_monday - timedelta(weeks=DASHBOARD_WEEKS - 1)
+    weeks = [first_week + timedelta(weeks=i) for i in range(DASHBOARD_WEEKS)]
+
+    def weekly_rows(start: date, end: date):
+        return db.execute(
+            select(SalesOrder.booked_on, SalesOrder.value_gbp).where(
+                SalesOrder.status == BOOKED, SalesOrder.booked_on >= start, SalesOrder.booked_on < end)).all()
+
+    span_end = this_monday + timedelta(weeks=1)
+    now_rows = weekly_rows(first_week, span_end)
+    ly_rows = weekly_rows(first_week - timedelta(days=364), span_end - timedelta(days=364))
+    weekly = []
+    for w in weeks:
+        mine = [float(v) for d, v in now_rows if w <= d < w + timedelta(weeks=1)]
+        ly_start = w - timedelta(days=364)
+        last = [float(v) for d, v in ly_rows if ly_start <= d < ly_start + timedelta(weeks=1)]
+        weekly.append(WeekPoint(week_start=w, orders=len(mine), value_gbp=round(sum(mine), 2), last_year_value_gbp=round(sum(last), 2)))
+
+    # Per-person recent activity: bookings credited + follow-up queue items
+    # actioned, for everyone with either. Alphabetical on purpose.
+    since = today - timedelta(days=ACTIVITY_DAYS)
+    credit_rows = db.execute(
+        select(SalesOrderCredit.rep_id, func.count(func.distinct(SalesOrderCredit.order_id)), func.coalesce(func.sum(SalesOrderCredit.amount_gbp), 0))
+        .join(SalesOrder, SalesOrderCredit.order_id == SalesOrder.id)
+        .where(SalesOrder.status == BOOKED, SalesOrder.booked_on >= since).group_by(SalesOrderCredit.rep_id)).all()
+    credit_by_rep = {rid: (n, float(v)) for rid, n, v in credit_rows}
+    queue_by_user = {r["owner_user_id"]: r for r in get_rep_metrics(db, days=ACTIVITY_DAYS)["reps"] if r["owner_user_id"]}
+    activity = []
+    for rep in db.scalars(select(SalesRep).order_by(SalesRep.name)):
+        n, v = credit_by_rep.get(rep.id, (0, 0.0))
+        q = queue_by_user.get(str(rep.user_id)) if rep.user_id else None
+        if not rep.active and n == 0:
+            continue
+        activity.append(ActivityRow(
+            rep=_rep_out(rep), bookings=n, booked_gbp=round(v, 2),
+            followups_actioned=q["actioned_total"] if q else (0 if rep.user_id else None),
+            followups_outstanding=q["outstanding_now"] if q else (0 if rep.user_id else None)))
+
+    # Booked orders this year with no credit to anyone: shown, never dropped.
+    credited = select(SalesOrderCredit.order_id)
+    un = db.execute(
+        select(func.count(), func.coalesce(func.sum(SalesOrder.value_gbp), 0))
+        .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+        .where(SalesEdition.year == today.year, SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0,
+               SalesOrder.id.notin_(credited))).one()
+    return Dashboard(
+        as_of=today, threshold_pct=threshold, min_prior_gbp=min_gbp, min_prior_orders=min_orders,
+        pace=pace, weekly=weekly, activity_days=ACTIVITY_DAYS, activity=activity,
+        unattributed=Unattributed(orders=un[0], value_gbp=round(float(un[1]), 2)), unattributed_year=today.year,
     )
 
 

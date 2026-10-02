@@ -234,6 +234,22 @@ class Settings(BaseSettings):
     sor_renewal_lead_days: int = 60  # start the renewal this many days before the anniversary of last year's booking
     sor_renewal_max_per_run: int = 25
 
+    # SALES-026/028 (Sales dashboard, weekly summary & alerts) - see
+    # app/sales/analytics.py (edition_pace) and app/automations/management_reports.py.
+    # An edition counts as "behind" when what it has booked is this far
+    # below what its equivalent edition had booked at the same point
+    # before publication. Editions whose comparison point is too thin
+    # (below either minimum) are never judged - a "behind" alert off two
+    # small bookings would just be noise.
+    sales_pace_threshold_pct: float = 0.25
+    sales_pace_min_prior_gbp: float = 2000.0
+    sales_pace_min_prior_orders: int = 3
+    automations_management_alerts_enabled: bool = False  # SALES-028 daily "behind last cycle" alerts
+    # Comma-separated emails who get the alerts and the weekly brief. Empty = every active admin.
+    management_recipients: str = ""
+    sales_alert_cooldown_days: int = 14  # don't re-alert the same edition within this many days
+    automations_weekly_summary_enabled: bool = False  # SALES-028 Monday-morning leadership brief
+
     # SALES-013 (Morning Follow-Up Queue) - see
     # app/automations/morning_queue.py. Ranks each pending signal_trigger/
     # followup_due item by score = w_urgency*urgency + w_value*value, both

@@ -357,6 +357,42 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="Upper limit on renewal drafts created in one run (each may use one AI call).",
         group="Sales Order Register", type="int", min=1,
     ),
+    # ---- SALES-026/028 - management reporting ----
+    AutomationSettingDef(
+        key="automations_management_alerts_enabled", label="Behind-last-cycle alerts active",
+        description="Daily: alerts leadership when an open issue or event has booked far less than its equivalent edition had at the same point last cycle.",
+        group="Management Reporting", type="bool",
+    ),
+    AutomationSettingDef(
+        key="automations_weekly_summary_enabled", label="Weekly management summary active",
+        description="Monday morning: writes the one-page leadership brief from the order register and notifies admins.",
+        group="Management Reporting", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sales_pace_threshold_pct", label="Behind / ahead threshold (0.0-1.0)",
+        description="How far below (or above) its equivalent edition's position an edition must be to count as behind (or ahead). 0.25 = 25%.",
+        group="Management Reporting", type="float", min=0.01, max=1.0,
+    ),
+    AutomationSettingDef(
+        key="sales_pace_min_prior_gbp", label="Minimum comparison value (£)",
+        description="An edition is only compared if its equivalent had at least this much booked at the same point last cycle - stops early-cycle noise.",
+        group="Management Reporting", type="float", min=0,
+    ),
+    AutomationSettingDef(
+        key="sales_pace_min_prior_orders", label="Minimum comparison bookings",
+        description="An edition is only compared if its equivalent had at least this many bookings at the same point last cycle.",
+        group="Management Reporting", type="int", min=0,
+    ),
+    AutomationSettingDef(
+        key="management_recipients", label="Alert & summary recipients",
+        description="Comma-separated login emails who get the behind-last-cycle alerts and the weekly summary. Leave empty to send to every active administrator.",
+        group="Management Reporting", type="csv",
+    ),
+    AutomationSettingDef(
+        key="sales_alert_cooldown_days", label="Alert cooldown (days)",
+        description="The same edition is not alerted again within this many days.",
+        group="Management Reporting", type="int", min=1,
+    ),
 ]
 
 _BY_KEY = {d.key: d for d in AUTOMATION_SETTING_DEFS}
