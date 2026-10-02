@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import FieldChangeOut, UserSummary
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Company, FieldChange, SalesEdition, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, User
+from app.models import Company, FieldChange, SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, User
 from app.roles import CAN_USE_AUTOMATIONS
 from app.sales.matching import normalise
 from app.sales.order_query import SORTS as ORDER_SORTS
@@ -143,8 +143,35 @@ class EditionSummary(BaseModel):
     previous_same_point_gbp: float | None = None
 
 
+class CostLineOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    label: str
+    amount_gbp: float | None = None
+    amount_inc_vat_gbp: float | None = None
+    section: str | None = None
+    from_sheet: bool
+
+
+class CostLineIn(BaseModel):
+    kind: str = Field(default="cost", pattern="^(cost|income|note)$")
+    label: str = Field(min_length=1, max_length=500)
+    amount_gbp: float | None = None
+    amount_inc_vat_gbp: float | None = None
+    section: str | None = Field(default=None, max_length=300)
+
+
+class EditionCosts(BaseModel):
+    lines: list[CostLineOut]
+    total_costs_gbp: float
+    other_income_gbp: float
+    # Booked value + other income - costs. None when there are no cost lines.
+    profit_gbp: float | None = None
+
+
 class EditionDetail(EditionSummary):
     notes: str | None = None
+    costs: EditionCosts | None = None
     digital_url: str | None = None
     # Last cycle's equivalent edition - what a renewal pass renews from.
     renews_from: Ref | None = None
@@ -779,6 +806,7 @@ def get_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> Edition
         **summary.model_dump(),
         notes=ed.notes, source=f"{ed.source_file} › {ed.source_sheet}" if ed.source_file else None,
         digital_url=ed.digital_url, renews_from=ref(equivalent_editions(db, [ed]).get(ed.id)),
+        costs=_edition_costs(db, ed, summary.booked_gbp),
         orders_list=orders_out, by_rep=sorted(by_rep.values(), key=lambda c: -c.amount_gbp),
         cancelled_or_moved=sum(1 for o in orders_out if o.status in ("cancelled", "moved")),
         next_edition=ref(nxt),
@@ -817,6 +845,60 @@ def update_edition(edition_id: uuid.UUID, payload: EditionPatch, db: Session = D
         setattr(ed, k, v.strip() if isinstance(v, str) else v)
     db.commit()
     return _edition_summaries(db, [ed], date.today())[0]
+
+
+def _edition_costs(db: Session, ed: SalesEdition, booked: float) -> EditionCosts:
+    rows = db.scalars(select(SalesEditionCost).where(SalesEditionCost.edition_id == ed.id)
+                      .order_by(SalesEditionCost.sort_order, SalesEditionCost.created_at)).all()
+    costs = round(sum(float(r.amount_gbp or 0) for r in rows if r.kind == "cost"), 2)
+    income = round(sum(float(r.amount_gbp or 0) for r in rows if r.kind == "income"), 2)
+    has_costs = any(r.kind == "cost" for r in rows)
+    return EditionCosts(
+        lines=[CostLineOut(id=r.id, kind=r.kind, label=r.label, section=r.section, from_sheet=r.source_row is not None,
+                           amount_gbp=float(r.amount_gbp) if r.amount_gbp is not None else None,
+                           amount_inc_vat_gbp=float(r.amount_inc_vat_gbp) if r.amount_inc_vat_gbp is not None else None)
+               for r in rows],
+        total_costs_gbp=costs, other_income_gbp=income,
+        # A sponsorship "income" line restates the bookings on TBTM sheets, so
+        # profit is bookings - costs; other income is shown, not added.
+        profit_gbp=round(booked - costs, 2) if has_costs else None,
+    )
+
+
+@router.get("/editions/{edition_id}/costs", response_model=EditionCosts)
+def get_costs(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCosts:
+    ed = _get_edition(db, edition_id)
+    return _edition_costs(db, ed, _edition_summaries(db, [ed], date.today())[0].booked_gbp)
+
+
+@router.post("/editions/{edition_id}/costs", response_model=EditionCosts, status_code=201)
+def add_cost(edition_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db)) -> EditionCosts:
+    ed = _get_edition(db, edition_id)
+    last = db.scalar(select(func.max(SalesEditionCost.sort_order)).where(SalesEditionCost.edition_id == ed.id)) or 0
+    db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, sort_order=last + 1,
+                            **{**payload.model_dump(), "label": payload.label.strip()}))
+    db.commit()
+    return get_costs(edition_id, db)
+
+
+@router.put("/editions/{edition_id}/costs/{cost_id}", response_model=EditionCosts)
+def update_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db)) -> EditionCosts:
+    line = db.get(SalesEditionCost, cost_id)
+    if not line or line.edition_id != edition_id:
+        raise HTTPException(status_code=404, detail="Cost line not found")
+    for k, v in payload.model_dump().items():
+        setattr(line, k, v.strip() if isinstance(v, str) else v)
+    db.commit()
+    return get_costs(edition_id, db)
+
+
+@router.delete("/editions/{edition_id}/costs/{cost_id}", response_model=EditionCosts)
+def delete_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCosts:
+    line = db.get(SalesEditionCost, cost_id)
+    if line and line.edition_id == edition_id:
+        db.delete(line)
+        db.commit()
+    return get_costs(edition_id, db)
 
 
 @router.post("/editions/{edition_id}/renewal-pass")

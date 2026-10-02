@@ -14,6 +14,8 @@ import { OrdersExplorer } from "@/components/sales/orders-explorer";
 import { AddBookingButton } from "@/components/sales/add-booking-button";
 import { RenewalPassButton } from "@/components/sales/renewal-pass-button";
 import { EditionLinkButton } from "@/components/sales/edition-link-button";
+import { EditionCostsPanel } from "@/components/sales/edition-costs-panel";
+import { EditionNotes } from "@/components/sales/edition-notes";
 import { PRODUCT_LINE_LABEL, SalesHeader, TitleIcon, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 function ChangeValue({ change }: { change: number | null }) {
@@ -209,6 +211,12 @@ export default async function EditionPage({
           </span>
         </div>
       )}
+
+      {(ed.costs?.lines.length || ["events", "awards"].includes(ed.title.product_line)) && ed.costs && (
+        <EditionCostsPanel editionId={ed.id} booked={ed.booked_gbp} costs={ed.costs} />
+      )}
+
+      <EditionNotes editionId={ed.id} notes={ed.notes} />
 
       <section aria-labelledby="bookings-heading" className="flex flex-col gap-2">
         <h2 id="bookings-heading" className="sr-only">Bookings</h2>

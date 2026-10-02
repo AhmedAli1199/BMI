@@ -194,3 +194,28 @@ class SalesOrderCredit(Base, UUIDPk):
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_orders.id", ondelete="CASCADE"), nullable=False, index=True)
     rep_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_reps.id"), nullable=False, index=True)
     amount_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+
+
+class SalesEditionCost(Base, UUIDPk, TimestampMixin):
+    """A line of an event's costs/P&L, kept next to its bookings so revenue
+    and direct costs are seen together - what the events sheets track under
+    the booking list (venue hire, food, AV, photographer, travel, BMI
+    overheads...). Also any free-text line from that area of the sheet
+    (venue contracted on..., deposit paid...) as a "note" line.
+
+    kind: "cost" (counts towards total costs), "income" (extra income not
+    in the bookings, e.g. a sponsorship line), "summary" (the sheet's own
+    totals/profit lines, kept for reference but never added up - we
+    calculate those) or "note" (text only)."""
+    __tablename__ = "sales_edition_costs"
+
+    edition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="cost")
+    label: Mapped[str] = mapped_column(String(500), nullable=False)
+    amount_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    # The VAT-inclusive figure when the sheet gives both ("1,913.76 plus vat 2,257.45").
+    amount_inc_vat_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    # Sub-heading the line sits under (an event day/venue: "Edinburgh 27th January").
+    section: Mapped[str | None] = mapped_column(String(300))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source_row: Mapped[int | None] = mapped_column(Integer)  # null = added in the app

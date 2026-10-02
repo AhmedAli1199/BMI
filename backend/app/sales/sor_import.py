@@ -35,7 +35,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.models import SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
+from app.models import SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
 from app.sales.reference import ensure_reference_data, rep_code_for, title_for_file
 
 logger = logging.getLogger("app.sales.sor_import")
@@ -251,6 +251,10 @@ class ParsedSheet:
     exchange_rate: float | None = None
     sheet_total: float | None = None
     rows: list[ParsedRow] = field(default_factory=list)
+    # (sheet row number, cells) for every non-booking line under the header,
+    # blank lines included as [] - read by cost_lines() on events sheets.
+    other_rows: list[tuple[int, list]] = field(default_factory=list)
+    gbp_col: int = 0
 
 
 _COLS = {
@@ -314,7 +318,7 @@ def parse_sheet(name: str, rows: list[list[Cell]], hidden: set[int] | None = Non
         if label and _norm(label) not in ("invoice difference", "difference", "total", "invoice", "rate", "number", "value"):
             extra_cols[i] = label
 
-    parsed = ParsedSheet(name=name.strip())
+    parsed = ParsedSheet(name=name.strip(), gbp_col=col["gbp"])
     for r in rows[:hdr]:
         for i, v in enumerate(r):
             lab = _norm(v)
@@ -347,10 +351,12 @@ def parse_sheet(name: str, rows: list[list[Cell]], hidden: set[int] | None = Non
             empty = all(v is None or v == 0 for v in r)
             if empty:
                 last_row = -10  # a blank line ends the booking above
+                parsed.other_rows.append((ri + 1, []))
                 continue
             if last_client and last_row >= 0 and ((value or 0) > 0 or has_invoice):
                 client, continuation = last_client, True
             else:
+                parsed.other_rows.append((ri + 1, r))
                 continue  # a package line ("Enews") under a booking - part of it, no value of its own
         if client.lower().startswith(("total", "totals")):
             continue
@@ -359,9 +365,12 @@ def parse_sheet(name: str, rows: list[list[Cell]], hidden: set[int] | None = Non
             (value or 0) != 0 or has_invoice
             or ("rep" in col and r[col["rep"]] is not None)
             or ("date" in col and r[col["date"]] is not None)
-            or re.search(r"\bCANX\b|CANCEL|CONTRA|MOVED TO", text.upper())
+            # Whole words: "Edinburgh 27th January Contracted Doubletree" is
+            # an event-day heading, not a contra booking.
+            or re.search(r"\bCANX\b|CANCEL|\bCONTRA\b|MOVED TO", text.upper())
         )
         if not looks_like_booking:
+            parsed.other_rows.append((ri + 1, r))
             continue  # cost breakdowns, section labels ("Direct Costs", "Room Hire") typed into the client column
         last_client = client
         last_row = ri
@@ -386,9 +395,99 @@ def parse_sheet(name: str, rows: list[list[Cell]], hidden: set[int] | None = Non
 
 # ---- Import ---------------------------------------------------------------
 
+# The sheet's own sums - kept for reference, never added up again.
+_SUMMARY = re.compile(r"\btotals?\b|^(event profit|profit\b|net\b|\d+\s*% of profit|cumulative|estimated costs$|av cost|"
+                      r"(plus|inc|ex)\.? vat\b)", re.IGNORECASE)
+_DAY = re.compile(r"^\W*(\d{1,2}(st|nd|rd|th)\b\s+[A-Za-z]|[A-Za-z]{3,}\s+\d{1,2}(st|nd|rd|th)\b)", re.IGNORECASE)
+_INCOME = re.compile(r"^(income|revenue|sponsorship|sponsors?)\b", re.IGNORECASE)
+
+
+def _is_label(v: Cell) -> bool:
+    return isinstance(v, str) and bool(re.search(r"[A-Za-z]{2}", v)) and not re.fullmatch(r"\s*[£$]?[\d.,\s]+\s*", v)
+
+
+def cost_lines(other_rows: list[tuple[int, list]], last_col: int | None = None) -> list[dict]:
+    """The costs / P&L area of an events sheet, as lines: venue hire, food,
+    AV, travel, photographer, BMI overheads... plus the free-text lines
+    around them (contracted on..., deposit paid...) and the sheet's own
+    totals for reference. Only text-labelled lines are kept - a bare
+    number on its own is a running total. Figures right of `last_col` (the
+    £ column) are the sheet's running totals and invoice columns, never a
+    cost.
+
+    Headings: in a block of text-only lines (no blank line between) that
+    leads into figures, the first line is the heading - an event day or
+    venue ("Edinburgh 27th January", "Doubletree - Sue and Stuart
+    attending") - for everything under it until the next such block."""
+    entries: list[dict] = []
+    gap = True
+    for row_no, r in other_rows:
+        if not r or all(v is None or v == 0 or (isinstance(v, str) and not v.strip()) for v in r):
+            gap = True
+            continue
+        labels = [v.strip() for v in r if _is_label(v)]
+        if not labels or len(labels[0]) < 3 or labels[0].lower() in ("total", "totals", "v", "notes"):
+            continue
+        label = labels[0]
+        cells = r[: last_col + 1] if last_col is not None else r
+        nums = [round(float(v), 2) for v in cells if isinstance(v, (int, float)) and not isinstance(v, bool) and abs(v) >= 0.01]
+        if not nums:  # "£261.50 inc VAT" typed as text in another cell
+            for t in labels[1:]:
+                m = re.search(r"£\s*([\d,]+(?:\.\d+)?)", t)
+                if m:
+                    nums = [round(float(m.group(1).replace(",", "")), 2)]
+                    label = f"{label} ({t})"
+                    break
+        text = " ".join(labels).lower()
+        if re.match(r"\s*£", label):  # "£2520.33 +VAT" - the sheet's own running total for the block
+            m = re.search(r"£\s*([\d,]+(?:\.\d+)?)", label)
+            kind, amount, inc_vat = "summary", (round(float(m.group(1).replace(",", "")), 2) if m else None), None
+        elif not nums:
+            kind, amount, inc_vat = "note", None, None
+        else:
+            kind = "summary" if _SUMMARY.search(label) else "income" if _INCOME.search(label) else "cost"
+            amount = nums[0]
+            inc_vat = nums[1] if len(nums) > 1 and "vat" in text and nums[1] > nums[0] else None
+        entries.append({"kind": kind, "label": label[:500], "amount_gbp": amount, "amount_inc_vat_gbp": inc_vat,
+                        "source_row": row_no, "_gap": gap})
+        gap = False
+
+    section: str | None = None
+    i = 0
+    while i < len(entries):
+        e = entries[i]
+        if e["kind"] == "note":
+            j = i
+            while j + 1 < len(entries) and entries[j + 1]["kind"] == "note" and not entries[j + 1]["_gap"]:
+                j += 1
+            leads_into_figures = j + 1 < len(entries) and not entries[j + 1]["_gap"]
+            if leads_into_figures or e["_gap"]:
+                # The heading is the line naming a day ("13th April Glasgow",
+                # "Edinburgh 27th January") if the block has one, else its first line.
+                dated = [k for k in range(i, j + 1) if _DAY.search(entries[k]["label"])]
+                h = dated[-1] if dated else i
+                for k in range(i, h):
+                    entries[k]["section"] = section
+                section = entries[h]["label"][:300]
+                entries[h]["section"] = None
+                for k in range(h + 1, j + 1):
+                    entries[k]["section"] = section
+            else:
+                for k in range(i, j + 1):
+                    entries[k]["section"] = section
+            i = j + 1
+            continue
+        e["section"] = section
+        i += 1
+    for e in entries:
+        e.pop("_gap")
+    return entries
+
+
 @dataclass
 class ImportReport:
     files: int = 0
+    cost_lines: int = 0
     skipped_files: list[str] = field(default_factory=list)
     editions: int = 0
     orders: int = 0
@@ -436,7 +535,19 @@ def _group_files(root: Path) -> list[tuple[int, Path, Path | None]]:
 
 def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportReport:
     ensure_reference_data(db)
+    # What people added in the app to imported editions - notes, online
+    # link, cost lines typed in - is carried over to the re-imported edition
+    # with the same title/year/name, so a refresh never loses it.
+    kept: dict[tuple, dict] = {}
     if replace:
+        for e in db.query(SalesEdition).filter(SalesEdition.source_file.isnot(None)):
+            extra_costs = [
+                {k: getattr(c, k) for k in ("kind", "label", "amount_gbp", "amount_inc_vat_gbp", "section", "sort_order")}
+                for c in db.query(SalesEditionCost).filter(SalesEditionCost.edition_id == e.id, SalesEditionCost.source_row.is_(None))
+            ]
+            if e.notes or e.digital_url or e.target_gbp or extra_costs:
+                kept[(e.title_id, e.year, e.name)] = {"notes": e.notes, "digital_url": e.digital_url,
+                                                      "target_gbp": e.target_gbp, "costs": extra_costs}
         imported = db.query(SalesEdition.id).filter(SalesEdition.source_file.isnot(None))
         db.query(SalesOrder).filter(SalesOrder.edition_id.in_(imported.scalar_subquery())).delete(synchronize_session=False)  # credits cascade
         db.query(SalesEdition).filter(SalesEdition.source_file.isnot(None)).delete(synchronize_session=False)
@@ -489,6 +600,16 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
             db.flush()
             report.editions += 1
             total = 0.0
+            # Events sheets keep each event's direct costs / P&L under the
+            # bookings - carried over so revenue and costs stay together.
+            if tdef.product_line in ("events", "awards"):
+                for n, line in enumerate(cost_lines(sheet.other_rows, sheet.gbp_col)):
+                    db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, sort_order=n, **line))
+                    report.cost_lines += 1
+            if (k := kept.pop((title.id, year, name), None)):
+                ed.notes, ed.digital_url, ed.target_gbp = k["notes"], k["digital_url"], k["target_gbp"]
+                for c in k["costs"]:
+                    db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, **{**c, "sort_order": c["sort_order"] + 10_000}))
 
             for row in sheet.rows:
                 warnings = []

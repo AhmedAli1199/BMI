@@ -125,6 +125,7 @@ export type EditionDetail = EditionSummary & {
   next_in_year: Ref | null;
   digital_url: string | null;
   renews_from: Ref | null;
+  costs: EditionCosts | null;
 };
 
 export type OrdersPage = { items: SalesOrder[]; total: number; total_value_gbp: number };
@@ -285,4 +286,29 @@ export type ManagementAlert = {
   message: string;
   records_ref: { type: string; id: string; label: string }[];
   fired_at: string;
+};
+
+export type CostLine = {
+  id: string;
+  kind: "cost" | "income" | "summary" | "note";
+  label: string;
+  amount_gbp: number | null;
+  amount_inc_vat_gbp: number | null;
+  section: string | null;
+  from_sheet: boolean;
+};
+
+export type EditionCosts = {
+  lines: CostLine[];
+  total_costs_gbp: number;
+  other_income_gbp: number;
+  profit_gbp: number | null;
+};
+
+export type CostLineInput = {
+  kind: "cost" | "income" | "note";
+  label: string;
+  amount_gbp: number | null;
+  amount_inc_vat_gbp?: number | null;
+  section?: string | null;
 };

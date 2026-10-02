@@ -12,7 +12,7 @@ from app.automations import get_kind
 from app.models import Company, FieldChange, ReviewQueueItem, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
 from app.sales.matching import match_clients
 from app.sales.reference import ensure_reference_data, rep_code_for
-from app.sales.sor_import import import_sor, parse_date, parse_money, parse_pages, parse_sheet
+from app.sales.sor_import import cost_lines, import_sor, parse_date, parse_money, parse_pages, parse_sheet
 
 
 # ---- Parsing ------------------------------------------------------------------
@@ -76,6 +76,64 @@ def test_parse_sheet_skips_templates_and_entry_lists():
     assert parse_sheet("TEMPLATE DO NOT COPY OVER", _sheet_rows([])) is None
     assert parse_sheet("Blank 2", _sheet_rows([])) is None
     assert parse_sheet("IND Entries ALPHA", [["Date", "Client", "No."], ["04.11.25", "Air Canada", 5]]) is None
+
+
+def _pad(r: list) -> list:
+    return r + [None] * (20 - len(r))
+
+
+EVENT_ROWS = [
+    _pad([None, "Edinburgh 27th January Contracted Doubletree on 12/12/25"]),  # a heading, not a contra booking
+    _row("15.05.25", "Visit Oman", "1", "ST", 1295.0, "INV-9", st=1295.0),
+    _row("16.05.25", "Travelpack", "2", "ST", 750.0, "INV-10", st=750.0),
+    [],
+    _pad([None, "Doubletree - accommodation booked at Moxy"]),
+    _pad([None, None, None, None, None, "Room Hire", None, None, None, None, 833.33]),
+    _pad([None, None, None, None, None, "Food £15.41 x 55", None, None, None, None, 847.55]),
+    _pad([None, None, None, None, None, "Venue hire", 1913.76, "plus vat", None, None, 2257.45]),
+    _pad([None, None, None, None, None, "Sponsorship", 2045.0]),
+    _pad([None, None, None, None, None, "Total costs", 3594.64]),
+    _pad([None, None, None, None, None, "10% of profit KH", 45.0]),
+    _pad([None, None, None, None, None, "£2520.33 +VAT"]),
+    _pad([None, None, None, None, None, None, None, None, None, None, 4000.0, 12000.0]),  # running totals - no label
+]
+
+
+def test_cost_lines_read_an_events_pl_block():
+    ps = parse_sheet("Jan Luxury", _sheet_rows(EVENT_ROWS))
+    assert [r.client for r in ps.rows] == ["Visit Oman", "Travelpack"]  # "Contracted" isn't CONTRA
+    lines = cost_lines(ps.other_rows, ps.gbp_col)
+    by = {l["label"]: l for l in lines}
+    assert by["Room Hire"]["kind"] == "cost" and by["Room Hire"]["amount_gbp"] == 833.33
+    assert by["Room Hire"]["section"] == "Doubletree - accommodation booked at Moxy"
+    assert by["Venue hire"]["amount_gbp"] == 1913.76 and by["Venue hire"]["amount_inc_vat_gbp"] == 2257.45
+    assert by["Sponsorship"]["kind"] == "income"
+    assert by["Total costs"]["kind"] == "summary" and by["10% of profit KH"]["kind"] == "summary"
+    assert by["£2520.33 +VAT"]["kind"] == "summary"
+    assert by["Edinburgh 27th January Contracted Doubletree on 12/12/25"]["kind"] == "note"
+    assert not any(l["amount_gbp"] == 12000.0 for l in lines)
+
+
+def test_event_costs_import_profit_edit_and_survive_reimport(client, db_session, tmp_path):
+    y = tmp_path / "2026"
+    y.mkdir()
+    _write_book(y / "STM Connect Events 2026.xlsx", {"Jan Luxury": _sheet_rows(EVENT_ROWS)})
+    import_sor(db_session, tmp_path)
+    ed = db_session.query(SalesEdition).filter_by(name="Jan Luxury").one()
+    d = client.get(f"/api/sales/editions/{ed.id}").json()
+    c = d["costs"]
+    assert c["total_costs_gbp"] == round(833.33 + 847.55 + 1913.76, 2)
+    assert c["profit_gbp"] == round(1295 + 750 - c["total_costs_gbp"], 2)
+    assert c["other_income_gbp"] == 2045.0
+    r = client.post(f"/api/sales/editions/{ed.id}/costs", json={"label": "Photographer", "amount_gbp": 250})
+    assert r.status_code == 201 and r.json()["total_costs_gbp"] == round(c["total_costs_gbp"] + 250, 2)
+    client.patch(f"/api/sales/editions/{ed.id}", json={"notes": "Sue and Stuart attending"})
+
+    import_sor(db_session, tmp_path, replace=True)
+    ed2 = db_session.query(SalesEdition).filter_by(name="Jan Luxury").one()
+    d2 = client.get(f"/api/sales/editions/{ed2.id}").json()
+    assert d2["notes"] == "Sue and Stuart attending"
+    assert "Photographer" in [l["label"] for l in d2["costs"]["lines"] if not l["from_sheet"]]
 
 
 def _write_book(path, sheets: dict[str, list[list]]):

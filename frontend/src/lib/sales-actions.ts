@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
 import { sourceLabel } from "@/lib/sources";
-import type { ClientSuggestion, EditionSummary, OrderInput, RenewalPassResult, SalesOrder, SalesRate, SalesTitle } from "@/lib/sales-types";
+import type { ClientSuggestion, CostLineInput, EditionCosts, EditionSummary, OrderInput, RenewalPassResult, SalesOrder, SalesRate, SalesTitle } from "@/lib/sales-types";
 import type { CompanyListItem, FieldChange } from "@/lib/types";
 
 /** Server actions for the Sales Order Register - callable from client
@@ -125,4 +125,22 @@ export async function saveTitleLinks(titleId: string, links: { digital_page_url:
   });
   revalidatePath("/sales/rate-card");
   return t;
+}
+
+// ---- Event costs ----------------------------------------------------------
+
+export async function saveCostLine(editionId: string, input: CostLineInput, id?: string): Promise<EditionCosts> {
+  const r = await backendFetch<EditionCosts>(`/api/sales/editions/${editionId}/costs${id ? `/${id}` : ""}`, {
+    method: id ? "PUT" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  revalidatePath(`/sales/editions/${editionId}`);
+  return r;
+}
+
+export async function deleteCostLine(editionId: string, id: string): Promise<EditionCosts> {
+  const r = await backendFetch<EditionCosts>(`/api/sales/editions/${editionId}/costs/${id}`, { method: "DELETE" });
+  revalidatePath(`/sales/editions/${editionId}`);
+  return r;
 }
