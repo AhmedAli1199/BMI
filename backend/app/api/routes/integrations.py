@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.routes.messaging import current_user
+from app.core.config import settings
 from app.db.session import get_db
 from app.models import SalesOrder, User, XeroInvoice
 from app.roles import CAN_USE_AUTOMATIONS
@@ -33,19 +34,23 @@ class XeroStatus(BaseModel):
     invoices: int = 0
     bookings_matched: int = 0
     redirect_uri: str
+    # "app" = signed in from Settings; "webhook" = tokens come from the n8n workflow
+    mode: str = "app"
 
 
 @router.get("/xero", response_model=XeroStatus)
 def xero_status(db: Session = Depends(get_db), _: User = Depends(_staff)) -> XeroStatus:
     conn = xero.connection(db)
+    via_webhook = xero.webhook_mode()
     matched = db.scalar(select(func.count()).select_from(SalesOrder).where(
         func.upper(func.replace(SalesOrder.invoice_number, " ", "")).in_(select(XeroInvoice.number_key)))) or 0
     return XeroStatus(
-        configured=xero.is_configured(), connected=bool(conn), organisation=conn.tenant_name if conn else None,
+        configured=xero.is_configured(), connected=bool(conn) or via_webhook,
+        organisation=(conn.tenant_name if conn else None) or (settings.xero_tenant_name or "Xero organisation" if via_webhook else None),
         connected_at=conn.connected_at if conn else None, last_sync_at=conn.last_sync_at if conn else None,
         last_error=conn.last_error if conn else None,
         invoices=db.scalar(select(func.count()).select_from(XeroInvoice)) or 0, bookings_matched=matched,
-        redirect_uri=xero.redirect_uri(),
+        redirect_uri=xero.redirect_uri(), mode="webhook" if via_webhook else "app",
     )
 
 
@@ -89,6 +94,8 @@ def xero_sync_now(db: Session = Depends(get_db), _: User = Depends(_staff)) -> d
 @router.delete("/xero", status_code=204, response_model=None)
 def xero_disconnect(db: Session = Depends(get_db), _: User = Depends(_staff)) -> None:
     """Forgets the connection. Invoices already copied stay (they're history)."""
+    if xero.webhook_mode():
+        raise HTTPException(status_code=400, detail="Xero is linked through the n8n token workflow. To disconnect, remove the token webhook setting on the server.")
     conn = xero.connection(db)
     if conn:
         db.delete(conn)

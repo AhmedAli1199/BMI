@@ -7,6 +7,11 @@ authorization-code flow for a Xero "Web app"; we keep only an encrypted
 refresh token. Xero rotates the refresh token on every use and expires it
 after 60 days unused, so the hourly sync also keeps the connection alive.
 
+Alternatively (webhook mode): when XERO_TOKEN_WEBHOOK_URL and XERO_TENANT_ID
+are set, an n8n workflow keeps the Xero grant alive and the app just asks
+it for a fresh access token (cached until it expires). No sign-in, client
+id or secret is needed here in that mode.
+
 Syncing: every sales invoice (Type ACCREC) changed since the last sync is
 fetched page by page and upserted into xero_invoices, then matched to the
 order register by invoice number. Nothing is ever written to Xero.
@@ -44,8 +49,13 @@ class XeroAuthError(Exception):
     """The stored grant no longer works - an admin has to reconnect."""
 
 
+def webhook_mode() -> bool:
+    """True when tokens come from the n8n workflow instead of an in-app sign-in."""
+    return bool(settings.xero_token_webhook_url.strip() and settings.xero_tenant_id.strip())
+
+
 def is_configured() -> bool:
-    return bool(settings.xero_client_id and settings.xero_client_secret)
+    return webhook_mode() or bool(settings.xero_client_id and settings.xero_client_secret)
 
 
 def redirect_uri() -> str:
@@ -53,7 +63,9 @@ def redirect_uri() -> str:
 
 
 def authorize_url(state: str) -> str:
-    if not is_configured():
+    if webhook_mode():
+        raise XeroNotConfigured("Xero is linked through the n8n token workflow, so there's nothing to sign in to here.")
+    if not (settings.xero_client_id and settings.xero_client_secret):
         raise XeroNotConfigured("Xero isn't set up yet - XERO_CLIENT_ID and XERO_CLIENT_SECRET are missing on the server.")
     return str(httpx.URL(AUTHORIZE_URL, params={
         "response_type": "code", "client_id": settings.xero_client_id, "redirect_uri": redirect_uri(),
@@ -99,6 +111,55 @@ def complete_sign_in(db: Session, code: str, user_id: uuid.UUID | None) -> XeroC
     return conn
 
 
+def _webhook_token() -> dict:
+    """Asks the n8n workflow for a fresh access token. Error messages never
+    include the address or the token."""
+    url = settings.xero_token_webhook_url.strip()
+    if not url.lower().startswith("https://"):
+        raise XeroAuthError("The Xero token webhook address must start with https://.")
+    headers = {}
+    if settings.xero_token_webhook_secret:
+        headers[settings.xero_token_webhook_header or "Authorization"] = settings.xero_token_webhook_secret
+    try:
+        resp = httpx.get(url, headers=headers, timeout=60)
+    except httpx.HTTPError as exc:
+        raise XeroAuthError(f"Couldn't reach the n8n token workflow ({exc.__class__.__name__}).") from None
+    if resp.status_code >= 300:
+        raise XeroAuthError(f"The n8n token workflow answered {resp.status_code} - check that it is active and that the production address (not the test one) is used.")
+    try:
+        body = resp.json()
+    except ValueError:
+        body = None
+    if isinstance(body, list):
+        body = body[0] if body else None
+    token = body.get("access_token") if isinstance(body, dict) else None
+    if not token:
+        raise XeroAuthError("The n8n token workflow didn't return an access token - check its last run in n8n.")
+    try:
+        expires_in = int(body.get("expires_in") or 1800)
+    except (TypeError, ValueError):
+        expires_in = 1800
+    return {"access_token": token, "expires_in": expires_in}
+
+
+def ensure_webhook_connection(db: Session) -> XeroConnection:
+    """In webhook mode there is no sign-in to create the connection row, so
+    make sure one exists for the configured organisation (it also holds the
+    sync cursor, last sync time and last error)."""
+    tenant = settings.xero_tenant_id.strip()
+    conn = connection(db)
+    if conn is None:
+        conn = XeroConnection(id=uuid.uuid4(), tenant_id=tenant, tenant_name=settings.xero_tenant_name or None, refresh_token_enc="")
+        db.add(conn)
+    else:
+        if conn.tenant_id != tenant:  # pointed at a different organisation: start its history afresh
+            conn.tenant_id, conn.synced_until, conn.access_token_enc, conn.access_expires_at = tenant, None, None, None
+        conn.refresh_token_enc = ""
+        conn.tenant_name = settings.xero_tenant_name or conn.tenant_name
+    db.commit()
+    return conn
+
+
 def connection(db: Session) -> XeroConnection | None:
     return db.scalars(select(XeroConnection).order_by(XeroConnection.connected_at.desc())).first()
 
@@ -106,6 +167,16 @@ def connection(db: Session) -> XeroConnection | None:
 def _access_token(db: Session, conn: XeroConnection) -> str:
     if conn.access_token_enc and conn.access_expires_at and conn.access_expires_at > datetime.now(timezone.utc):
         return decrypt(conn.access_token_enc)
+    if webhook_mode():
+        try:
+            body = _webhook_token()
+        except XeroAuthError as exc:
+            conn.last_error = str(exc)[:500]
+            db.commit()
+            raise
+        _store(conn, body)
+        db.commit()
+        return body["access_token"]
     try:
         body = _token({"grant_type": "refresh_token", "refresh_token": decrypt(conn.refresh_token_enc)})
     except XeroAuthError as exc:
@@ -174,7 +245,7 @@ def fetch_invoices(token: str, tenant_id: str, since: datetime | None, page: int
               "summaryOnly": "true"}
     resp = httpx.get(f"{API}/Invoices", headers=headers, params=params, timeout=60)
     if resp.status_code == 401:
-        raise XeroAuthError("Xero rejected the connection - reconnect Xero.")
+        raise XeroAuthError("Xero rejected the access token - " + ("check the n8n token workflow." if webhook_mode() else "reconnect Xero."))
     if resp.status_code == 429:
         raise RuntimeError("Xero rate limit reached - the next hourly sync will carry on.")
     resp.raise_for_status()
@@ -184,7 +255,7 @@ def fetch_invoices(token: str, tenant_id: str, since: datetime | None, page: int
 def sync(db: Session) -> dict:
     """Pulls every sales invoice changed since the last sync. Safe to run
     any time; returns {"invoices": n} or {"skipped": reason}."""
-    conn = connection(db)
+    conn = ensure_webhook_connection(db) if webhook_mode() else connection(db)
     if not conn:
         return {"skipped": "Xero isn't connected"}
     started = datetime.now(timezone.utc)
@@ -204,6 +275,8 @@ def sync(db: Session) -> dict:
         db.rollback()
         conn = connection(db)
         if conn:
+            if webhook_mode():
+                conn.access_expires_at = None  # don't reuse a token Xero just refused; ask n8n again next time
             conn.last_error = str(exc)[:500]
             conn.last_sync_at = started
             db.commit()

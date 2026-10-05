@@ -27,6 +27,7 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
 
   if (!status) return null;
   const broken = status.connected && !!status.last_error;
+  const viaN8n = status.mode === "webhook";
 
   return (
     <Card className="editorial-card">
@@ -40,10 +41,15 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
               <p className="text-sm font-bold text-foreground">Xero</p>
               {status.connected ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {broken ? <AlertTriangle className="size-3.5 text-amber-600" /> : <CheckCircle2 className="size-3.5 text-emerald-600" />}
+                  {broken ? (
+                    <AlertTriangle className="size-3.5" style={{ color: "var(--warn)" }} aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2 className="size-3.5" style={{ color: "var(--ok)" }} aria-hidden="true" />
+                  )}
                   <span>
                     {status.organisation} · {status.invoices.toLocaleString()} invoices · {status.bookings_matched.toLocaleString()} bookings
                     matched · last sync {when(status.last_sync_at)}
+                    {viaN8n && " · signed in through BMI's n8n workflow"}
                   </span>
                 </p>
               ) : (
@@ -55,7 +61,7 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
             </div>
           </div>
           <div className="flex gap-2">
-            {status.configured && (!status.connected || broken) && (
+            {status.configured && !viaN8n && (!status.connected || broken) && (
               <Button size="sm" nativeButton={false} render={<a href="/api/xero/connect?return_to=/settings" />}>
                 {status.connected ? "Reconnect" : "Connect Xero"}
               </Button>
@@ -80,25 +86,35 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
                 >
                   <RefreshCw className="size-3.5" /> Sync now
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={pending}
-                  onClick={() =>
-                    start(async () => {
-                      await disconnectXero();
-                      toast.success("Xero disconnected");
-                      router.refresh();
-                    })
-                  }
-                >
-                  <Unplug className="size-3.5" /> Disconnect
-                </Button>
+                {!viaN8n && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() =>
+                      start(async () => {
+                        await disconnectXero();
+                        toast.success("Xero disconnected");
+                        router.refresh();
+                      })
+                    }
+                  >
+                    <Unplug className="size-3.5" /> Disconnect
+                  </Button>
+                )}
               </>
             )}
           </div>
         </div>
-        {broken && <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{status.last_error}</p>}
+        {broken && (
+          <p
+            role="status"
+            className="rounded-md bg-[color-mix(in_oklab,var(--warn)_12%,transparent)] px-3 py-2 text-xs font-medium"
+            style={{ color: "var(--warn)" }}
+          >
+            {status.last_error}
+          </p>
+        )}
         {!status.configured && (
           <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
             Not available yet: add XERO_CLIENT_ID and XERO_CLIENT_SECRET to the server settings. In the Xero app, the redirect URI must be{" "}

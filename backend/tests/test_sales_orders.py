@@ -618,3 +618,106 @@ def test_xero_settings_need_staff_and_config(client, db_session):
     assert client.get("/api/integrations/xero", headers=identity_headers(rep)).status_code == 403
     status = client.get("/api/integrations/xero", headers=identity_headers(admin)).json()
     assert status["connected"] is False and status["redirect_uri"].endswith("/api/xero/callback")
+
+
+# ---- Xero via the n8n token webhook ---------------------------------------------------
+
+class _Resp:
+    def __init__(self, status=200, body=None):
+        self.status_code, self._body = status, body
+
+    def json(self):
+        if self._body is None:
+            raise ValueError("not json")
+        return self._body
+
+
+@pytest.fixture()
+def webhook_mode(monkeypatch):
+    from app.core.config import settings
+    from app.services import xero
+
+    monkeypatch.setattr(settings, "xero_token_webhook_url", "https://n8n.example.com/webhook/xero")
+    monkeypatch.setattr(settings, "xero_token_webhook_header", "X-Secret")
+    monkeypatch.setattr(settings, "xero_token_webhook_secret", "s3cret")
+    monkeypatch.setattr(settings, "xero_tenant_id", "tenant-1")
+    monkeypatch.setattr(settings, "xero_tenant_name", "BMI Publishing Limited")
+    calls = []
+
+    def fake_get(url, headers=None, timeout=None):
+        calls.append((url, headers))
+        return fake_get.reply
+
+    fake_get.reply = _Resp(200, {"access_token": "tok1", "expires_in": "1800"})
+    monkeypatch.setattr(xero.httpx, "get", fake_get)
+    return fake_get, calls
+
+
+def test_xero_webhook_mode_syncs_with_the_workflow_token_and_caches_it(db_session, webhook_mode, monkeypatch):
+    from app.services import xero
+
+    _, calls = webhook_mode
+    seen = []
+    monkeypatch.setattr(xero, "fetch_invoices", lambda token, tenant, since, page: (seen.append((token, tenant)), [
+        {"InvoiceID": "x1", "InvoiceNumber": "INV 1", "Status": "PAID", "AmountDue": 0, "AmountPaid": 5, "Total": 5}] if page == 1 else [])[1])
+    assert xero.webhook_mode() and xero.is_configured()
+    assert xero.sync(db_session) == {"invoices": 1}
+    assert seen == [("tok1", "tenant-1")]
+    assert calls[0][1] == {"X-Secret": "s3cret"}  # the secret goes in the configured header
+    conn = xero.connection(db_session)
+    assert conn.tenant_id == "tenant-1" and conn.tenant_name == "BMI Publishing Limited" and conn.refresh_token_enc == ""
+    assert conn.last_error is None and conn.last_sync_at is not None
+    xero.sync(db_session)
+    assert len(calls) == 1  # token still valid: n8n isn't asked again (each ask rotates its refresh token)
+
+
+def test_xero_webhook_mode_drops_a_token_xero_refuses(db_session, webhook_mode, monkeypatch):
+    from app.services import xero
+
+    def refuse(token, tenant, since, page):
+        raise xero.XeroAuthError("Xero rejected the access token - check the n8n token workflow.")
+
+    monkeypatch.setattr(xero, "fetch_invoices", refuse)
+    with pytest.raises(xero.XeroAuthError):
+        xero.sync(db_session)
+    conn = xero.connection(db_session)
+    assert conn.access_expires_at is None and "n8n" in conn.last_error  # next sync asks n8n for a new one
+
+
+@pytest.mark.parametrize("reply, expected", [
+    (_Resp(404, {"message": "not registered"}), "answered 404"),
+    (_Resp(200, {"nothing": "here"}), "didn't return an access token"),
+    (_Resp(200, None), "didn't return an access token"),
+])
+def test_xero_webhook_problems_are_explained_without_leaking(db_session, webhook_mode, reply, expected):
+    from app.services import xero
+
+    fake_get, _ = webhook_mode
+    fake_get.reply = reply
+    with pytest.raises(xero.XeroAuthError) as exc:
+        xero.sync(db_session)
+    assert expected in str(exc.value) and "n8n.example.com" not in str(exc.value) and "s3cret" not in str(exc.value)
+    assert expected in xero.connection(db_session).last_error
+
+
+def test_xero_webhook_answer_may_be_a_list_and_must_be_https(db_session, webhook_mode, monkeypatch):
+    from app.core.config import settings
+    from app.services import xero
+
+    fake_get, _ = webhook_mode
+    fake_get.reply = _Resp(200, [{"access_token": "tokL", "expires_in": 900}])
+    assert xero._webhook_token() == {"access_token": "tokL", "expires_in": 900}
+    monkeypatch.setattr(settings, "xero_token_webhook_url", "http://insecure.example.com/x")
+    with pytest.raises(xero.XeroAuthError, match="https"):
+        xero._webhook_token()
+
+
+def test_xero_webhook_mode_status_and_no_sign_in(client, db_session, webhook_mode):
+    admin = make_user(db_session, role="admin")
+    db_session.commit()
+    h = identity_headers(admin)
+    status = client.get("/api/integrations/xero", headers=h).json()
+    assert status["mode"] == "webhook" and status["connected"] and status["configured"]
+    assert status["organisation"] == "BMI Publishing Limited"
+    assert client.get("/api/integrations/xero/start", headers=h).status_code == 400  # nothing to sign in to
+    assert client.delete("/api/integrations/xero", headers=h).status_code == 400  # disconnect = remove the setting

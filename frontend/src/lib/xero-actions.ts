@@ -13,6 +13,8 @@ export type XeroStatus = {
   invoices: number;
   bookings_matched: number;
   redirect_uri: string;
+  /** "app" = signed in from Settings; "webhook" = tokens come from the n8n workflow */
+  mode: "app" | "webhook";
 };
 
 export async function syncXero(): Promise<{ invoices?: number; skipped?: string }> {

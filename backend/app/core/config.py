@@ -311,9 +311,23 @@ class Settings(BaseSettings):
     xero_client_id: str = ""
     xero_client_secret: str = ""
     xero_redirect_uri: str = ""  # default: {app_base_url}/api/xero/callback
-    xero_scopes: str = "offline_access accounting.transactions.read accounting.contacts.read"
+    # Granular scopes: Xero apps created in 2026 can't use the older broad
+    # accounting.transactions scope. These are the ones BMI's existing app already works with.
+    xero_scopes: str = "offline_access accounting.invoices.read accounting.contacts.read"
     automations_xero_sync_enabled: bool = True
     xero_sync_from: str = "2023-01-01"  # first sync pulls invoices dated from here
+    # Alternative to the in-app sign-in: an n8n workflow that already holds the
+    # Xero refresh token and returns a fresh access token when its (https)
+    # webhook is called with GET - {"access_token": "...", "expires_in": 1800}.
+    # When the URL and the organisation id are both set, the app asks that
+    # workflow for a token instead of signing in itself. The workflow must be
+    # the only thing refreshing the token. Optional header = a secret the
+    # webhook checks (n8n "Header Auth").
+    xero_token_webhook_url: str = ""
+    xero_token_webhook_header: str = "Authorization"
+    xero_token_webhook_secret: str = ""
+    xero_tenant_id: str = ""  # the Xero organisation (tenant) id the token belongs to
+    xero_tenant_name: str = ""  # optional label shown in Settings
 
 
 settings = Settings()
