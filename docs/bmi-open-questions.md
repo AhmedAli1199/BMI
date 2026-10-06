@@ -67,6 +67,10 @@ a record of what was decided and why.
 - [ ] **Reps' current pipeline spreadsheets/notebooks.** (SALES-024 migration.)
 - [ ] **Example contact with the "useful box" and "Ad agency" fields filled in**,
       to identify which imported Act! fields they are.
+- [ ] **Which Act! contact fields hold ABTA number, Type (e.g. Travel Counsellor) and
+      other fields reps search/bulk-update by.** Our import keeps them as `user1`..`user15`;
+      a list of "field name -> what it means" (or a screenshot of an Act! contact's
+      custom-fields tab) lets us show them by name. (Act! user feedback B1-B3.)
 - [ ] **Who in editorial needs logins**, for the Editorial role.
 - [ ] **Teams / Zoom call transcripts - available, and from which platform?**
       (SALES-008 call-note capture, spec §6 item 3.)

@@ -57,6 +57,13 @@ Built outside the spec (from BMI's Act! feedback): Sales Order Register (replace
 
 Not started from the Act! feedback list: **#2** "Key info" box + "Ad agency" field (blocked: need one example contact from BMI), **#3** Editorial / Management roles (blocked: BMI deciding who), **#7** company address change → "also update these N contacts?" (unblocked).
 
+**Act! user feedback #2 (Oct 2026) - "good search on every field, search results to Excel, bulk update, load contacts from Excel/PDF". Status:** Excel export of a search or selection is **done**. The rest is **backlog, to start right after the proposal builder** (see §8, item 2):
+- **B1 Search every field.** Today the contacts search covers name, email, company, job title, city and country. Add phone, address/postcode, notes and the Act! custom fields (e.g. ABTA number, Type) to the quick search, and a "find by any field" filter builder (field + contains/equals, several at once) - same data-view filter pattern. Lookup code: `services/contact_lookup.py` (one definition shared by list, export, groups, mail merge).
+- **B2 Export extras.** Include custom fields as Excel columns; add a **"Copy email addresses"** button on a search/selection (that rep pastes addresses into Outlook BCC; skip bounced/unsubscribed, say how many were skipped).
+- **B3 Bulk update.** Pick a search/selection, choose a field (incl. custom fields such as ABTA number / Type), set a value for all, show a "N contacts will change" preview, then apply; every change recorded in the field-change history so it can be traced/undone. Admins/data managers (and reps for their own contacts - confirm).
+- **B4 Import contacts from Excel (and PDF).** Upload a sheet, map columns to fields, preview, flag duplicates (reuse the dedupe matching), then create/update; PDFs through the same AI extraction as business cards, with a review step before anything is saved. Everything goes through the review queue pattern (links in new tabs, filters).
+- **Blocked on BMI:** the Act! custom fields are still named `user1`..`user15`; we need BMI to tell us which one is ABTA number / Type / etc. before B1-B3 can show them by proper name (open question added).
+
 Also deferred by Ahmed: "BMI Brain" wordmark at the top (skip), fresh Act! migration before go-live (later), rate card data load (later — waiting on BMI).
 
 Recent commits (newest first): `1dcbe3c` Xero · `aa12325` event costs + notes · `1183120` SALES-021 renewals · `78f49d0` SALES-028 · `afcc235` SALES-026 · `296fefc` shared mailboxes. Migrations up to `0030_xero`. 144 backend tests passing.
@@ -295,7 +302,7 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 
 ## 8. Suggested next steps
 1. Proposal builder second pass: send from Outlook, BMI voice from sent examples, editorial plan.
-2. Act! feedback #7 (company address → update contacts with opt-out).
+2. **Act! user feedback backlog B1-B4 (search every field, export extras + copy emails, bulk update, import from Excel/PDF)** - then Act! feedback #7 (company address → update contacts with opt-out).
 3. SALES-024 pipeline → SALES-025 chase lists.
 4. Xero figures on the SALES-026 dashboard once Xero is connected live.
 5. Load rate card + link patterns when BMI sends them.

@@ -9,4 +9,5 @@ Key rules, in short:
 - Use theme tokens only (no hardcoded colours), and reuse the existing patterns (data-view filters, InfoHint, HubHeader, side-sheet editors).
 - Write user-facing copy in plain, jargon-free language.
 - **Review queue cards: every record a card mentions (booking, company, contact, invoice...) must have a link that opens it in a NEW tab, so a reviewer can check it without losing their place. Always do this for any review kind you build or change. Also give each kind filters (`ReviewKind.facets`) and, where it has a date, a date sort (`date_sort_label`).**
+- **Next after the proposal builder: Act! user-feedback backlog B1-B4** (search every field, export extras + copy emails, bulk update, import from Excel/PDF) - details in `docs/HANDOFF.md` §2.
 - Don't start the AI chat until Ahmed approves a plan.
