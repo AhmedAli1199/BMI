@@ -16,6 +16,7 @@ from app.models.management import ManagementAlert, WeeklySummary
 from app.models.messaging import MailAccount, MailAttachment, MailMerge, MailMergeRecipient, MailTemplate, Notification, Reminder
 from app.models.note import Note
 from app.models.opportunity import Opportunity
+from app.models.proposal import Proposal
 from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
 from app.models.sales import SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle
@@ -56,6 +57,7 @@ __all__ = [
     "Note",
     "Opportunity",
     "Phone",
+    "Proposal",
     "Publication",
     "ReviewQueueItem",
     "SalesEdition",

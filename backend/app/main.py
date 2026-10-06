@@ -25,6 +25,7 @@ from app.api.routes import (
     health,
     integrations,
     management,
+    proposals,
     messaging,
     publications,
     review_queue,
@@ -88,6 +89,7 @@ api_router.include_router(activities.router)
 api_router.include_router(messaging.router)
 api_router.include_router(integrations.router)
 api_router.include_router(management.router)
+api_router.include_router(proposals.router)
 app.include_router(api_router)
 
 
