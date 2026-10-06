@@ -59,11 +59,21 @@ from app.models.contact_channel import Address, Phone
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
+def lookup_conditions(conds: str | None = Query(None, description="Advanced search: JSON list of {field, op, value}"),
+                      match: str = Query("all", description="all | any")) -> tuple[list, bool]:
+    from app.contacts.conditions import BadCondition, parse_conditions
+    try:
+        return parse_conditions(conds), match == "any"
+    except BadCondition as exc:
+        raise HTTPException(422, str(exc))
+
+
 def _filters(q, source_db, company_id, group_id, company=None, city=None, country=None, title=None,
-             sort="name", desc=False, ids=None) -> LookupFilters:
+             sort="name", desc=False, ids=None, cx=None) -> LookupFilters:
+    conditions, match_any = cx or ([], False)
     return LookupFilters(q=q, source_db=source_db, company_id=company_id, group_id=group_id, company=company,
                          city=city, country=country, title=title, sort=sort if sort in SORTS else "name", desc=desc,
-                         contact_ids=list(ids or []))
+                         contact_ids=list(ids or []), conditions=conditions, match_any=match_any)
 
 
 @router.get("", response_model=ContactsPage)
@@ -82,9 +92,10 @@ def list_contacts(
     desc: bool = Query(False),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    cx: tuple = Depends(lookup_conditions),
     db: Session = Depends(get_db),
 ) -> ContactsPage:
-    f = _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc)
+    f = _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc, cx=cx)
     stmt = select(
         Contact,
         Company.name.label("company_name"),
@@ -120,6 +131,7 @@ def export_contacts(
     sort: str = Query("name"),
     desc: bool = Query(False),
     ids: list[uuid.UUID] = Query(default=[]),
+    cx: tuple = Depends(lookup_conditions),
     db: Session = Depends(get_db),
 ):
     """The current lookup (or a selection) as an .xlsx - Act!'s "export
@@ -128,7 +140,7 @@ def export_contacts(
 
     from app.services.contact_export import contacts_xlsx
 
-    f = _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc, ids)
+    f = _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc, ids, cx=cx)
     buf = contacts_xlsx(db, lookup_ids(db, f, limit=50000))
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -164,11 +176,12 @@ def lookup_contact_ids(
     city: str | None = Query(None),
     country: str | None = Query(None),
     title: str | None = Query(None),
+    cx: tuple = Depends(lookup_conditions),
     db: Session = Depends(get_db),
 ) -> list[uuid.UUID]:
     """Every contact id in a lookup - for "select all N matching" (add the
     whole lookup to a group, mail-merge the whole lookup)."""
-    return lookup_ids(db, _filters(q, source_db, company_id, group_id, company, city, country, title), limit=50000)
+    return lookup_ids(db, _filters(q, source_db, company_id, group_id, company, city, country, title, cx=cx), limit=50000)
 
 
 @router.get("/{contact_id}/position", response_model=ContactPosition)
@@ -184,11 +197,12 @@ def get_contact_position(
     title: str | None = Query(None),
     sort: str = Query("name"),
     desc: bool = Query(False),
+    cx: tuple = Depends(lookup_conditions),
     db: Session = Depends(get_db),
 ) -> ContactPosition:
     """Powers the VCR-style record stepper on the contact detail page - same
     filters and order as whatever list view the user came from."""
-    ids = [str(i) for i in lookup_ids(db, _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc))]
+    ids = [str(i) for i in lookup_ids(db, _filters(q, source_db, company_id, group_id, company, city, country, title, sort, desc, cx=cx))]
     first_id = ids[0] if ids else None
     last_id = ids[-1] if ids else None
     try:

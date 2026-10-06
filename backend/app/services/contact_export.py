@@ -65,6 +65,12 @@ def contact_rows(db: Session, ids: list[uuid.UUID]) -> list[list]:
     return out
 
 
+def _cell(v):
+    if v is None or isinstance(v, (str, int, float)):
+        return v
+    return ", ".join(map(str, v)) if isinstance(v, list) else str(v)
+
+
 def contacts_xlsx(db: Session, ids: list[uuid.UUID], title: str = "Contacts") -> io.BytesIO:
     import openpyxl
     from openpyxl.styles import Font, PatternFill
@@ -72,12 +78,23 @@ def contacts_xlsx(db: Session, ids: list[uuid.UUID], title: str = "Contacts") ->
     wb = openpyxl.Workbook(write_only=False)
     ws = wb.active
     ws.title = title[:31]
-    ws.append(HEADERS)
+    # The Act! custom fields (ABTA number, Type...) ride along as extra columns - only the ones
+    # at least one exported contact has a value for, under the names set in app/contacts/fields.py.
+    from app.contacts.fields import get_custom_labels, pretty_key
+    customs: dict[uuid.UUID, dict] = {}
+    for i in range(0, len(ids), 2000):
+        for cid, cf in db.execute(select(Contact.id, Contact.custom_fields).where(Contact.id.in_(ids[i:i + 2000]))):
+            customs[cid] = cf or {}
+    keys = sorted({k for cf in customs.values() for k, v in cf.items() if not k.startswith("_") and v not in (None, "", [], {})})
+    labels = get_custom_labels(db)
+    ws.append(HEADERS + [labels.get(k) or pretty_key(k) for k in keys])
     for cell in ws[1]:
         cell.font = Font(bold=True)
         cell.fill = PatternFill("solid", fgColor="DDE4F0")
-    for row in contact_rows(db, ids):
-        ws.append(row)
+    present = [i for i in ids if i in customs]
+    for cid, row in zip(present, contact_rows(db, present)):
+        cf = customs[cid]
+        ws.append(row + [_cell(cf.get(k)) for k in keys])
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = ws.dimensions
     for col, width in zip("ABCDEFGHIJKLMNOPQRS", (14, 18, 10, 26, 28, 32, 16, 16, 28, 20, 16, 16, 14, 10, 14, 13, 30, 12, 9)):

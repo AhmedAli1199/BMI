@@ -12,11 +12,13 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 
-from sqlalchemy import or_, select, text
+import re
+
+from sqlalchemy import exists, func, not_, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.models import Company, Contact, Email, GroupMembership
-from app.models.contact_channel import Address
+from app.models.contact_channel import Address, Phone
 
 SORTS = ("name", "first_name", "company", "city", "country", "title", "email", "added")
 
@@ -32,6 +34,9 @@ class LookupFilters:
     country: str | None = None
     title: str | None = None
     contact_ids: list[uuid.UUID] = field(default_factory=list)
+    # Advanced search (app/contacts/conditions.py) - several "field / operator / value" rules.
+    conditions: list = field(default_factory=list)
+    match_any: bool = False  # False = every rule must match, True = any one
     sort: str = "name"
     desc: bool = False
 
@@ -55,6 +60,34 @@ def _group_subtree(db: Session, group_id: uuid.UUID) -> list:
     ), {"gid": str(group_id)}).scalars().all()
 
 
+def _quick_match(token: str):
+    """One search word against every field a person would look in: name, job, company, email, phone
+    (digits only is fine - "020 7946" finds "+44 (0)20 7946..."), address, postcode, and the
+    Act! custom fields. Notes aren't searched here (too slow) - use the advanced search's
+    "Notes" field for that."""
+    esc = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    like = f"%{esc}%"
+    digits = re.sub(r"\D", "", token)
+    phone_hit = Phone.number.ilike(like, escape="\\")
+    if len(digits) >= 4:
+        phone_hit = or_(phone_hit, func.regexp_replace(Phone.number, r"\D", "", "g").like(f"%{digits}%"))
+    addr_hit = or_(*[c.ilike(like, escape="\\") for c in (Address.line1, Address.line2, Address.line3, Address.city,
+                                                           Address.state, Address.postal_code, Address.country)])
+    clauses = [c.ilike(like, escape="\\") for c in (
+        Contact.full_name, Contact.first_name, Contact.last_name, Contact.job_title, Contact.company_name_freetext,
+        Contact.department, Contact.category, Contact.referred_by)]
+    clauses += [
+        Contact.company_id.in_(select(Company.id).where(Company.name.ilike(like, escape="\\"))),
+        Contact.id.in_(select(Email.contact_id).where(Email.address.ilike(like, escape="\\"))),
+        Contact.id.in_(select(Phone.contact_id).where(phone_hit)),
+        Contact.id.in_(select(Address.contact_id).where(addr_hit)),
+    ]
+    if len(token) >= 3:
+        kv = func.jsonb_each_text(Contact.custom_fields).table_valued("key", "value").alias("kv")
+        clauses.append(exists(select(1).select_from(kv).where(kv.c.value.ilike(like, escape="\\"), not_(kv.c.key.like("\\_%", escape="\\")))).correlate(Contact))
+    return or_(*clauses)
+
+
 def apply_filters(db: Session, stmt, f: LookupFilters):
     if f.source_db:
         stmt = stmt.where(Contact.source_db == f.source_db)
@@ -66,13 +99,16 @@ def apply_filters(db: Session, stmt, f: LookupFilters):
     if f.contact_ids:
         stmt = stmt.where(Contact.id.in_(f.contact_ids))
     if f.q and f.q.strip():
-        like = f"%{f.q.strip()}%"
-        stmt = stmt.where(or_(
-            Contact.full_name.ilike(like), Contact.first_name.ilike(like), Contact.last_name.ilike(like),
-            Contact.job_title.ilike(like), Contact.company_name_freetext.ilike(like),
-            Contact.company_id.in_(select(Company.id).where(Company.name.ilike(like))),
-            Contact.id.in_(select(Email.contact_id).where(Email.address.ilike(like))),
-        ))
+        for token in f.q.split()[:6]:  # every word has to match somewhere, in any order: "smith john" finds John Smith
+            stmt = stmt.where(_quick_match(token))
+    if f.conditions:
+        from fastapi import HTTPException
+
+        from app.contacts.conditions import BadCondition, build
+        try:
+            stmt = stmt.where(build(db, f.conditions, f.match_any))
+        except BadCondition as exc:  # a mistake in the search the person built - tell them, don't crash
+            raise HTTPException(422, str(exc))
     if f.company and f.company.strip():
         like = f"%{f.company.strip()}%"
         stmt = stmt.where(or_(Contact.company_name_freetext.ilike(like),

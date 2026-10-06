@@ -347,6 +347,8 @@ class RecipientSource(BaseModel):
     title: str | None = None
     sort: str = "name"
     desc: bool = False
+    conds: str | None = None  # advanced search (JSON), same as the contacts list
+    match: str = "all"
 
 
 class RecipientOut(BaseModel):
@@ -386,9 +388,15 @@ def _resolve(db: Session, src: RecipientSource) -> tuple[list[uuid.UUID], str, b
         f = LookupFilters(contact_ids=src.contact_ids)
         label = "1 contact" if len(src.contact_ids) == 1 else f"{len(src.contact_ids)} selected contacts"
     else:
+        from app.contacts.conditions import BadCondition, parse_conditions
+        try:
+            conditions = parse_conditions(src.conds)
+        except BadCondition as exc:
+            raise HTTPException(422, str(exc))
         f = LookupFilters(q=src.q, source_db=src.source_db, company=src.company, city=src.city,
-                          country=src.country, title=src.title, sort=src.sort, desc=src.desc)
-        bits = [v for v in (src.q, src.company, src.city, src.country, src.title) if v]
+                          country=src.country, title=src.title, sort=src.sort, desc=src.desc,
+                          conditions=conditions, match_any=src.match == "any")
+        bits = [v for v in (src.q, src.company, src.city, src.country, src.title) if v] + (["advanced search"] if conditions else [])
         label = "Current lookup" + (f": {', '.join(bits)}" if bits else " (all contacts)")
     if src.kind != "lookup":
         f.sort, f.desc = src.sort, src.desc

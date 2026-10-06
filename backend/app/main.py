@@ -18,6 +18,8 @@ from app.api.routes import (
     automation_stats,
     automations,
     companies,
+    contact_imports,
+    contact_tools,
     contacts,
     dashboard,
     diagnostics,
@@ -73,6 +75,8 @@ app.add_middleware(
 api_router = APIRouter(prefix="/api", dependencies=[Depends(require_api_key)])
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
+api_router.include_router(contact_imports.router)
+api_router.include_router(contact_tools.router)
 api_router.include_router(contacts.router)
 api_router.include_router(companies.router)
 api_router.include_router(groups.router)
