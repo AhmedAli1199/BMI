@@ -34,6 +34,8 @@ export default async function MailMergePage({
       title: sp.title,
       sort: sp.sort,
       desc: sp.desc === "1" || sp.desc === "true",
+      conds: sp.conds,
+      match: sp.match,
     };
     initial = { source: src, label: "Current lookup" };
   } else if (sp.contact) {

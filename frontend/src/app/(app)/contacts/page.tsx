@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, Mail, Search, SlidersHorizontal, Users, X } from "lucide-react";
+import { Download, Mail, Search, SlidersHorizontal, Upload, Users, X } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
+import { AdvancedSearch } from "@/components/contacts/advanced-search";
+import { parseConds } from "@/lib/search-conditions";
+import { BulkUpdateDialog } from "@/components/contacts/bulk-update-dialog";
+import { CopyEmailsButton } from "@/components/contacts/copy-emails-button";
+import type { ContactField } from "@/lib/contact-tools-types";
 
 const PAGE_SIZE = 50;
 
@@ -26,6 +31,8 @@ export default async function ContactsPage({
     title?: string;
     sort?: string;
     desc?: string;
+    conds?: string;
+    match?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -39,12 +46,15 @@ export default async function ContactsPage({
     country: sp.country?.trim() || "",
     title: sp.title?.trim() || "",
   };
-  const activeLookups = Object.values(lookup).filter(Boolean).length;
+  const conds = parseConds(sp.conds);
+  const match = sp.match === "any" ? "any" : "all";
+  const activeLookups = Object.values(lookup).filter(Boolean).length + (conds.length ? 1 : 0);
   const page = Math.max(1, Number(pageParam) || 1);
-  const [rawSourceDb, session, allPublications] = await Promise.all([
+  const [rawSourceDb, session, allPublications, fields] = await Promise.all([
     getPublicationFilter(),
     getSession(),
     listPublications(),
+    backendFetch<ContactField[]>("/api/contacts/fields").catch(() => [] as ContactField[]),
   ]);
   const scope = resolveScope(session, rawSourceDb);
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
@@ -57,6 +67,10 @@ export default async function ContactsPage({
   if (source_db) params.set("source_db", source_db);
   if (scope.group_id) params.set("group_id", scope.group_id);
   for (const [k, v] of Object.entries(lookup)) if (v) params.set(k, v);
+  if (conds.length) {
+    params.set("conds", JSON.stringify(conds));
+    if (match === "any") params.set("match", "any");
+  }
   params.set("sort", sort);
   if (desc) params.set("desc", "true");
 
@@ -75,6 +89,10 @@ export default async function ContactsPage({
   if (source_db) filterParams.source_db = source_db;
   if (scope.group_id) filterParams.group_id = scope.group_id;
   for (const [k, v] of Object.entries(lookup)) if (v) filterParams[k] = v;
+  if (conds.length) {
+    filterParams.conds = JSON.stringify(conds);
+    if (match === "any") filterParams.match = "any";
+  }
   const rowQuery = new URLSearchParams(filterParams);
   if (sort !== "name") rowQuery.set("sort", sort);
   if (desc) rowQuery.set("desc", "true");
@@ -100,7 +118,7 @@ export default async function ContactsPage({
     mergeParams.delete("company");
     mergeParams.set("company_name", lookup.company);
   }
-  const lookupBits = [q, lookup.company, lookup.title, lookup.city, lookup.country].filter(Boolean);
+  const lookupBits = [q, lookup.company, lookup.title, lookup.city, lookup.country, conds.length ? "advanced search" : ""].filter(Boolean);
   const lookupLabel = lookupBits.length ? `Lookup: ${lookupBits.join(", ")}` : "All contacts";
   const inputCls = "h-8 text-xs";
 
@@ -127,6 +145,12 @@ export default async function ContactsPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/contacts/import" />} title="Add contacts from an Excel sheet, CSV or PDF">
+            <Upload className="size-3.5" />
+            Import
+          </Button>
+          <CopyEmailsButton scope={{ ...filterParams, label: lookupLabel }} />
+          <BulkUpdateDialog scope={{ ...filterParams, label: lookupLabel }} fields={fields} count={data.total} />
           <Button
             variant="outline"
             size="sm"
@@ -162,7 +186,7 @@ export default async function ContactsPage({
             <Input
               name="q"
               aria-label="Search"
-              placeholder="Name, email, company or title…"
+              placeholder="Name, email, phone, address, company…"
               defaultValue={q ?? ""}
               className={`pl-8 ${inputCls}`}
             />
@@ -188,10 +212,11 @@ export default async function ContactsPage({
               </Button>
             )}
           </div>
+          <AdvancedSearch fields={fields} initial={conds} match={match} />
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          Every field is &ldquo;contains&rdquo; and they combine - e.g. Title <em>buyer</em> + Country <em>UK</em>.
-          Click a column heading to sort; tick contacts to group, export or mail-merge them.
+          The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several words in any order.
+          The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy their emails or mail-merge them.
         </p>
       </form>
 
@@ -214,6 +239,7 @@ export default async function ContactsPage({
         total={data.total}
         sourceDb={source_db}
         lookupLabel={lookupLabel}
+        fields={fields}
       />
 
       {/* Pagination Controls */}

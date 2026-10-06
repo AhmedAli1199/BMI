@@ -178,7 +178,7 @@ def _load(db: Session, imp: ContactImport, *, sheet: str | None = None, header_r
     imp.file_kind, imp.sheets, imp.sheet_name = kind, parsed.sheets, parsed.sheet_name
     imp.header_row, imp.has_header = header_row, has_header
     imp.headers, imp.rows, imp.row_count = headers, body, len(body)
-    imp.notes = parsed.notes + ([f"Row {header_row + 1} is the heading row; the {header_row} row(s) above it were ignored."] if has_header and header_row else [])
+    imp.notes = parsed.notes + ([f"Skipped {header_row} line{'' if header_row == 1 else 's'} above the column headings."] if has_header and header_row else [])
     imp.suggestions = {
         "columns": [{"index": r.index, "field": r.field if r.field else "skip", "samples": r.samples, "level": r.level, "confidence": round(r.confidence, 2),
                      "reason": r.reason, "candidates": r.candidates, "warning": r.warning} for r in results],

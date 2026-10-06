@@ -66,6 +66,8 @@ export type RecipientSource =
       title?: string;
       sort?: string;
       desc?: boolean;
+      conds?: string;
+      match?: string;
     };
 
 export type Recipient = {

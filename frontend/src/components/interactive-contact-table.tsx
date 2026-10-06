@@ -17,6 +17,7 @@ import { ClickableTableRow } from "@/components/clickable-table-row";
 import { EntityAvatar } from "@/components/entity-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ContactSelectionActions } from "@/components/contact-selection-actions";
+import type { ContactField } from "@/lib/contact-tools-types";
 import { lookupContactIds } from "@/lib/messaging-actions";
 import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 
@@ -65,6 +66,7 @@ export function InteractiveContactTable({
   total,
   sourceDb,
   lookupLabel = "Current lookup",
+  fields,
 }: {
   items: ContactListItem[];
   /** Current filters + sort, carried onto each row's link so the detail
@@ -77,6 +79,7 @@ export function InteractiveContactTable({
   total?: number;
   sourceDb?: string;
   lookupLabel?: string;
+  fields?: ContactField[];
 }) {
   const suffix = queryString ? `?${queryString}` : "";
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -138,6 +141,7 @@ export function InteractiveContactTable({
             setAllMatching(false);
           }}
           sourceDb={sourceDb}
+          fields={fields}
           label={allMatching ? lookupLabel : `${lookupLabel} – ${selected.size} selected`}
         >
           {moreAvailable && (

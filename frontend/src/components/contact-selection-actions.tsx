@@ -20,6 +20,9 @@ import { EntityPicker } from "@/components/entity-picker";
 import { searchGroups } from "@/lib/actions";
 import { addContactsToGroup, createGroupWithMembers } from "@/lib/messaging-actions";
 import { downloadFile, postJson, stashMergeSelection } from "@/lib/download";
+import type { ContactField } from "@/lib/contact-tools-types";
+import { BulkUpdateDialog } from "@/components/contacts/bulk-update-dialog";
+import { CopyEmailsButton } from "@/components/contacts/copy-emails-button";
 
 type Option = { id: string; label: string; sublabel?: string | null };
 
@@ -32,6 +35,7 @@ export function ContactSelectionActions({
   sourceDb,
   label = "Selected contacts",
   excludeGroupId,
+  fields,
   children,
 }: {
   ids: string[];
@@ -40,6 +44,8 @@ export function ContactSelectionActions({
   /** Describes the selection in mail-merge / export ("Group: Buyers - 12 selected"). */
   label?: string;
   excludeGroupId?: string;
+  /** The contact field list - when given, "Bulk update" is offered for the selection. */
+  fields?: ContactField[];
   children?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -131,6 +137,8 @@ export function ContactSelectionActions({
             <Download className="size-3.5" />
             Export
           </Button>
+          <CopyEmailsButton scope={{ ids, label }} />
+          {fields && fields.length > 0 && <BulkUpdateDialog scope={{ ids, label }} fields={fields} count={n} />}
           <Button size="sm" onClick={mailMerge} disabled={pending}>
             <Mail className="size-3.5" />
             Mail merge
