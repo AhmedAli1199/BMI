@@ -17,8 +17,8 @@ export type XeroStatus = {
   mode: "app" | "webhook";
 };
 
-export async function syncXero(): Promise<{ invoices?: number; skipped?: string }> {
-  const res = await backendFetch<{ invoices?: number; skipped?: string }>("/api/integrations/xero/sync", { method: "POST" });
+export async function syncXero(full = false): Promise<{ invoices?: number; skipped?: string }> {
+  const res = await backendFetch<{ invoices?: number; skipped?: string }>(`/api/integrations/xero/sync${full ? "?full=true" : ""}`, { method: "POST" });
   revalidatePath("/settings");
   return res;
 }

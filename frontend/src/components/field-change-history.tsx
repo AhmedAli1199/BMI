@@ -23,6 +23,10 @@ const FIELD_LABELS: Record<string, string> = {
   division: "Division",
   num_employees: "Employee count",
   revenue: "Revenue",
+  invoice_number: "Invoice number",
+  invoice_value_gbp: "Invoiced amount",
+  invoiced_on: "Invoice date",
+  xero_link: "Xero invoice link",
 };
 
 function fieldLabel(field: string): string {

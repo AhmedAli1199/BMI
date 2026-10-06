@@ -363,6 +363,21 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="Upper limit on renewal drafts created in one run (each may use one AI call).",
         group="Sales Order Register", type="int", min=1,
     ),
+    AutomationSettingDef(
+        key="automations_xero_match_enabled", label="Xero invoice matching",
+        description="Hourly: finds the booking each new Xero invoice belongs to. Clear matches fill in the invoice number on their own; the rest wait in the review queue.",
+        group="Xero", type="bool",
+    ),
+    AutomationSettingDef(
+        key="xero_match_auto_link", label="Fill in clear matches automatically",
+        description="On: a clear match (same client, same amount, sensible timing, and no other booking close) is applied without asking. Off: every match waits for a person to confirm.",
+        group="Xero", type="bool",
+    ),
+    AutomationSettingDef(
+        key="xero_match_max_per_run", label="Most invoices sent for review per run",
+        description="Upper limit on new review items in one hourly run, so a first run doesn't flood the queue. The rest follow on the next runs.",
+        group="Xero", type="int", min=1,
+    ),
     # ---- SALES-026/028 - management reporting ----
     AutomationSettingDef(
         key="automations_management_alerts_enabled", label="Behind-last-cycle alerts active",

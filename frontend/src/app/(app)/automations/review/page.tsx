@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InvoiceMatchPanel } from "@/components/sales/invoice-match-panel";
 import {
   ArrowDownWideNarrow,
   ArrowLeft,
@@ -343,6 +344,8 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
   const style = styleForKind(kind.kind);
   const Icon = style.icon;
   const action = kind.actions.find((a) => a.id === item.resolved_action);
+  // Outcomes the system records itself (not buttons a person can press).
+  const SYSTEM_OUTCOMES: Record<string, string> = { auto_link: "Linked automatically", linked_elsewhere: "Linked by hand" };
   const entity = item.entity_summary;
   const hasSourceMaterial = Boolean(item.payload.original_text || item.payload.source_context);
   const hasDetails = Boolean(item.payload.details && item.payload.details.length > 0);
@@ -361,9 +364,9 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
               <p className="text-xs text-muted-foreground">
                 <span className={item.status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-rose-600"}>
                   {item.status === "approved" ? <Check className="mr-0.5 inline size-3" /> : null}
-                  {action?.label || item.resolved_action || item.status}
+                  {action?.label || (item.resolved_action && SYSTEM_OUTCOMES[item.resolved_action]) || item.resolved_action || item.status}
                 </span>
-                {item.reviewed_by ? ` by ${item.reviewed_by.name}` : " · no reviewer recorded"}
+                {item.reviewed_by ? ` by ${item.reviewed_by.name}` : item.resolved_action === "auto_link" ? " · by the invoice matcher" : " · no reviewer recorded"}
                 {item.reviewed_at ? ` · ${new Date(item.reviewed_at).toLocaleString()}` : ""}
                 {item.review_note ? ` · "${item.review_note}"` : ""}
               </p>
@@ -424,6 +427,8 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
             ))}
           </dl>
         )}
+
+        {item.payload.invoice_match && <InvoiceMatchPanel match={item.payload.invoice_match} linked={item.payload.linked} />}
 
         {hasSourceMaterial && (
           <details className="group rounded-lg border border-border/70">

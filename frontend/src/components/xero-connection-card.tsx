@@ -86,6 +86,25 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
                 >
                   <RefreshCw className="size-3.5" /> Sync now
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  title="Reads every invoice again from the start. Needed once so the invoice matcher can see what each invoice is for; takes a minute or two."
+                  onClick={() =>
+                    start(async () => {
+                      try {
+                        const r = await syncXero(true);
+                        toast.success(r.skipped ?? `Re-read ${r.invoices ?? 0} invoices`);
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Sync failed");
+                      }
+                      router.refresh();
+                    })
+                  }
+                >
+                  <RefreshCw className="size-3.5" /> Re-read all invoices
+                </Button>
                 {!viaN8n && (
                   <Button
                     size="sm"

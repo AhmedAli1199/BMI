@@ -328,6 +328,10 @@ class Settings(BaseSettings):
     xero_token_webhook_secret: str = ""
     xero_tenant_id: str = ""  # the Xero organisation (tenant) id the token belongs to
     xero_tenant_name: str = ""  # optional label shown in Settings
+    # Invoice matching (app/automations/xero_matching.py): links new Xero invoices to bookings.
+    automations_xero_match_enabled: bool = False
+    xero_match_auto_link: bool = True  # fill in clear matches on their own; False = every match waits for a person
+    xero_match_max_per_run: int = 60   # new review items per run (the rest wait for the next run)
 
 
 settings = Settings()

@@ -21,11 +21,12 @@ from __future__ import annotations
 import base64
 import logging
 import re
+import time
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -38,7 +39,7 @@ AUTHORIZE_URL = "https://login.xero.com/identity/connect/authorize"
 TOKEN_URL = "https://identity.xero.com/connect/token"
 CONNECTIONS_URL = "https://api.xero.com/connections"
 API = "https://api.xero.com/api.xro/2.0"
-PAGE_SIZE = 500
+PAGE_SIZE = 100  # Xero returns 100 per page when line items are included
 
 
 class XeroNotConfigured(Exception):
@@ -223,6 +224,10 @@ def _upsert(db: Session, inv: dict) -> None:
     row.number_key = number_key(inv.get("InvoiceNumber"))
     row.contact_name = (inv.get("Contact") or {}).get("Name")
     row.reference = inv.get("Reference")
+    lines = [" ".join((li.get("Description") or "").split()) for li in inv.get("LineItems") or []]
+    row.line_text = " | ".join(t for t in lines if t)[:4000] or row.line_text
+    rate = inv.get("CurrencyRate")
+    row.currency_rate = rate if rate else row.currency_rate
     row.status = inv.get("Status", "")
     row.currency = inv.get("CurrencyCode")
     row.issued_on = _day(inv.get("DateString") or inv.get("Date"))
@@ -241,8 +246,7 @@ def fetch_invoices(token: str, tenant_id: str, since: datetime | None, page: int
         headers["If-Modified-Since"] = since.strftime("%Y-%m-%dT%H:%M:%S")
     start = settings.xero_sync_from
     y, m, d = (int(x) for x in start.split("-"))
-    params = {"where": f'Type=="ACCREC" AND Date>=DateTime({y},{m},{d})', "page": page, "pageSize": PAGE_SIZE,
-              "summaryOnly": "true"}
+    params = {"where": f'Type=="ACCREC" AND Date>=DateTime({y},{m},{d})', "page": page, "pageSize": PAGE_SIZE}
     resp = httpx.get(f"{API}/Invoices", headers=headers, params=params, timeout=60)
     if resp.status_code == 401:
         raise XeroAuthError("Xero rejected the access token - " + ("check the n8n token workflow." if webhook_mode() else "reconnect Xero."))
@@ -252,9 +256,24 @@ def fetch_invoices(token: str, tenant_id: str, since: datetime | None, page: int
     return resp.json().get("Invoices", [])
 
 
-def sync(db: Session) -> dict:
-    """Pulls every sales invoice changed since the last sync. Safe to run
-    any time; returns {"invoices": n} or {"skipped": reason}."""
+def link_typed_numbers(db: Session) -> int:
+    """Bookings whose typed invoice number matches a Xero invoice get a real
+    link to it (xero_link_source "typed"). Returns how many were linked."""
+    res = db.execute(text("""
+        UPDATE sales_orders o SET xero_invoice_id = x.id, xero_link_source = 'typed', xero_linked_at = now()
+        FROM (SELECT DISTINCT ON (number_key) id, number_key FROM xero_invoices
+              WHERE number_key IS NOT NULL ORDER BY number_key, updated_at_xero DESC NULLS LAST) x
+        WHERE o.xero_invoice_id IS NULL AND o.invoice_number IS NOT NULL
+          AND upper(replace(o.invoice_number, ' ', '')) = x.number_key
+    """))
+    db.commit()
+    return res.rowcount or 0
+
+
+def sync(db: Session, full: bool = False) -> dict:
+    """Pulls every sales invoice changed since the last sync (or all of them
+    again when full=True). Safe to run any time; returns {"invoices": n} or
+    {"skipped": reason}."""
     conn = ensure_webhook_connection(db) if webhook_mode() else connection(db)
     if not conn:
         return {"skipped": "Xero isn't connected"}
@@ -263,7 +282,7 @@ def sync(db: Session) -> dict:
         token = _access_token(db, conn)
         n, page = 0, 1
         while True:
-            batch = fetch_invoices(token, conn.tenant_id, conn.synced_until, page)
+            batch = fetch_invoices(token, conn.tenant_id, None if full else conn.synced_until, page)
             for inv in batch:
                 _upsert(db, inv)
             n += len(batch)
@@ -271,6 +290,7 @@ def sync(db: Session) -> dict:
             if len(batch) < PAGE_SIZE:
                 break
             page += 1
+            time.sleep(1.1)  # stay under Xero's 60-calls-a-minute limit
     except Exception as exc:
         db.rollback()
         conn = connection(db)
@@ -286,4 +306,5 @@ def sync(db: Session) -> dict:
     conn.last_sync_at = started
     conn.last_error = None
     db.commit()
+    link_typed_numbers(db)
     return {"invoices": n}

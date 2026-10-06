@@ -36,6 +36,7 @@ from app.sales.analytics import BOOKED, edition_pace, edition_totals, equivalent
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
 from app.services.field_audit import record_field_changes
+from app.sales.invoice_match import XERO_INVOICE_URL, sync_link_after_edit, unlink_order
 from app.services.xero import number_key
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -92,6 +93,10 @@ class XeroRef(BaseModel):
     amount_due: float | None = None
     due_on: date | None = None
     paid_on: date | None = None
+    invoice_number: str | None = None
+    url: str | None = None  # opens the invoice in Xero
+    # How the booking came to be linked: "typed" (someone typed the number), "auto" (matched on its own), "confirmed" (a person confirmed it)
+    link: str | None = None
 
 
 class OrderOut(BaseModel):
@@ -487,6 +492,8 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
         for inv in db.scalars(select(XeroInvoice).where(XeroInvoice.number_key.in_(keys))
                               .order_by(XeroInvoice.updated_at_xero.asc().nulls_first())):
             xero[inv.number_key] = inv  # latest wins
+    linked_ids = {o.xero_invoice_id for o in orders if o.xero_invoice_id}
+    xero_by_id = {i.id: i for i in db.scalars(select(XeroInvoice).where(XeroInvoice.id.in_(linked_ids)))} if linked_ids else {}
 
     out = []
     for o in orders:
@@ -510,12 +517,12 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
             notes=o.notes, import_warning=o.import_warning,
             source=f"{o.source_file} › {o.source_sheet}, row {o.source_row}" if o.source_file else None,
             edition_date=ed.edition_date, created_at=o.created_at, updated_at=o.updated_at,
-            xero=_xero_ref(xero.get(number_key(o.invoice_number) or "")),
+            xero=_xero_ref(xero_by_id.get(o.xero_invoice_id) or xero.get(number_key(o.invoice_number) or ""), o.xero_link_source),
         ))
     return out
 
 
-def _xero_ref(inv: XeroInvoice | None) -> XeroRef | None:
+def _xero_ref(inv: XeroInvoice | None, link: str | None = None) -> XeroRef | None:
     if not inv:
         return None
     due = float(inv.amount_due or 0)
@@ -523,7 +530,8 @@ def _xero_ref(inv: XeroInvoice | None) -> XeroRef | None:
              else "overdue" if inv.due_on and inv.due_on < date.today()
              else "part_paid" if float(inv.amount_paid or 0) > 0 else "unpaid")
     return XeroRef(state=state, status=inv.status, currency=inv.currency, total=_f(inv.total),
-                   amount_paid=_f(inv.amount_paid), amount_due=_f(inv.amount_due), due_on=inv.due_on, paid_on=inv.paid_on)
+                   amount_paid=_f(inv.amount_paid), amount_due=_f(inv.amount_due), due_on=inv.due_on, paid_on=inv.paid_on,
+                   invoice_number=inv.invoice_number, url=XERO_INVOICE_URL.format(inv.xero_id), link=link or "typed")
 
 
 def _edition_summaries(db: Session, editions: list[SalesEdition], today: date) -> list[EditionSummary]:
@@ -1261,6 +1269,8 @@ def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends
         order.invoice_value_gbp = order.value_gbp
     if data.get("invoice_number") and not order.invoiced_on:
         order.invoiced_on = date.today()
+    if "invoice_number" in data:
+        sync_link_after_edit(db, order)  # keep the real Xero link in step with what was typed
     if "size" in data:
         title = db.get(SalesTitle, db.get(SalesEdition, order.edition_id).title_id)
         order.pages = parse_pages(order.size, title.product_line)
@@ -1288,6 +1298,59 @@ def delete_order(order_id: uuid.UUID, db: Session = Depends(get_db), identity: I
     order = _get_order(db, order_id)
     db.delete(order)
     db.commit()
+
+
+@router.post("/orders/{order_id}/xero-unlink", response_model=OrderOut)
+def unlink_xero(order_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> OrderOut:
+    """Undo an invoice link the matcher made (automatic or confirmed): clears
+    the invoice number, value and date it filled in. The invoice won't be
+    offered for this booking again."""
+    order = _get_order(db, order_id)
+    try:
+        unlink_order(db, order, identity.user_uuid)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return _orders_out(db, [order])[0]
+
+
+class UnmatchedInvoice(BaseModel):
+    id: uuid.UUID
+    number: str | None = None
+    contact: str | None = None
+    reference: str | None = None
+    lines: str | None = None
+    issued_on: date | None = None
+    currency: str
+    net: float
+    total: float
+    state: str
+    url: str
+
+
+class UnmatchedInvoices(BaseModel):
+    as_of: datetime | None = None
+    items: list[UnmatchedInvoice]
+
+
+@router.get("/xero/unmatched", response_model=UnmatchedInvoices)
+def unmatched_xero_invoices(db: Session = Depends(get_db)) -> UnmatchedInvoices:
+    """Invoices in Xero that no booking in the register fits - billed but
+    missing from the register, or with amounts that don't line up. As of the
+    last matching run."""
+    from app.automations.xero_matching import unmatched_invoice_ids
+
+    ids, at = unmatched_invoice_ids(db)
+    rows = db.scalars(select(XeroInvoice).where(XeroInvoice.id.in_(ids)).order_by(XeroInvoice.issued_on.desc().nulls_last())).all() if ids else []
+    from app.sales.invoice_match import invoice_facts
+
+    items = []
+    for inv in rows:
+        f = invoice_facts(inv)
+        items.append(UnmatchedInvoice(id=inv.id, number=inv.invoice_number, contact=inv.contact_name, reference=inv.reference,
+                                      lines=inv.line_text, issued_on=inv.issued_on, currency=f["currency"], net=f["net"],
+                                      total=f["total"], state=f["state"], url=f["url"]))
+    return UnmatchedInvoices(as_of=datetime.fromisoformat(at) if at else None, items=items)
 
 
 @router.get("/orders/{order_id}/changes", response_model=list[FieldChangeOut])

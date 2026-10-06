@@ -168,7 +168,7 @@ def build_snapshot(db: Session, today: date) -> dict:
         "not_comparable": sum(1 for p in dash.pace if p.state == "not_comparable"),
         "alerts": [{"label": a.subject_label, "message": a.message} for a in alerts],
         "unattributed": {"orders": dash.unattributed.orders, "value": dash.unattributed.value_gbp},
-        "pending": {"invoice": pending("sor_invoice_missing"), "renewal": pending("renewal_due"), "client_match": pending("sor_client_match")},
+        "pending": {"invoice": pending("sor_invoice_missing"), "renewal": pending("renewal_due"), "client_match": pending("sor_client_match"), "xero_match": pending("sor_invoice_match")},
         "threshold_pct": dash.threshold_pct,
     }
 
@@ -211,6 +211,8 @@ def _sections(s: dict, headline: str) -> list[dict]:
         decisions.append({"text": f"{s['pending']['invoice']} booking(s) past publication with no invoice number are waiting for someone to raise the invoice.", "href": "/sales/invoicing"})
     if s["pending"]["renewal"]:
         decisions.append({"text": f"{s['pending']['renewal']} renewal email draft(s) are waiting for a salesperson to review.", "href": "/automations/review"})
+    if s["pending"].get("xero_match"):
+        decisions.append({"text": f"{s['pending']['xero_match']} invoice(s) in Xero are waiting to be matched to a booking.", "href": "/automations/review"})
     if s["pending"]["client_match"]:
         decisions.append({"text": f"{s['pending']['client_match']} order-register client(s) need matching to a CRM company.", "href": "/automations/review"})
     if s["unattributed"]["orders"]:

@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { InvoiceMatchPanel } from "@/components/sales/invoice-match-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -312,7 +313,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
           note: note.trim() || undefined,
           contact_id: contact?.id,
           fields,
-          chosen_entity_id: chosenEntityId ?? undefined,
+          chosen_entity_id: chosenEntityId ?? payload.invoice_match?.candidates[0]?.key ?? undefined,
         });
         toast.success(`${action.label} — done`);
         setJustResolvedLabel(action.label);
@@ -416,6 +417,14 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
               </div>
             ))}
           </dl>
+        )}
+
+        {payload.invoice_match && (
+          <InvoiceMatchPanel
+            match={payload.invoice_match}
+            chosen={chosenEntityId ?? payload.invoice_match.candidates[0]?.key ?? null}
+            onChoose={setChosenEntityId}
+          />
         )}
 
         {payload.related_entities && payload.related_entities.length > 0 && (

@@ -24,9 +24,9 @@ problem the backlog describes.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -155,6 +155,12 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     invoiced_on: Mapped[date | None] = mapped_column(Date)
     # The sheet's "Reason for difference" column - often not about a
     # difference at all ("raise on 23rd", "need po"), so shown as a note.
+    # The Xero invoice this booking belongs to - a real link, not just a matching number.
+    # xero_link_source: "typed" (someone typed a number that matches Xero), "auto" (matched
+    # automatically, no one asked), "confirmed" (a person confirmed a suggestion).
+    xero_invoice_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("xero_invoices.id", ondelete="SET NULL"), index=True)
+    xero_link_source: Mapped[str | None] = mapped_column(String(16))
+    xero_linked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     invoice_note: Mapped[str | None] = mapped_column(Text)
     # A ticket/order number from the sheet's invoice column that isn't a
     # BMI invoice (People Awards seats carry an 8-digit online order ref

@@ -251,8 +251,53 @@ export type ReviewDetail = { key?: string; label: string; value: string; editabl
 export type ReviewRelatedEntity = { type: "contact" | "company"; id: string; label: string };
 export type ReviewCandidate = { contact_id?: string; label?: string; source?: string };
 
+export type InvoiceMatchReason = { key: string; label: string; ok: boolean | null; detail: string };
+export type InvoiceMatchBooking = {
+  id: string;
+  client: string;
+  edition: string;
+  edition_id: string;
+  edition_date: string | null;
+  size: string | null;
+  booked_on: string | null;
+  value_gbp: number;
+  rep: string | null;
+  /** An invoice number already typed on the booking that isn't in Xero (a typo?). */
+  typed_number: string | null;
+};
+export type InvoiceMatchCandidate = {
+  key: string;
+  kind: "single" | "sum";
+  strength: "strong" | "likely" | "possible";
+  bookings: InvoiceMatchBooking[];
+  total_gbp: number;
+  reasons: InvoiceMatchReason[];
+};
+export type InvoiceMatchInvoice = {
+  id: string;
+  number: string | null;
+  contact: string | null;
+  reference: string | null;
+  lines: string | null;
+  issued_on: string | null;
+  due_on: string | null;
+  currency: string;
+  net: number;
+  vat: number;
+  total: number;
+  amount_due: number;
+  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  status: string;
+  url: string;
+};
+export type InvoiceMatch = { invoice: InvoiceMatchInvoice; candidates: InvoiceMatchCandidate[]; reason: string | null };
+
 export type ReviewPayload = {
   summary?: string;
+  /** Xero invoice-to-booking items: the invoice, the likely bookings and why. */
+  invoice_match?: InvoiceMatch;
+  /** Set once a person (or the matcher, auto: true) has linked the invoice. */
+  linked?: { candidate: string; booking_ids: string[]; auto: boolean };
   details?: ReviewDetail[];
   original_text?: string;
   /** What original_text is, when it isn't the source message - e.g. "Draft email". */

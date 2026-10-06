@@ -84,9 +84,11 @@ def xero_callback(payload: CallbackIn, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/xero/sync")
-def xero_sync_now(db: Session = Depends(get_db), _: User = Depends(_staff)) -> dict:
+def xero_sync_now(full: bool = False, db: Session = Depends(get_db), _: User = Depends(_staff)) -> dict:
+    """full=true re-reads every invoice from the start (picks up what each
+    one is for - needed once, after the invoice matcher was added)."""
     try:
-        return xero.sync(db)
+        return xero.sync(db, full=full)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Xero sync failed: {exc}") from exc
 

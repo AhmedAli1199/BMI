@@ -158,6 +158,13 @@ Object.assign(STYLES, {
     accent: "bg-chart-1",
     ring: "hover:border-chart-1/60",
   },
+  sor_invoice_match: {
+    icon: Link2,
+    color: "text-chart-4",
+    chipBg: "border-chart-4/30 bg-chart-4/10",
+    accent: "bg-chart-4",
+    ring: "hover:border-chart-4/60",
+  },
 } satisfies Record<string, AutomationStyle>);
 
 const FALLBACK: AutomationStyle = {

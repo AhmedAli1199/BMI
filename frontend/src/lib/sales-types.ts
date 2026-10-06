@@ -61,7 +61,28 @@ export type XeroRef = {
   amount_due: number | null;
   due_on: string | null;
   paid_on: string | null;
+  invoice_number?: string | null;
+  /** Opens the invoice in Xero. */
+  url?: string | null;
+  /** How the booking got linked: someone typed the number, it was matched automatically, or a person confirmed a suggestion. */
+  link?: "typed" | "auto" | "confirmed" | null;
 };
+
+export type UnmatchedInvoice = {
+  id: string;
+  number: string | null;
+  contact: string | null;
+  reference: string | null;
+  lines: string | null;
+  issued_on: string | null;
+  currency: string;
+  net: number;
+  total: number;
+  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  url: string;
+};
+
+export type UnmatchedInvoices = { as_of: string | null; items: UnmatchedInvoice[] };
 
 export type SalesOrder = {
   id: string;

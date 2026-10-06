@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { EntityPicker } from "@/components/entity-picker";
 import { InfoHint } from "@/components/sales/info-hint";
+import { UndoInvoiceLinkButton } from "@/components/sales/invoice-match-panel";
 import { fmtGBP } from "@/components/sales/sales-ui";
 
 const SIZES = ["FP", "1/2", "1/4", "DPS", "Banner", "Listing", "Advertorial", "Insert", "Partner", "Sponsor", "One ticket", "Table"];
@@ -37,7 +38,7 @@ const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2
 const FIELD_LABELS: Record<string, string> = {
   client_name: "client", company_id: "CRM company", rep_id: "salesperson", booked_on: "booking date",
   value_gbp: "value", rate_usd: "US$ rate", agency_commission_gbp: "agency commission", commission_rate: "commission rate",
-  invoice_number: "invoice number", invoice_value_gbp: "invoiced amount", invoiced_on: "invoice date",
+  invoice_number: "invoice number", invoice_value_gbp: "invoiced amount", invoiced_on: "invoice date", xero_link: "Xero invoice link",
   invoice_note: "reason for difference", moved_to_edition_id: "moved-to edition",
 };
 
@@ -411,6 +412,24 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         </Group>
 
         <Group title="Invoice">
+          {existing?.xero && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
+                <span className="font-semibold text-foreground">Linked to Xero invoice {existing.xero.invoice_number ?? existing.invoice_number}</span>
+                {existing.xero.link === "auto" && " · matched automatically"}
+                {existing.xero.link === "confirmed" && " · matched, confirmed by a person"}
+                {existing.xero.link === "typed" && " · from the number typed here"}
+              </span>
+              <span className="flex items-center gap-2">
+                {existing.xero.url && (
+                  <a href={existing.xero.url} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">
+                    Open in Xero
+                  </a>
+                )}
+                {(existing.xero.link === "auto" || existing.xero.link === "confirmed") && <UndoInvoiceLinkButton orderIds={[existing.id]} />}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field label="Invoice number" htmlFor="os-inv">
               <Input id="os-inv" value={invNo} onChange={(e) => setInvNo(e.target.value)} placeholder="INV-3050" />

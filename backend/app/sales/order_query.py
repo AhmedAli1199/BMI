@@ -108,8 +108,8 @@ def xero_state():
             (func.coalesce(XeroInvoice.amount_paid, 0) > 0, "part_paid"),
             else_="unpaid",
         ))
-        .where(XeroInvoice.number_key == key)
-        .order_by(XeroInvoice.updated_at_xero.desc().nulls_last())
+        .where(or_(XeroInvoice.id == SalesOrder.xero_invoice_id, XeroInvoice.number_key == key))
+        .order_by((XeroInvoice.id == SalesOrder.xero_invoice_id).desc(), XeroInvoice.updated_at_xero.desc().nulls_last())
         .limit(1)
         .scalar_subquery()
     )

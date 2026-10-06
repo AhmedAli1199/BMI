@@ -129,6 +129,19 @@ Free-text notes per edition (`SalesEdition.notes`, `components/sales/edition-not
 - **Setup:** developer.xero.com logged in as integration@ → create Web app → redirect URI = `https://<domain>/api/xero/callback` → set env → Connect in Settings. **Not yet tested against real Xero.**
 - Not done yet: an Invoicing view "unpaid/overdue in Xero" (the filter covers it), Xero figures on the SALES-026 dashboard (paid vs booked).
 
+### 3.6b Xero invoice matching (6 Oct 2026) - bookings link to their invoice by themselves
+Finance raises the invoice in Xero; the app finds the booking it belongs to, so nobody types invoice numbers any more.
+- **How a match is judged** (`app/sales/invoice_match.py`): client name (plus the name that client has been invoiced under before, learned from linked pairs), amount (invoice before VAT = booking value, or 2-4 of the same client's bookings add up to it; foreign currency converted at Xero's rate), issue named in the invoice reference/lines ("OBH 105"), and timing. Tested on BMI's own history with the numbers hidden: when it acted on its own it was right ~99 times in 100 (worst case ~95%); the first answer was right for ~86% of invoices.
+- **What happens** (`app/automations/xero_matching.py`, job `xero_invoice_match_scan`, hourly at :40, OFF by default - setting "Xero invoice matching"; Run now works regardless):
+  1. a booking whose typed number matches Xero gets a real link (`SalesOrder.xero_invoice_id`, source "typed");
+  2. a CLEAR match (name >= 85 and a lead of 15 over the runner-up, and the booking has no typed number) is applied on its own (source "auto"): invoice number, invoiced value and date are filled in, the change goes to the booking history ("Linked automatically to Xero invoice N"), and a resolved review item (action `auto_link`) appears under Approved;
+  3. anything less clear becomes a review item (kind `sor_invoice_match`, audience sales) with the invoice and candidate booking(s) side by side and a reason it needs a person; "Yes, link this invoice" links the chosen candidate (source "confirmed"); "None of these" is remembered;
+  4. invoices that fit no booking are listed on Invoicing > "In Xero, not in the register".
+  Setting "Fill in clear matches automatically" (`xero_match_auto_link`) turns step 2 off so everything waits for a person. An invoice already decided (any item) is never offered again, so Undo sticks.
+- **UI:** `components/sales/invoice-match-panel.tsx` (shown inside `ReviewItemCard` and the resolved list), booking sheet shows "Linked to Xero invoice N" with Open in Xero + Undo, bookings table / filters unchanged (payment state now prefers the real link).
+- **Needs a one-off "Re-read all invoices"** (Settings > Xero card, or `POST /api/integrations/xero/sync?full=true`) so already-synced invoices get their line text.
+- Migration `0031`; dependency `rapidfuzz`. Not done: matching typo'd invoice numbers is included (never auto); matching across pre-2023 invoices is not (sync starts 2023-01-01).
+
 ### 3.7 SALES-020 proposal builder — the plan (next task)
 Spec: rep picks client + title → app drafts a proposal in BMI's Word template using client history, current rates, editorial plan and BMI's voice → rep edits → download or send from Outlook → logged against the client with a follow-up.
 

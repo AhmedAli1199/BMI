@@ -144,3 +144,11 @@ export async function deleteCostLine(editionId: string, id: string): Promise<Edi
   revalidatePath(`/sales/editions/${editionId}`);
   return r;
 }
+
+/** Undo an invoice link the matcher made: clears the invoice number, value and date it filled in. */
+export async function unlinkXeroInvoice(orderId: string): Promise<SalesOrder> {
+  const order = await backendFetch<SalesOrder>(`/api/sales/orders/${orderId}/xero-unlink`, { method: "POST" });
+  revalidateSales(order.edition_id, order.company?.id);
+  revalidatePath("/automations/review");
+  return order;
+}

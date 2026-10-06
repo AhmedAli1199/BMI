@@ -43,6 +43,11 @@ class XeroInvoice(Base, UUIDPk):
     invoice_number: Mapped[str | None] = mapped_column(String(60))
     contact_name: Mapped[str | None] = mapped_column(String(255))
     reference: Mapped[str | None] = mapped_column(String(255))
+    # What the invoice lines say they're for ("One Table at the London event", "Page within OBH 94"),
+    # joined with " | " - the strongest clue to which booking an invoice belongs to.
+    line_text: Mapped[str | None] = mapped_column(Text)
+    # Xero's rate for a foreign-currency invoice (units of that currency per £1), to compare with a £ booking.
+    currency_rate: Mapped[float | None] = mapped_column(Numeric(14, 6))
     status: Mapped[str] = mapped_column(String(20), nullable=False)  # DRAFT|SUBMITTED|AUTHORISED|PAID|VOIDED|DELETED
     currency: Mapped[str | None] = mapped_column(String(3))
     issued_on: Mapped[date | None] = mapped_column(Date)

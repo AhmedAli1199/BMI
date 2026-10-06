@@ -3,12 +3,13 @@ import { CheckCircle2, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
-import type { OrdersPage, SalesMeta } from "@/lib/sales-types";
+import type { OrdersPage, SalesMeta, UnmatchedInvoices } from "@/lib/sales-types";
 import type { OrderFilterKey } from "@/lib/sales-filters";
 import { KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { OrdersExplorer } from "@/components/sales/orders-explorer";
-import { EmptyState, SalesHeader, fmtGBP } from "@/components/sales/sales-ui";
+import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+import { ExternalLink } from "lucide-react";
 
 const VIEWS = [
   {
@@ -69,14 +70,16 @@ const VIEWS = [
 
 export default async function InvoicingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
+  const xeroOnly = sp.view === "xero_only";
   const view = VIEWS.find((v) => v.key === sp.view) ?? VIEWS[0];
-  const [meta, session, current, overdue, mismatched, part] = await Promise.all([
+  const [meta, session, current, overdue, mismatched, part, unmatched] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     getSession(),
     backendFetch<OrdersPage>(`/api/sales/orders?${view.query}&limit=1`),
     backendFetch<OrdersPage>("/api/sales/orders?overdue=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?mismatched=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?part_invoiced=true&limit=1"),
+    backendFetch<UnmatchedInvoices>("/api/sales/xero/unmatched").catch(() => ({ as_of: null, items: [] }) as UnmatchedInvoices),
   ]);
   const uninvoiced = view.key === "uninvoiced" ? current : await backendFetch<OrdersPage>("/api/sales/orders?uninvoiced=true&limit=1");
   // Switching view keeps the sidebar filters (e.g. one title, one person) but starts at page 1.
@@ -116,7 +119,7 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
       <div>
         <nav aria-label="Invoicing views" className="mb-3 flex flex-wrap items-center gap-1">
           {VIEWS.map((v) => {
-            const active = v.key === view.key;
+            const active = !xeroOnly && v.key === view.key;
             return (
               <Link
                 key={v.key}
@@ -129,10 +132,61 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
               </Link>
             );
           })}
-          <InfoHint>{view.hint}</InfoHint>
+          <Link
+            href={viewHref("xero_only")}
+            aria-current={xeroOnly ? "page" : undefined}
+            scroll={false}
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${xeroOnly ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+          >
+            In Xero, not in the register{unmatched.items.length > 0 ? ` (${unmatched.items.length})` : ""}
+          </Link>
+          <InfoHint>
+            {xeroOnly
+              ? "Sales invoices in Xero that don't fit any booking in the register - billed but never entered, or the amount doesn't line up with a booking. Updated each time invoices are matched."
+              : view.hint}
+          </InfoHint>
         </nav>
 
-        {current.total === 0 ? (
+        {xeroOnly ? (
+          unmatched.items.length === 0 ? (
+            <EmptyState icon={CheckCircle2} title="Every invoice has a booking">
+              {unmatched.as_of ? "Every sales invoice in Xero is linked to a booking, or waiting in the Review Queue." : "Invoices are matched once the Xero matching has run - switch it on in the Automations settings, or use Run now."}
+            </EmptyState>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
+              <table className="w-full min-w-[44rem] text-sm">
+                <caption className="sr-only">Invoices in Xero with no matching booking</caption>
+                <thead>
+                  <tr className="border-b border-border/70 text-left text-xs font-semibold text-muted-foreground">
+                    <th scope="col" className="px-4 py-2.5 font-semibold">Invoice</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold">Customer</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold">What it says it&apos;s for</th>
+                    <th scope="col" className="px-3 py-2.5 text-right font-semibold">Before VAT</th>
+                    <th scope="col" className="px-4 py-2.5 font-semibold">Dated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unmatched.items.map((i) => (
+                    <tr key={i.id} className="border-b border-border/60 align-top last:border-0 hover:bg-accent/40">
+                      <td className="px-4 py-2.5">
+                        <a href={i.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                          {i.number}
+                          <ExternalLink className="size-3" aria-hidden="true" />
+                        </a>
+                      </td>
+                      <td className="px-3 py-2.5 font-medium text-foreground">{i.contact ?? "—"}</td>
+                      <td className="max-w-md px-3 py-2.5 text-xs text-muted-foreground">{[i.reference, i.lines].filter(Boolean).join(" · ") || "—"}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
+                        {i.currency === "GBP" ? fmtGBP(i.net) : `${i.currency} ${i.net.toLocaleString("en-GB")}`}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{fmtDate(i.issued_on)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : current.total === 0 ? (
           <EmptyState icon={CheckCircle2} title="All clear">{view.empty}</EmptyState>
         ) : (
           <OrdersExplorer
