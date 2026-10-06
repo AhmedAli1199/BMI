@@ -393,6 +393,8 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
             {item.entity_type && item.entity_id && (
               <Link
                 href={`/${item.entity_type === "contact" ? "contacts" : "companies"}/${item.entity_id}`}
+                target="_blank"
+                rel="noreferrer"
                 className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
               >
                 View {item.entity_type} record
@@ -435,7 +437,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
             </div>
             <div className="flex flex-wrap gap-1.5">
               {payload.related_entities.map((e) => (
-                <Link key={e.id} href={`/${e.type === "contact" ? "contacts" : "companies"}/${e.id}`}>
+                <Link key={e.id} href={`/${e.type === "contact" ? "contacts" : "companies"}/${e.id}`} target="_blank" rel="noreferrer">
                   <Badge variant="secondary" className="cursor-pointer text-[11px] hover:bg-secondary/70">
                     {e.label}
                   </Badge>
@@ -454,6 +456,8 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
               <span className="text-muted-foreground">Researched candidate: </span>
               <Link
                 href={`/contacts/${payload.candidate.contact_id}`}
+                target="_blank"
+                rel="noreferrer"
                 className="font-semibold text-primary hover:underline"
               >
                 {payload.candidate.label || "View candidate"}

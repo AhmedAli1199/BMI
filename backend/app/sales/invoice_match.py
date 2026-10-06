@@ -213,18 +213,44 @@ def is_clear(top: Hypothesis, rest: list[Hypothesis]) -> bool:
     return top.name_sim >= AUTO_MIN_NAME and top.score - runner_up >= AUTO_MARGIN
 
 
-def why_not_automatic(top: Hypothesis, rest: list[Hypothesis], inv: XeroInvoice, auto_on: bool) -> str:
-    """One plain sentence for the top of the review card."""
+WHY_LABELS = {
+    "different_name": "Invoice is to a different name",
+    "several_fit": "More than one booking fits",
+    "typo": "Typed number isn't in Xero",
+    "auto_off": "Automatic linking is off",
+    "taken": "Another invoice fits the same booking",
+    "check": "Needs a quick check",
+}
+STRENGTH_LABELS = {"strong": "Strong match", "likely": "Likely match", "possible": "Possible match"}
+PAYMENT_LABELS = {"paid": "Paid", "part_paid": "Part paid", "unpaid": "Awaiting payment", "overdue": "Overdue", "voided": "Voided"}
+
+
+def why_not_automatic(top: Hypothesis, rest: list[Hypothesis], inv: XeroInvoice, auto_on: bool) -> tuple[str, str]:
+    """(reason key, one plain sentence) for the top of the review card."""
     if top.name_sim < AUTO_MIN_NAME:
-        return (f"The invoice is to “{inv.contact_name}”, which isn't the booking's client name - it may be an agency or a "
-                f"parent company. Check this is the right booking.")
+        return "different_name", (f"The invoice is to “{inv.contact_name}”, which isn't the booking's client name - it may be an "
+                                  f"agency or a parent company. Check this is the right booking.")
     if rest and top.score - rest[0].score < AUTO_MARGIN:
-        return "More than one booking fits this invoice about equally well. Pick the right one."
+        return "several_fit", "More than one booking fits this invoice about equally well. Pick the right one."
     if any(o.invoice_number for o in top.orders):
-        return "This booking already has an invoice number that isn't in Xero (a typo?). Linking will replace it."
+        return "typo", "This booking already has an invoice number that isn't in Xero (a typo?). Linking will replace it."
     if not auto_on:
-        return "Automatic linking is switched off, so every match waits for you."
-    return "Please check this one."
+        return "auto_off", "Automatic linking is switched off, so every match waits for you."
+    return "check", "Please check this one."
+
+
+def reason_key_from_text(text: str | None) -> str:
+    """For items made before reasons had keys."""
+    t = text or ""
+    return ("different_name" if "client name" in t else "several_fit" if "equally well" in t else
+            "typo" if "isn't in Xero" in t else "auto_off" if "switched off" in t else
+            "taken" if "Another invoice" in t else "check")
+
+
+def review_facets(*, rep: str | None, title: str, payment_state: str, reason_key: str, strength: str) -> dict:
+    """What the review screen's filters show for this item (see ReviewKind.facets)."""
+    return {"salesperson": rep or "No salesperson", "title": title, "payment": PAYMENT_LABELS.get(payment_state, "Awaiting payment"),
+            "why": WHY_LABELS.get(reason_key, WHY_LABELS["check"]), "match": STRENGTH_LABELS.get(strength, "Possible match")}
 
 
 # ---- the review card's content ----------------------------------------------------------
@@ -234,7 +260,7 @@ def _booking_facts(ctx: Context, o: SalesOrder, rep_names: dict) -> dict:
     return {
         "id": str(o.id), "client": o.client_name, "edition": edition_label(ctx, ed), "edition_id": str(ed.id),
         "edition_date": ed.edition_date.isoformat() if ed.edition_date else None,
-        "size": o.size, "booked_on": o.booked_on.isoformat() if o.booked_on else None,
+        "title": ctx.titles[ed.title_id].name, "size": o.size, "booked_on": o.booked_on.isoformat() if o.booked_on else None,
         "value_gbp": float(o.value_gbp), "rep": rep_names.get(o.rep_id), "typed_number": o.invoice_number,
     }
 

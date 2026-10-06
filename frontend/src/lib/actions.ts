@@ -597,10 +597,15 @@ export async function redraftReviewItem(itemId: string, instructions: string): P
 export async function bulkResolveReviewItems(
   kind: string,
   actionId: string,
-  note?: string
+  note?: string,
+  /** The filters the list is showing - only those items are touched. */
+  filters?: { facets?: string[]; q?: string }
 ): Promise<{ matched: number; succeeded: number; failed: number; errors: string[] }> {
+  const params = new URLSearchParams({ kind });
+  (filters?.facets ?? []).forEach((f) => params.append("facet", f));
+  if (filters?.q) params.set("q", filters.q);
   const result = await backendFetch<{ matched: number; succeeded: number; failed: number; errors: string[] }>(
-    `/api/review-queue/bulk-actions/${actionId}?${new URLSearchParams({ kind })}`,
+    `/api/review-queue/bulk-actions/${actionId}?${params}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

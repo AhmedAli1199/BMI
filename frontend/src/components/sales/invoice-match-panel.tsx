@@ -45,11 +45,23 @@ function BookingRow({ b, warn }: { b: InvoiceMatchBooking; warn: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-md bg-muted/30 px-3 py-2 text-xs">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <span className="text-sm font-bold text-foreground">{b.client}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="text-sm font-bold text-foreground">{b.client}</span>
+          <Link
+            href={`/sales/orders/${b.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            Open booking
+            <ExternalLink className="size-3" aria-hidden="true" />
+            <span className="sr-only"> (opens in a new tab)</span>
+          </Link>
+        </span>
         <span className="font-semibold tabular-nums text-foreground">{fmtGBP(b.value_gbp)}</span>
       </div>
       <div className="text-muted-foreground">
-        <Link href={`/sales/editions/${b.edition_id}`} className="font-medium text-primary hover:underline">
+        <Link href={`/sales/editions/${b.edition_id}`} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
           {b.edition}
         </Link>
         {b.edition_date && <> · {fmtDate(b.edition_date)}</>}

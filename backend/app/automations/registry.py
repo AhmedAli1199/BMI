@@ -130,6 +130,14 @@ class ReviewKind:
     # kind-by-kind, so that phase has something correct to enforce rather
     # than guessing it retroactively.
     audience: Literal["sales", "admin"] = "admin"
+    # Filters the review screen offers for this kind's items: (key, label) pairs.
+    # Each item stores its own values under payload["facets"][key] (plain readable
+    # text - what the filter shows), so adding a filter to a kind needs no screen
+    # changes. Counts beside each option are computed with every other filter applied.
+    facets: tuple[tuple[str, str], ...] = ()
+    # When set, the screen offers "latest first / oldest first" sorting on
+    # payload["sort_date"] (an ISO date), named like "booking" or "invoice".
+    date_sort_label: str | None = None
 
 
 _REGISTRY: dict[str, ReviewKind] = {}

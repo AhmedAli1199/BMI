@@ -245,7 +245,13 @@ export type ReviewKind = {
   /** Phase 1 labeling only (see backend registry.py's ReviewKind.audience)
    * - not yet enforced; "sales" vs "admin" who a kind is meant for. */
   audience: "sales" | "admin";
+  /** Filters offered for this kind's items - see backend ReviewKind.facets. */
+  facets: { key: string; label: string }[];
+  /** When set, the kind can be sorted by its date ("booking" -> "Latest booking first"). */
+  date_sort_label: string | null;
 };
+
+export type ReviewFacet = { key: string; label: string; options: { value: string; count: number }[] };
 
 export type ReviewDetail = { key?: string; label: string; value: string; editable?: boolean };
 export type ReviewRelatedEntity = { type: "contact" | "company"; id: string; label: string };

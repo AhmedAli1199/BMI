@@ -34,7 +34,16 @@ function isBulkable(action: ReviewAction): boolean {
  * once - the reviewer picks a kind chip first, same as the single-item
  * flow already requires implicitly (each ReviewItemCard only offers that
  * item's own kind's actions). */
-export function BulkReviewActions({ kind, pendingCount }: { kind: ReviewKind; pendingCount: number }) {
+export function BulkReviewActions({
+  kind,
+  pendingCount,
+  filters,
+}: {
+  kind: ReviewKind;
+  pendingCount: number;
+  /** What the list is filtered by right now - bulk actions only touch those items. */
+  filters?: { facets?: string[]; q?: string };
+}) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -63,7 +72,7 @@ export function BulkReviewActions({ kind, pendingCount }: { kind: ReviewKind; pe
     setOpen(false);
     startTransition(async () => {
       try {
-        const result = await bulkResolveReviewItems(kind.kind, action.id, note);
+        const result = await bulkResolveReviewItems(kind.kind, action.id, note, filters);
         if (result.failed > 0) {
           toast.warning(`${action.label}: ${result.succeeded} done, ${result.failed} failed`, {
             description: result.errors.slice(0, 3).join("; ") || undefined,

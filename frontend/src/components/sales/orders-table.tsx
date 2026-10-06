@@ -65,7 +65,7 @@ const XERO_TONE: Record<string, [string, string]> = {
 };
 
 /** Payment state from Xero, matched on invoice number. */
-function XeroPayment({ o }: { o: SalesOrder }) {
+export function XeroPayment({ o }: { o: SalesOrder }) {
   const x = o.xero;
   if (!x) return null;
   const [label, color] = XERO_TONE[x.state] ?? [x.status, "var(--muted-foreground)"];

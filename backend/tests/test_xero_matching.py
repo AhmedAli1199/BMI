@@ -346,3 +346,90 @@ def test_payment_state_follows_a_differently_written_number(client, db_session, 
     first = client.get("/api/sales/orders").json()["items"][0]
     assert first["xero"]["state"] == "paid" and first["xero"]["invoice_number"] == "INV-0309"
     assert client.get("/api/sales/orders?xero=paid").json()["total"] == 1
+
+
+# ---- review queue: filters and sorting for these items ------------------------------------
+
+def _waiting(db, sor, specs):
+    """Several waiting items: (client, rep, value, days ago booked, paid) each with a different-name invoice."""
+    for i, (client, rep, value, days, paid) in enumerate(specs):
+        booking(db, sor, client, value, rep=rep, booked=TODAY - timedelta(days=days))
+        invoice(db, f"7000{i}", f"Agency {i}", value, paid=paid)
+    run(db)
+
+
+def test_kind_advertises_its_filters_and_date_sort(client, db_session):
+    admin = make_user(db_session, role="admin")
+    db_session.commit()
+    kind = next(k for k in client.get("/api/review-queue/kinds", headers=identity_headers(admin)).json() if k["kind"] == xm.KIND)
+    assert [f["key"] for f in kind["facets"]] == ["salesperson", "title", "payment", "match", "why"]
+    assert kind["date_sort_label"] == "booking"
+
+
+def test_filters_have_counts_and_narrow_the_list(client, db_session, sor):
+    _waiting(db_session, sor, [("Alpha Travel", "SP", 111, 30, True), ("Beta Travel", "SP", 222, 10, False), ("Gamma Travel", "ST", 333, 20, True)])
+    admin = make_user(db_session, role="admin")
+    db_session.commit()
+    h = identity_headers(admin)
+    facets = {f["key"]: {o["value"]: o["count"] for o in f["options"]} for f in client.get(f"/api/review-queue/facets?kind={xm.KIND}", headers=h).json()}
+    assert facets["salesperson"] == {"Sally Parker": 2, "Steven Thompson": 1}
+    assert facets["payment"] == {"Paid": 2, "Awaiting payment": 1} and facets["title"] == {"OnBoard Hospitality (OBH)": 3}
+    assert facets["why"] == {"Invoice is to a different name": 3}
+
+    def names(qs=""):
+        r = client.get(f"/api/review-queue?kind={xm.KIND}{qs}", headers=h).json()
+        return sorted(i["payload"]["summary"].split(" to ")[1].split(" (")[0] for i in r["items"])
+
+    assert names("&facet=salesperson:Steven Thompson") == ["Agency 2"]
+    assert names("&facet=salesperson:Sally Parker&facet=payment:Paid") == ["Agency 0"]
+    assert names("&facet=salesperson:Sally Parker&facet=salesperson:Steven Thompson") == ["Agency 0", "Agency 1", "Agency 2"]  # same filter: either
+    # counts beside the other filters follow what is already chosen, but a filter's own options stay available
+    narrowed = {f["key"]: {o["value"]: o["count"] for o in f["options"]}
+                for f in client.get(f"/api/review-queue/facets?kind={xm.KIND}&facet=salesperson:Sally Parker", headers=h).json()}
+    assert narrowed["payment"] == {"Paid": 1, "Awaiting payment": 1} and narrowed["salesperson"] == {"Sally Parker": 2, "Steven Thompson": 1}
+
+
+def test_sorting_by_booking_date_puts_the_latest_first(client, db_session, sor):
+    _waiting(db_session, sor, [("Alpha Travel", "SP", 111, 30, True), ("Beta Travel", "SP", 222, 5, True), ("Gamma Travel", "SP", 333, 15, True)])
+    admin = make_user(db_session, role="admin")
+    db_session.commit()
+    h = identity_headers(admin)
+
+    def order(sort):
+        items = client.get(f"/api/review-queue?kind={xm.KIND}&sort={sort}", headers=h).json()["items"]
+        return [i["payload"]["sort_date"] for i in items]
+
+    newest = order("date_desc")
+    assert newest == sorted(newest, reverse=True) and newest[0] == (TODAY - timedelta(days=5)).isoformat()
+    assert order("date_asc") == sorted(newest)
+
+
+def test_older_items_get_their_filter_values_on_the_next_run(db_session, sor):
+    booking(db_session, sor, "Alpha Travel", 111)
+    inv = invoice(db_session, "70050", "Agency X", 111)
+    run(db_session)
+    item = items(db_session, "pending")[0]
+    payload = dict(item.payload)
+    del payload["facets"], payload["sort_date"]
+    payload["invoice_match"] = {**payload["invoice_match"]}
+    payload["invoice_match"].pop("reason_key")
+    for c in payload["invoice_match"]["candidates"]:
+        for b in c["bookings"]:
+            b.pop("title", None)
+    item.payload = payload
+    db_session.flush()
+    run(db_session)
+    got = db_session.get(ReviewQueueItem, item.id).payload
+    assert got["facets"]["why"] == "Invoice is to a different name" and got["facets"]["title"] == "OnBoard Hospitality (OBH)"
+    assert got["facets"]["salesperson"] == "Sally Parker" and got["sort_date"]
+
+
+def test_a_bulk_action_only_touches_the_filtered_items(client, db_session, sor):
+    _waiting(db_session, sor, [("Alpha Travel", "SP", 111, 30, True), ("Beta Travel", "ST", 222, 10, False)])
+    admin = make_user(db_session, role="admin")
+    db_session.commit()
+    h = identity_headers(admin)
+    r = client.post(f"/api/review-queue/bulk-actions/none?kind={xm.KIND}&facet=salesperson:Steven Thompson", headers=h, json={})
+    assert r.status_code == 200 and r.json()["succeeded"] == 1
+    db_session.expire_all()
+    assert [i.status for i in db_session.query(ReviewQueueItem).filter_by(kind=xm.KIND).order_by(ReviewQueueItem.created_at)].count("pending") == 1

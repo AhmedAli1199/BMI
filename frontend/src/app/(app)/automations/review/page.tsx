@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  X,
   Clock,
   ExternalLink,
   Mail,
@@ -19,7 +20,7 @@ import {
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
 import { cleanNoteBody } from "@/lib/notes";
-import type { Page, ReviewKind, ReviewQueueCounts, ReviewQueueInsights, ReviewQueueItem } from "@/lib/types";
+import type { Page, ReviewFacet, ReviewKind, ReviewQueueCounts, ReviewQueueInsights, ReviewQueueItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReviewItemCard } from "@/components/review-item-card";
@@ -41,20 +42,37 @@ const SORT_OPTIONS = [
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string; bucket?: string }>;
+  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string; bucket?: string; facet?: string | string[] }>;
 }) {
-  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ, bucket: activeBucket } = await searchParams;
+  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ, bucket: activeBucket, facet: rawFacet } = await searchParams;
   const activeStatus = STATUS_TABS.some((t) => t.value === rawStatus) ? rawStatus! : "pending";
-  const activeSort = SORT_OPTIONS.some((s) => s.value === rawSort) ? rawSort! : "recent";
   const activeQuery = (rawQ || "").trim();
+  const chosenFacets = ([] as string[]).concat(rawFacet ?? []).filter((f) => f.includes(":"));
 
-  const [kinds, counts, page, insights] = await Promise.all([
-    backendFetch<ReviewKind[]>("/api/review-queue/kinds"),
+  const kinds = await backendFetch<ReviewKind[]>("/api/review-queue/kinds");
+  const kindByName = new Map(kinds.map((k) => [k.kind, k]));
+  const activeDef = activeKind ? kindByName.get(activeKind) : undefined;
+  // A kind with a date to sort on (a booking date, say) opens newest-first; the rest open by most recently added.
+  const sortOptionsFor = (def?: ReviewKind) =>
+    def?.date_sort_label
+      ? [
+          { value: "date_desc", label: `Latest ${def.date_sort_label} first`, icon: ArrowDownWideNarrow },
+          { value: "date_asc", label: `Oldest ${def.date_sort_label} first`, icon: ArrowUpNarrowWide },
+          { value: "recent", label: "Recently added", icon: Clock },
+        ]
+      : [...SORT_OPTIONS];
+  const sortOptions = sortOptionsFor(activeDef);
+  const defaultSort = activeDef?.date_sort_label ? "date_desc" : "recent";
+  const activeSort = sortOptions.some((s) => s.value === rawSort) ? rawSort! : defaultSort;
+  const facetDefs = activeDef?.facets ?? [];
+  const facetQuery = chosenFacets.map((f) => `&facet=${encodeURIComponent(f)}`).join("");
+
+  const [counts, page, insights, facets] = await Promise.all([
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),
     backendFetch<Page<ReviewQueueItem>>(
       `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}${
         activeQuery ? `&q=${encodeURIComponent(activeQuery)}` : ""
-      }${activeBucket ? `&bucket=${activeBucket}` : ""}`
+      }${activeBucket ? `&bucket=${activeBucket}` : ""}${facetQuery}`
     ),
     // Queue Insights only has buckets for a handful of kinds (see backend's
     // _INSIGHT_BUCKETS) - fetching it with no kind selected would be
@@ -66,26 +84,46 @@ export default async function ReviewQueuePage({
           () => ({ kind: activeKind, buckets: [] })
         )
       : Promise.resolve(null),
+    // The kind's own filters, with a count beside each option (counted with the other filters applied).
+    facetDefs.length > 0
+      ? backendFetch<ReviewFacet[]>(
+          `/api/review-queue/facets?kind=${activeKind}&status=${activeStatus}${activeQuery ? `&q=${encodeURIComponent(activeQuery)}` : ""}${
+            activeBucket ? `&bucket=${activeBucket}` : ""
+          }${facetQuery}`
+        ).catch(() => [] as ReviewFacet[])
+      : Promise.resolve([] as ReviewFacet[]),
   ]);
 
   const countFor = (k: string) => counts.find((c) => c.kind === k)?.pending ?? 0;
   const totalPending = counts.reduce((sum, c) => sum + c.pending, 0);
-  const kindByName = new Map(kinds.map((k) => [k.kind, k]));
   const activeStyle = activeKind ? styleForKind(activeKind) : null;
-  const statusHref = (status: string) =>
-    `/automations/review?status=${status}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}${activeBucket ? `&bucket=${activeBucket}` : ""}`;
-  // Deliberately drops any active bucket - a bucket key only means
-  // something for the kind it came from (e.g. "high" is a confidence
-  // band for duplicate_contact, meaningless for ooo_ambiguous), so
-  // switching kind must not carry it over.
+
+  // One place that builds every link on this page, so each control keeps the others' choices.
+  const hrefFor = (o: { status?: string; kind?: string | null; sort?: string; bucket?: string | null; facets?: string[] } = {}) => {
+    const kind = o.kind === undefined ? activeKind : o.kind || undefined;
+    const sort = o.sort ?? activeSort;
+    const bucket = o.bucket === undefined ? activeBucket : o.bucket || undefined;
+    const fs = o.facets ?? chosenFacets;
+    const defaultFor = kind ? (kindByName.get(kind)?.date_sort_label ? "date_desc" : "recent") : "recent";
+    const p = new URLSearchParams();
+    p.set("status", o.status ?? activeStatus);
+    if (kind) p.set("kind", kind);
+    if (sort !== defaultFor) p.set("sort", sort);
+    if (bucket) p.set("bucket", bucket);
+    if (activeQuery) p.set("q", activeQuery);
+    fs.forEach((f) => p.append("facet", f));
+    return `/automations/review?${p}`;
+  };
+  const statusHref = (status: string) => hrefFor({ status });
+  // Switching kind drops the bucket, the filters and a date sort - those only mean something for the kind they came from.
   const kindHref = (kind?: string) =>
-    `/automations/review?status=${activeStatus}${kind ? `&kind=${kind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}`;
-  const sortHref = (sort: string) =>
-    `/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${sort !== "recent" ? `&sort=${sort}` : ""}${activeBucket ? `&bucket=${activeBucket}` : ""}`;
-  const bucketHref = (bucket?: string) =>
-    `/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}${
-      bucket ? `&bucket=${bucket}` : ""
-    }`;
+    hrefFor({ kind: kind ?? null, bucket: null, facets: [], sort: ["recent", "confidence_asc", "confidence_desc"].includes(activeSort) ? activeSort : "recent" });
+  const sortHref = (sort: string) => hrefFor({ sort });
+  const bucketHref = (bucket?: string) => hrefFor({ bucket: bucket ?? null });
+  const toggleFacet = (key: string, value: string) => {
+    const entry = `${key}:${value}`;
+    return hrefFor({ facets: chosenFacets.includes(entry) ? chosenFacets.filter((f) => f !== entry) : [...chosenFacets, entry] });
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -102,7 +140,7 @@ export default async function ReviewQueuePage({
           <span>Review queue</span>
         </div>
         <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {activeKind && kindByName.get(activeKind) ? kindByName.get(activeKind)!.label : "Everything waiting on you"}
+          {activeDef ? activeDef.label : "Everything waiting on you"}
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
           {totalPending.toLocaleString()} item{totalPending === 1 ? "" : "s"} waiting
@@ -187,7 +225,7 @@ export default async function ReviewQueuePage({
             this works uniformly across every automation without any
             per-kind special-casing. */}
         <div className="flex items-center gap-1 rounded-lg border border-border/70 p-0.5">
-          {SORT_OPTIONS.map((s) => {
+          {sortOptions.map((s) => {
             const Icon = s.icon;
             const isActive = activeSort === s.value;
             return (
@@ -205,6 +243,81 @@ export default async function ReviewQueuePage({
           })}
         </div>
       </div>
+
+      {/* This kind's own filters (what it says in ReviewKind.facets): pick any number of options per
+          filter; options show how many items they'd leave, counted with the other filters applied. */}
+      {facets.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">Filter by:</span>
+            {facets.map((f) => {
+              const chosen = chosenFacets.filter((c) => c.startsWith(`${f.key}:`)).map((c) => c.slice(f.key.length + 1));
+              return (
+                <details key={f.key} name="review-facet" className="group relative">
+                  <summary
+                    className={`flex cursor-pointer list-none items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors hover:border-primary/50 ${
+                      chosen.length > 0 ? "border-primary text-foreground" : "border-border/70 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f.label}
+                    {chosen.length > 0 && (
+                      <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">{chosen.length}</span>
+                    )}
+                    <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+                  </summary>
+                  <div className="absolute left-0 z-20 mt-1 max-h-72 w-64 overflow-auto rounded-lg border border-border bg-card p-1 shadow-md">
+                    {f.options.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">Nothing to filter on here.</p>}
+                    {f.options.map((o) => {
+                      const on = chosen.includes(o.value);
+                      return (
+                        <Link
+                          key={o.value}
+                          href={toggleFacet(f.key, o.value)}
+                          scroll={false}
+                          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span
+                              aria-hidden="true"
+                              className={`flex size-4 shrink-0 items-center justify-center rounded border ${on ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}
+                            >
+                              {on && <Check className="size-3" />}
+                            </span>
+                            <span className={`truncate ${on ? "font-semibold text-foreground" : "text-foreground"}`}>{o.value}</span>
+                            <span className="sr-only">{on ? " (selected)" : ""}</span>
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">{o.count}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+          {chosenFacets.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {chosenFacets.map((c) => {
+                const key = c.slice(0, c.indexOf(":"));
+                const value = c.slice(c.indexOf(":") + 1);
+                const label = facetDefs.find((d) => d.key === key)?.label ?? key;
+                return (
+                  <Link key={c} href={toggleFacet(key, value)} scroll={false}>
+                    <Badge variant="secondary" className="cursor-pointer gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold hover:bg-secondary/70">
+                      {label}: {value}
+                      <X className="size-3" aria-hidden="true" />
+                      <span className="sr-only">remove this filter</span>
+                    </Badge>
+                  </Link>
+                );
+              })}
+              <Link href={hrefFor({ facets: [] })} className="text-[11px] font-semibold text-primary hover:underline">
+                Clear all filters
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Queue Insights - a bucketed breakdown of the CURRENT kind's
           pending items, using a value the automation already computes at
@@ -247,7 +360,11 @@ export default async function ReviewQueuePage({
           what the kind chips above already filtered the list to. */}
       {activeStatus === "pending" && activeKind && kindByName.get(activeKind) && (
         <div className="flex justify-end">
-          <BulkReviewActions kind={kindByName.get(activeKind)!} pendingCount={countFor(activeKind)} />
+          <BulkReviewActions
+            kind={kindByName.get(activeKind)!}
+            pendingCount={chosenFacets.length > 0 || activeQuery ? page.total : countFor(activeKind)}
+            filters={{ facets: chosenFacets, q: activeQuery || undefined }}
+          />
         </div>
       )}
 
@@ -260,8 +377,11 @@ export default async function ReviewQueuePage({
       <form action="/automations/review" method="GET" className="flex items-center gap-2">
         {activeKind && <input type="hidden" name="kind" value={activeKind} />}
         <input type="hidden" name="status" value={activeStatus} />
-        {activeSort !== "recent" && <input type="hidden" name="sort" value={activeSort} />}
+        {activeSort !== defaultSort && <input type="hidden" name="sort" value={activeSort} />}
         {activeBucket && <input type="hidden" name="bucket" value={activeBucket} />}
+        {chosenFacets.map((f) => (
+          <input key={f} type="hidden" name="facet" value={f} />
+        ))}
         <input
           type="search"
           name="q"
@@ -271,7 +391,7 @@ export default async function ReviewQueuePage({
         />
         {activeQuery && (
           <Link
-            href={`/automations/review?status=${activeStatus}${activeKind ? `&kind=${activeKind}` : ""}${activeSort !== "recent" ? `&sort=${activeSort}` : ""}${activeBucket ? `&bucket=${activeBucket}` : ""}`}
+            href={hrefFor().replace(/[&?]q=[^&]*/, "")}
             className="text-xs font-semibold text-muted-foreground hover:text-foreground"
           >
             Clear

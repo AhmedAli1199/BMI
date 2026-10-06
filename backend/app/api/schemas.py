@@ -541,6 +541,8 @@ class ReviewKindOut(BaseModel):
     # yet enforced server-side; exposed now so Phase 2 has a real field to
     # gate on rather than adding one later.
     audience: str
+    facets: list[dict] = []          # [{"key", "label"}] filters the screen offers - see ReviewKind.facets
+    date_sort_label: str | None = None
 
 
 class ReviewQueueEntitySummary(BaseModel):
@@ -598,6 +600,17 @@ class AutomationSettingOut(BaseModel):
 
 class AutomationSettingUpdate(BaseModel):
     value: object
+
+
+class ReviewFacetOption(BaseModel):
+    value: str
+    count: int
+
+
+class ReviewFacetOut(BaseModel):
+    key: str
+    label: str
+    options: list[ReviewFacetOption]
 
 
 class ReviewQueueCounts(BaseModel):

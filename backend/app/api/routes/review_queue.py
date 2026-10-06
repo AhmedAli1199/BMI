@@ -14,6 +14,8 @@ from app.api.schemas import (
     RedraftResult,
     ReviewActionOut,
     ReviewActionRequest,
+    ReviewFacetOption,
+    ReviewFacetOut,
     ReviewKindOut,
     ReviewQueueCounts,
     ReviewQueueEntitySummary,
@@ -215,6 +217,8 @@ def list_kinds(identity: Identity = Depends(get_identity)) -> list[ReviewKindOut
             label=k.label,
             description=k.description,
             audience=k.audience,
+            facets=[{"key": key, "label": label} for key, label in k.facets],
+            date_sort_label=k.date_sort_label,
             actions=[
                 ReviewActionOut(
                     id=a.id, label=a.label, style=a.style, outcome=a.outcome,
@@ -266,6 +270,70 @@ def list_counts(db: Session = Depends(get_db), identity: Identity = Depends(get_
     ]
 
 
+def _parse_facets(raw: list[str]) -> dict[str, list[str]]:
+    """["salesperson:Sally Parker", "payment:Paid"] -> {"salesperson": ["Sally Parker"], "payment": ["Paid"]}"""
+    out: dict[str, list[str]] = {}
+    for item in raw:
+        key, sep, value = item.partition(":")
+        if sep and key and value:
+            out.setdefault(key, []).append(value)
+    return out
+
+
+def _facet_expr(key: str):
+    return ReviewQueueItem.payload["facets"][key].astext
+
+
+def _apply_filters(stmt, *, kind, status, q, bucket, facets: dict[str, list[str]], skip: str | None = None):
+    if kind:
+        stmt = stmt.where(ReviewQueueItem.kind == kind)
+    if status:
+        stmt = stmt.where(ReviewQueueItem.status == status)
+    if bucket:
+        if not kind:
+            raise HTTPException(status_code=400, detail="bucket requires kind to be set too.")
+        condition = _bucket_condition(kind, bucket)
+        if condition is None:
+            raise HTTPException(status_code=400, detail=f"{bucket!r} is not a Queue Insights bucket for {kind!r}.")
+        stmt = stmt.where(condition)
+    if q and q.strip():
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(or_(ReviewQueueItem.payload["summary"].astext.ilike(needle),
+                              ReviewQueueItem.payload["subject"].astext.ilike(needle)))
+    for key, values in facets.items():
+        if key != skip:
+            stmt = stmt.where(_facet_expr(key).in_(values))
+    return stmt
+
+
+@router.get("/facets", response_model=list[ReviewFacetOut])
+def list_facets(
+    kind: str = Query(...),
+    status: str | None = Query("pending"),
+    q: str | None = Query(None),
+    bucket: str | None = Query(None),
+    facet: list[str] = Query(default=[]),
+    db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
+) -> list[ReviewFacetOut]:
+    """The filters a kind offers, with how many items each option would show -
+    counted with every OTHER filter already applied (so picking a salesperson
+    updates the counts beside the titles, as in the bookings filters)."""
+    kind_def = get_kind(kind)
+    visible = _visible_kinds(identity)
+    if not kind_def or (visible is not None and kind not in visible):
+        return []
+    chosen = _parse_facets(facet)
+    out = []
+    for key, label in kind_def.facets:
+        expr = _facet_expr(key)
+        stmt = _apply_filters(_apply_scope(select(expr, func.count()), identity), kind=kind, status=status, q=q,
+                              bucket=bucket, facets=chosen, skip=key).where(expr.isnot(None)).group_by(expr)
+        rows = sorted(db.execute(stmt).all(), key=lambda r: (-r[1], str(r[0])))
+        out.append(ReviewFacetOut(key=key, label=label, options=[ReviewFacetOption(value=v, count=c) for v, c in rows]))
+    return out
+
+
 @router.get("/insights", response_model=ReviewQueueInsights)
 def get_review_insights(
     kind: str = Query(...),
@@ -311,32 +379,15 @@ def list_review_items(
     status: str | None = Query("pending"),
     q: str | None = Query(None, description="Free-text search - every kind's card headline (payload.summary) always names the contact/company, so this doubles as search-by-contact without a join."),
     bucket: str | None = Query(None, description="One Queue Insights bucket key for this kind (see /insights) - e.g. 'high' for duplicate_contact. Requires kind to be set; an unrecognized (kind, bucket) pair 400s rather than silently matching everything."),
-    sort: str = Query("recent"),  # "recent" (default) | "confidence_asc" | "confidence_desc"
+    facet: list[str] = Query(default=[], description="Repeatable 'key:value' filter - see ReviewKind.facets and /facets."),
+    sort: str = Query("recent"),  # "recent" (default) | "confidence_asc" | "confidence_desc" | "date_desc" | "date_asc"
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     identity: Identity = Depends(get_identity),
 ) -> ReviewQueuePage:
-    stmt = _apply_scope(select(ReviewQueueItem), identity)
-    if kind:
-        stmt = stmt.where(ReviewQueueItem.kind == kind)
-    if status:
-        stmt = stmt.where(ReviewQueueItem.status == status)
-    if bucket:
-        if not kind:
-            raise HTTPException(status_code=400, detail="bucket requires kind to be set too.")
-        condition = _bucket_condition(kind, bucket)
-        if condition is None:
-            raise HTTPException(status_code=400, detail=f"{bucket!r} is not a Queue Insights bucket for {kind!r}.")
-        stmt = stmt.where(condition)
-    if q and q.strip():
-        needle = f"%{q.strip()}%"
-        stmt = stmt.where(
-            or_(
-                ReviewQueueItem.payload["summary"].astext.ilike(needle),
-                ReviewQueueItem.payload["subject"].astext.ilike(needle),
-            )
-        )
+    stmt = _apply_filters(_apply_scope(select(ReviewQueueItem), identity), kind=kind, status=status, q=q, bucket=bucket,
+                          facets=_parse_facets(facet))
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
@@ -348,6 +399,11 @@ def list_review_items(
         confidence_expr = cast(ReviewQueueItem.payload["confidence"].astext, Float)
         order = confidence_expr.asc() if sort == "confidence_asc" else confidence_expr.desc()
         stmt = stmt.order_by(order.nulls_last())
+    elif sort in ("date_desc", "date_asc"):
+        # payload["sort_date"] is an ISO date (e.g. the booking date), so text order is date order
+        date_expr = ReviewQueueItem.payload["sort_date"].astext
+        stmt = stmt.order_by((date_expr.desc() if sort == "date_desc" else date_expr.asc()).nulls_last(),
+                             ReviewQueueItem.created_at.desc())
     else:
         stmt = stmt.order_by(ReviewQueueItem.created_at.desc())
 
@@ -476,6 +532,8 @@ def redraft_review_item(
 def bulk_resolve_review_items(
     action_id: str,
     kind: str = Query(..., description="Bulk actions always target one kind's action list - the same kind the queue view is filtered to."),
+    facet: list[str] = Query(default=[], description="The same 'key:value' filters the list is showing - only those items are touched."),
+    q: str | None = Query(None, description="The same search the list is showing."),
     payload: BulkReviewActionRequest = BulkReviewActionRequest(),
     db: Session = Depends(get_db),
     identity: Identity = Depends(get_identity),
@@ -526,10 +584,8 @@ def bulk_resolve_review_items(
         input_data["note"] = payload.note
 
     items = db.scalars(
-        _apply_scope(
-            select(ReviewQueueItem).where(ReviewQueueItem.kind == kind, ReviewQueueItem.status == "pending"),
-            identity,
-        )
+        _apply_filters(_apply_scope(select(ReviewQueueItem), identity), kind=kind, status="pending", q=q, bucket=None,
+                       facets=_parse_facets(facet))
     ).all()
 
     succeeded = 0

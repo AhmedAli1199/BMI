@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -33,7 +33,7 @@ from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
-from app.models import ReviewQueueItem, SalesOrder, SalesRep, XeroInvoice
+from app.models import ReviewQueueItem, SalesEdition, SalesOrder, SalesRep, SalesTitle, XeroInvoice
 from app.sales import invoice_match as im
 from app.services.xero import number_key
 
@@ -45,7 +45,7 @@ DECLINED_STATE = "xero_match_declined"   # invoices whose automatic link someone
 
 
 def _item(ctx: im.Context, inv: XeroInvoice, hyps: list[im.Hypothesis], reps: dict[uuid.UUID, SalesRep], *,
-          status: str, reason: str | None) -> ReviewQueueItem:
+          status: str, reason: tuple[str, str] | None) -> ReviewQueueItem:
     top = hyps[0]
     first = top.orders[0]
     ed = ctx.editions[first.edition_id]
@@ -57,7 +57,12 @@ def _item(ctx: im.Context, inv: XeroInvoice, hyps: list[im.Hypothesis], reps: di
         "summary": f"Invoice {inv.invoice_number} to {inv.contact_name} ({im._money(float(inv.sub_total or 0))} before VAT) - which booking is it for?"
                    if status == "pending" else f"Invoice {inv.invoice_number} linked to {names}",
         "invoice_id": str(inv.id),
-        "invoice_match": {"invoice": im.invoice_facts(inv), "candidates": candidates, "reason": reason},
+        "invoice_match": {"invoice": im.invoice_facts(inv), "candidates": candidates, "reason": reason[1] if reason else None,
+                          "reason_key": reason[0] if reason else None},
+        # what the review screen filters and sorts on (ReviewKind.facets / date_sort_label)
+        "facets": im.review_facets(rep=rep.name if rep else None, title=title.name, payment_state=im.invoice_facts(inv)["state"],
+                                   reason_key=reason[0] if reason else "check", strength=candidates[0]["strength"]),
+        "sort_date": max((o.booked_on or ctx.editions[o.edition_id].edition_date or date.min) for o in top.orders).isoformat(),
         "owner_user_id": str(rep.user_id) if rep and rep.user_id else None,
         "dedupe_key": f"xero_invoice:{inv.id}",
         "related_entities": [],
@@ -65,6 +70,27 @@ def _item(ctx: im.Context, inv: XeroInvoice, hyps: list[im.Hypothesis], reps: di
     return ReviewQueueItem(
         id=uuid.uuid4(), kind=KIND, source_db=title.crm_source_db, status=status,
         entity_type="company" if first.company_id else None, entity_id=first.company_id, payload=payload)
+
+
+def _backfill_facets(db: Session, item: ReviewQueueItem) -> None:
+    match = item.payload.get("invoice_match") or {}
+    cands = match.get("candidates") or []
+    if not cands:
+        return
+    first = cands[0]
+    bookings = first.get("bookings") or []
+    title = bookings[0].get("title") if bookings else None
+    if not title and bookings:
+        o = db.get(SalesOrder, uuid.UUID(bookings[0]["id"]))
+        ed = db.get(SalesEdition, o.edition_id) if o else None
+        title = db.get(SalesTitle, ed.title_id).name if ed else "Unknown title"
+    dates = [b.get("booked_on") or b.get("edition_date") for b in bookings if b.get("booked_on") or b.get("edition_date")]
+    key = match.get("reason_key") or im.reason_key_from_text(match.get("reason"))
+    item.payload = {**item.payload,
+                    "facets": im.review_facets(rep=bookings[0].get("rep") if bookings else None, title=title or "Unknown title",
+                                               payment_state=(match.get("invoice") or {}).get("state", "unpaid"),
+                                               reason_key=key, strength=first.get("strength", "possible")),
+                    "sort_date": max(dates) if dates else None}
 
 
 def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | None = None) -> dict:
@@ -89,6 +115,9 @@ def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | N
                 declined.add(it.payload["invoice_id"])
             db.delete(it)
             existing.remove(it)
+    for it in existing:   # items made before the filters existed get their filter values and sort date now
+        if it.status == "pending" and "facets" not in it.payload:
+            _backfill_facets(db, it)
     seen = {i.payload.get("invoice_id") for i in existing} | declined
     for it in existing:   # a waiting item whose invoice was linked by hand since: nothing left to decide
         if it.status == "pending" and uuid.UUID(it.payload["invoice_id"]) not in unclaimed_ids:
@@ -112,7 +141,7 @@ def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | N
             counts["deferred"] += 1   # picked up on the next run
         else:
             reason = im.why_not_automatic(top, rest, inv, auto_on) if not (ids & taken) else \
-                "Another invoice in this batch fits the same booking. Pick the right one."
+                ("taken", "Another invoice in this batch fits the same booking. Pick the right one.")
             db.add(_item(ctx, inv, hyps, reps, status="pending", reason=reason))
             counts["review"] += 1
     set_state(db, UNMATCHED_STATE, {"ids": [str(i.id) for i in no_fit], "at": now.isoformat()})
@@ -185,6 +214,9 @@ register(ReviewKind(
     ],
     handler=_handle,
     audience="sales",
+    facets=(("salesperson", "Salesperson"), ("title", "Title"), ("payment", "Invoice status"),
+            ("match", "How sure"), ("why", "Why it needs you")),
+    date_sort_label="booking",
 ))
 
 register_job(ScheduledJob(
