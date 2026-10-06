@@ -26,11 +26,12 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import select, text
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import XeroConnection, XeroInvoice
+from app.sales.invoice_numbers import canonical, canonical_sql, find_invoice
 from app.services.outlook import decrypt, encrypt
 
 logger = logging.getLogger("app.services.xero")
@@ -212,7 +213,8 @@ def _day(v) -> date | None:
 
 
 def number_key(n: str | None) -> str | None:
-    return re.sub(r"\s+", "", n).upper() if n and n.strip() else None
+    """How invoice numbers are compared - see app/sales/invoice_numbers.py."""
+    return canonical(n)
 
 
 def _upsert(db: Session, inv: dict) -> None:
@@ -257,17 +259,27 @@ def fetch_invoices(token: str, tenant_id: str, since: datetime | None, page: int
 
 
 def link_typed_numbers(db: Session) -> int:
-    """Bookings whose typed invoice number matches a Xero invoice get a real
+    """Bookings whose typed invoice number means a Xero invoice (however it
+    was written - case, dashes, spaces, leading zeros, digits only) get a real
     link to it (xero_link_source "typed"). Returns how many were linked."""
-    res = db.execute(text("""
-        UPDATE sales_orders o SET xero_invoice_id = x.id, xero_link_source = 'typed', xero_linked_at = now()
-        FROM (SELECT DISTINCT ON (number_key) id, number_key FROM xero_invoices
-              WHERE number_key IS NOT NULL ORDER BY number_key, updated_at_xero DESC NULLS LAST) x
-        WHERE o.xero_invoice_id IS NULL AND o.invoice_number IS NOT NULL
-          AND upper(replace(o.invoice_number, ' ', '')) = x.number_key
-    """))
+    from app.models import SalesOrder
+
+    x = (select(XeroInvoice.id, XeroInvoice.number_key).where(XeroInvoice.number_key.isnot(None))
+         .distinct(XeroInvoice.number_key)
+         .order_by(XeroInvoice.number_key, XeroInvoice.updated_at_xero.desc().nulls_last()).subquery("x"))
+    res = db.execute(update(SalesOrder).where(
+        SalesOrder.xero_invoice_id.is_(None), SalesOrder.invoice_number.isnot(None),
+        canonical_sql(SalesOrder.invoice_number) == x.c.number_key,
+    ).values(xero_invoice_id=x.c.id, xero_link_source="typed", xero_linked_at=func.now()))
+    n = res.rowcount or 0
+    # The rest: only the digits typed, or only the digits in Xero (needs exactly one invoice to fit).
+    for o in db.scalars(select(SalesOrder).where(SalesOrder.xero_invoice_id.is_(None), SalesOrder.invoice_number.isnot(None))):
+        inv = find_invoice(db, o.invoice_number)
+        if inv:
+            o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, "typed", datetime.now(timezone.utc)
+            n += 1
     db.commit()
-    return res.rowcount or 0
+    return n
 
 
 def sync(db: Session, full: bool = False) -> dict:

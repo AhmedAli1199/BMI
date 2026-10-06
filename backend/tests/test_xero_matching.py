@@ -11,12 +11,13 @@ from app.automations import xero_matching as xm
 from app.automations.state import get_state
 from app.models import FieldChange, ReviewQueueItem, SalesOrder, XeroInvoice
 from app.sales import invoice_match as im
+from app.sales.invoice_numbers import canonical, canonical_sql, find_invoice
 
 TODAY = date.today()
 
 
 def invoice(db, number, contact, net, *, ref="", lines="", cur="GBP", rate=None, issued=None, status="PAID", paid=True, due=None):
-    inv = XeroInvoice(id=uuid.uuid4(), xero_id=str(uuid.uuid4()), invoice_number=number, number_key=number.upper().replace(" ", ""),
+    inv = XeroInvoice(id=uuid.uuid4(), xero_id=str(uuid.uuid4()), invoice_number=number, number_key=canonical(number),
                       contact_name=contact, reference=ref, line_text=lines, status=status, currency=cur, currency_rate=rate,
                       issued_on=issued or TODAY - timedelta(days=5), due_on=due or TODAY + timedelta(days=25),
                       sub_total=net, total_tax=0 if cur != "GBP" else net * 0.2, total=net * (1 if cur != "GBP" else 1.2),
@@ -264,3 +265,84 @@ def test_settings_and_job_are_registered(db_session):
 def test_name_helpers():
     assert im.norm("Delta Air Lines Ltd.") == "delta air lines"
     assert im.norm("Tripstax & Co") == "tripstax"
+
+
+# ---- invoice numbers written in different styles ------------------------------------------
+
+SAME = [
+    ("INV-0309", "inv 0309"), ("INV-0309", "Inv0309"), ("INV-0309", "INV 309"), ("INV-0309", "inv-309"),
+    ("INV-0309", "INV_0309"), ("INV-0309", "inv.0309"), ("INV-0309", "INV/0309"), ("INV-0309", "#INV 0309 "),
+    ("INV-0309", "Invoice"[:3] + " No. 0309"), ("INV-0309", "INV – 0309"), ("inv4434", "INV-4434"), ("INV-4434", "inv 04434"),
+    ("56264", " 56264"), ("56264", "056264"),
+]
+DIFFERENT = [("INV-0309", "INV-0310"), ("INV-0309", "INV-3090"), ("INV-0309", "CN-0309"), ("INV-1000", "INV-100"),
+             ("56264", "56265"), ("INV-0309", "INV-0309-1")]
+
+
+@pytest.mark.parametrize("a, b", SAME)
+def test_the_same_number_written_differently_is_recognised(a, b):
+    assert canonical(a) == canonical(b)
+
+
+@pytest.mark.parametrize("a, b", DIFFERENT)
+def test_a_different_number_is_never_matched(a, b):
+    assert canonical(a) != canonical(b)
+
+
+def test_empty_numbers_mean_nothing():
+    assert canonical(None) is None and canonical("") is None and canonical("  -  ") is None
+
+
+def test_the_database_rule_agrees_with_the_python_rule(db_session):
+    from sqlalchemy import select
+
+    for n in [a for a, _ in SAME] + [b for _, b in SAME] + [a for a, _ in DIFFERENT] + [b for _, b in DIFFERENT] + ["INV No 5", "Nr. 007", "0", "000", "INV00"]:
+        assert db_session.scalar(select(canonical_sql(n))) == canonical(n), n
+
+
+def test_a_typed_number_in_another_style_links_to_the_invoice_instead_of_going_to_review(db_session, sor):
+    cases = [("INV 0309", "INV-0309"), ("inv4434", "INV-4434"), ("Inv-0511", "INV-511"), ("56264 ", "056264")]
+    pairs = []
+    for i, (typed, in_xero) in enumerate(cases):
+        o = booking(db_session, sor, f"Client {i}", 100 + i, invoice_number=typed)
+        pairs.append((o, invoice(db_session, in_xero, f"Client {i}", 100 + i)))
+    out = run(db_session)
+    assert out["typed_links"] == 4 and out.get("review", 0) == 0 and items(db_session) == []
+    for o, inv in pairs:
+        db_session.refresh(o)
+        assert o.xero_invoice_id == inv.id and o.xero_link_source == "typed"
+
+
+def test_digits_only_matches_when_exactly_one_invoice_fits(db_session, sor):
+    a = booking(db_session, sor, "Alpha", 100, invoice_number="309")
+    only = invoice(db_session, "INV-0309", "Alpha", 100)
+    assert find_invoice(db_session, "309").id == only.id
+    # two invoices end in these digits -> too ambiguous to guess
+    invoice(db_session, "CN-309", "Beta", 50)
+    assert find_invoice(db_session, "309") is None
+    assert find_invoice(db_session, "INV-0309").id == only.id  # a full number is still exact
+    # sheet has a prefix, Xero is digits-only
+    solo = invoice(db_session, "77123", "Gamma", 10)
+    assert find_invoice(db_session, "INV 77123").id == solo.id
+    assert find_invoice(db_session, "INV 99999") is None
+
+
+def test_an_old_pending_item_is_withdrawn_once_the_number_is_recognised(db_session, sor):
+    b = booking(db_session, sor, "Rifkin Research", 310, invoice_number="INV 0309")
+    inv = invoice(db_session, "INV-0309", "Rifkin Research", 310)
+    inv.number_key = "INV-0309"          # keys written by the old rule: the dash made them differ
+    db_session.add(ReviewQueueItem(id=uuid.uuid4(), kind=xm.KIND, status="pending",
+                                   payload={"invoice_id": str(inv.id), "invoice_match": {}}))
+    inv.number_key = canonical(inv.invoice_number)   # what the migration does
+    out = run(db_session)
+    assert out["typed_links"] == 1 and out["withdrawn"] == 1
+    db_session.refresh(b)
+    assert b.xero_invoice_id == inv.id and items(db_session, "pending") == []
+
+
+def test_payment_state_follows_a_differently_written_number(client, db_session, sor):
+    booking(db_session, sor, "Foodcase", 1000, invoice_number="inv 0309")
+    invoice(db_session, "INV-0309", "Foodcase", 1000)
+    first = client.get("/api/sales/orders").json()["items"][0]
+    assert first["xero"]["state"] == "paid" and first["xero"]["invoice_number"] == "INV-0309"
+    assert client.get("/api/sales/orders?xero=paid").json()["total"] == 1

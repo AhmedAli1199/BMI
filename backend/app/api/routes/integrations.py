@@ -43,7 +43,7 @@ def xero_status(db: Session = Depends(get_db), _: User = Depends(_staff)) -> Xer
     conn = xero.connection(db)
     via_webhook = xero.webhook_mode()
     matched = db.scalar(select(func.count()).select_from(SalesOrder).where(
-        func.upper(func.replace(SalesOrder.invoice_number, " ", "")).in_(select(XeroInvoice.number_key)))) or 0
+        SalesOrder.xero_invoice_id.isnot(None))) or 0
     return XeroStatus(
         configured=xero.is_configured(), connected=bool(conn) or via_webhook,
         organisation=(conn.tenant_name if conn else None) or (settings.xero_tenant_name or "Xero organisation" if via_webhook else None),

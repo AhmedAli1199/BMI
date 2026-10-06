@@ -36,6 +36,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.models import SalesEdition, SalesOrder, SalesTitle, XeroInvoice
+from app.sales.invoice_numbers import find_invoice
 from app.services.field_audit import record_field_changes
 from app.services.xero import number_key
 
@@ -361,13 +362,8 @@ def unlink_order(db: Session, o: SalesOrder, user_id: uuid.UUID | None) -> None:
 
 def sync_link_after_edit(db: Session, o: SalesOrder) -> None:
     """Called when someone edits a booking's invoice number by hand: keep
-    the real link in step with what was typed."""
-    key = number_key(o.invoice_number)
-    if not key:
-        o.xero_invoice_id = o.xero_link_source = o.xero_linked_at = None
-        return
-    inv = db.scalars(select(XeroInvoice).where(XeroInvoice.number_key == key)
-                     .order_by(XeroInvoice.updated_at_xero.desc().nulls_last())).first()
+    the real link in step with what was typed (however it was written)."""
+    inv = find_invoice(db, o.invoice_number)
     if inv and o.xero_invoice_id != inv.id:
         o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, "typed", datetime.now(timezone.utc)
     elif not inv:

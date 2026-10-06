@@ -181,27 +181,43 @@ export function InvoiceMatchPanel({
         <section aria-label="Which booking it is for" className="flex flex-col gap-2 lg:col-span-3">
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-              {linked ? (linked.auto ? "Linked automatically to" : "Linked to") : candidates.length > 1 ? "Which booking is it for?" : "The booking it looks like it's for"}
+              {linked ? (linked.auto ? "Linked automatically to" : "Linked to") : candidates.length > 1 ? "Which booking is it for? The highlighted one will be linked." : "The booking it looks like it's for"}
             </legend>
             {candidates.map((c) => {
               const [label, color] = STRENGTH[c.strength] ?? STRENGTH.possible;
               const selected = chosen === c.key;
               const body = (
                 <div
-                  className={`flex flex-col gap-2 rounded-lg border p-3 transition-colors ${
+                  className={`flex flex-col gap-2 rounded-lg border-2 p-3 transition-colors ${
                     picking
-                      ? "border-border/70 peer-checked:border-primary peer-checked:bg-[color-mix(in_oklab,var(--primary)_6%,transparent)] peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
+                      ? selected
+                        ? "border-primary bg-[color-mix(in_oklab,var(--primary)_10%,transparent)] shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
+                        : "border-border/70 opacity-70 hover:border-primary/50 hover:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-ring"
                       : "border-border/70"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
+                    <span className="inline-flex items-center gap-2 text-xs font-semibold" style={{ color }}>
+                      {picking && (
+                        <span
+                          aria-hidden="true"
+                          className={`flex size-4 shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-primary bg-primary" : "border-muted-foreground/60"}`}
+                        >
+                          {selected && <span className="size-1.5 rounded-full bg-primary-foreground" />}
+                        </span>
+                      )}
                       <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: color }} />
                       {label}
                     </span>
-                    {picking && (
-                      <span className="text-[11px] font-medium text-muted-foreground">{selected ? "Selected" : "Click to choose"}</span>
-                    )}
+                    {picking &&
+                      (selected ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold text-primary-foreground">
+                          <CheckCircle2 className="size-3" aria-hidden="true" />
+                          Selected - this one will be linked
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-medium text-muted-foreground">Click to choose this one</span>
+                      ))}
                   </div>
                   {c.bookings.map((b) => (
                     <BookingRow key={b.id} b={b} warn={!linked} />

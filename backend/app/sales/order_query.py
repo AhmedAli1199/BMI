@@ -16,6 +16,7 @@ from datetime import date
 from sqlalchemy import Select, and_, case, func, or_, select, union_all
 from sqlalchemy.orm import Session
 
+from app.sales.invoice_numbers import canonical_sql
 from app.models import Company, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, XeroInvoice
 from app.sales.analytics import BOOKED
 
@@ -99,7 +100,7 @@ XERO_STATES = ("paid", "part_paid", "unpaid", "overdue", "voided", "not_in_xero"
 def xero_state():
     """The booking's payment state in Xero, matched by invoice number
     (spaces and case ignored). NULL when the booking has no invoice."""
-    key = func.upper(func.replace(SalesOrder.invoice_number, " ", ""))
+    key = canonical_sql(SalesOrder.invoice_number)
     state = (
         select(case(
             (XeroInvoice.status.in_(("VOIDED", "DELETED")), "voided"),
