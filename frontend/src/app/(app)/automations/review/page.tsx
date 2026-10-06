@@ -345,7 +345,7 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
   const Icon = style.icon;
   const action = kind.actions.find((a) => a.id === item.resolved_action);
   // Outcomes the system records itself (not buttons a person can press).
-  const SYSTEM_OUTCOMES: Record<string, string> = { auto_link: "Linked automatically", linked_elsewhere: "Linked by hand" };
+  const SYSTEM_OUTCOMES: Record<string, string> = { linked_elsewhere: "Linked by hand" };
   const entity = item.entity_summary;
   const hasSourceMaterial = Boolean(item.payload.original_text || item.payload.source_context);
   const hasDetails = Boolean(item.payload.details && item.payload.details.length > 0);
@@ -366,7 +366,7 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
                   {item.status === "approved" ? <Check className="mr-0.5 inline size-3" /> : null}
                   {action?.label || (item.resolved_action && SYSTEM_OUTCOMES[item.resolved_action]) || item.resolved_action || item.status}
                 </span>
-                {item.reviewed_by ? ` by ${item.reviewed_by.name}` : item.resolved_action === "auto_link" ? " · by the invoice matcher" : " · no reviewer recorded"}
+                {item.reviewed_by ? ` by ${item.reviewed_by.name}` : " · no reviewer recorded"}
                 {item.reviewed_at ? ` · ${new Date(item.reviewed_at).toLocaleString()}` : ""}
                 {item.review_note ? ` · "${item.review_note}"` : ""}
               </p>

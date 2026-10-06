@@ -346,6 +346,10 @@ def unlink_order(db: Session, o: SalesOrder, user_id: uuid.UUID | None) -> None:
         raise ValueError("Only links made by the invoice matcher can be undone here - edit the invoice number by hand instead.")
     before = {"invoice_number": o.invoice_number, "invoice_value_gbp": o.invoice_value_gbp,
               "invoiced_on": o.invoiced_on, "xero_link": "linked"}
+    if o.xero_invoice_id and o.xero_link_source == "auto":
+        from app.automations.xero_matching import remember_declined
+
+        remember_declined(db, o.xero_invoice_id)   # an undone automatic link isn't offered again
     o.invoice_number = o.invoice_value_gbp = o.invoiced_on = None
     o.xero_invoice_id = o.xero_link_source = o.xero_linked_at = None
     record_field_changes(db, entity_type="sales_order", entity_id=o.id, before=before,

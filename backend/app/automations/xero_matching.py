@@ -6,8 +6,9 @@ Every hour, after the Xero sync:
 2. every Xero sales invoice no booking has is matched against the bookings
    still waiting for an invoice;
 3. a CLEAR match is applied on its own (number, value and date filled in,
-   written to the booking's history, shown under "Approved" in the review
-   queue so it can be checked and undone);
+   and "Linked automatically to Xero invoice N" written to the booking's
+   history; the booking's edit panel offers Undo). It does NOT go in the
+   review queue - that would only clutter it;
 4. anything less clear becomes a review item - the invoice on one side,
    the candidate booking(s) with the reasons on the other - for a
    salesperson to confirm with one click;
@@ -40,6 +41,7 @@ logger = logging.getLogger("app.automations.xero_matching")
 
 KIND = "sor_invoice_match"
 UNMATCHED_STATE = "xero_match_unmatched"
+DECLINED_STATE = "xero_match_declined"   # invoices whose automatic link someone undid - never offered again
 
 
 def _item(ctx: im.Context, inv: XeroInvoice, hyps: list[im.Hypothesis], reps: dict[uuid.UUID, SalesRep], *,
@@ -80,7 +82,14 @@ def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | N
     unclaimed_ids = {i.id for i in unclaimed}
 
     existing = db.scalars(select(ReviewQueueItem).where(ReviewQueueItem.kind == KIND)).all()
-    seen = {i.payload.get("invoice_id") for i in existing}
+    declined = set(get_state(db, DECLINED_STATE).get("ids", []))
+    for it in list(existing):   # tidy: automatic links no longer get a review item - the booking's history says it
+        if it.resolved_action == "auto_link":
+            if uuid.UUID(it.payload["invoice_id"]) in unclaimed_ids:   # it was undone: remember that
+                declined.add(it.payload["invoice_id"])
+            db.delete(it)
+            existing.remove(it)
+    seen = {i.payload.get("invoice_id") for i in existing} | declined
     for it in existing:   # a waiting item whose invoice was linked by hand since: nothing left to decide
         if it.status == "pending" and uuid.UUID(it.payload["invoice_id"]) not in unclaimed_ids:
             it.status, it.resolved_action, it.reviewed_at = "approved", "linked_elsewhere", now
@@ -96,12 +105,7 @@ def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | N
         ids = {o.id for o in top.orders}
         clear = im.is_clear(top, rest) and not any(o.invoice_number for o in top.orders) and not (ids & taken)
         if clear and auto_on:
-            it = _item(ctx, inv, hyps, reps, status="approved", reason=None)  # describe the bookings as they were, before linking
-            im.link_bookings(db, inv, top.orders, "auto", None)
-            it.resolved_action, it.reviewed_at = "auto_link", now
-            it.review_note = "Matched automatically: clear client, amount and timing match."
-            it.payload = {**it.payload, "linked": {"candidate": it.payload["invoice_match"]["candidates"][0]["key"], "booking_ids": [str(o.id) for o in top.orders], "auto": True}}
-            db.add(it)
+            im.link_bookings(db, inv, top.orders, "auto", None)   # recorded on the booking's history, not in the queue
             taken |= ids
             counts["auto"] += 1
         elif counts["review"] >= max_new:
@@ -123,6 +127,13 @@ def scan_invoice_matches() -> None:
         logger.info("xero invoice matching: %s", result)
     finally:
         db.close()
+
+
+def remember_declined(db: Session, invoice_id: uuid.UUID) -> None:
+    """An automatic link was undone: never offer that invoice again."""
+    ids = set(get_state(db, DECLINED_STATE).get("ids", []))
+    ids.add(str(invoice_id))
+    set_state(db, DECLINED_STATE, {"ids": sorted(ids)})
 
 
 def unmatched_invoice_ids(db: Session) -> tuple[list[uuid.UUID], str | None]:

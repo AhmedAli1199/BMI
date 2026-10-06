@@ -48,9 +48,7 @@ def test_clear_match_is_linked_on_its_own_and_recorded(db_session, sor):
     assert float(b.invoice_value_gbp) == 1000 and b.invoiced_on == inv.issued_on
     history = {c.field: c.new_value for c in db_session.query(FieldChange).filter_by(entity_id=b.id)}
     assert "automatically" in history["xero_link"] and history["invoice_number"] == "56300"
-    done = items(db_session, "approved")
-    assert len(done) == 1 and done[0].resolved_action == "auto_link" and done[0].payload["linked"]["auto"] is True
-    assert done[0].payload["invoice_match"]["candidates"][0]["bookings"][0]["typed_number"] is None  # described as it was before linking
+    assert items(db_session) == []   # an automatic link is not put in the review queue - the booking's history says it
     assert run(db_session) == {"typed_links": 0, "no_fit": 0}  # nothing new the second time
 
 
@@ -178,6 +176,19 @@ def test_a_waiting_item_is_withdrawn_if_someone_types_the_number_first(db_sessio
     out = run(db_session)
     assert out["withdrawn"] == 1 and out["typed_links"] == 1
     assert items(db_session, "pending") == [] and items(db_session, "approved")[0].resolved_action == "linked_elsewhere"
+
+
+def test_old_auto_link_items_are_tidied_away_and_an_undone_one_is_remembered(db_session, sor):
+    b = booking(db_session, sor, "Foodcase", 1000)
+    inv = invoice(db_session, "56320", "Foodcase", 1000, ref="OBH 105")
+    run(db_session)
+    # an item left by an earlier version, for a link that has since been undone
+    db_session.add(ReviewQueueItem(id=uuid.uuid4(), kind=xm.KIND, status="approved", resolved_action="auto_link",
+                                   payload={"invoice_id": str(inv.id), "invoice_match": {}}))
+    im.unlink_order(db_session, db_session.get(SalesOrder, b.id), None)
+    db_session.flush()
+    run(db_session)
+    assert items(db_session) == [] and db_session.get(SalesOrder, b.id).invoice_number is None
 
 
 def test_undo_clears_the_link_and_the_invoice_is_not_offered_again(client, db_session, sor):
