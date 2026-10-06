@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Download, Eye, Loader2, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Download, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { TEMPLATE_OPTIONS, type Proposal, type ProposalSection } from "@/lib/proposals-types";
-import { deleteProposal, finishProposal, redraftProposal, saveProposal } from "@/lib/proposals-actions";
+import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type ProposalSection } from "@/lib/proposals-types";
+import { deleteProposal, finishProposal, getProposalEmailDraft, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,8 +47,12 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
   const [preview, setPreview] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
-  const [via, setVia] = useState<"downloaded" | "outlook" | "other">("downloaded");
+  const [via, setVia] = useState<"downloaded" | "other">("downloaded");
   const [days, setDays] = useState(14);
+  const [mailOpen, setMailOpen] = useState(false);
+  const [mail, setMail] = useState<ProposalEmailDraft | null>(null);
+  const [mailTo, setMailTo] = useState("");
+  const [mailCc, setMailCc] = useState("");
   const sent = proposal.status === "sent";
   const total = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
   const h = proposal.context.history;
@@ -74,6 +78,22 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
     });
   }
 
+  const saved = () => ({ campaign_name: campaign, template, sections, lines: lines.map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null })) });
+  const split = (v: string) => v.split(/[,;\s]+/).filter(Boolean);
+
+  function openMail() {
+    start(async () => {
+      try {
+        if (dirty) { await saveProposal(proposal.id, saved()); setDirty(false); }
+        const d = await getProposalEmailDraft(proposal.id);
+        setMail(d);
+        setMailTo(d.to.join(", "));
+        setMailCc("");
+        setMailOpen(true);
+      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't prepare the email"); }
+    });
+  }
+
   function move(i: number, d: -1 | 1) {
     const next = [...sections];
     [next[i], next[i + d]] = [next[i + d], next[i]];
@@ -93,7 +113,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
           <div className="flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
             <span>
-              Logged as sent on {fmtDate(proposal.sent_at?.slice(0, 10))} and noted on <Link href={`/companies/${proposal.company_id}`} className="font-semibold underline">{proposal.company_name}</Link>.
+              Logged as sent{proposal.sent_via === "outlook" ? " from Outlook" : ""} on {fmtDate(proposal.sent_at?.slice(0, 10))} and noted on <Link href={`/companies/${proposal.company_id}`} className="font-semibold underline">{proposal.company_name}</Link>.
               {proposal.follow_up_due && <> Follow-up reminder: {fmtDate(proposal.follow_up_due.slice(0, 10))}.</>}
             </span>
           </div>
@@ -226,7 +246,8 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
           )}
           {!sent && <Button variant="outline" disabled={pending || !dirty} onClick={() => save()} className="gap-1.5">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save</Button>}
           <Button variant={sent ? "default" : "outline"} onClick={download} disabled={pending} className="gap-1.5"><Download className="size-4" /> Download Word file</Button>
-          {!sent && <Button onClick={() => setSendOpen(true)} disabled={pending} className="gap-1.5"><CheckCircle2 className="size-4" /> I&apos;ve sent it</Button>}
+          {!sent && <Button variant="outline" onClick={openMail} disabled={pending} className="gap-1.5"><Mail className="size-4" /> Email it from Outlook</Button>}
+          {!sent && <Button onClick={() => setSendOpen(true)} disabled={pending} className="gap-1.5"><CheckCircle2 className="size-4" /> I&apos;ve sent it myself</Button>}
         </div>
       </div>
 
@@ -249,6 +270,50 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
           {proposal.drafted_by === "ai" ? "The wording was drafted by the brain; any figure it wasn't given was removed." : "The wording is standard text - edit it freely."}
         </p>
       </aside>
+
+
+      <Dialog open={mailOpen} onOpenChange={setMailOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Email the proposal</DialogTitle>
+            <DialogDescription>
+              {mail?.outlook_connected
+                ? `Sent from your Outlook (${mail.outlook_email}) with the Word file attached. Nothing goes until you press Send.`
+                : "Connect your Outlook in Settings first - proposals are sent from your own account."}
+            </DialogDescription>
+          </DialogHeader>
+          {mail && (
+            <div className="grid gap-3">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">To
+                <Input value={mailTo} onChange={(e) => setMailTo(e.target.value)} placeholder="name@company.com" className="h-8 text-sm" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Cc (optional)
+                <Input value={mailCc} onChange={(e) => setMailCc(e.target.value)} className="h-8 text-sm" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Subject
+                <Input value={mail.subject} onChange={(e) => setMail({ ...mail, subject: e.target.value })} className="h-8 text-sm" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Message
+                <Textarea rows={8} value={mail.body} onChange={(e) => setMail({ ...mail, body: e.target.value })} className="text-sm" />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Remind me to follow up in (days)
+                <Input type="number" min={0} max={365} value={days} onChange={(e) => setDays(Number(e.target.value) || 0)} className="h-8 text-sm" />
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
+            <Button disabled={pending || !mail?.outlook_connected || split(mailTo).length === 0} onClick={() => mail && start(async () => {
+              try {
+                await sendProposal(proposal.id, { to: split(mailTo), cc: split(mailCc), subject: mail.subject, body: mail.body, follow_up_days: days });
+                toast.success("Sent and logged on the client");
+                setMailOpen(false);
+                router.refresh();
+              } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't send it"); }
+            })}>{pending && <Loader2 className="size-4 animate-spin" />} Send</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>
         <DialogContent>

@@ -6,7 +6,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { SalesRate, SalesTitle } from "@/lib/sales-types";
 import { TEMPLATE_OPTIONS, type ProposalLine } from "@/lib/proposals-types";
-import { searchCompanies } from "@/lib/actions";
+import { searchCompanies, searchContacts } from "@/lib/actions";
 import { createProposal } from "@/lib/proposals-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
   const router = useRouter();
   const [pending, start] = useTransition();
   const [company, setCompany] = useState<Option | null>(initial);
+  const [contact, setContact] = useState<Option | null>(null);
   const [titleId, setTitleId] = useState(titles[0]?.id ?? "");
   const title = titles.find((t) => t.id === titleId);
   const [template, setTemplate] = useState(title ? templateFor(title.slug) : "stm");
@@ -63,7 +64,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
           source: r.source,
           rate_id: r.rateId ?? null,
         }));
-        const p = await createProposal({ company_id: company.id, title_id: titleId || null, template, campaign_name: campaign.trim(), year, lines });
+        const p = await createProposal({ company_id: company.id, contact_id: contact?.id ?? null, title_id: titleId || null, template, campaign_name: campaign.trim(), year, lines });
         router.push(`/sales/proposals/${p.id}`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Couldn't start the proposal");
@@ -76,6 +77,9 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
       <section className="grid gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-2xs sm:grid-cols-2">
         <div className="sm:col-span-2">
           <EntityPicker label="Client" placeholder="Search for a client…" search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))} value={company} onChange={pickCompany} />
+        </div>
+        <div className="sm:col-span-2">
+          <EntityPicker label="Who it's for (optional)" placeholder="Search for the contact…" search={async (q) => (await searchContacts(q)).map((c) => ({ id: c.id, label: c.full_name ?? "Unnamed", sublabel: c.company_name }))} value={contact} onChange={setContact} />
         </div>
         <label className={labelCls}>
           Title

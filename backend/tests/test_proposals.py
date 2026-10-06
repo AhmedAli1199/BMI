@@ -119,3 +119,51 @@ def test_rep_sees_only_own_proposals(client, db_session, world):
     assert client.get("/api/proposals", headers=h2).json() == []
     admin = make_user(db_session, role="admin")
     assert len(client.get("/api/proposals", headers=identity_headers(admin)).json()) == 1
+
+
+def _connect(db_session, user):
+    from app.models.messaging import MailAccount
+    db_session.add(MailAccount(id=uuid.uuid4(), user_id=user.id, email="rep@bmi.test", refresh_token_enc="x"))
+    db_session.flush()
+
+
+def test_send_from_outlook_attaches_word_and_logs(monkeypatch, client, db_session, world):
+    from app.services import outlook
+    sent = {}
+    monkeypatch.setattr(outlook, "send_mail", lambda db, acct, **kw: sent.update(kw))
+    p = create(client, world).json()
+    body = {"to": ["buyer@delta.test"], "subject": "Proposal", "body": "Hi"}
+    assert client.post(f"/api/proposals/{p['id']}/send", json=body, headers=world["h"]).status_code == 409  # Outlook not connected
+    _connect(db_session, world["user"])
+    r = client.post(f"/api/proposals/{p['id']}/send", json=body, headers=world["h"])
+    assert r.status_code == 200 and r.json()["status"] == "sent" and r.json()["sent_via"] == "outlook"
+    name, ctype, data = sent["attachments"][0]
+    assert name.endswith("proposal.docx") and data[:2] == b"PK"
+    note = db_session.query(Note).filter_by(note_type="Proposal sent", entity_id=world["company"].id).one()
+    assert "buyer@delta.test" in note.body
+    assert client.post(f"/api/proposals/{p['id']}/send", json=body, headers=world["h"]).status_code == 409
+
+
+def test_failed_send_is_not_logged(monkeypatch, client, db_session, world):
+    from app.services import outlook
+    def boom(*a, **k):
+        raise RuntimeError("refused")
+    monkeypatch.setattr(outlook, "send_mail", boom)
+    _connect(db_session, world["user"])
+    p = create(client, world).json()
+    r = client.post(f"/api/proposals/{p['id']}/send", json={"to": ["a@b.test"], "subject": "s", "body": "b"}, headers=world["h"])
+    assert r.status_code == 502
+    assert client.get(f"/api/proposals/{p['id']}", headers=world["h"]).json()["status"] == "draft"
+    assert db_session.query(Note).filter_by(note_type="Proposal sent").count() == 0
+
+
+def test_email_draft_uses_contact_address(client, db_session, world):
+    from app.models import Contact, Email
+    c = Contact(id=uuid.uuid4(), source_db="onboardhospitality", source_act_id="c1", first_name="Ann", last_name="Lee", full_name="Ann Lee", company_id=world["company"].id)
+    db_session.add(c)
+    db_session.flush()
+    db_session.add(Email(id=uuid.uuid4(), source_db="onboardhospitality", source_act_id="e1", contact_id=c.id, address="ann@delta.test", is_primary=True))
+    db_session.flush()
+    p = create(client, world, contact_id=str(c.id)).json()
+    d = client.get(f"/api/proposals/{p['id']}/email-draft", headers=world["h"]).json()
+    assert d["to"] == ["ann@delta.test"] and d["body"].startswith("Hi Ann") and not d["outlook_connected"]

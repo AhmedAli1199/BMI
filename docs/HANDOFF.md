@@ -46,7 +46,7 @@ Spec stages and status (IDs from `docs/build-spec.txt`):
 | | SALES-009 proposal logging | **First pass done** — “I've sent it” notes the proposal on the client + sets a follow-up reminder |
 | | AI Hub chat | Left — postponed to the very end |
 | 3 Daily engine | SALES-012 triggers, SALES-013 morning queue, SALES-005 touchpoints, SALES-021 renewals | **Done** |
-| | SALES-020 proposal builder | **First pass done (§3.7)** — Outlook sending, tone-matching and the editorial plan are the next passes |
+| | SALES-020 proposal builder | **Done incl. Outlook sending (§3.7)** — tone-matching and the editorial plan wait on BMI's examples/plan |
 | | SALES-022 template library + save-the-sale | Left (mail-merge templates are a start) |
 | | SALES-023 meeting notes → pitch | Left |
 | 4 Reporting | SALES-026 dashboard, SALES-028 weekly summary + alerts | **Done** (delivery by email/Teams waits on BMI) |
@@ -152,7 +152,8 @@ Finance raises the invoice in Xero; the app finds the booking it belongs to, so 
 ### 3.7 SALES-020 proposal builder — first pass built (6 Oct 2026)
 **What exists:** Sales Orders → Proposals (list, `/sales/proposals/new`, `/sales/proposals/[id]`) and a "Build a proposal" button on every company page. Pick client + title (title picks the Word template OBH/STM/TBTM, changeable), add products from the rate card with quantities (or own lines with typed prices), the brain drafts five sections (Introduction, Your history with us, What we propose, Investment, Next steps), the rep edits/reorders/adds sections, previews, downloads the `.docx` in Matt's template, then "I've sent it" logs a "Proposal sent" note on the company (products + total before VAT) and sets a follow-up reminder (default 14 days). Nothing is ever sent automatically.
 **Rules built in:** rate-card lines are always priced server-side from `sales_rates` (browser prices ignored); AI text is discarded per section if it contains any figure not in the client history / rate card / lines (`app/proposals/drafting.py`, same idea as the weekly summary guard) and standard wording is used; missing inputs become plain-English flags on the screen (no bookings, no rate card for that year, editorial plan not loaded) rather than invented content. Sales reps see only their own proposals; admins/data managers see all. Code: `backend/app/proposals/`, `api/routes/proposals.py`, `models/proposal.py` (migration 0033), `components/sales/proposal-*.tsx`, tests in `tests/test_proposals.py`.
-**Next passes:** send from Outlook as an attachment (reuse mail-merge sender, `sent_via="outlook"` already supported); BMI voice once 3-5 sent proposals arrive; editorial plan section; reuse sent proposals as the pitch store (SALES-023).
+**Outlook sending (done):** "Email it from Outlook" opens a draft email (contact's address, plain subject and note, all editable), sends from the rep's own connected Outlook with the Word file attached (under 3 MB), and only then logs it (note includes who it went to) + sets the reminder. A failed send logs nothing. Endpoints `GET /api/proposals/{id}/email-draft`, `POST /api/proposals/{id}/send`.
+**Next passes:** BMI voice once 3-5 sent proposals arrive; editorial plan section; reuse sent proposals as the pitch store (SALES-023).
 
 Original plan (kept for reference):
 Spec: rep picks client + title → app drafts a proposal in BMI's Word template using client history, current rates, editorial plan and BMI's voice → rep edits → download or send from Outlook → logged against the client with a follow-up.
@@ -301,7 +302,7 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 **WhatsApp ask already sent (3 Oct):** rate card, editorial plan, digital edition links, 3–5 sent proposals.
 
 ## 8. Suggested next steps
-1. Proposal builder second pass: send from Outlook, BMI voice from sent examples, editorial plan.
+1. Proposal builder: BMI voice from sent examples + editorial plan section when BMI send them (both blocked on BMI).
 2. **Act! user feedback backlog B1-B4 (search every field, export extras + copy emails, bulk update, import from Excel/PDF)** - then Act! feedback #7 (company address → update contacts with opt-out).
 3. SALES-024 pipeline → SALES-025 chase lists.
 4. Xero figures on the SALES-026 dashboard once Xero is connected live.

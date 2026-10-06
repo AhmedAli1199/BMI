@@ -40,3 +40,12 @@ export const TEMPLATE_OPTIONS: { value: Proposal["template"]; label: string }[] 
   { value: "stm", label: "Selling Travel" },
   { value: "tbtm", label: "The Business Travel Magazine" },
 ];
+
+export type ProposalEmailDraft = {
+  to: string[];
+  subject: string;
+  body: string;
+  outlook_connected: boolean;
+  outlook_email: string | null;
+  contact_name: string | null;
+};

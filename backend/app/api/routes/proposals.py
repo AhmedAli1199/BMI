@@ -20,7 +20,10 @@ from app.api.routes.messaging import current_user
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Company, Contact, Note, SalesRate, SalesTitle, User
+from app.models import Company, Contact, Email, Note, SalesRate, SalesTitle, User
+from app.models.messaging import MailAccount
+from app.services import mail_merge as mm
+from app.services import outlook
 from app.models.messaging import Reminder
 from app.models.proposal import PROPOSAL_TEMPLATES, Proposal
 from app.proposals import context as ctx_mod
@@ -74,6 +77,23 @@ class RedraftIn(BaseModel):
 class FinishIn(BaseModel):
     via: str = "downloaded"
     follow_up_days: int = Field(default=14, ge=0, le=365)
+
+
+class SendIn(BaseModel):
+    to: list[str] = Field(min_length=1, max_length=10)
+    cc: list[str] = []
+    subject: str = Field(min_length=1, max_length=300)
+    body: str = Field(min_length=1)
+    follow_up_days: int = Field(default=14, ge=0, le=365)
+
+
+class EmailDraft(BaseModel):
+    to: list[str]
+    subject: str
+    body: str
+    outlook_connected: bool
+    outlook_email: str | None
+    contact_name: str | None
 
 
 class ProposalOut(BaseModel):
@@ -249,29 +269,91 @@ def download(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends
                     headers={"Content-Disposition": f'attachment; filename="{safe} proposal.docx"'})
 
 
-@router.post("/{pid}/finish", response_model=ProposalOut)
-def finish(pid: uuid.UUID, payload: FinishIn, db: Session = Depends(get_db), user: User = Depends(current_user),
-           identity: Identity = Depends(get_identity)) -> ProposalOut:
-    """Logs the proposal on the client ("Proposal sent" with the figures) and sets the follow-up reminder."""
-    p = _get(db, pid, user, identity)
-    if p.status == "sent":
-        raise HTTPException(409, "This proposal is already logged as sent.")
-    if payload.via not in ("downloaded", "outlook", "other"):
-        raise HTTPException(422, "Unknown way of sending")
+def _log_sent(db: Session, p: Proposal, user: User, via: str, follow_up_days: int, sent_to: list[str] | None = None) -> None:
+    """Notes the proposal on the client ("Proposal sent" with the figures) and sets the follow-up reminder."""
     now = datetime.now(timezone.utc)
+    company = db.get(Company, p.company_id)
     products = "; ".join(f"{ln['product']} x{ln['qty']} at {ctx_mod.gbp(ln['unit_price'])}" for ln in p.lines) or "no products listed"
-    body = (f"Proposal sent: {p.campaign_name}. {products}. Total {ctx_mod.gbp(float(p.total_gbp))} before VAT.")
+    body = f"Proposal sent: {p.campaign_name}. {products}. Total {ctx_mod.gbp(float(p.total_gbp))} before VAT."
+    if sent_to:
+        body += f" Emailed to {', '.join(sent_to)} from Outlook."
     note = Note(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()), entity_type="company",
                 entity_id=p.company_id, note_type="Proposal sent", body=body, act_created_at=now, created_by_user_id=user.id)
     db.add(note)
     reminder = Reminder(id=uuid.uuid4(), user_id=user.id, contact_id=p.contact_id, company_id=p.company_id,
-                        due_at=now + timedelta(days=payload.follow_up_days),
-                        note=f"Follow up on the proposal sent to {db.get(Company, p.company_id).name}: {p.campaign_name}.",
-                        email_me=True, status="open")
+                        due_at=now + timedelta(days=follow_up_days),
+                        note=f"Follow up on the proposal sent to {company.name}: {p.campaign_name}.", email_me=True, status="open")
     db.add(reminder)
     db.flush()
-    p.status, p.sent_at, p.sent_via = "sent", now, payload.via
+    p.status, p.sent_at, p.sent_via = "sent", now, via
     p.logged_note_id, p.follow_up_reminder_id = note.id, reminder.id
+
+
+@router.post("/{pid}/finish", response_model=ProposalOut)
+def finish(pid: uuid.UUID, payload: FinishIn, db: Session = Depends(get_db), user: User = Depends(current_user),
+           identity: Identity = Depends(get_identity)) -> ProposalOut:
+    """For a proposal sent some other way: logs it on the client and sets the follow-up reminder."""
+    p = _get(db, pid, user, identity)
+    if p.status == "sent":
+        raise HTTPException(409, "This proposal is already logged as sent.")
+    if payload.via not in ("downloaded", "other"):
+        raise HTTPException(422, "Unknown way of sending")
+    _log_sent(db, p, user, payload.via, payload.follow_up_days)
+    db.commit()
+    return _out(db, p)
+
+
+@router.get("/{pid}/email-draft", response_model=EmailDraft)
+def email_draft(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user),
+                identity: Identity = Depends(get_identity)) -> EmailDraft:
+    """A starting email for the rep to edit: the contact's address, a plain subject and short note."""
+    p = _get(db, pid, user, identity)
+    contact = db.get(Contact, p.contact_id) if p.contact_id else None
+    to: list[str] = []
+    if contact:
+        addr = db.scalars(select(Email.address).where(Email.contact_id == contact.id).order_by(Email.is_primary.desc())).first()
+        if addr:
+            to = [addr]
+    first = (contact.first_name if contact and contact.first_name else None)
+    sign = (user.name or "").strip()
+    body = (f"Hi {first or 'there'},\n\nThank you for your time. I've attached our proposal for {p.campaign_name}, "
+            f"with everything we discussed. Do have a look and let me know if you'd like to change anything - "
+            f"I'm happy to talk it through.\n\nKind regards,\n{sign}")
+    acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id))
+    return EmailDraft(to=to, subject=f"Proposal: {p.campaign_name}", body=body, outlook_connected=bool(acct),
+                      outlook_email=acct.email if acct else None,
+                      contact_name=(contact.full_name if contact else None))
+
+
+@router.post("/{pid}/send", response_model=ProposalOut)
+def send_from_outlook(pid: uuid.UUID, payload: SendIn, db: Session = Depends(get_db), user: User = Depends(current_user),
+                      identity: Identity = Depends(get_identity)) -> ProposalOut:
+    """Sends the proposal from the rep's own Outlook with the Word file attached, then logs it. Only runs
+    when the rep presses Send - nothing is ever sent automatically."""
+    p = _get(db, pid, user, identity)
+    if p.status == "sent":
+        raise HTTPException(409, "This proposal is already logged as sent.")
+    acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id))
+    if not acct:
+        raise HTTPException(409, "Connect your Outlook first (Settings > Email) - proposals are sent from your own account.")
+    for a in [*payload.to, *payload.cc]:
+        if "@" not in a or " " in a.strip():
+            raise HTTPException(422, f"“{a}” doesn't look like an email address.")
+    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp))
+    if len(data) > 3 * 1024 * 1024:
+        raise HTTPException(413, "The Word file is over 3 MB, which Outlook can't send in one go. Download it and attach it yourself.")
+    safe = "".join(c for c in p.campaign_name if c.isalnum() or c in " -_").strip() or "Proposal"
+    try:
+        outlook.send_mail(db, acct, to=[a.strip() for a in payload.to], cc=[a.strip() for a in payload.cc], subject=payload.subject,
+                          html_body=mm.to_html(payload.body),
+                          attachments=[(f"{safe} proposal.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)])
+    except outlook.OutlookAuthError as exc:
+        raise HTTPException(409, str(exc))
+    except outlook.RateLimited:
+        raise HTTPException(429, "Outlook is asking us to slow down - try again in a minute.")
+    except Exception as exc:
+        raise HTTPException(502, f"Outlook didn't accept the message: {exc}")
+    _log_sent(db, p, user, "outlook", payload.follow_up_days, sent_to=[a.strip() for a in payload.to])
     db.commit()
     return _out(db, p)
 
