@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, ChevronRight, ClipboardCheck, HeartPulse, ReceiptText, Settings, Sparkles } from "lucide-react";
+import { CalendarClock, CalendarRange, ChevronRight, ClipboardCheck, HeartPulse, ReceiptText, Settings, Sparkles } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
@@ -223,6 +223,12 @@ export function AppSidebar({
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </Collapsible>
+                <SidebarMenuItem>
+                  <SidebarMenuButton render={<Link href="/editorial" />} isActive={pathname.startsWith("/editorial")} className={NAV_ITEM}>
+                    <CalendarRange className={`mr-1.5 size-4 ${pathname.startsWith("/editorial") ? "text-primary" : "text-sidebar-foreground/70"}`} />
+                    <span>Editorial plan</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

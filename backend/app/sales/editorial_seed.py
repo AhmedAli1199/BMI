@@ -207,17 +207,21 @@ def load_seed(db: Session, brand_key: str, year: int = SEED_YEAR) -> dict:
             ed.edition_date, ed.date_set_in_plan = item.pub, True
         auto = compute_deadlines(rules, ed.edition_date) if ed.edition_date and item.kind in ("issue", "guide") else {}
         ed.period_label = ed.period_label or item.period
-        ed.editorial_deadline = ed.editorial_deadline or item.editorial or auto.get("editorial")
-        ed.ad_deadline = ed.ad_deadline or item.ad or auto.get("advertising")
-        ed.copy_deadline = ed.copy_deadline or item.copy or auto.get("copy")
+        worked_out = False  # a deadline came from the usual rules rather than the published plan
+        for col, given, key in (("editorial_deadline", item.editorial, "editorial"), ("ad_deadline", item.ad, "advertising"), ("copy_deadline", item.copy, "copy")):
+            if getattr(ed, col) is None:
+                value = given or auto.get(key)
+                worked_out = worked_out or (given is None and value is not None)
+                setattr(ed, col, value)
         if not ed.milestones:
             extra = [{"label": r["label"], "date": auto[r["key"]].isoformat()} for r in rules
                      if r["key"] not in ("editorial", "advertising", "copy") and auto.get(r["key"])]
             ed.milestones = item.milestones + extra
+            worked_out = worked_out or bool(extra)
         ed.theme = ed.theme or item.theme
         ed.distribution = ed.distribution or item.distribution
         ed.format = ed.format or item.fmt
-        ed.plan_needs_check = ed.plan_needs_check or item.estimated or bool(auto)
+        ed.plan_needs_check = ed.plan_needs_check or item.estimated or worked_out
         n_issues += 1
         if item.features and not db.scalar(select(EditionFeature.id).where(EditionFeature.edition_id == ed.id).limit(1)):
             for i, ft in enumerate(item.features):

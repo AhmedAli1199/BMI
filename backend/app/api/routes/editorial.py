@@ -99,11 +99,18 @@ class PlannerRow(BaseModel):
     issues: list[IssueOut]
 
 
+class TitleRef(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+
+
 class PlannerBrand(BaseModel):
     key: str
     name: str
     short: str
     can_edit: bool
+    titles: list[TitleRef]
     seed_available: int
     rows: list[PlannerRow]
     undated: list[IssueOut]
@@ -218,6 +225,7 @@ def planner(year: int | None = None, db: Session = Depends(get_db), identity: Id
             (rows[e.title_id].issues if e.edition_date else undated).append(o)
         st = db.get(EditorialSetting, b.key)
         out.append(PlannerBrand(key=b.key, name=b.name, short=b.short, can_edit=B.can_edit_brand(db, identity, b),
+                                titles=[TitleRef(id=t.id, name=t.name, slug=t.slug) for t in B.brand_titles(db, b)],
                                 seed_available=seed.seed_available(db, b.key, y), rows=[r for r in rows.values() if r.issues],
                                 undated=undated, about=st.about if st else None))
     return Planner(year=y, years=_years(db), today=date.today(), brands=out)
@@ -597,7 +605,9 @@ def _plan_next(db: Session, brand: B.Brand, from_year: int) -> list[tuple[SalesE
         name = _new_name(e, by_title[e.title_id])
         if db.scalar(select(SalesEdition.id).where(SalesEdition.title_id == e.title_id, SalesEdition.year == from_year + 1, func.lower(SalesEdition.name) == name.lower())):
             continue
-        out.append((e, name, shift_year(e.edition_date)))
+        # Dates only known to the month sit on the 1st - keep them on the 1st; real dates keep their weekday.
+        new = e.edition_date.replace(year=e.edition_date.year + 1) if e.edition_date.day == 1 else shift_year(e.edition_date)
+        out.append((e, name, new))
     return out
 
 
