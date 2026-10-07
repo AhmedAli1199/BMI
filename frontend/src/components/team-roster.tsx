@@ -65,6 +65,9 @@ export function TeamRoster({
                 {u.id === currentUserId && (
                   <Badge variant="secondary" className="text-[10px]">You</Badge>
                 )}
+                {u.sales_rep_code && (
+                  <Badge variant="outline" className="text-[10px]" title="Their initials in the order register">Salesperson {u.sales_rep_code}</Badge>
+                )}
               </div>
               <p className="truncate text-xs text-muted-foreground">{u.email}</p>
               {u.role !== "admin" && (

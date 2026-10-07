@@ -36,7 +36,7 @@ from app.sales.analytics import BOOKED, edition_pace, edition_totals, equivalent
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
 from app.services.field_audit import record_field_changes
-from app.sales.invoice_match import XERO_INVOICE_URL, sync_link_after_edit, unlink_order
+from app.sales.invoice_match import XERO_INVOICE_URL, booking_choices, invoice_choices, link_bookings, sync_link_after_edit, unlink_order
 from app.services.xero import number_key
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -1327,6 +1327,87 @@ def unlink_xero(order_id: uuid.UUID, db: Session = Depends(get_db), identity: Id
     return _orders_out(db, [order])[0]
 
 
+class XeroChoice(BaseModel):
+    id: uuid.UUID
+    number: str | None = None
+    contact: str | None = None
+    reference: str | None = None
+    lines: str | None = None
+    issued_on: date | None = None
+    currency: str
+    net: float
+    state: str
+    url: str
+    fit: list[str] = []
+
+
+@router.get("/orders/{order_id}/xero-choices", response_model=list[XeroChoice])
+def xero_choices(order_id: uuid.UUID, q: str = "", db: Session = Depends(get_db)) -> list[XeroChoice]:
+    """Invoices in Xero this booking could be linked to (ones no booking has yet), most likely first."""
+    order = _get_order(db, order_id)
+    return [XeroChoice(id=f["id"], number=f["number"], contact=f["contact"], reference=f["reference"], lines=f["lines"],
+                       issued_on=f["issued_on"], currency=f["currency"], net=f["net"], state=f["state"], url=f["url"], fit=f["fit"])
+            for f in invoice_choices(db, order, q)]
+
+
+class XeroLinkIn(BaseModel):
+    invoice_id: uuid.UUID
+
+
+def _invoice_or_error(db: Session, invoice_id: uuid.UUID) -> XeroInvoice:
+    inv = db.get(XeroInvoice, invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="That invoice isn't in the copy of Xero yet - try again after the next sync.")
+    if inv.status in ("VOIDED", "DELETED"):
+        raise HTTPException(status_code=409, detail="That invoice has been voided or deleted in Xero.")
+    return inv
+
+
+@router.post("/orders/{order_id}/xero-link", response_model=OrderOut)
+def link_xero(order_id: uuid.UUID, payload: XeroLinkIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> OrderOut:
+    """Links a booking to an invoice someone picked from Xero: the number, invoiced amount and date come from Xero."""
+    order = _get_order(db, order_id)
+    inv = _invoice_or_error(db, payload.invoice_id)
+    if order.xero_invoice_id == inv.id:
+        return _orders_out(db, [order])[0]
+    link_bookings(db, inv, [order], "confirmed", identity.user_uuid)
+    db.commit()
+    return _orders_out(db, [order])[0]
+
+
+class BookingChoice(BaseModel):
+    key: str
+    suggested: bool
+    bookings: list[dict]
+    total_gbp: float
+    reasons: list[str]
+
+
+@router.get("/xero/invoices/{invoice_id}/choices", response_model=list[BookingChoice])
+def xero_invoice_choices(invoice_id: uuid.UUID, q: str = "", db: Session = Depends(get_db)) -> list[BookingChoice]:
+    """Bookings this invoice could be for: the matcher's suggestions, then any waiting booking matching `q`."""
+    inv = _invoice_or_error(db, invoice_id)
+    return [BookingChoice(**c) for c in booking_choices(db, inv, q)]
+
+
+class InvoiceLinkIn(BaseModel):
+    order_ids: list[uuid.UUID] = Field(min_length=1, max_length=10)
+
+
+@router.post("/xero/invoices/{invoice_id}/link", response_model=list[OrderOut])
+def link_invoice_to_bookings(invoice_id: uuid.UUID, payload: InvoiceLinkIn, db: Session = Depends(get_db),
+                             identity: Identity = Depends(get_identity)) -> list[OrderOut]:
+    """Links an invoice from the "In Xero, not in the register" list to the booking(s) it was raised for."""
+    inv = _invoice_or_error(db, invoice_id)
+    orders = [_get_order(db, oid) for oid in payload.order_ids]
+    for o in orders:
+        if o.xero_invoice_id and o.xero_invoice_id != inv.id:
+            raise HTTPException(status_code=409, detail=f"“{o.client_name}” is already linked to invoice {o.invoice_number}.")
+    link_bookings(db, inv, orders, "confirmed", identity.user_uuid)
+    db.commit()
+    return _orders_out(db, orders)
+
+
 class UnmatchedInvoice(BaseModel):
     id: uuid.UUID
     number: str | None = None
@@ -1354,7 +1435,9 @@ def unmatched_xero_invoices(db: Session = Depends(get_db)) -> UnmatchedInvoices:
     from app.automations.xero_matching import unmatched_invoice_ids
 
     ids, at = unmatched_invoice_ids(db)
-    rows = db.scalars(select(XeroInvoice).where(XeroInvoice.id.in_(ids)).order_by(XeroInvoice.issued_on.desc().nulls_last())).all() if ids else []
+    claimed = select(SalesOrder.xero_invoice_id).where(SalesOrder.xero_invoice_id.isnot(None))
+    rows = db.scalars(select(XeroInvoice).where(XeroInvoice.id.in_(ids), XeroInvoice.id.notin_(claimed))
+                      .order_by(XeroInvoice.issued_on.desc().nulls_last())).all() if ids else []
     from app.sales.invoice_match import invoice_facts
 
     items = []

@@ -784,6 +784,9 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     access: list[UserAccessOut] = []
+    # Their initials in the order register ("SW"), so renewals and bookings land on their Today list.
+    sales_rep_id: uuid.UUID | None = None
+    sales_rep_code: str | None = None
 
 
 class UserCreate(BaseModel):
@@ -792,6 +795,7 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8)
     role: str
     access: list[UserAccessIn] = []
+    sales_rep_id: uuid.UUID | None = None
 
 
 class UserUpdate(BaseModel):
@@ -803,3 +807,5 @@ class UserUpdate(BaseModel):
     # the admin UI always submits the full desired set, same as how a
     # <select multiple> would.
     access: list[UserAccessIn] | None = None
+    # Set to link the login to a salesperson in the order register; send null to unlink.
+    sales_rep_id: uuid.UUID | None = None

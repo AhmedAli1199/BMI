@@ -32,10 +32,10 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 
 from rapidfuzz import fuzz
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.models import SalesEdition, SalesOrder, SalesTitle, XeroInvoice
+from app.models import SalesEdition, SalesOrder, SalesRep, SalesTitle, XeroInvoice
 from app.sales.invoice_numbers import find_invoice
 from app.services.field_audit import record_field_changes
 from app.services.xero import number_key
@@ -342,20 +342,31 @@ def candidate_payload(ctx: Context, inv: XeroInvoice, hyps: list[Hypothesis], re
 _AUDIT = ("invoice_number", "invoice_value_gbp", "invoiced_on", "xero_link")
 
 
+def _figures(db: Session, inv: XeroInvoice, o: SalesOrder, sharing: int) -> tuple[float, date | None]:
+    """(invoiced amount before VAT in pounds, invoice date) as Xero has them. When one invoice covers several
+    bookings the total can't be split, so each booking keeps its own value."""
+    net = invoice_gbp_net(inv)
+    value = round(net, 2) if sharing == 1 and net is not None else float(o.value_gbp)
+    return value, inv.issued_on
+
+
 def link_bookings(db: Session, inv: XeroInvoice, orders: list[SalesOrder], source: str,
                   user_id: uuid.UUID | None) -> None:
     """Records, on each booking, which Xero invoice it belongs to: the
-    invoice number, the invoiced value and date (what staff used to type),
-    and the real link. Every field change goes to the booking's history."""
+    invoice number, the invoiced value and date (taken from Xero), and the
+    real link. Every field change goes to the booking's history."""
     now = datetime.now(timezone.utc)
-    single = len(orders) == 1
-    who = {"auto": "automatically", "confirmed": "after a person confirmed it", "typed": "from the typed number"}[source]
+    others = db.scalar(select(func.count()).select_from(SalesOrder).where(
+        SalesOrder.xero_invoice_id == inv.id, SalesOrder.id.notin_([o.id for o in orders]))) or 0
+    sharing = len(orders) + others
+    who = {"auto": "automatically", "confirmed": "after a person chose it", "typed": "from the typed number"}[source]
     for o in orders:
         before = {"invoice_number": o.invoice_number, "invoice_value_gbp": o.invoice_value_gbp,
                   "invoiced_on": o.invoiced_on, "xero_link": None}
+        value, issued = _figures(db, inv, o, sharing)
         o.invoice_number = inv.invoice_number
-        o.invoice_value_gbp = round(invoice_gbp_net(inv) or float(o.value_gbp), 2) if single else float(o.value_gbp)
-        o.invoiced_on = inv.issued_on or now.date()
+        o.invoice_value_gbp = value
+        o.invoiced_on = issued or o.invoiced_on or now.date()
         o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, source, now
         record_field_changes(
             db, entity_type="sales_order", entity_id=o.id, before=before,
@@ -364,6 +375,39 @@ def link_bookings(db: Session, inv: XeroInvoice, orders: list[SalesOrder], sourc
                      "xero_link": f"Linked {who} to Xero invoice {inv.invoice_number}"},
             changed_by_user_id=user_id)
         o.updated_at = now
+
+
+def refresh_figures(db: Session, only: list[SalesOrder] | None = None) -> int:
+    """Keeps every linked booking's invoiced amount and date the same as Xero's (an invoice edited or credited
+    in Xero, or a number typed by hand). Changes go to the booking's history. Returns how many changed."""
+    q = select(SalesOrder, XeroInvoice).join(XeroInvoice, SalesOrder.xero_invoice_id == XeroInvoice.id)
+    if only is not None:
+        if not only:
+            return 0
+        q = q.where(SalesOrder.id.in_([o.id for o in only]))
+    rows = db.execute(q).all()
+    counts = dict(db.execute(select(SalesOrder.xero_invoice_id, func.count()).where(SalesOrder.xero_invoice_id.in_({i.id for _, i in rows}))
+                             .group_by(SalesOrder.xero_invoice_id)).all()) if rows else {}
+    n = 0
+    for o, inv in rows:
+        if inv.status in ("VOIDED", "DELETED"):
+            continue
+        value, issued = _figures(db, inv, o, counts.get(inv.id, 1))
+        changes = {}
+        if o.invoice_value_gbp is None or abs(float(o.invoice_value_gbp) - value) >= 0.005:
+            changes["invoice_value_gbp"] = value
+        if issued and o.invoiced_on != issued:
+            changes["invoiced_on"] = issued
+        if not changes:
+            continue
+        before = {k: getattr(o, k) for k in changes}
+        for k, v in changes.items():
+            setattr(o, k, v)
+        changes["xero_link"] = f"Invoiced amount and date taken from Xero invoice {inv.invoice_number}"
+        record_field_changes(db, entity_type="sales_order", entity_id=o.id, before={**before, "xero_link": None},
+                             updates=changes, changed_by_user_id=None)
+        n += 1
+    return n
 
 
 def unlink_order(db: Session, o: SalesOrder, user_id: uuid.UUID | None) -> None:
@@ -386,14 +430,19 @@ def unlink_order(db: Session, o: SalesOrder, user_id: uuid.UUID | None) -> None:
     o.updated_at = datetime.now(timezone.utc)
 
 
-def sync_link_after_edit(db: Session, o: SalesOrder) -> None:
+def sync_link_after_edit(db: Session, o: SalesOrder) -> XeroInvoice | None:
     """Called when someone edits a booking's invoice number by hand: keep
-    the real link in step with what was typed (however it was written)."""
+    the real link in step with what was typed (however it was written), and
+    take the invoiced amount and date from Xero. Returns the invoice found."""
     inv = find_invoice(db, o.invoice_number)
     if inv and o.xero_invoice_id != inv.id:
         o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, "typed", datetime.now(timezone.utc)
     elif not inv:
         o.xero_invoice_id = o.xero_link_source = o.xero_linked_at = None
+    if inv:
+        db.flush()
+        refresh_figures(db, [o])
+    return inv
 
 
 def unclaimed_invoices(db: Session) -> list[XeroInvoice]:
@@ -405,3 +454,55 @@ def unclaimed_invoices(db: Session) -> list[XeroInvoice]:
         XeroInvoice.status.notin_(("VOIDED", "DELETED", "DRAFT")),
         XeroInvoice.id.notin_(claimed_ids))).all()
     return [i for i in rows if i.number_key not in typed]
+
+
+# ---- picking by hand ------------------------------------------------------------------------
+
+def invoice_choices(db: Session, o: SalesOrder, q: str = "", limit: int = 15) -> list[dict]:
+    """Xero invoices a person might link this booking to: ones no booking has yet, best first (the client's
+    name, then the amount, then the date). `q` searches the number, customer and reference."""
+    target = norm(o.client_name)
+    value = float(o.value_gbp or 0)
+    qn = q.strip().lower()
+    out = []
+    for inv in unclaimed_invoices(db):
+        if qn and qn not in " ".join(x or "" for x in (inv.invoice_number, inv.contact_name, inv.reference, inv.line_text)).lower() \
+                and number_key(qn) != inv.number_key:
+            continue
+        name = fuzz.token_set_ratio(target, norm(inv.contact_name)) if target else 0
+        net = invoice_gbp_net(inv)
+        amount_ok = net is not None and abs(net - value) <= _tol(value, inv)
+        if not qn and name < 60 and not amount_ok:
+            continue
+        f = invoice_facts(inv)
+        f["fit"] = [x for x in ("Same client" if name >= 85 else "Similar name" if name >= 60 else None,
+                                "Same amount" if amount_ok else None) if x]
+        out.append((name + (30 if amount_ok else 0), inv.issued_on or date.min, f))
+    out.sort(key=lambda x: (-x[0], -x[1].toordinal()))
+    return [f for _, _, f in out[:limit]]
+
+
+def booking_choices(db: Session, inv: XeroInvoice, q: str = "", limit: int = 12) -> list[dict]:
+    """Bookings a person might link this invoice to: the matcher's suggestions first, then (with `q`) any
+    booking still waiting for an invoice whose client matches the search."""
+    ctx = build_context(db)
+    reps = {r.id: r.name for r in db.scalars(select(SalesRep))}
+    out: list[dict] = []
+    seen: set[frozenset] = set()
+    for h in hypotheses(ctx, inv)[:6]:
+        key = frozenset(o.id for o in h.orders)
+        seen.add(key)
+        out.append({"key": ",".join(str(o.id) for o in h.orders), "suggested": True,
+                    "bookings": [_booking_facts(ctx, o, reps) for o in h.orders],
+                    "total_gbp": round(sum(float(o.value_gbp) for o in h.orders), 2),
+                    "reasons": [r["detail"] for r in _reasons(ctx, inv, h) if r.get("ok")]})
+    qn = norm(q)
+    if qn:
+        for o in sorted(ctx.pool, key=lambda o: -fuzz.token_set_ratio(qn, ctx.names[o.id])):
+            if len(out) >= limit or fuzz.token_set_ratio(qn, ctx.names[o.id]) < 70:
+                break
+            if frozenset([o.id]) in seen:
+                continue
+            out.append({"key": str(o.id), "suggested": False, "bookings": [_booking_facts(ctx, o, reps)],
+                        "total_gbp": float(o.value_gbp), "reasons": []})
+    return out[:limit]

@@ -759,7 +759,15 @@ export type TeamUserFormInput = {
   password?: string;
   role: string;
   access: UserAccessEntry[];
+  /** null unlinks; undefined leaves it alone. */
+  sales_rep_id?: string | null;
 };
+
+/** The order register's salespeople, for linking a login to its initials. */
+export async function listSalesRepsForLogins(): Promise<{ id: string; code: string; name: string; active: boolean; has_login: boolean }[]> {
+  const meta = await backendFetch<{ reps: { id: string; code: string; name: string; active: boolean; has_login: boolean }[] }>("/api/sales/meta");
+  return meta.reps;
+}
 
 export async function createTeamUser(input: TeamUserFormInput) {
   const user = await backendFetch<UserAccount>("/api/users", {
@@ -771,6 +779,7 @@ export async function createTeamUser(input: TeamUserFormInput) {
       password: input.password,
       role: input.role,
       access: input.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id })),
+      sales_rep_id: input.sales_rep_id || null,
     }),
   });
   revalidatePath("/settings/users");
@@ -786,6 +795,7 @@ export async function updateTeamUser(
   if (input.role !== undefined) body.role = input.role;
   if (input.is_active !== undefined) body.is_active = input.is_active;
   if (input.password) body.password = input.password;
+  if (input.sales_rep_id !== undefined) body.sales_rep_id = input.sales_rep_id;
   if (input.access !== undefined) {
     body.access = input.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id }));
   }

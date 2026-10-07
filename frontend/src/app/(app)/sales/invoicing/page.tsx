@@ -4,6 +4,7 @@ import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
 import type { OrdersPage, SalesMeta, UnmatchedInvoices } from "@/lib/sales-types";
+import { LinkInvoiceButton } from "@/components/sales/xero-link-dialogs";
 import type { OrderFilterKey } from "@/lib/sales-filters";
 import { KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
@@ -154,7 +155,7 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
             </EmptyState>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
-              <table className="w-full min-w-[44rem] text-sm">
+              <table className="w-full min-w-[52rem] text-sm">
                 <caption className="sr-only">Invoices in Xero with no matching booking</caption>
                 <thead>
                   <tr className="border-b border-border/70 text-left text-xs font-semibold text-muted-foreground">
@@ -162,7 +163,8 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
                     <th scope="col" className="px-3 py-2.5 font-semibold">Customer</th>
                     <th scope="col" className="px-3 py-2.5 font-semibold">What it says it&apos;s for</th>
                     <th scope="col" className="px-3 py-2.5 text-right font-semibold">Before VAT</th>
-                    <th scope="col" className="px-4 py-2.5 font-semibold">Dated</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold">Dated</th>
+                    <th scope="col" className="px-4 py-2.5"><span className="sr-only">Link</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -179,7 +181,8 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
                       <td className="px-3 py-2.5 text-right font-semibold tabular-nums">
                         {i.currency === "GBP" ? fmtGBP(i.net) : `${i.currency} ${i.net.toLocaleString("en-GB")}`}
                       </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{fmtDate(i.issued_on)}</td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground">{fmtDate(i.issued_on)}</td>
+                      <td className="px-4 py-2 text-right"><LinkInvoiceButton invoice={i} /></td>
                     </tr>
                   ))}
                 </tbody>

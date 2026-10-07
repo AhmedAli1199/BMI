@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { EntityPicker } from "@/components/entity-picker";
 import { InfoHint } from "@/components/sales/info-hint";
 import { UndoInvoiceLinkButton } from "@/components/sales/invoice-match-panel";
+import { FindInXeroButton } from "@/components/sales/xero-link-dialogs";
 import { fmtGBP } from "@/components/sales/sales-ui";
 
 const SIZES = ["FP", "1/2", "1/4", "DPS", "Banner", "Listing", "Advertorial", "Insert", "Partner", "Sponsor", "One ticket", "Table"];
@@ -140,6 +141,8 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
   const [moveOptions, setMoveOptions] = useState<EditionSummary[]>([]);
   const [changes, setChanges] = useState<FieldChange[] | null>(null);
 
+  // Linked to Xero (and the number not being changed): the amount and date are Xero's, not typed.
+  const linked = !!existing?.xero && invNo.trim() === (existing.invoice_number ?? "");
   const activeReps = useMemo(() => reps.filter((r) => r.active || r.id === repId), [reps, repId]);
   const valueNum = num(value);
   const creditTotal = credits.reduce((s, c) => s + (num(c.amount) || 0), 0);
@@ -198,12 +201,17 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
 
     startTransition(async () => {
       try {
-        if (existing) {
-          await updateOrder(existing.id, input);
-          toast.success("Booking saved");
+        const saved = existing ? await updateOrder(existing.id, input) : await createOrder((target as { editionId: string }).editionId, input);
+        const what = existing ? "Booking saved" : `Booking added for ${client.trim()}`;
+        if (saved.invoice_number && saved.invoice_number !== (existing?.invoice_number ?? null)) {
+          if (saved.xero) {
+            const state = { paid: "paid", part_paid: "part paid", unpaid: "awaiting payment", overdue: "overdue", voided: "voided" }[saved.xero.state] ?? saved.xero.state;
+            toast.success(`${what} · linked to Xero invoice ${saved.xero.invoice_number ?? saved.invoice_number} · ${fmtGBP(saved.invoice_value_gbp ?? 0)} before VAT · ${state}`);
+          } else {
+            toast.warning(`${what}. ${saved.invoice_number} isn't in Xero yet - it will link by itself when it shows up in Xero.`);
+          }
         } else {
-          await createOrder((target as { editionId: string }).editionId, input);
-          toast.success(`Booking added for ${client.trim()}`);
+          toast.success(what);
         }
         onClose();
         router.refresh();
@@ -430,15 +438,21 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
               </span>
             </div>
           )}
+          {existing && !existing.xero && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border/80 px-3 py-2 text-xs text-muted-foreground">
+              <span>{existing.invoice_number ? `${existing.invoice_number} isn't in Xero yet - check the number, or pick the invoice.` : "Not linked to a Xero invoice yet. Type the number below, or pick it from Xero."}</span>
+              <FindInXeroButton order={existing} onLinked={() => { onClose(); router.refresh(); }} />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field label="Invoice number" htmlFor="os-inv">
               <Input id="os-inv" value={invNo} onChange={(e) => setInvNo(e.target.value)} placeholder="INV-3050" />
             </Field>
-            <Field label="Invoiced (£)" htmlFor="os-invv" hint="Leave blank to use the booking value. If it's less because an agency took a cut, record that below.">
-              <Input id="os-invv" inputMode="decimal" value={invValue} onChange={(e) => setInvValue(e.target.value)} placeholder={value || "Same as value"} />
+            <Field label="Invoiced (£)" htmlFor="os-invv" hint={linked ? "Taken from the Xero invoice (before VAT) and kept in step with it." : "Filled in from Xero once the invoice number is linked. Until then, blank means the booking value."}>
+              <Input id="os-invv" inputMode="decimal" value={invValue} disabled={linked} onChange={(e) => setInvValue(e.target.value)} placeholder={value || "Same as value"} />
             </Field>
-            <Field label="Invoiced on" htmlFor="os-invon">
-              <Input id="os-invon" type="date" value={invOn} onChange={(e) => setInvOn(e.target.value)} />
+            <Field label="Invoiced on" htmlFor="os-invon" hint={linked ? "The invoice date in Xero." : undefined}>
+              <Input id="os-invon" type="date" value={invOn} disabled={linked} onChange={(e) => setInvOn(e.target.value)} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

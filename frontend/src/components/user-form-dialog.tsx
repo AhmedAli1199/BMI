@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { createTeamUser, listGroupsForDatabase, updateTeamUser } from "@/lib/actions";
+import { createTeamUser, listGroupsForDatabase, listSalesRepsForLogins, updateTeamUser } from "@/lib/actions";
 import type { GroupListItem, Publication, RoleDef, UserAccessEntry, UserAccount } from "@/lib/types";
 
 type AccessRow = { source_db: string; group_id: string | null };
@@ -114,6 +114,20 @@ export function UserFormDialog({
   const [access, setAccess] = useState<AccessRow[]>(
     existing?.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id })) ?? []
   );
+  const [repId, setRepId] = useState<string>(existing?.sales_rep_id ?? "");
+  const [repTouched, setRepTouched] = useState(false);
+  const [reps, setReps] = useState<{ id: string; code: string; name: string; active: boolean; has_login: boolean }[] | null>(null);
+
+  useEffect(() => {
+    if (!open || reps) return;
+    let live = true;
+    listSalesRepsForLogins().then((r) => live && setReps(r)).catch(() => live && setReps([]));
+    return () => { live = false; };
+  }, [open, reps]);
+
+  // Suggest the salesperson with the same name for a new login (or one not linked yet).
+  const suggested = !repTouched && !repId && reps ? reps.find((r) => !r.has_login && r.name.trim().toLowerCase() === name.trim().toLowerCase()) : undefined;
+  const chosenRep = repId || suggested?.id || "";
 
   function addRow() {
     setAccess([...access, { source_db: publications[0]?.slug ?? "", group_id: null }]);
@@ -128,6 +142,7 @@ export function UserFormDialog({
             role,
             password: password || undefined,
             access: access as UserAccessEntry[],
+            sales_rep_id: chosenRep !== (existing.sales_rep_id ?? "") ? chosenRep || null : undefined,
           });
           toast.success(`${name} updated`);
         } else {
@@ -135,7 +150,7 @@ export function UserFormDialog({
             toast.error("Set a temporary password");
             return;
           }
-          await createTeamUser({ email, name, password, role, access: access as UserAccessEntry[] });
+          await createTeamUser({ email, name, password, role, access: access as UserAccessEntry[], sales_rep_id: chosenRep || null });
           toast.success(`${name} added`);
         }
         setOpen(false);
@@ -249,6 +264,27 @@ export function UserFormDialog({
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="uf-rep">Their initials in the order register</Label>
+              <select
+                id="uf-rep"
+                value={chosenRep}
+                onChange={(e) => { setRepId(e.target.value); setRepTouched(true); }}
+                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+              >
+                <option value="">Not a salesperson</option>
+                {(reps ?? []).filter((r) => r.active || r.id === chosenRep).map((r) => (
+                  <option key={r.id} value={r.id} disabled={r.has_login && r.id !== (existing?.sales_rep_id ?? "")}>
+                    {r.code} - {r.name}{r.has_login && r.id !== (existing?.sales_rep_id ?? "") ? " (linked to another login)" : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                {suggested ? `Picked ${suggested.code} because the names match - change it if that's wrong. ` : ""}
+                Their renewals and booking follow-ups go on their Today list, and only they see them.
+              </p>
             </div>
 
             {role === "admin" ? (

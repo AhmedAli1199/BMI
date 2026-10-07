@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
 import { sourceLabel } from "@/lib/sources";
-import type { ClientSuggestion, CostLineInput, EditionCosts, EditionSummary, OrderInput, RenewalPassResult, SalesOrder, SalesRate, SalesTitle } from "@/lib/sales-types";
+import type { BookingChoice, ClientSuggestion, CostLineInput, EditionCosts, EditionSummary, OrderInput, RenewalPassResult, SalesOrder, SalesRate, SalesTitle, XeroChoice } from "@/lib/sales-types";
 import type { CompanyListItem, FieldChange } from "@/lib/types";
 
 /** Server actions for the Sales Order Register - callable from client
@@ -151,4 +151,38 @@ export async function unlinkXeroInvoice(orderId: string): Promise<SalesOrder> {
   revalidateSales(order.edition_id, order.company?.id);
   revalidatePath("/automations/review");
   return order;
+}
+
+/** Xero invoices this booking could be linked to, most likely first. */
+export async function getXeroChoices(orderId: string, q = ""): Promise<XeroChoice[]> {
+  return backendFetch<XeroChoice[]>(`/api/sales/orders/${orderId}/xero-choices?q=${encodeURIComponent(q)}`);
+}
+
+/** Links a booking to the Xero invoice someone picked; the amount and date come from Xero. */
+export async function linkXeroInvoice(orderId: string, invoiceId: string): Promise<SalesOrder> {
+  const order = await backendFetch<SalesOrder>(`/api/sales/orders/${orderId}/xero-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ invoice_id: invoiceId }),
+  });
+  revalidateSales(order.edition_id, order.company?.id);
+  revalidatePath("/automations/review");
+  return order;
+}
+
+/** Bookings an unmatched Xero invoice could be for. */
+export async function getInvoiceBookingChoices(invoiceId: string, q = ""): Promise<BookingChoice[]> {
+  return backendFetch<BookingChoice[]>(`/api/sales/xero/invoices/${invoiceId}/choices?q=${encodeURIComponent(q)}`);
+}
+
+export async function linkInvoiceToBookings(invoiceId: string, orderIds: string[]): Promise<SalesOrder[]> {
+  const orders = await backendFetch<SalesOrder[]>(`/api/sales/xero/invoices/${invoiceId}/link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order_ids: orderIds }),
+  });
+  for (const o of orders) revalidateSales(o.edition_id, o.company?.id);
+  revalidatePath("/sales/invoicing");
+  revalidatePath("/automations/review");
+  return orders;
 }

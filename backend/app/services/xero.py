@@ -278,6 +278,10 @@ def link_typed_numbers(db: Session) -> int:
         if inv:
             o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, "typed", datetime.now(timezone.utc)
             n += 1
+    db.flush()
+    from app.sales.invoice_match import refresh_figures
+
+    refresh_figures(db)  # invoiced amount and date as Xero has them, for every linked booking
     db.commit()
     return n
 

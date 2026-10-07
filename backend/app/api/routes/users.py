@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.schemas import RoleDefOut, UserAccessOut, UserCreate, UserOut, UserUpdate
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models import Group, Publication, User, UserAccess
+from app.models import Group, Publication, SalesRep, User, UserAccess
 from app.roles import ALL_ROLES, ROLE_DEFS
 
 router = APIRouter(tags=["users"])
@@ -41,7 +41,24 @@ def _user_out(db: Session, user: User) -> UserOut:
         UserAccessOut(source_db=a.source_db, group_id=a.group_id, group_name=group_name)
         for a, group_name in rows
     ]
-    return UserOut(id=user.id, email=user.email, name=user.name, role=user.role, is_active=user.is_active, access=access)
+    rep = db.scalars(select(SalesRep).where(SalesRep.user_id == user.id)).first()
+    return UserOut(id=user.id, email=user.email, name=user.name, role=user.role, is_active=user.is_active, access=access,
+                   sales_rep_id=rep.id if rep else None, sales_rep_code=rep.code if rep else None)
+
+
+def _set_sales_rep(db: Session, user: User, rep_id: uuid.UUID | None) -> None:
+    """One login per salesperson: links this login to the rep (unlinking any other rep it had)."""
+    for r in db.scalars(select(SalesRep).where(SalesRep.user_id == user.id)):
+        if r.id != rep_id:
+            r.user_id = None
+    if rep_id:
+        rep = db.get(SalesRep, rep_id)
+        if not rep:
+            raise HTTPException(status_code=400, detail="Unknown salesperson")
+        if rep.user_id and rep.user_id != user.id:
+            other = db.get(User, rep.user_id)
+            raise HTTPException(status_code=409, detail=f"{rep.code} is already linked to {other.name if other else 'another login'} - unlink it there first.")
+        rep.user_id = user.id
 
 
 @router.get("/roles", response_model=list[RoleDefOut])
@@ -76,6 +93,8 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     db.flush()
     for a in payload.access:
         db.add(UserAccess(id=uuid.uuid4(), user_id=user.id, source_db=a.source_db, group_id=a.group_id))
+    if payload.sales_rep_id:
+        _set_sales_rep(db, user, payload.sales_rep_id)
     db.commit()
     return _user_out(db, user)
 
@@ -101,6 +120,8 @@ def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(g
         db.execute(UserAccess.__table__.delete().where(UserAccess.user_id == user.id))
         for a in payload.access:
             db.add(UserAccess(id=uuid.uuid4(), user_id=user.id, source_db=a.source_db, group_id=a.group_id))
+    if "sales_rep_id" in payload.model_fields_set:
+        _set_sales_rep(db, user, payload.sales_rep_id)
 
     db.commit()
     return _user_out(db, user)

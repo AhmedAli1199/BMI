@@ -345,3 +345,36 @@ export type CostLineInput = {
   amount_inc_vat_gbp?: number | null;
   section?: string | null;
 };
+
+/** A Xero invoice someone could link a booking to (no booking has it yet). */
+export type XeroChoice = {
+  id: string;
+  number: string | null;
+  contact: string | null;
+  reference: string | null;
+  lines: string | null;
+  issued_on: string | null;
+  currency: string;
+  net: number;
+  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  url: string;
+  /** Why it's suggested: "Same client", "Similar name", "Same amount". */
+  fit: string[];
+};
+
+export type BookingChoiceBooking = {
+  id: string;
+  client: string;
+  edition: string;
+  edition_id: string;
+  edition_date: string | null;
+  title: string;
+  size: string | null;
+  booked_on: string | null;
+  value_gbp: number;
+  rep: string | null;
+  typed_number: string | null;
+};
+
+/** Booking(s) an unmatched Xero invoice could be for. */
+export type BookingChoice = { key: string; suggested: boolean; bookings: BookingChoiceBooking[]; total_gbp: number; reasons: string[] };

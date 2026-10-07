@@ -565,4 +565,7 @@ export type UserAccount = {
   role: string;
   is_active: boolean;
   access: UserAccessEntry[];
+  /** Their initials in the order register, so renewals and bookings land on their Today list. */
+  sales_rep_id?: string | null;
+  sales_rep_code?: string | null;
 };
