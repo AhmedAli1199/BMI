@@ -23,7 +23,8 @@ def gbp(v: float) -> str:
 def rate_card(db: Session, title_id: uuid.UUID | None, year: int) -> list[dict]:
     if not title_id:
         return []
-    rows = db.scalars(select(SalesRate).where(SalesRate.title_id == title_id, SalesRate.year == year)
+    rows = db.scalars(select(SalesRate).where(SalesRate.title_id == title_id, SalesRate.year == year, SalesRate.archived.is_(False),
+                                              SalesRate.price_gbp.isnot(None))
                       .order_by(SalesRate.price_gbp.desc())).all()
     return [{"id": str(r.id), "product": r.product, "price_gbp": float(r.price_gbp), "notes": r.notes} for r in rows]
 

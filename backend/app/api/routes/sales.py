@@ -968,8 +968,17 @@ class RateIn(BaseModel):
     notes: str | None = Field(default=None, max_length=300)
 
 
-class RateOut(RateIn):
+class RateOut(BaseModel):
     id: uuid.UUID
+    title_id: uuid.UUID
+    year: int
+    product: str
+    price_gbp: float | None
+    notes: str | None = None
+    section: str = "print"
+    price_type: str = "fixed"
+    unit: str = "each"
+    specs: str | None = None
 
 
 class TitleLinks(BaseModel):
@@ -978,17 +987,18 @@ class TitleLinks(BaseModel):
 
 
 def _rate_out(r: SalesRate) -> RateOut:
-    return RateOut(id=r.id, title_id=r.title_id, year=r.year, product=r.product, price_gbp=float(r.price_gbp), notes=r.notes)
+    return RateOut(id=r.id, title_id=r.title_id, year=r.year, product=r.product, price_gbp=float(r.price_gbp) if r.price_gbp is not None else None,
+                   notes=r.notes, section=r.section, price_type=r.price_type, unit=r.unit, specs=r.specs)
 
 
 @router.get("/rates", response_model=list[RateOut])
 def list_rates(year: int | None = None, title_id: uuid.UUID | None = None, db: Session = Depends(get_db)) -> list[RateOut]:
-    q = select(SalesRate)
+    q = select(SalesRate).where(SalesRate.archived.is_(False))
     if year:
         q = q.where(SalesRate.year == year)
     if title_id:
         q = q.where(SalesRate.title_id == title_id)
-    return [_rate_out(r) for r in db.scalars(q.order_by(SalesRate.year.desc(), SalesRate.price_gbp.desc()))]
+    return [_rate_out(r) for r in db.scalars(q.order_by(SalesRate.year.desc(), SalesRate.price_gbp.desc().nullslast()))]
 
 
 def _staff_only(identity: Identity) -> None:
@@ -1002,7 +1012,7 @@ def create_rate(payload: RateIn, db: Session = Depends(get_db), identity: Identi
     if not db.get(SalesTitle, payload.title_id):
         raise HTTPException(status_code=422, detail="Unknown title")
     product = payload.product.strip()
-    if db.scalars(select(SalesRate).where(SalesRate.title_id == payload.title_id, SalesRate.year == payload.year,
+    if db.scalars(select(SalesRate).where(SalesRate.title_id == payload.title_id, SalesRate.year == payload.year, SalesRate.section == "print",
                                           func.lower(SalesRate.product) == product.lower())).first():
         raise HTTPException(status_code=409, detail=f"“{product}” already has a {payload.year} price for this title - edit it instead.")
     r = SalesRate(id=uuid.uuid4(), **{**payload.model_dump(), "product": product})

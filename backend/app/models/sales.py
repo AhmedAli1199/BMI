@@ -57,19 +57,61 @@ class SalesTitle(Base, UUIDPk):
 
 
 class SalesRate(Base, UUIDPk, TimestampMixin):
-    """The rate card - this year's price for a product in a title (a full
-    page in OBH, a banner on STO). Renewal emails quote it; nothing is
-    ever priced from a guess."""
+    """The rate card - one product's price for a year (a full page in OBH, a
+    website banner per month, an award entry). Proposals and renewal emails
+    quote it; nothing is ever priced from a guess.
+
+    The rate card screen groups these by brand and section (app/sales/brands.py);
+    title_id is the sales title the product is booked under, so a booking's
+    size can find its price."""
     __tablename__ = "sales_rates"
-    __table_args__ = (UniqueConstraint("title_id", "year", "product", name="uq_sales_rates_title_year_product"),)
+    __table_args__ = (UniqueConstraint("title_id", "year", "section", "product", name="uq_sales_rates_title_year_section_product"),)
 
     title_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_titles.id", ondelete="CASCADE"), nullable=False, index=True)
     year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
-    # As the sheets write it ("FP", "1/2", "DPS", "Banner") - matched to a
-    # booking's size, so it should use the same shorthand.
+    # Section of the brand's rate card: print | sponsored | website | newsletter | events | awards | listings | other
+    section: Mapped[str] = mapped_column(String(20), nullable=False, default="print")
+    # What people call it ("Full page", "Newsletter banner (Position A)").
     product: Mapped[str] = mapped_column(String(120), nullable=False)
-    price_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    # fixed = the price; from = a starting price; poa = price on request (price_gbp empty)
+    price_type: Mapped[str] = mapped_column(String(10), nullable=False, default="fixed")
+    price_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    # What the price is for: each (advert/item) | month | week | year | event | entry
+    unit: Mapped[str] = mapped_column(String(10), nullable=False, default="each")
+    specs: Mapped[str | None] = mapped_column(String(200))  # "728px x 90px", "4 pages"
+    # Shorthand the order register uses for the same thing ("FP", "1/2", "DPS") - how a booking finds its price.
+    aliases: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     notes: Mapped[str | None] = mapped_column(String(300))
+    valid_until: Mapped[date | None] = mapped_column(Date)  # early-bird prices etc.
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Loaded from a media pack (or copied to a new year) and not yet looked at by a person.
+    needs_check: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source: Mapped[str | None] = mapped_column(String(120))
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+
+
+class RateOffer(Base, UUIDPk, TimestampMixin):
+    """A deal on a brand's rate card for a year, in plain words: "Book 2 adverts,
+    save 10%", "Early bird until 1 February", "Four dinners at £3,250 each".
+    `rules` makes it usable by the proposal builder:
+      volume:     {"tiers": [{"qty": 2, "discount_pct": 10}, ...]}
+      series:     {"tiers": [{"qty": 2, "unit_price": 3750}, ...]}
+      early_bird: {} (valid_until says when it ends)
+      note:       {} (just information)"""
+    __tablename__ = "rate_offers"
+
+    brand: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(12), nullable=False, default="note")
+    label: Mapped[str] = mapped_column(String(300), nullable=False)
+    details: Mapped[str | None] = mapped_column(Text)
+    rules: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # Which rate-card products it applies to (ids); empty = the whole section / brand as described.
+    rate_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    section: Mapped[str | None] = mapped_column(String(20))
+    valid_until: Mapped[date | None] = mapped_column(Date)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    needs_check: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class SalesEdition(Base, UUIDPk, TimestampMixin):

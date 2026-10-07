@@ -28,6 +28,7 @@ from app.api.routes import (
     integrations,
     management,
     proposals,
+    rate_card,
     messaging,
     publications,
     review_queue,
@@ -94,6 +95,7 @@ api_router.include_router(messaging.router)
 api_router.include_router(integrations.router)
 api_router.include_router(management.router)
 api_router.include_router(proposals.router)
+api_router.include_router(rate_card.router)
 app.include_router(api_router)
 
 

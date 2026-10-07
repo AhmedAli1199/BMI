@@ -152,6 +152,8 @@ def _price_lines(db: Session, lines: list[LineIn], title_id: uuid.UUID | None, y
                                                           SalesRate.product == ln.product)).first()
             if rate is None:
                 raise HTTPException(422, f"“{ln.product}” isn't on the rate card - add it as a manual line instead.")
+            if rate.price_gbp is None:
+                raise HTTPException(422, f"“{rate.product}” is priced on request - add it as your own line with the price you've agreed.")
             out.append({"id": ln.id or str(uuid.uuid4()), "product": rate.product, "qty": ln.qty,
                         "unit_price": float(rate.price_gbp), "source": "rate_card"})
         else:

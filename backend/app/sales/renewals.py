@@ -82,8 +82,10 @@ def current_price(db: Session, title_id: uuid.UUID, year: int, size: str | None)
     key = product_key(size)
     if not key:
         return None
-    for rate in db.scalars(select(SalesRate).where(SalesRate.title_id == title_id, SalesRate.year == year)):
-        if product_key(rate.product) == key:
+    for rate in db.scalars(select(SalesRate).where(SalesRate.title_id == title_id, SalesRate.year == year, SalesRate.archived.is_(False),
+                                                   SalesRate.price_gbp.isnot(None)).order_by(SalesRate.section, SalesRate.sort_order)):
+        # The rate card's own name, or any shorthand it lists under "also called" ("FP", "1/2").
+        if product_key(rate.product) == key or any(product_key(a) == key for a in (rate.aliases or [])):
             return rate
     return None
 
