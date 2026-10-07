@@ -415,7 +415,15 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
                     "...the eNewsletter Banner place…" hides exactly the
                     detail (a figure, a date) the rep needs to judge the
                     signal, which defeats the point of showing it. */}
-                <dd className="whitespace-pre-wrap break-words text-right font-medium text-foreground sm:text-left">{d.value}</dd>
+                <dd className="whitespace-pre-wrap break-words text-right font-medium text-foreground sm:text-left">
+                  {d.href ? (
+                    <Link href={d.href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      {d.value}
+                    </Link>
+                  ) : (
+                    d.value
+                  )}
+                </dd>
               </div>
             ))}
           </dl>

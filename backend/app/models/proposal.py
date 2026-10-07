@@ -24,6 +24,8 @@ class Proposal(Base, UUIDPk, TimestampMixin):
     company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), index=True)
     title_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_titles.id", ondelete="SET NULL"), index=True)
+    # The issue / event it's for, from the editorial plan (dates and features go into the wording).
+    edition_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="SET NULL"), index=True)
     # Which of BMI's three Word templates it is written in: obh | stm | tbtm.
     template: Mapped[str] = mapped_column(String(8), nullable=False)
     # The campaign / advertiser name that goes in the Word header ("Delta 2026/27").

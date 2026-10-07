@@ -23,7 +23,7 @@ from app.models import EditionFeature, EditorialSetting, SalesEdition, SalesOrde
 from app.sales import brands as B
 from app.sales import editorial_seed as seed
 from app.sales.analytics import BOOKED
-from app.sales.editorial import STANDARD, STANDARD_LABELS, compute_deadlines, describe_rule, shift_year
+from app.sales.editorial import STANDARD, compute_deadlines, describe_rule, shift_year
 from app.services.field_audit import record_field_changes
 
 router = APIRouter(prefix="/editorial", tags=["editorial plan"])
@@ -657,3 +657,131 @@ def load_plan(key: str, year: int = Query(seed.SEED_YEAR), db: Session = Depends
     r = seed.load_seed(db, key, year)
     db.commit()
     return r
+
+
+# ---- hook-ups: picking an issue for a proposal, and who to pitch ---------------------------
+
+class UpcomingIssue(BaseModel):
+    id: uuid.UUID
+    label: str
+    kind: str
+    edition_date: date | None
+    ad_deadline: date | None
+    open: bool
+    suggested: bool
+
+
+@router.get("/upcoming", response_model=list[UpcomingIssue])
+def upcoming(title_id: uuid.UUID, include: uuid.UUID | None = None, db: Session = Depends(get_db)) -> list[UpcomingIssue]:
+    """A title's issues from today on (plus `include`, e.g. the one a proposal already has), for the issue picker."""
+    from app.sales.editorial import issue_label, next_issue
+    today = date.today()
+    eds = list(db.scalars(select(SalesEdition).where(SalesEdition.title_id == title_id, SalesEdition.kind.in_(PLAN_KINDS),
+                                                     SalesEdition.edition_date >= today).order_by(SalesEdition.edition_date).limit(24)))
+    if include and include not in {e.id for e in eds}:
+        extra = db.get(SalesEdition, include)
+        if extra and extra.title_id == title_id:
+            eds.insert(0, extra)
+    nxt = next_issue(db, title_id, today)
+    return [UpcomingIssue(id=e.id, label=issue_label(e), kind=e.kind, edition_date=e.edition_date, ad_deadline=e.ad_deadline,
+                          open=bool((e.ad_deadline or e.edition_date or today) >= today), suggested=bool(nxt and nxt.id == e.id)) for e in eds]
+
+
+class PitchCompany(BaseModel):
+    company_id: uuid.UUID | None
+    name: str
+    reason: str
+    last_booked: date | None
+    last_value_gbp: float | None
+    last_size: str | None
+    rep: str | None
+
+
+class PitchList(BaseModel):
+    issue_id: uuid.UUID
+    issue_label: str
+    compared_with: dict | None
+    lapsed: list[PitchCompany]  # booked the same issue last year, not booked on this one yet
+    previous: list[PitchCompany]  # booked the issue before this one, not booked on this one yet
+    feature_matches: list[PitchCompany]  # past advertisers of the brand whose line of business fits a planned feature
+    already_booked: int
+
+
+_STOP = {"with", "from", "that", "this", "your", "their", "into", "over", "under", "about", "best", "guide", "special", "feature",
+         "features", "focus", "news", "update", "report", "travel", "issue", "edition", "year", "years", "more", "most", "what", "where",
+         "when", "plus", "the", "and", "for", "new", "top", "world"}
+
+
+def _keywords(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]{4,}", (text or "").lower()) if w not in _STOP}
+
+
+@router.get("/issues/{eid}/pitch", response_model=PitchList)
+def who_to_pitch(eid: uuid.UUID, db: Session = Depends(get_db)) -> PitchList:
+    """Who to approach for this issue: last year's advertisers who haven't rebooked, the previous issue's advertisers,
+    and past advertisers whose line of business fits one of the planned features."""
+    from app.models import Company, SalesRep
+    from app.sales.editorial import issue_label
+    e = db.get(SalesEdition, eid)
+    if not e:
+        raise HTTPException(404, "Issue not found")
+    _edition_brand(db, e)
+    reps = {r.id: r.name for r in db.scalars(select(SalesRep))}
+
+    def booked(edition_id: uuid.UUID) -> list[SalesOrder]:
+        return list(db.scalars(select(SalesOrder).where(SalesOrder.edition_id == edition_id, SalesOrder.status == BOOKED)
+                               .order_by(SalesOrder.value_gbp.desc())))
+
+    def key(o: SalesOrder) -> str:
+        return str(o.company_id) if o.company_id else o.client_name.strip().lower()
+
+    here = booked(e.id)
+    taken = {key(o) for o in here}
+
+    def pitch(orders: list[SalesOrder], reason: str, seen: set[str]) -> list[PitchCompany]:
+        out = []
+        for o in orders:
+            k = key(o)
+            if k in taken or k in seen:
+                continue
+            seen.add(k)
+            out.append(PitchCompany(company_id=o.company_id, name=o.client_name, reason=reason, last_booked=o.booked_on,
+                                    last_value_gbp=float(o.value_gbp or 0), last_size=o.size, rep=reps.get(o.rep_id)))
+        return out
+
+    seen: set[str] = set()
+    compared = None
+    lapsed: list[PitchCompany] = []
+    if e.edition_date:
+        ly = db.scalars(select(SalesEdition).where(SalesEdition.title_id == e.title_id, SalesEdition.year == e.year - 1, SalesEdition.edition_date.isnot(None),
+                                                   SalesEdition.kind == e.kind)
+                        .order_by(func.abs(SalesEdition.edition_date - (e.edition_date - timedelta(days=365))))).first()
+        if ly:
+            compared = {"id": str(ly.id), "label": issue_label(ly), "year": ly.year}
+            lapsed = pitch(booked(ly.id), f"Booked {issue_label(ly)} ({ly.year})", seen)
+    prev = _neighbour(db, e, -1)
+    previous = pitch(booked(uuid.UUID(prev["id"])), f"Booked {prev['name'] if not str(prev['name']).isdigit() else 'Issue ' + prev['name']}", seen) if prev else []
+
+    # Feature matches: past advertisers of this title (last three years) whose company details mention a feature's words.
+    feats = list(db.scalars(select(EditionFeature).where(EditionFeature.edition_id == e.id, EditionFeature.status != "dropped")))
+    words = {f.title: _keywords(f"{f.title} {f.description or ''}") for f in feats}
+    matches: list[PitchCompany] = []
+    if any(words.values()):
+        rows = db.execute(select(SalesOrder, Company).join(Company, SalesOrder.company_id == Company.id)
+                          .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+                          .where(SalesEdition.title_id == e.title_id, SalesEdition.year >= e.year - 3, SalesOrder.status == BOOKED)
+                          .order_by(SalesOrder.booked_on.desc().nullslast())).all()
+        for o, c in rows:
+            k = str(c.id)
+            if k in taken or k in seen:
+                continue
+            about = _keywords(" ".join(x or "" for x in (c.name, c.industry, c.category, c.description)))
+            hit = next((ft for ft, ws in words.items() if ws & about), None)
+            if hit:
+                seen.add(k)
+                matches.append(PitchCompany(company_id=c.id, name=c.name, reason=f"Fits the feature “{hit}”", last_booked=o.booked_on,
+                                            last_value_gbp=float(o.value_gbp or 0), last_size=o.size, rep=reps.get(o.rep_id)))
+            if len(matches) >= 25:
+                break
+    return PitchList(issue_id=e.id, issue_label=issue_label(e), compared_with=compared, lapsed=lapsed[:50], previous=previous[:50],
+                     feature_matches=matches, already_booked=len(here))

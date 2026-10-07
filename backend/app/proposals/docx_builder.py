@@ -76,6 +76,11 @@ def _paragraphs(body: str) -> list[str]:
             for chunk in re.split(r"\n\s*\n", (body or "").strip()) if chunk.strip()]
 
 
+def _money(v: float) -> str:
+    """"£1,200.00", and "-£120.00" for an offer taken off."""
+    return f"-£{-v:,.2f}" if v < 0 else f"£{v:,.2f}"
+
+
 def build_docx(*, template: str, campaign_name: str, sections: list[dict], lines: list[dict], total: float) -> bytes:
     document = docx.Document(TEMPLATE_DIR / TEMPLATE_FILES[template])
 
@@ -101,9 +106,9 @@ def build_docx(*, template: str, campaign_name: str, sections: list[dict], lines
             for ln in lines:
                 qty, price = float(ln.get("qty") or 1), float(ln.get("unit_price") or 0)
                 sub = qty * price
-                head = f"{ln['product']}: " + (f"{qty:g} x £{price:,.2f} = £{sub:,.2f}" if qty != 1 else f"£{price:,.2f}")
+                head = f"{ln['product']}: " + (f"{qty:g} x {_money(price)} = {_money(sub)}" if qty != 1 else _money(price))
                 add(head, STYLE_BODY)
-            add(f"Total: £{total:,.2f}", STYLE_BOLD)
+            add(f"Total: {_money(total)}", STYLE_BOLD)
         for chunk in _paragraphs(section.get("body", "")):
             if chunk.startswith("- "):
                 for item in (x.strip() for x in chunk.split("\n") if x.strip()):

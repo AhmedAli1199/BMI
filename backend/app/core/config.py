@@ -233,6 +233,9 @@ class Settings(BaseSettings):
     automations_sor_renewal_scan_enabled: bool = False
     sor_renewal_lead_days: int = 60  # start the renewal this many days before the anniversary of last year's booking
     sor_renewal_max_per_run: int = 25
+    # Editorial plan deadline reminders - see app/automations/editorial_deadlines.py.
+    automations_editorial_deadline_alerts_enabled: bool = False
+    editorial_deadline_alert_days: str = "14,7,1"  # remind this many days before each advertising deadline
 
     # SALES-026/028 (Sales dashboard, weekly summary & alerts) - see
     # app/sales/analytics.py (edition_pace) and app/automations/management_reports.py.

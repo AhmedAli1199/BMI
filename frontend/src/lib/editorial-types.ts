@@ -28,3 +28,24 @@ export const FORMAT_LABELS: Record<IssueFormat, string> = { print_digital: "Prin
 
 /** "Issue 105" for numbered issues, the name otherwise. */
 export const issueLabel = (i: { name: string; kind: string }) => (/^\d+$/.test(i.name.trim()) ? `Issue ${i.name}` : i.name);
+
+export type PitchCompany = {
+  company_id: string | null;
+  name: string;
+  reason: string;
+  last_booked: string | null;
+  last_value_gbp: number | null;
+  last_size: string | null;
+  rep: string | null;
+};
+
+/** "Who should we pitch?" for an issue. */
+export type PitchList = {
+  issue_id: string;
+  issue_label: string;
+  compared_with: { id: string; label: string; year: number } | null;
+  lapsed: PitchCompany[];
+  previous: PitchCompany[];
+  feature_matches: PitchCompany[];
+  already_booked: number;
+};

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { Proposal, ProposalEmailDraft, ProposalLine, ProposalSection } from "@/lib/proposals-types";
+import type { Proposal, ProposalEmailDraft, ProposalLine, ProposalSection, UpcomingIssue } from "@/lib/proposals-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -16,6 +16,7 @@ export async function createProposal(input: {
   company_id: string;
   contact_id?: string | null;
   title_id: string | null;
+  edition_id?: string | null;
   template: string;
   campaign_name: string;
   year: number;
@@ -28,7 +29,7 @@ export async function createProposal(input: {
 
 export async function saveProposal(
   id: string,
-  patch: { campaign_name?: string; template?: string; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null }
+  patch: { campaign_name?: string; template?: string; edition_id?: string | null; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null }
 ): Promise<Proposal> {
   const p = await backendFetch<Proposal>(`/api/proposals/${id}`, { method: "PATCH", headers: json, body: JSON.stringify(patch) });
   refresh(p);
@@ -67,4 +68,11 @@ export async function sendProposal(
   const p = await backendFetch<Proposal>(`/api/proposals/${id}/send`, { method: "POST", headers: json, body: JSON.stringify(input) });
   refresh(p);
   return p;
+}
+
+/** A title's issues from today on, for the issue picker (`include` keeps a proposal's current one in the list). */
+export async function getUpcomingIssues(titleId: string, include?: string | null): Promise<UpcomingIssue[]> {
+  const q = new URLSearchParams({ title_id: titleId });
+  if (include) q.set("include", include);
+  return backendFetch<UpcomingIssue[]>(`/api/editorial/upcoming?${q}`);
 }

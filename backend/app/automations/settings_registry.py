@@ -364,6 +364,16 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_editorial_deadline_alerts_enabled", label="Advertising deadline reminders",
+        description="Each morning: tells a brand's publishers and salespeople when an issue's advertising deadline is coming up, with how many of last year's advertisers haven't rebooked yet.",
+        group="Editorial Plan", type="bool",
+    ),
+    AutomationSettingDef(
+        key="editorial_deadline_alert_days", label="Remind this many days before",
+        description="Comma-separated, e.g. 14,7,1 - one reminder at each point before the advertising deadline.",
+        group="Editorial Plan", type="csv",
+    ),
+    AutomationSettingDef(
         key="automations_xero_match_enabled", label="Xero invoice matching",
         description="Hourly: finds the booking each new Xero invoice belongs to. Clear matches fill in the invoice number on their own; the rest wait in the review queue.",
         group="Xero", type="bool",

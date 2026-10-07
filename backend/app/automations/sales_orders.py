@@ -32,6 +32,7 @@ from app.automations.scheduler import ScheduledJob, register_job
 from app.db.session import SessionLocal
 from app.models import Company, Note, ReviewQueueItem, SalesEdition, SalesOrder, SalesRep, SalesTitle, User
 from app.sales.analytics import BOOKED
+from app.sales.editorial import issue_facts, issue_sentence, renewal_issue
 from app.sales.matching import MATCH_KIND, match_clients
 
 logger = logging.getLogger("app.automations.sales_orders")
@@ -232,7 +233,8 @@ def describe_size(size: str | None) -> str | None:
 
 
 def _renewal_draft(client: str, title: str, last_label: str, size: str | None, extra: str = "", *,
-                   price: str | None = None, link: str | None = None, sender: str | None = None) -> tuple[str, bool]:
+                   price: str | None = None, link: str | None = None, sender: str | None = None,
+                   issue: str | None = None) -> tuple[str, bool]:
     words = describe_size(size)
     what = f"{words} in {last_label}" if words else f"space in {last_label}"
     if is_configured():
@@ -242,6 +244,8 @@ def _renewal_draft(client: str, title: str, last_label: str, size: str | None, e
             facts.append(f"Link to their previous ad: {link}")
         if price:
             facts.append(f"This year's price for the same: {price}")
+        if issue:
+            facts.append(f"The issue to offer them (from the editorial plan): {issue}")
         if sender:
             facts.append(f"Salesperson: {sender}")
         result = extract_json(prompt, "\n".join(facts), purpose="sor_renewal.draft")
@@ -250,8 +254,9 @@ def _renewal_draft(client: str, title: str, last_label: str, size: str | None, e
             return f"Subject: {subject}\n\n{body}", True
     paras = [f"Hi,\n\nThank you again for booking {what} last year."
              + (f" You can see it again here: {link}" if link else "")]
-    paras.append(f"The new {title} edition is now open for bookings, and I wanted to give you first refusal on "
-                 f"the same space before it goes." + (f" This year the same placement is {price}." if price else ""))
+    paras.append((f"{issue} It's now open for bookings" if issue else f"The new {title} edition is now open for bookings")
+                 + ", and I wanted to give you first refusal on the same space before it goes."
+                 + (f" This year the same placement is {price}." if price else ""))
     paras.append("Would you like me to reserve it for you again?")
     paras.append("Best regards" + (f"\n{sender}" if sender else ""))
     body = "\n\n".join(paras)
@@ -267,6 +272,15 @@ def _split_draft(draft: str) -> tuple[str, str]:
     return "", text
 
 
+def _issue_text(f: dict) -> str:
+    """"Issue 106 publishes on ... (advertising deadline ...). It features X, Y and Z." for the renewal email."""
+    s = issue_sentence(f)
+    feats = f.get("sponsorable") or f.get("features") or []
+    if feats:
+        s += " It features " + (feats[0] if len(feats) == 1 else ", ".join(feats[:3][:-1]) + " and " + feats[:3][-1]) + "."
+    return s
+
+
 def _renewal_facts(db: Session, title: SalesTitle, ed: SalesEdition, order: SalesOrder, target_year: int) -> dict:
     """Price, link, owner and recipient for one renewal - each one either
     known for certain or flagged as missing, never guessed."""
@@ -277,7 +291,10 @@ def _renewal_facts(db: Session, title: SalesTitle, ed: SalesEdition, order: Sale
     owner_id = rn.owner_user_id(db, order)
     owner = db.get(User, owner_id) if owner_id else None
     recipient = rn.best_recipient(db, order.company_id)
+    nxt = renewal_issue(db, ed, target_year)
+    issue = issue_facts(db, nxt) if nxt else None
     return {
+        "issue": issue, "issue_text": _issue_text(issue) if issue else None,
         "price": _money(rate.price_gbp) if rate else None,
         "price_note": f"{_money(rate.price_gbp)} ({rate.product}, {target_year} rate card)" if rate
         else f"Not on the {target_year} rate card - add it, then Regenerate (the draft quotes no price)",
@@ -297,6 +314,11 @@ def _renewal_details(order: SalesOrder, last_label: str, total: float, count: in
                                                           + (f", booked {order.booked_on:%d %b %Y}" if order.booked_on else "")},
         {"key": "value", "label": "Spent with this title last year", "value": f"{_money(total)} across {count} booking(s)"},
         {"key": "rep", "label": "Their salesperson", "value": rep.name if rep else "-"},
+        ({"key": "issue", "label": "Issue to offer", "value": f"{facts['issue']['label']} - " + "; ".join(
+            x for x in (f"out {facts['issue']['publication_text']}" if facts['issue'].get('publication_text') else "",
+                        f"advertising deadline {facts['issue']['ad_deadline_text']}" if facts['issue'].get('ad_deadline_text') else "") if x),
+          "href": f"/editorial/issues/{facts['issue']['id']}"}
+         if facts.get("issue") else {"key": "issue", "label": "Issue to offer", "value": "No upcoming issue in the editorial plan"}),
         {"key": "price", "label": "This year's price", "value": facts["price_note"]},
         {"key": "link", "label": "Previous ad online", "value": facts["link"] or facts["link_note"]},
         {"key": "to", "label": "Suggested recipient", "value": (f"{facts['suggested_to_name']} <{facts['suggested_to']}>".strip()
@@ -317,7 +339,7 @@ def queue_renewal(db: Session, title: SalesTitle, order: SalesOrder, ed: SalesEd
     facts = _renewal_facts(db, title, ed, order, target_year)
     rep = reps.get(order.rep_id)
     draft, was_ai = _renewal_draft(order.client_name, title.name, last_label, order.size,
-                                   price=facts["price"], link=facts["link"],
+                                   price=facts["price"], link=facts["link"], issue=facts["issue_text"],
                                    sender=(facts["owner_name"] or (rep.name if rep else "") or "").split(" ")[0] or None)
     item = ReviewQueueItem(
         id=uuid.uuid4(), kind=RENEWAL_KIND, source_db=title.crm_source_db,
@@ -424,7 +446,7 @@ def _redraft_renewal(db: Session, item: ReviewQueueItem, extra: str) -> str:
                                                         p.get("count", 1), rep, facts, True),
                         "suggested_to": p.get("suggested_to") or facts["suggested_to"]}
     draft, _ = _renewal_draft(p.get("client_name", ""), p.get("title_name", ""), p.get("last_edition_label", ""),
-                              p.get("size"), extra, price=facts.get("price"), link=facts.get("link"),
+                              p.get("size"), extra, price=facts.get("price"), link=facts.get("link"), issue=facts.get("issue_text"),
                               sender=(facts.get("owner_name") or "").split(" ")[0] or None)
     return draft
 

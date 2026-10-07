@@ -46,7 +46,7 @@ Spec stages and status (IDs from `docs/build-spec.txt`):
 | | SALES-009 proposal logging | **First pass done** — “I've sent it” notes the proposal on the client + sets a follow-up reminder |
 | | AI Hub chat | Left — postponed to the very end |
 | 3 Daily engine | SALES-012 triggers, SALES-013 morning queue, SALES-005 touchpoints, SALES-021 renewals | **Done** |
-| | SALES-020 proposal builder | **Done incl. Outlook sending (§3.7)** — tone-matching and the editorial plan wait on BMI's examples/plan |
+| | SALES-020 proposal builder | **Done incl. Outlook sending (§3.7), issue details from the editorial plan and rate-card offers (§3.10)** — tone-matching waits on BMI's sent examples |
 | | SALES-022 template library + save-the-sale | Left (mail-merge templates are a start) |
 | | SALES-023 meeting notes → pitch | Left |
 | 4 Reporting | SALES-026 dashboard, SALES-028 weekly summary + alerts | **Done** (delivery by email/Teams waits on BMI) |
@@ -154,7 +154,7 @@ Finance raises the invoice in Xero; the app finds the booking it belongs to, so 
 **What exists:** Sales Orders → Proposals (list, `/sales/proposals/new`, `/sales/proposals/[id]`) and a "Build a proposal" button on every company page. Pick client + title (title picks the Word template OBH/STM/TBTM, changeable), add products from the rate card with quantities (or own lines with typed prices), the brain drafts five sections (Introduction, Your history with us, What we propose, Investment, Next steps), the rep edits/reorders/adds sections, previews, downloads the `.docx` in Matt's template, then "I've sent it" logs a "Proposal sent" note on the company (products + total before VAT) and sets a follow-up reminder (default 14 days). Nothing is ever sent automatically.
 **Rules built in:** rate-card lines are always priced server-side from `sales_rates` (browser prices ignored); AI text is discarded per section if it contains any figure not in the client history / rate card / lines (`app/proposals/drafting.py`, same idea as the weekly summary guard) and standard wording is used; missing inputs become plain-English flags on the screen (no bookings, no rate card for that year, editorial plan not loaded) rather than invented content. Sales reps see only their own proposals; admins/data managers see all. Code: `backend/app/proposals/`, `api/routes/proposals.py`, `models/proposal.py` (migration 0033), `components/sales/proposal-*.tsx`, tests in `tests/test_proposals.py`.
 **Outlook sending (done):** "Email it from Outlook" opens a draft email (contact's address, plain subject and note, all editable), sends from the rep's own connected Outlook with the Word file attached (under 3 MB), and only then logs it (note includes who it went to) + sets the reminder. A failed send logs nothing. Endpoints `GET /api/proposals/{id}/email-draft`, `POST /api/proposals/{id}/send`.
-**Next passes:** BMI voice once 3-5 sent proposals arrive; editorial plan section; reuse sent proposals as the pitch store (SALES-023).
+**Next passes:** BMI voice once 3-5 sent proposals arrive; reuse sent proposals as the pitch store (SALES-023). (Editorial plan + offers: done, see §3.10.)
 
 Original plan (kept for reference):
 Spec: rep picks client + title → app drafts a proposal in BMI's Word template using client history, current rates, editorial plan and BMI's voice → rep edits → download or send from Outlook → logged against the client with a follow-up.
@@ -165,6 +165,27 @@ Plan:
 3. AI drafts **only the body**; prices always come from the rate card; never invent figures (same guard as SALES-028).
 4. Rep edits on screen → download `.docx` or send via their Outlook (reuse mail-merge sender) → logs history (that's SALES-009 for proposals) + sets a follow-up reminder.
 5. Missing inputs (don't block the build): editorial plan/feature list → omit section and flag; rate card not loaded → leave price section empty; voice → neutral tone until sent examples arrive.
+
+### 3.8 Rate card revamp (7 Oct 2026)
+Sales Orders > Rate card is now one page per **brand** (OBH, TBTM, Selling Travel - `app/sales/brands.py`), laid out like the media packs: sections (print, sponsored, website, newsletter, events, awards, listings, other), click a price to change it, side panel for the full product (price type fixed / "from" / on request, unit, specs, other names it goes by, valid until), "Looks right" to clear a please-check flag, drag order, offers (volume "book N save X%", series "N entries for £Y", early bird, notes), next-year wizard (raise by %, round, per-item overrides), change history with put back, Excel download and print. Prices are before VAT.
+- **Who edits:** admins + data managers everything; a publisher only their own brand (rep codes in `Brand.editors`, linked through `SalesRep.user_id`). Everyone can read.
+- **Media-pack data:** `app/sales/rate_card_seed.py` holds the 2026 prices read from BMI's media packs; loaded only by the "Load from the media pack" button per brand (never by a migration). Items we inferred are flagged "please check".
+- Code: `api/routes/rate_card.py`, `models/sales.py` (`SalesRate` new columns, `RateOffer`), migration `0035`, `components/rate-card/*`, tests `test_rate_card.py`.
+
+### 3.9 Editorial plan (7 Oct 2026)
+Sidebar > **Editorial plan** (`/editorial`): year planner (lanes per title, today line), deadlines list (soonest first), list view; brand chips + year switch. Each issue page (`/editorial/issues/[id]`) has key dates (editorial / advertising / copy deadlines, extra milestones, "use the usual rules"), features (paste a list, reorder, confirm/drop, mark sponsorable), details (theme, distribution, format), notes, bookings so far vs last year, and **Who should we pitch?** (§3.10). Brand settings (`/editorial/settings/[brand]`): deadline rules (N days before publication / Nth of the month before), regular sections, about text. "Plan next year" copies a brand's issues a year on (same weekday; numbered issues continue).
+- Issues ARE order-register editions (`SalesEdition`, kinds issue/guide/event/awards), so an issue's plan and its bookings live together; order-register re-import keeps plan fields and features.
+- **Published plan data:** `app/sales/editorial_seed.py` (OBH 105-108 + Awards 2027, TBTM issues/guide/digital specials/Dinner Clubs/Lunch Forums/Awards; Selling Travel still missing), loaded by the "Load the published plan" button. Dates worked out from rules or estimated are flagged "please check".
+- Same edit rights as the rate card. Code: `api/routes/editorial.py`, `app/sales/editorial.py`, models `EditionFeature`, `EditorialSetting`, migration `0036`, `components/editorial/*`, tests `test_editorial.py`.
+
+### 3.10 Rate card + editorial plan hook-ups (7 Oct 2026)
+- **Proposals:** each proposal is for an issue (`proposals.edition_id`, migration `0037`). If none is chosen, the title's next issue still open for adverts is picked and flagged. The issue's date, advertising deadline, theme and features go into the wording (template and AI; the AI figure guard knows the issue facts) and the next steps ("copy and artwork are needed by ..."). The issue can be changed on the proposal (then Redraft). "Pitch this issue" on an issue page and "Draft a proposal" in Who should we pitch? open `/sales/proposals/new?edition=...(&company=...)`.
+- **Offers:** `app/sales/offers.py` applies the brand's rate-card offers to rate-card lines on every save - each becomes a read-only negative line ("Offer: ...") shown in green and in the Word file as "-£60.00". Lines remember their `rate_id`. Expired offers are skipped; a rate past its "valid until" is flagged.
+- **Renewal emails:** the draft names this year's counterpart of the issue the advertiser booked (or the next open one), with its date, deadline and up to three features; the review card has an "Issue to offer" row that opens the issue in a new tab (`ReviewDetail.href`).
+- **Who should we pitch?** (`GET /api/editorial/issues/{id}/pitch`): last year's equivalent issue's advertisers not yet rebooked, the previous issue's advertisers, and past advertisers (3 years) whose company name/industry/category matches a planned feature's words. Company names open in a new tab.
+- **Advertising deadline reminders** (`app/automations/editorial_deadlines.py`, job `editorial_deadline_alerts`, 07:15 daily, OFF by default - setting "Advertising deadline reminders", days "14,7,1"): an in-app notification to the brand's publishers and anyone who sold that title in the last year, with bookings so far and how many of last year's advertisers haven't rebooked; once per issue per reminder day.
+- Tests: `test_editorial_hookups.py`.
+- **Deploy:** `alembic upgrade head` (migrations `0035`-`0037`) and `pip install -r requirements.txt` (adds `pdfplumber` for the contact import).
 
 ---
 
@@ -291,8 +312,8 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 2. **IT – automation@ shared mailbox** + app-only Mail.Send restricted by an Application Access Policy to that mailbox.
 3. **Teams incoming webhook** (summaries/alerts).
 4. **Xero app** registered at developer.xero.com (client id/secret).
-5. **Rate card per title** (sizes/packages, VAT, discounts).
-6. **Editorial plan / features list** per title (issue dates, deadlines, themes).
+5. **Rate card:** media packs received and loaded for all three brands (§3.8); BMI to confirm the items marked "please check" and whether prices are before VAT.
+6. **Editorial plan:** OBH + TBTM loaded (§3.9); still need Selling Travel's issue dates and features list.
 7. **Digital edition links** (past issues or the link pattern; one issue link + one page link).
 8. **3–5 sent proposals** (voice for SALES-020).
 9. **Commission rule** (2% vs 5%).
@@ -303,10 +324,10 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 **WhatsApp ask already sent (3 Oct):** rate card, editorial plan, digital edition links, 3–5 sent proposals.
 
 ## 8. Suggested next steps
-1. Proposal builder: BMI voice from sent examples + editorial plan section when BMI send them (both blocked on BMI).
+1. Proposal builder: BMI voice from sent examples (blocked on BMI). Editorial plan + offers are wired in (§3.10).
 2. Act! feedback #7 (company address → update contacts with opt-out).
 3. SALES-024 pipeline → SALES-025 chase lists.
 4. Xero figures on the SALES-026 dashboard once Xero is connected live.
-5. Load rate card + link patterns when BMI sends them.
+5. Load link patterns when BMI sends them; Selling Travel editorial plan when it arrives; have each publisher press "Looks right" on their rate card and plan.
 6. SALES-022, SALES-023, then (with Ahmed's go-ahead and a proper plan) the AI chat.
 7. Before go-live: fresh Act! migration, `refresh_sor` on live, reps test mail merge.

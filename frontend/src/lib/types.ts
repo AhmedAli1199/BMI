@@ -253,7 +253,7 @@ export type ReviewKind = {
 
 export type ReviewFacet = { key: string; label: string; options: { value: string; count: number }[] };
 
-export type ReviewDetail = { key?: string; label: string; value: string; editable?: boolean };
+export type ReviewDetail = { key?: string; label: string; value: string; editable?: boolean; /** Opens the record it names, in a new tab. */ href?: string };
 export type ReviewRelatedEntity = { type: "contact" | "company"; id: string; label: string };
 export type ReviewCandidate = { contact_id?: string; label?: string; source?: string };
 

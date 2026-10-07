@@ -1,5 +1,5 @@
 export type ProposalSection = { id: string; kind: string; heading: string; body: string };
-export type ProposalLine = { id?: string; product: string; qty: number; unit_price: number | null; source: "rate_card" | "manual"; rate_id?: string | null };
+export type ProposalLine = { id?: string; product: string; qty: number; unit_price: number | null; source: "rate_card" | "manual" | "offer"; rate_id?: string | null };
 
 export type ProposalHistoryBooking = { title: string; edition: string; year: number; size: string | null; value_gbp: number; booked_on: string | null };
 export type ProposalContext = {
@@ -8,7 +8,27 @@ export type ProposalContext = {
   year?: number;
   history?: { count: number; total_gbp: number; by_year: Record<string, number>; bookings: ProposalHistoryBooking[] };
   rates?: { id: string; product: string; price_gbp: number; notes: string | null }[];
+  issue?: ProposalIssue | null;
 };
+
+/** The issue a proposal is for, from the editorial plan. */
+export type ProposalIssue = {
+  id: string;
+  label: string;
+  name: string;
+  kind: string;
+  publication: string | null;
+  publication_text: string;
+  ad_deadline: string | null;
+  ad_deadline_text: string;
+  theme: string | null;
+  distribution: string | null;
+  period: string | null;
+  features: string[];
+  sponsorable: string[];
+};
+
+export type UpcomingIssue = { id: string; label: string; kind: string; edition_date: string | null; ad_deadline: string | null; open: boolean; suggested: boolean };
 
 export type Proposal = {
   id: string;
@@ -17,6 +37,8 @@ export type Proposal = {
   contact_id: string | null;
   title_id: string | null;
   title_name: string | null;
+  edition_id: string | null;
+  issue: ProposalIssue | null;
   template: "obh" | "stm" | "tbtm";
   template_label: string;
   campaign_name: string;

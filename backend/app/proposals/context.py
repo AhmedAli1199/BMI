@@ -12,11 +12,14 @@ from sqlalchemy.orm import Session
 
 from app.models import Company, SalesEdition, SalesOrder, SalesRate, SalesTitle
 from app.sales.analytics import BOOKED
+from app.sales.editorial import issue_facts
 
 MAX_HISTORY_ROWS = 12
 
 
 def gbp(v: float) -> str:
+    if v < 0:
+        return "-" + gbp(-v)
     return f"£{v:,.2f}" if v != int(v) else f"£{int(v):,}"
 
 
@@ -52,7 +55,8 @@ def client_history(db: Session, company_id: uuid.UUID) -> dict:
     }
 
 
-def build_context(db: Session, company: Company, title: SalesTitle | None, year: int) -> tuple[dict, list[str]]:
+def build_context(db: Session, company: Company, title: SalesTitle | None, year: int,
+                  edition: SalesEdition | None = None) -> tuple[dict, list[str]]:
     """(context, flags). Flags are plain-English gaps - the builder shows
     them instead of inventing what's missing."""
     history = client_history(db, company.id)
@@ -64,6 +68,10 @@ def build_context(db: Session, company: Company, title: SalesTitle | None, year:
         flags.append(f"No {year} rate card for {title.name} yet, so prices need adding by hand.")
     if not title:
         flags.append("No title chosen, so there are no rate card prices to pick from.")
-    flags.append("The editorial plan isn't loaded yet, so add any editorial or feature details yourself.")
+    issue = issue_facts(db, edition) if edition else None
+    if title and not issue:
+        flags.append(f"No upcoming issue of {title.name} is in the editorial plan, so add any issue or feature details yourself.")
+    elif issue and not issue["features"] and issue["kind"] in ("issue", "guide"):
+        flags.append(f"No features are planned for {issue['label']} yet, so the proposal doesn't mention any.")
     return {"company": company.name, "title": title.name if title else None, "year": year,
-            "history": history, "rates": rates}, flags
+            "history": history, "rates": rates, "issue": issue}, flags

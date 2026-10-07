@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarCog, Check, ChevronRight, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import type { Feature, IssueDetail, IssueFormat, Milestone } from "@/lib/editorial-types";
+import type { Feature, IssueDetail, IssueFormat, Milestone, PitchList } from "@/lib/editorial-types";
 import { FORMAT_LABELS, KIND_LABELS, issueLabel } from "@/lib/editorial-types";
 import { addFeature, applyIssueRules, deleteFeature, deleteIssue, editFeature, editIssue, reorderFeatures } from "@/lib/editorial-actions";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,13 @@ import { InfoHint } from "@/components/sales/info-hint";
 import { fmtGBP } from "@/components/sales/sales-ui";
 import { brandColor } from "@/components/rate-card/brand-style";
 import { countdownColor, daysLabel, fmtDay } from "@/components/editorial/editorial-ui";
+import { WhoToPitch } from "@/components/editorial/who-to-pitch";
 
 const selectCls = "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const daysFrom = (iso: string) => Math.round((new Date(iso + "T00:00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
 
 /** One issue (or event): its key dates, the features planned for it, its details and how bookings are going. */
-export function IssuePage({ issue }: { issue: IssueDetail }) {
+export function IssuePage({ issue, pitch }: { issue: IssueDetail; pitch: PitchList | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const canEdit = issue.can_edit;
@@ -62,6 +63,7 @@ export function IssuePage({ issue }: { issue: IssueDetail }) {
         <div className="flex min-w-0 flex-col gap-5">
           <KeyDates issue={issue} canEdit={canEdit} isPrint={isPrint} />
           <Features issue={issue} canEdit={canEdit} />
+          {pitch && <WhoToPitch pitch={pitch} open={isOpen(issue)} />}
           {issue.settings.regular_sections.length > 0 && (
             <details className="rounded-xl border border-border/80 bg-card shadow-2xs">
               <summary className="cursor-pointer px-4 py-3 text-sm font-bold">Regular sections in every issue ({issue.settings.regular_sections.length})</summary>
@@ -94,6 +96,12 @@ export function IssuePage({ issue }: { issue: IssueDetail }) {
       </div>
     </>
   );
+}
+
+/** Can it still take adverts? (advertising deadline, or failing that the publication date, not passed) */
+function isOpen(issue: IssueDetail): boolean {
+  const d = issue.ad_deadline ?? issue.edition_date;
+  return !d || d >= new Date().toISOString().slice(0, 10);
 }
 
 function DateRow({ label, value, hint }: { label: string; value: string | null; hint?: string }) {

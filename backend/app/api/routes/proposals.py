@@ -20,7 +20,7 @@ from app.api.routes.messaging import current_user
 from app.api.schemas import MANUAL_SOURCE_DB
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import Company, Contact, Email, Note, SalesRate, SalesTitle, User
+from app.models import Company, Contact, Email, Note, SalesEdition, SalesRate, SalesTitle, User
 from app.models.messaging import MailAccount
 from app.services import mail_merge as mm
 from app.services import outlook
@@ -30,6 +30,8 @@ from app.proposals import context as ctx_mod
 from app.proposals import drafting
 from app.proposals.docx_builder import TEMPLATE_LABELS, build_docx, template_for_slug
 from app.roles import CAN_USE_AUTOMATIONS
+from app.sales.editorial import issue_facts, next_issue
+from app.sales.offers import apply_offers
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -39,7 +41,7 @@ class LineIn(BaseModel):
     product: str = Field(min_length=1, max_length=200)
     qty: int = Field(default=1, ge=1, le=999)
     unit_price: float | None = Field(default=None, ge=0)
-    source: str = "manual"  # rate_card | manual
+    source: str = "manual"  # rate_card | manual | offer (offer lines are worked out here, so the browser's copy is ignored)
     rate_id: uuid.UUID | None = None
 
 
@@ -54,6 +56,7 @@ class ProposalCreate(BaseModel):
     company_id: uuid.UUID
     contact_id: uuid.UUID | None = None
     title_id: uuid.UUID | None = None
+    edition_id: uuid.UUID | None = None  # none -> the title's next issue that's still open for bookings
     template: str | None = None
     campaign_name: str | None = None
     year: int | None = None
@@ -65,6 +68,7 @@ class ProposalPatch(BaseModel):
     campaign_name: str | None = Field(default=None, max_length=200)
     template: str | None = None
     contact_id: uuid.UUID | None = None
+    edition_id: uuid.UUID | None = None
     lines: list[LineIn] | None = None
     sections: list[SectionIn] | None = None
     notes: str | None = None
@@ -103,6 +107,8 @@ class ProposalOut(BaseModel):
     contact_id: uuid.UUID | None
     title_id: uuid.UUID | None
     title_name: str | None
+    edition_id: uuid.UUID | None = None
+    issue: dict | None = None
     template: str
     template_label: str
     campaign_name: str
@@ -132,9 +138,10 @@ def _out(db: Session, p: Proposal) -> ProposalOut:
     rem = db.get(Reminder, p.follow_up_reminder_id) if p.follow_up_reminder_id else None
     return ProposalOut(
         id=p.id, company_id=p.company_id, company_name=company.name if company else "", contact_id=p.contact_id,
-        title_id=p.title_id, title_name=title.name if title else None, template=p.template,
+        title_id=p.title_id, title_name=title.name if title else None, edition_id=p.edition_id,
+        issue=(p.context or {}).get("issue"), template=p.template,
         template_label=TEMPLATE_LABELS.get(p.template, p.template), campaign_name=p.campaign_name, status=p.status,
-        sections=p.sections, lines=p.lines, total_gbp=float(p.total_gbp), context=p.context, flags=p.flags,
+        sections=p.sections, lines=p.lines, total_gbp=float(p.total_gbp), context=p.context, flags=[*p.flags, *((p.context or {}).get("offer_notes") or [])],
         drafted_by=p.drafted_by, created_by=user.name if user else None, created_at=p.created_at, sent_at=p.sent_at,
         sent_via=p.sent_via, follow_up_due=rem.due_at if rem and rem.status == "open" else None, notes=p.notes,
     )
@@ -145,6 +152,8 @@ def _price_lines(db: Session, lines: list[LineIn], title_id: uuid.UUID | None, y
     browser sent. Manual lines keep the price the salesperson typed."""
     out = []
     for ln in lines:
+        if ln.source == "offer":
+            continue
         if ln.source == "rate_card":
             rate = db.get(SalesRate, ln.rate_id) if ln.rate_id else None
             if rate is None and title_id:
@@ -155,13 +164,30 @@ def _price_lines(db: Session, lines: list[LineIn], title_id: uuid.UUID | None, y
             if rate.price_gbp is None:
                 raise HTTPException(422, f"“{rate.product}” is priced on request - add it as your own line with the price you've agreed.")
             out.append({"id": ln.id or str(uuid.uuid4()), "product": rate.product, "qty": ln.qty,
-                        "unit_price": float(rate.price_gbp), "source": "rate_card"})
+                        "unit_price": float(rate.price_gbp), "source": "rate_card", "rate_id": str(rate.id)})
         else:
             if ln.unit_price is None:
                 raise HTTPException(422, f"Add a price for “{ln.product}”.")
             out.append({"id": ln.id or str(uuid.uuid4()), "product": ln.product.strip(), "qty": ln.qty,
                         "unit_price": round(ln.unit_price, 2), "source": "manual"})
     return out
+
+
+def _set_lines(db: Session, p: Proposal, lines: list[LineIn], year: int) -> None:
+    """Prices the lines, then adds any rate-card offers they qualify for (e.g. "book 3, save 20%")."""
+    priced = _price_lines(db, lines, p.title_id, year)
+    priced, notes = apply_offers(db, priced, p.title_id, year)
+    p.lines, p.total_gbp = priced, _total(priced)
+    p.context = {**(p.context or {}), "offer_notes": notes}
+
+
+def _edition_for(db: Session, title: SalesTitle | None, edition_id: uuid.UUID | None) -> SalesEdition | None:
+    if not edition_id:
+        return None
+    e = db.get(SalesEdition, edition_id)
+    if not e or (title and e.title_id != title.id):
+        raise HTTPException(422, "That issue isn't one of this title's issues.")
+    return e
 
 
 def _total(lines: list[dict]) -> float:
@@ -179,7 +205,12 @@ def _draft(db: Session, p: Proposal, *, use_ai: bool) -> None:
     company = db.get(Company, p.company_id)
     title = db.get(SalesTitle, p.title_id) if p.title_id else None
     year = (p.context or {}).get("year") or date.today().year
-    ctx, flags = ctx_mod.build_context(db, company, title, year)
+    edition = db.get(SalesEdition, p.edition_id) if p.edition_id else None
+    ctx, flags = ctx_mod.build_context(db, company, title, year, edition)
+    ctx["offer_notes"] = (p.context or {}).get("offer_notes") or []
+    if (p.context or {}).get("issue_auto") and edition:
+        ctx["issue_auto"] = True
+        flags.insert(0, f"We picked {ctx['issue']['label']}, the next one still open for bookings - change it if the client wants a different one.")
     wording, by = drafting.draft_sections(ctx, p.lines, p.campaign_name, use_ai=use_ai)
     if not p.lines:
         flags.append("No products added yet - add some from the rate card so the Investment section has prices.")
@@ -199,11 +230,17 @@ def create_proposal(payload: ProposalCreate, db: Session = Depends(get_db), user
     template = payload.template or template_for_slug(title.slug if title else None)
     if template not in PROPOSAL_TEMPLATES:
         raise HTTPException(422, "Unknown template")
-    lines = _price_lines(db, payload.lines, payload.title_id, year)
+    edition = _edition_for(db, title, payload.edition_id)
+    auto = False
+    if edition is None and title:
+        edition = next_issue(db, title.id)
+        auto = edition is not None
     p = Proposal(id=uuid.uuid4(), company_id=company.id, contact_id=payload.contact_id, title_id=payload.title_id,
+                 edition_id=edition.id if edition else None,
                  template=template, campaign_name=(payload.campaign_name or f"{company.name} {year}/{str(year + 1)[2:]}").strip(),
-                 status="draft", lines=lines, total_gbp=_total(lines), context={"year": year}, flags=[], sections=[],
+                 status="draft", lines=[], total_gbp=0, context={"year": year, "issue_auto": auto}, flags=[], sections=[],
                  created_by_user_id=user.id)
+    _set_lines(db, p, payload.lines, year)
     _draft(db, p, use_ai=payload.use_ai)
     db.add(p)
     db.commit()
@@ -239,9 +276,15 @@ def update_proposal(pid: uuid.UUID, payload: ProposalPatch, db: Session = Depend
         p.template = payload.template
     if "contact_id" in payload.model_fields_set:
         p.contact_id = payload.contact_id
+    if "edition_id" in payload.model_fields_set:
+        title = db.get(SalesTitle, p.title_id) if p.title_id else None
+        edition = _edition_for(db, title, payload.edition_id)
+        p.edition_id = edition.id if edition else None
+        # The wording isn't rewritten (it may have been edited) - the screen offers a redraft.
+        p.context = {**(p.context or {}), "issue": issue_facts(db, edition) if edition else None, "issue_auto": False}
+        p.flags = [f for f in p.flags if not f.startswith("We picked ")]
     if payload.lines is not None:
-        p.lines = _price_lines(db, payload.lines, p.title_id, (p.context or {}).get("year") or date.today().year)
-        p.total_gbp = _total(p.lines)
+        _set_lines(db, p, payload.lines, (p.context or {}).get("year") or date.today().year)
     if payload.sections is not None:
         p.sections = [{"id": s.id or str(uuid.uuid4()), "kind": s.kind, "heading": s.heading.strip(), "body": s.body}
                       for s in payload.sections]

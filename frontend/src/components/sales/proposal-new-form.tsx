@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EntityPicker } from "@/components/entity-picker";
 import { InfoHint } from "@/components/sales/info-hint";
+import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 import { fmtGBP } from "@/components/sales/sales-ui";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -22,12 +23,20 @@ type Row = { key: string; product: string; qty: number; price: string; source: "
 
 const templateFor = (slug: string) => (slug.startsWith("obh") ? "obh" : slug.startsWith("tbtm") ? "tbtm" : "stm");
 
-export function ProposalNewForm({ titles, rates, year, company: initial }: { titles: SalesTitle[]; rates: SalesRate[]; year: number; company: Option | null }) {
+export function ProposalNewForm({ titles, rates, year, company: initial, initialTitleId, initialEditionId }: {
+  titles: SalesTitle[];
+  rates: SalesRate[];
+  year: number;
+  company: Option | null;
+  initialTitleId?: string | null;
+  initialEditionId?: string | null;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [company, setCompany] = useState<Option | null>(initial);
   const [contact, setContact] = useState<Option | null>(null);
-  const [titleId, setTitleId] = useState(titles[0]?.id ?? "");
+  const [titleId, setTitleId] = useState(initialTitleId && titles.some((t) => t.id === initialTitleId) ? initialTitleId : titles[0]?.id ?? "");
+  const [editionId, setEditionId] = useState(initialEditionId ?? "");
   const title = titles.find((t) => t.id === titleId);
   const [template, setTemplate] = useState(title ? templateFor(title.slug) : "stm");
   const [campaign, setCampaign] = useState(initial ? `${initial.label} ${year}/${String(year + 1).slice(2)}` : "");
@@ -44,6 +53,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
     setTitleId(id);
     const t = titles.find((x) => x.id === id);
     if (t) setTemplate(templateFor(t.slug));
+    setEditionId("");
     setRows((rs) => rs.filter((r) => r.source === "manual"));
   }
   function addRate(rateId: string) {
@@ -64,7 +74,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
           source: r.source,
           rate_id: r.rateId ?? null,
         }));
-        const p = await createProposal({ company_id: company.id, contact_id: contact?.id ?? null, title_id: titleId || null, template, campaign_name: campaign.trim(), year, lines });
+        const p = await createProposal({ company_id: company.id, contact_id: contact?.id ?? null, title_id: titleId || null, edition_id: editionId || null, template, campaign_name: campaign.trim(), year, lines });
         router.push(`/sales/proposals/${p.id}`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Couldn't start the proposal");
@@ -87,6 +97,10 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
             {titles.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </label>
+        <label className={`${labelCls} sm:col-span-2`}>
+          <span className="flex items-center gap-1">Which issue <InfoHint>From the editorial plan. Its date, advertising deadline and planned features go into the wording. Leave it on “next open issue” and we&apos;ll pick the next one that can still take adverts.</InfoHint></span>
+          <ProposalIssuePicker titleId={titleId || null} value={editionId} onChange={(id) => setEditionId(id)} include={initialEditionId} emptyLabel="The next open issue (picked for you)" />
+        </label>
         <label className={labelCls}>
           <span className="flex items-center gap-1">Word template <InfoHint>Follows the title you chose (Onboard Hospitality, Selling Travel, or The Business Travel Magazine). Change it if the proposal belongs in a different look.</InfoHint></span>
           <select className={selectCls} value={template} onChange={(e) => setTemplate(e.target.value)}>
@@ -102,7 +116,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
       <section className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs">
         <header className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
           <h2 className="text-sm font-bold">What you&apos;re offering</h2>
-          <InfoHint>Pick products from the {year} rate card - their prices are filled in for you and can&apos;t be changed here. For anything not on the rate card, add your own line and type the price. All prices are before VAT.</InfoHint>
+          <InfoHint>Pick products from the {year} rate card - their prices are filled in for you and can&apos;t be changed here. For anything not on the rate card, add your own line and type the price. All prices are before VAT. Any rate card offers (like “book 3, save 20%”) are added for you when the proposal is drafted.</InfoHint>
         </header>
         <div className="flex flex-col gap-2 p-4">
           {titleRates.length === 0 && <p className="text-xs text-muted-foreground">There&apos;s no {year} rate card for {title?.name ?? "this title"} yet, so add your own lines with prices below.</p>}

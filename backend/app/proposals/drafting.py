@@ -9,6 +9,7 @@ import re
 import uuid
 
 from app.proposals.context import gbp
+from app.sales.editorial import issue_sentence
 
 _NUMBER = re.compile(r"£\s?[\d,]+(?:\.\d+)?|\d+(?:\.\d+)?%|\d[\d,]*(?:\.\d+)?")
 
@@ -43,7 +44,12 @@ def facts_text(ctx: dict, lines: list[dict], campaign_name: str) -> str:
     for r in ctx.get("rates") or []:
         parts += [r["product"], gbp(r["price_gbp"]), str(r["price_gbp"])]
     for ln in lines:
-        parts += [str(ln["qty"]), gbp(ln["unit_price"]), str(ln["unit_price"]), ln["product"]]
+        parts += [str(ln["qty"]), gbp(ln["unit_price"]), str(ln["unit_price"]), str(abs(ln["unit_price"])), ln["product"]]
+    issue = ctx.get("issue") or {}
+    if issue:
+        parts += [issue.get("label") or "", issue.get("name") or "", issue.get("publication_text") or "", issue.get("ad_deadline_text") or "",
+                  issue.get("publication") or "", issue.get("ad_deadline") or "", issue.get("theme") or "", issue.get("distribution") or "",
+                  issue.get("period") or "", *(issue.get("features") or [])]
     return " ".join(parts)
 
 
@@ -62,13 +68,31 @@ def template_wording(ctx: dict, lines: list[dict], campaign_name: str) -> dict[s
                    f"worth {gbp(h['total_gbp'])} in total (before VAT).")
     else:
         history = "We haven't worked together before, and we would love the chance to start."
-    products = ", ".join(ln["product"] for ln in lines) or "a package tailored to your goals"
+    products = ", ".join(ln["product"] for ln in lines if ln.get("source") != "offer") or "a package tailored to your goals"
+    offers = [ln["product"].removeprefix("Offer: ") for ln in lines if ln.get("source") == "offer"]
+    proposal = f"We propose the following for {campaign_name}: {products}."
+    if offers:
+        proposal += f" This includes our offer: {'; '.join(offers)}."
+    next_steps = "- Let us know which of these options suits you\n- We'll confirm availability and send the booking form\n- We'll agree copy and artwork deadlines"
+    issue = ctx.get("issue")
+    if issue:
+        proposal = f"{issue_sentence(issue)} {proposal}"
+        feats = issue.get("sponsorable") or issue.get("features") or []
+        if feats:
+            proposal += f" Features planned for this issue include {_join(feats[:4])}."
+        if issue.get("ad_deadline_text"):
+            next_steps = (f"- Let us know which of these options suits you\n- We'll confirm your space and send the booking form\n"
+                          f"- Copy and artwork are needed by {issue['ad_deadline_text']}")
     return {
         "intro": f"Thank you for your time. We'd like to set out how {title} can help {ctx.get('company', 'your business')} reach the right audience.",
         "history": history,
-        "proposal": f"We propose the following for {campaign_name}: {products}.",
-        "next_steps": "- Let us know which of these options suits you\n- We'll confirm availability and send the booking form\n- We'll agree copy and artwork deadlines",
+        "proposal": proposal,
+        "next_steps": next_steps,
     }
+
+
+def _join(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
 SYSTEM = (
@@ -90,7 +114,8 @@ def draft_sections(ctx: dict, lines: list[dict], campaign_name: str, *, use_ai: 
         return fallback, "template"
     facts = facts_text(ctx, lines, campaign_name)
     user = (f"Client: {ctx.get('company')}\nCampaign: {campaign_name}\nTitle: {ctx.get('title')}\n"
-            f"Booking history: {ctx.get('history')}\nProducts proposed: {lines}\n\nFACTS (the only figures you may use): {facts}")
+            f"Booking history: {ctx.get('history')}\nProducts proposed: {lines}\n"
+            f"Issue it's for (from the editorial plan - mention its date, theme and relevant features if given): {ctx.get('issue')}\n\nFACTS (the only figures you may use): {facts}")
     out = llm.extract_json(SYSTEM, user, max_tokens=700, purpose="proposal_draft")
     if not isinstance(out, dict):
         return fallback, "template"

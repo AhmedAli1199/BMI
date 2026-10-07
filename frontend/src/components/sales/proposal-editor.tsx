@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Download, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, BadgePercent, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type ProposalSection } from "@/lib/proposals-types";
 import { deleteProposal, finishProposal, getProposalEmailDraft, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
@@ -14,10 +14,14 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { downloadFile } from "@/lib/download";
 import { InfoHint } from "@/components/sales/info-hint";
 import { SectionTitle, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 type Line = Proposal["lines"][number];
+
+/** Offer lines are worked out by the server from the rate card's offers, so they're never sent back. */
+const toSave = (lines: Line[]) => lines.filter((l) => l.source !== "offer").map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null }));
 
 /** Renders **bold** and "- " bullets the way the Word file will. */
 function Rich({ text }: { text: string }) {
@@ -44,6 +48,8 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
   const [template, setTemplate] = useState<string>(proposal.template);
   const [sections, setSections] = useState<ProposalSection[]>(proposal.sections);
   const [lines, setLines] = useState<Line[]>(proposal.lines);
+  const [linesTouched, setLinesTouched] = useState(false);
+  const [issueChanged, setIssueChanged] = useState(false);
   const [preview, setPreview] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
@@ -62,12 +68,9 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
   function save(after?: () => void) {
     start(async () => {
       try {
-        await saveProposal(proposal.id, {
-          campaign_name: campaign,
-          template,
-          sections,
-          lines: lines.map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null })),
-        });
+        const p = await saveProposal(proposal.id, { campaign_name: campaign, template, sections, lines: toSave(lines) });
+        setLines(p.lines);
+        setLinesTouched(false);
         setDirty(false);
         toast.success("Saved");
         router.refresh();
@@ -78,7 +81,19 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
     });
   }
 
-  const saved = () => ({ campaign_name: campaign, template, sections, lines: lines.map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null })) });
+  const saved = () => ({ campaign_name: campaign, template, sections, lines: toSave(lines) });
+  const editLines = (next: Line[]) => { editLines(next); setLinesTouched(true); };
+
+  function changeIssue(id: string) {
+    start(async () => {
+      try {
+        await saveProposal(proposal.id, { edition_id: id || null });
+        setIssueChanged(true);
+        toast.success(id ? "Issue changed - redraft the wording to use its details" : "Issue removed");
+        router.refresh();
+      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't change the issue"); }
+    });
+  }
   const split = (v: string) => v.split(/[,;\s]+/).filter(Boolean);
 
   function openMail() {
@@ -152,25 +167,34 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
                 <th scope="col" className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th>
               </tr></thead>
               <tbody>
-                {lines.map((l, i) => (
+                {lines.map((l, i) => l.source === "offer" ? (
+                  <tr key={l.id ?? i} className={`border-t border-border/60 ${linesTouched ? "opacity-50" : ""}`}>
+                    <td className="px-4 py-1.5" colSpan={3}>
+                      <span className="inline-flex items-center gap-1.5 font-medium text-[var(--ok)]"><BadgePercent className="size-3.5" aria-hidden="true" />{l.product.replace(/^Offer: /, "")}</span>
+                      <span className="block text-[11px] text-muted-foreground">Rate card offer - added for you, and worked out again whenever the products change</span>
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-[var(--ok)]">{fmtGBP(l.qty * l.unit_price)}</td>
+                    <td />
+                  </tr>
+                ) : (
                   <tr key={l.id ?? i} className="border-t border-border/60">
                     <td className="px-4 py-1.5">
                       {l.source === "rate_card" || sent ? <span className="font-medium">{l.product}</span> : (
-                        <Input aria-label="Product" value={l.product} onChange={(e) => touch(setLines)(lines.map((x, j) => (j === i ? { ...x, product: e.target.value } : x)))} className="h-8 text-sm" />
+                        <Input aria-label="Product" value={l.product} onChange={(e) => editLines(lines.map((x, j) => (j === i ? { ...x, product: e.target.value } : x)))} className="h-8 text-sm" />
                       )}
                       {l.source === "rate_card" && <span className="ml-2 text-[11px] text-muted-foreground">rate card</span>}
                     </td>
                     <td className="px-2 py-1.5 text-right">
-                      {sent ? l.qty : <Input aria-label="Quantity" type="number" min={1} value={l.qty} onChange={(e) => touch(setLines)(lines.map((x, j) => (j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x)))} className="h-8 text-right text-sm tabular-nums" />}
+                      {sent ? l.qty : <Input aria-label="Quantity" type="number" min={1} value={l.qty} onChange={(e) => editLines(lines.map((x, j) => (j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x)))} className="h-8 text-right text-sm tabular-nums" />}
                     </td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       {l.source === "rate_card" || sent ? fmtGBP(l.unit_price) : (
-                        <Input aria-label="Price each" type="number" min={0} value={l.unit_price} onChange={(e) => touch(setLines)(lines.map((x, j) => (j === i ? { ...x, unit_price: Number(e.target.value) || 0 } : x)))} className="h-8 text-right text-sm tabular-nums" />
+                        <Input aria-label="Price each" type="number" min={0} value={l.unit_price} onChange={(e) => editLines(lines.map((x, j) => (j === i ? { ...x, unit_price: Number(e.target.value) || 0 } : x)))} className="h-8 text-right text-sm tabular-nums" />
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{fmtGBP(l.qty * l.unit_price)}</td>
                     <td className="px-2 py-1.5">
-                      {!sent && <Button size="icon-sm" variant="ghost" aria-label={`Remove ${l.product}`} onClick={() => touch(setLines)(lines.filter((_, j) => j !== i))}><Trash2 className="size-3.5" /></Button>}
+                      {!sent && <Button size="icon-sm" variant="ghost" aria-label={`Remove ${l.product}`} onClick={() => editLines(lines.filter((_, j) => j !== i))}><Trash2 className="size-3.5" /></Button>}
                     </td>
                   </tr>
                 ))}
@@ -178,14 +202,14 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
               </tbody>
               <tfoot><tr className="border-t border-border/70 bg-muted/30">
                 <td colSpan={3} className="px-4 py-2 text-xs text-muted-foreground">
-                  {!sent && <Button size="sm" variant="ghost" className="-ml-2 gap-1.5" onClick={() => touch(setLines)([...lines, { id: crypto.randomUUID(), product: "", qty: 1, unit_price: 0, source: "manual" }])}><Plus className="size-3.5" /> Add my own line</Button>}
+                  {!sent && <Button size="sm" variant="ghost" className="-ml-2 gap-1.5" onClick={() => editLines([...lines, { id: crypto.randomUUID(), product: "", qty: 1, unit_price: 0, source: "manual" }])}><Plus className="size-3.5" /> Add my own line</Button>}
                 </td>
                 <td className="px-2 py-2 text-right font-bold tabular-nums">{fmtGBP(total)}</td>
                 <td />
               </tr></tfoot>
             </table>
           </div>
-          {dirty && <p className="mt-1.5 text-xs text-muted-foreground">Save to update the Investment section&apos;s figures in the Word file.</p>}
+          {dirty && <p className="mt-1.5 text-xs text-muted-foreground">Save to update the Investment section&apos;s figures in the Word file{linesTouched ? " - any rate card offers are worked out again when you save" : ""}.</p>}
         </section>
 
         <section aria-labelledby="secs-h">
@@ -195,7 +219,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
               {!sent && (
                 <Button size="sm" variant="outline" className="gap-1.5" disabled={pending} onClick={() => {
                   if (!window.confirm("Rewrite every section? Your edits to the wording will be replaced.")) return;
-                  start(async () => { try { await redraftProposal(proposal.id); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't redraft"); } });
+                  start(async () => { try { if (dirty) await saveProposal(proposal.id, saved()); const p = await redraftProposal(proposal.id); setSections(p.sections); setLines(p.lines); setLinesTouched(false); setIssueChanged(false); setDirty(false); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't redraft"); } });
                 }}><Sparkles className="size-3.5" /> Redraft wording</Button>
               )}
             </div>
@@ -252,6 +276,32 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
       </div>
 
       <aside className="flex flex-col gap-4" aria-label="About this client">
+        <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
+          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold"><CalendarDays className="size-4 text-muted-foreground" aria-hidden="true" />The issue <InfoHint>From the editorial plan. Its date, advertising deadline and features are what the wording mentions.</InfoHint></h2>
+          {proposal.issue ? (
+            <div className="flex flex-col gap-1 text-xs">
+              <Link href={`/editorial/issues/${proposal.issue.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                {proposal.issue.label.startsWith("Issue ") ? `${proposal.title_name} ${proposal.issue.label}` : proposal.issue.label} <ExternalLink className="size-3" aria-hidden="true" />
+              </Link>
+              {proposal.issue.publication_text && <span className="text-muted-foreground">{proposal.issue.kind === "issue" || proposal.issue.kind === "guide" ? "Out" : "On"} {proposal.issue.publication_text}</span>}
+              {proposal.issue.ad_deadline_text && <span className="text-muted-foreground">Advertising deadline {proposal.issue.ad_deadline_text}</span>}
+              {proposal.issue.theme && <span className="text-muted-foreground">Theme: {proposal.issue.theme}</span>}
+              {proposal.issue.features.length > 0 && (
+                <ul className="mt-1 list-disc pl-4 text-muted-foreground">
+                  {proposal.issue.features.slice(0, 6).map((f) => <li key={f}>{f}{proposal.issue?.sponsorable.includes(f) ? " · can be sponsored" : ""}</li>)}
+                </ul>
+              )}
+            </div>
+          ) : <p className="text-xs text-muted-foreground">No issue chosen, so the wording doesn&apos;t mention one.</p>}
+          {!sent && proposal.title_id && (
+            <label className="mt-3 flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
+              Change the issue
+              <ProposalIssuePicker titleId={proposal.title_id} value={proposal.edition_id ?? ""} include={proposal.edition_id} disabled={pending}
+                onChange={(id) => changeIssue(id)} emptyLabel="No particular issue" />
+            </label>
+          )}
+          {issueChanged && !sent && <p className="mt-2 text-xs text-muted-foreground">Press <strong>Redraft wording</strong> to bring the new issue&apos;s details into the text.</p>}
+        </section>
         <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold">History with BMI <InfoHint>From the order register. The draft wording only uses these figures.</InfoHint></h2>
           {h && h.count > 0 ? (
@@ -338,7 +388,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
             <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
             <Button disabled={pending} onClick={() => start(async () => {
               try {
-                if (dirty) await saveProposal(proposal.id, { campaign_name: campaign, template, sections, lines: lines.map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null })) });
+                if (dirty) await saveProposal(proposal.id, saved());
                 await finishProposal(proposal.id, via, days);
                 toast.success("Logged on the client");
                 setSendOpen(false);
