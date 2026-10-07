@@ -20,7 +20,7 @@ from app.models.contact_tools import BulkEdit, ContactImport
 from app.models.proposal import Proposal
 from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
-from app.models.sales import SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, RateOffer
+from app.models.sales import SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, RateOffer, EditionFeature, EditorialSetting
 from app.models.user import User
 from app.models.xero import XeroConnection, XeroInvoice
 from app.models.user_access import UserAccess
@@ -69,6 +69,8 @@ __all__ = [
     "SalesEditionCost",
     "SalesRate",
     "RateOffer",
+    "EditionFeature",
+    "EditorialSetting",
     "SalesRep",
     "SalesTitle",
     "User",

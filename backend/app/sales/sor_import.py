@@ -35,7 +35,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.models import SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
+from app.models import EditionFeature, SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
 from app.sales.reference import ensure_reference_data, rep_code_for, title_for_file
 
 logger = logging.getLogger("app.sales.sor_import")
@@ -533,6 +533,11 @@ def _group_files(root: Path) -> list[tuple[int, Path, Path | None]]:
     return out
 
 
+# Editorial-plan columns on an edition that a re-import must keep (see app/api/routes/editorial.py).
+PLAN_FIELDS = ("editorial_deadline", "ad_deadline", "copy_deadline", "milestones", "theme", "distribution", "format",
+               "plan_needs_check", "date_set_in_plan")
+
+
 def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportReport:
     ensure_reference_data(db)
     # What people added in the app to imported editions - notes, online
@@ -545,9 +550,16 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                 {k: getattr(c, k) for k in ("kind", "label", "amount_gbp", "amount_inc_vat_gbp", "section", "sort_order")}
                 for c in db.query(SalesEditionCost).filter(SalesEditionCost.edition_id == e.id, SalesEditionCost.source_row.is_(None))
             ]
-            if e.notes or e.digital_url or e.target_gbp or extra_costs:
+            # ...and the editorial plan: deadlines, key dates, theme, planned features.
+            plan = {k: getattr(e, k) for k in PLAN_FIELDS}
+            features = [{k: getattr(f, k) for k in ("title", "description", "status", "sponsorable", "sort_order")}
+                        for f in db.query(EditionFeature).filter(EditionFeature.edition_id == e.id)]
+            has_plan = any(v not in (None, [], False) for v in plan.values()) or features
+            if e.notes or e.digital_url or e.target_gbp or extra_costs or has_plan:
                 kept[(e.title_id, e.year, e.name)] = {"notes": e.notes, "digital_url": e.digital_url,
-                                                      "target_gbp": e.target_gbp, "costs": extra_costs}
+                                                      "target_gbp": e.target_gbp, "costs": extra_costs,
+                                                      "plan": plan, "features": features,
+                                                      "edition_date": e.edition_date if e.date_set_in_plan else None}
         imported = db.query(SalesEdition.id).filter(SalesEdition.source_file.isnot(None))
         db.query(SalesOrder).filter(SalesOrder.edition_id.in_(imported.scalar_subquery())).delete(synchronize_session=False)  # credits cascade
         db.query(SalesEdition).filter(SalesEdition.source_file.isnot(None)).delete(synchronize_session=False)
@@ -608,6 +620,12 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                     report.cost_lines += 1
             if (k := kept.pop((title.id, year, name), None)):
                 ed.notes, ed.digital_url, ed.target_gbp = k["notes"], k["digital_url"], k["target_gbp"]
+                for f, v in (k.get("plan") or {}).items():
+                    setattr(ed, f, v)
+                if k.get("edition_date"):
+                    ed.edition_date = k["edition_date"]
+                for feat in k.get("features") or []:
+                    db.add(EditionFeature(id=uuid.uuid4(), edition_id=ed.id, **feat))
                 for c in k["costs"]:
                     db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, **{**c, "sort_order": c["sort_order"] + 10_000}))
 

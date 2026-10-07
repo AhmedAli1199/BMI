@@ -22,6 +22,7 @@ from app.api.routes import (
     contact_tools,
     contacts,
     dashboard,
+    editorial,
     diagnostics,
     groups,
     health,
@@ -96,6 +97,7 @@ api_router.include_router(integrations.router)
 api_router.include_router(management.router)
 api_router.include_router(proposals.router)
 api_router.include_router(rate_card.router)
+api_router.include_router(editorial.router)
 app.include_router(api_router)
 
 

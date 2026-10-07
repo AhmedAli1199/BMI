@@ -26,7 +26,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -144,9 +144,48 @@ class SalesEdition(Base, UUIDPk, TimestampMixin):
     # Import provenance + the sheet's own totals, kept for the
     # "imported total vs. sheet total" check. Null for editions created
     # in the app.
+    # ---- Editorial plan (app/api/routes/editorial.py) ----
+    # The issue's deadlines. edition_date stays the publication / event date.
+    editorial_deadline: Mapped[date | None] = mapped_column(Date)
+    ad_deadline: Mapped[date | None] = mapped_column(Date)  # booking deadline for adverts
+    copy_deadline: Mapped[date | None] = mapped_column(Date)  # artwork / copy deadline
+    # Any other key dates, in the brand's own words: [{"label": "Entries close", "date": "2026-12-01"}]
+    milestones: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    theme: Mapped[str | None] = mapped_column(String(300))  # headline theme of the issue
+    distribution: Mapped[str | None] = mapped_column(String(300))  # shows / events it's handed out at
+    format: Mapped[str | None] = mapped_column(String(16))  # print_digital | print | digital | event | awards
+    # Some dates were worked out (e.g. from "25th of the month before") or estimated - a person should confirm them.
+    plan_needs_check: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # The publication date was set in the editorial plan - a re-import of the order register keeps it.
+    date_set_in_plan: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source_file: Mapped[str | None] = mapped_column(String(200))
     source_sheet: Mapped[str | None] = mapped_column(String(120))
     sheet_total_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+
+
+class EditionFeature(Base, UUIDPk, TimestampMixin):
+    """One planned feature in an issue ("Seafood", "Top business travel trends for 2027")."""
+    __tablename__ = "edition_features"
+
+    edition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="planned")  # planned | confirmed | dropped
+    sponsorable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # open to sponsorship / sponsored content
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class EditorialSetting(Base):
+    """Per brand: how deadlines are usually worked out, and the regular sections every issue has."""
+    __tablename__ = "editorial_settings"
+
+    brand: Mapped[str] = mapped_column(String(10), primary_key=True)
+    # [{"key": "editorial"|"advertising"|"copy"|<custom>, "label": "...", "kind": "days_before"|"day_prev_month", "value": 25}]
+    deadline_rules: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # [{"name": "Take Five", "description": "Experts share five insights on a topic"}]
+    regular_sections: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    about: Mapped[str | None] = mapped_column(Text)  # one paragraph on the brand's publishing schedule
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class SalesRep(Base, UUIDPk):
