@@ -119,9 +119,9 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
           </div>
         )}
         {proposal.flags.length > 0 && !sent && (
-          <ul className="flex flex-col gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+          <ul className="flex flex-col gap-1.5 rounded-xl border border-[color-mix(in_oklab,var(--warn)_40%,transparent)] bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] p-3 text-xs">
             {proposal.flags.map((f) => (
-              <li key={f} className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" aria-hidden="true" />{f}</li>
+              <li key={f} className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--warn)]" aria-hidden="true" />{f}</li>
             ))}
           </ul>
         )}

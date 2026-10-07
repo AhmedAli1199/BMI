@@ -347,3 +347,11 @@
     -1px 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
+
+/* Printing a page (e.g. "Print or save as PDF" on the rate card): just the
+   page content - no sidebar, top bar or buttons marked print-hide. */
+@media print {
+  [data-slot="sidebar"], [data-slot="sidebar-gap"], [data-slot="sidebar-container"], .app-topbar, .print-hide { display: none !important; }
+  body, [data-slot="sidebar-inset"] { background: white !important; }
+  .print-avoid-break { break-inside: avoid; }
+}

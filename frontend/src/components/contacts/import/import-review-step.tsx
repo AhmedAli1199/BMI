@@ -85,7 +85,7 @@ export function ImportReviewStep({ imp, onChange, onBack }: { imp: ContactImport
           return (
             <button key={tile.key} type="button" aria-pressed={active} onClick={() => { setFilter(active ? null : tile.key); setPage(1); }}
               className={`flex h-full flex-col justify-between gap-1 rounded-xl border p-3 text-left transition-colors ${active ? "border-primary bg-primary/5" : "border-border/80 bg-card hover:bg-muted/40"}`}>
-              <span className={`block text-xl font-bold tabular-nums ${tile.key === "error" && n ? "text-destructive" : tile.key === "warnings" && n ? "text-amber-700 dark:text-amber-400" : ""}`}>{n.toLocaleString()}</span>
+              <span className={`block text-xl font-bold tabular-nums ${tile.key === "error" && n ? "text-destructive" : tile.key === "warnings" && n ? "text-[var(--warn)]" : ""}`}>{n.toLocaleString()}</span>
               <span className="text-[11px] font-medium text-muted-foreground">{tile.label}</span>
             </button>
           );
@@ -139,7 +139,7 @@ export function ImportReviewStep({ imp, onChange, onBack }: { imp: ContactImport
                     </td>
                     <td className="px-4 py-2 text-xs">
                       {r.issues.map((i, k) => (
-                        <p key={k} className={`flex items-start gap-1 ${i.level === "error" ? "font-medium text-destructive" : "text-amber-700 dark:text-amber-400"}`}>
+                        <p key={k} className={`flex items-start gap-1 ${i.level === "error" ? "font-medium text-destructive" : "text-[var(--warn)]"}`}>
                           <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden="true" />{i.text}
                         </p>
                       ))}

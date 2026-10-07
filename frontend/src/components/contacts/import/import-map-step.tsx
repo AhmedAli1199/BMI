@@ -29,7 +29,7 @@ function Status({ col }: { col: ImportColumn }) {
   if (col.field === "skip") return <span className={`${base} bg-muted text-muted-foreground`}><EyeOff className="size-3" aria-hidden="true" /> {col.level === "empty" ? "Empty" : "Not imported"}</span>;
   if (col.level === "manual") return <span className={`${base} bg-primary/10 text-primary`}><Check className="size-3" aria-hidden="true" /> Your choice</span>;
   if (col.level === "high") return <span className={`${base} bg-primary/10 text-primary`}><Sparkles className="size-3" aria-hidden="true" /> Matched</span>;
-  return <span className={`${base} bg-amber-500/15 text-amber-700 dark:text-amber-400`}><CircleHelp className="size-3" aria-hidden="true" /> Check this</span>;
+  return <span className={`${base} bg-[var(--warn-tint)] text-[var(--warn)]`}><CircleHelp className="size-3" aria-hidden="true" /> Check this</span>;
 }
 
 /** Step 2: every column of the file next to the field it was matched to. Matched ones are filled in; anything
@@ -82,7 +82,7 @@ export function ImportMapStep({ imp, targets, publications, onChange, onNext }: 
               <p className="text-sm font-bold">{matched} of {imp.columns.length} columns matched to a contact field</p>
               <p className="text-xs text-muted-foreground">
                 {imp.row_count.toLocaleString()} {imp.row_count === 1 ? "row" : "rows"}
-                {check.length > 0 && <> · <span className="font-semibold text-amber-700 dark:text-amber-400">{check.length} to check</span></>}
+                {check.length > 0 && <> · <span className="font-semibold text-[var(--warn)]">{check.length} to check</span></>}
                 {unmatched.length > 0 && <> · <span className="font-semibold text-foreground">{unmatched.length} we couldn&apos;t place</span></>}
               </p>
             </div>
@@ -91,7 +91,7 @@ export function ImportMapStep({ imp, targets, publications, onChange, onNext }: 
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowFile(!showFile)} aria-expanded={showFile}>File settings</Button>
           </div>
-          {imp.notes.map((n) => <p key={n} className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground"><AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" aria-hidden="true" />{n}</p>)}
+          {imp.notes.map((n) => <p key={n} className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground"><AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--warn)]" aria-hidden="true" />{n}</p>)}
           {showFile && (
             <div className="mt-3 grid gap-3 border-t border-border/70 pt-3 sm:grid-cols-3">
               {imp.sheets.length > 1 && (
@@ -124,7 +124,7 @@ export function ImportMapStep({ imp, targets, publications, onChange, onNext }: 
             {imp.columns.map((c) => {
               const unsure = c.field === "skip" && (c.level === "none" || c.level === "ambiguous");
               return (
-                <li key={c.index} className={`grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] md:items-start md:gap-3 ${unsure ? "bg-amber-500/5" : ""}`}>
+                <li key={c.index} className={`grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_1.5rem_minmax(0,1fr)] md:items-start md:gap-3 ${unsure ? "bg-[color-mix(in_oklab,var(--warn)_6%,transparent)]" : ""}`}>
                   <div className="min-w-0">
                     <p className="flex items-center gap-2 text-sm font-semibold"><span className="truncate">{c.header}</span><span className="shrink-0 rounded bg-muted px-1.5 py-px text-[10px] font-medium text-muted-foreground">Column {colLetter(c.index)}</span></p>
                     <p className="mt-1 flex flex-wrap gap-1" aria-label="Examples from this column">
@@ -146,7 +146,7 @@ export function ImportMapStep({ imp, targets, publications, onChange, onNext }: 
                       <Input aria-label="Name of the new field" defaultValue={c.name ?? c.header} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== c.name) setMapping({ [c.index]: { field: "new_custom", name: v } }); }} placeholder="Name this field, e.g. ABTA number" className="h-8 text-sm" />
                     )}
                     <p className="text-[11px] leading-snug text-muted-foreground">{c.level === "manual" ? "You chose this." : c.reason}</p>
-                    {c.warning && <p className="flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400"><AlertTriangle className="size-3" aria-hidden="true" />{c.warning}</p>}
+                    {c.warning && <p className="flex items-center gap-1 text-[11px] font-medium text-[var(--warn)]"><AlertTriangle className="size-3" aria-hidden="true" />{c.warning}</p>}
                     {c.field === "skip" && c.candidates.length > 0 && (
                       <p className="flex flex-wrap items-center gap-1 text-[11px]">
                         <span className="text-muted-foreground">Maybe:</span>

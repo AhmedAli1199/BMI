@@ -517,7 +517,8 @@ def next_year_preview(p: NextYearIn, db: Session = Depends(get_db), identity: Id
     to = p.from_year + 1
     existing = {(r.title_id, r.section, r.product.lower()) for r in _rates(db, brand, to, archived=None)}
     rows, skipped = [], 0
-    for r in _rates(db, brand, p.from_year):
+    order = {k: i for i, k in enumerate(B.SECTION_KEYS)}
+    for r in sorted(_rates(db, brand, p.from_year), key=lambda r: (order.get(r.section, 99), r.sort_order, r.product)):
         if (r.title_id, r.section, r.product.lower()) in existing:
             skipped += 1
             continue

@@ -19,7 +19,7 @@ export type SalesRate = {
   title_id: string;
   year: number;
   product: string;
-  price_gbp: number;
+  price_gbp: number | null;
   notes: string | null;
 };
 

@@ -32,7 +32,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial }: { tit
   const [template, setTemplate] = useState(title ? templateFor(title.slug) : "stm");
   const [campaign, setCampaign] = useState(initial ? `${initial.label} ${year}/${String(year + 1).slice(2)}` : "");
   const [rows, setRows] = useState<Row[]>([]);
-  const titleRates = rates.filter((r) => r.title_id === titleId);
+  const titleRates = rates.filter((r) => r.title_id === titleId && r.price_gbp != null);
 
   const total = rows.reduce((s, r) => s + r.qty * (Number(r.price) || 0), 0);
 

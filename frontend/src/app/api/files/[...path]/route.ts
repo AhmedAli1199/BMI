@@ -13,6 +13,7 @@ const ALLOWED: RegExp[] = [
   /^contacts\/export$/,
   /^sales\/orders\/export$/,
   /^groups\/[0-9a-f-]{36}\/export$/,
+  /^rate-card\/export\.xlsx$/,
   /^contact-imports$/,
   /^contact-imports\/template\.xlsx$/,
   /^contact-imports\/[0-9a-f-]{36}\/report\.xlsx$/,

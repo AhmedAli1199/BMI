@@ -1045,11 +1045,14 @@ def delete_rate(rate_id: uuid.UUID, db: Session = Depends(get_db), identity: Ide
 @router.put("/titles/{title_id}/links", response_model=TitleOut)
 def update_title_links(title_id: uuid.UUID, payload: TitleLinks, db: Session = Depends(get_db),
                        identity: Identity = Depends(get_identity)) -> TitleOut:
-    """Where a title's digital edition lives - see SalesTitle.digital_page_url."""
-    _staff_only(identity)
+    """Where a title's digital edition lives - see SalesTitle.digital_page_url. Staff, or the brand's own publishers."""
+    from app.sales.brands import brand_for_title_slug, can_edit_brand
     t = db.get(SalesTitle, title_id)
     if not t:
         raise HTTPException(status_code=404, detail="Title not found")
+    brand = brand_for_title_slug(t.slug)
+    if not (_is_staff(identity) or (brand and can_edit_brand(db, identity, brand))):
+        raise HTTPException(status_code=403, detail="Only admins, data managers and this brand's publishers can change its links.")
     t.digital_page_url = (payload.digital_page_url or "").strip() or None
     t.digital_issue_url = (payload.digital_issue_url or "").strip() or None
     db.commit()
