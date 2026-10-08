@@ -212,3 +212,17 @@ def test_not_in_plan_fallback_scoping_and_excel(w, client, db_session):
     ws = openpyxl.load_workbook(io.BytesIO(x.content)).active
     assert "Sally Parker" in ws["A1"].value and ws.cell(5, 4).value == "Tourism Australia"
     assert client.post("/api/commission/plans/load", headers=h).status_code == 403
+
+
+def test_one_off_supplements_only_compare_by_name(w):
+    from app.sales.analytics import equivalent_editions
+    lc = w["ed"]("selling-travel-supplements", "Los Cabos", date(2025, 3, 1))
+    st_louis = w["ed"]("selling-travel-supplements", "St Louis", date(2026, 3, 1))
+    carib_old = w["ed"]("selling-travel-supplements", "Caribbean annual 2025", date(2025, 11, 1))
+    carib = w["ed"]("selling-travel-supplements", "Caribbean annual 2026", date(2026, 11, 1))
+    jan25 = w["ed"]("selling-travel", "JanFeb", date(2025, 1, 15))
+    jan26 = w["ed"]("selling-travel", "JanFebMar", date(2026, 1, 20))
+    m = equivalent_editions(w["db"], [st_louis, carib, jan26])
+    assert st_louis.id not in m and lc.id  # a different destination isn't "last year's edition"
+    assert m[carib.id].id == carib_old.id   # the same guide a year on is
+    assert m[jan26.id].id == jan25.id       # regular issues still fall back to the nearest date

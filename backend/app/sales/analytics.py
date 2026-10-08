@@ -42,6 +42,11 @@ def _issue_number(name: str) -> int | None:
     return int(m[1]) if m else None
 
 
+# Titles whose editions are separate one-off products (each supplement or guide is a different destination or
+# client), so last year's edition at the same time of year isn't the same thing: they only match by name.
+ONE_OFF_TITLES = {"selling-travel-supplements", "selling-travel-guides"}
+
+
 def equivalent_editions(db: Session, editions: list[SalesEdition]) -> dict[uuid.UUID, SalesEdition]:
     """edition.id -> the same title's equivalent edition one year earlier."""
     wanted = {(e.title_id, e.year - 1) for e in editions}
@@ -63,6 +68,8 @@ def equivalent_editions(db: Session, editions: list[SalesEdition]) -> dict[uuid.
     for e in this_year_rows:
         by_title_year_now[(e.title_id, e.year)].append(e)
 
+    from app.models import SalesTitle
+    slugs = dict(db.execute(select(SalesTitle.id, SalesTitle.slug).where(SalesTitle.id.in_({e.title_id for e in editions}))).all())
     out = {}
     for e in editions:
         prev = by_title_year.get((e.title_id, e.year - 1), [])
@@ -80,7 +87,7 @@ def equivalent_editions(db: Session, editions: list[SalesEdition]) -> dict[uuid.
             idx = next((i for i, x in enumerate(numbered_now) if x.id == e.id), None)
             if idx is not None and idx < len(numbered_prev):
                 hit = numbered_prev[idx]
-        if not hit and e.edition_date:
+        if not hit and e.edition_date and slugs.get(e.title_id) not in ONE_OFF_TITLES:
             # The schedule changed between years ("JanFeb" -> "JanFebMar"):
             # the edition that published closest to a year earlier, if any
             # is within six weeks.
