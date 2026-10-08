@@ -347,7 +347,19 @@ def _figures(db: Session, inv: XeroInvoice, o: SalesOrder, sharing: int) -> tupl
     bookings the total can't be split, so each booking keeps its own value."""
     net = invoice_gbp_net(inv)
     value = round(net, 2) if sharing == 1 and net is not None else float(o.value_gbp)
+    if sharing == 1 and (inv.currency or "GBP") != "GBP" and is_exchange_rate_only(inv, o):
+        value = float(o.value_gbp)  # invoiced what was agreed; only the conversion to pounds differs
     return value, inv.issued_on
+
+
+def is_exchange_rate_only(inv: XeroInvoice, o: SalesOrder) -> bool:
+    """A foreign-currency invoice for what was agreed: the same amount in that currency (US$ bookings carry
+    their dollar rate), or - with no rate recorded - within 3% once converted. The pound gap is exchange rate."""
+    foreign = float(inv.sub_total or 0)
+    if inv.currency == "USD" and o.rate_usd:
+        return abs(foreign - float(o.rate_usd)) <= max(2.0, 0.01 * float(o.rate_usd))
+    net, value = invoice_gbp_net(inv), float(o.value_gbp or 0)
+    return net is not None and value > 0 and abs(net - value) <= 0.03 * value
 
 
 def link_bookings(db: Session, inv: XeroInvoice, orders: list[SalesOrder], source: str,

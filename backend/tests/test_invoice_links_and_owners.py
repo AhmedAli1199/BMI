@@ -110,3 +110,15 @@ def test_recorded_invoice_amount_is_never_overwritten_by_xero(client, db_session
     assert b.xero_invoice_id and float(b.invoice_value_gbp) == 3000 and not b.invoice_from_xero
     r = client.patch(f"/api/sales/orders/{b.id}", json={"invoice_number": "INV-2213", "invoice_value_gbp": 3000}, headers=admin).json()
     assert r["invoice_value_gbp"] == 3000 and r["xero"]["figures_from_xero"] is False
+
+
+def test_dollar_invoice_matching_the_agreed_rate_keeps_the_booking_value(db_session, sor):
+    from app.sales.invoice_match import link_bookings
+    b = booking(db_session, sor, "Alaska Railroad", 1596.30, rate_usd=2000)
+    inv = invoice(db_session, "INV-3334", "Alaska Railroad", 2000, cur="USD", rate=1.2494)  # converts to £1,600.78
+    link_bookings(db_session, inv, [b], "auto", None)
+    assert float(b.invoice_value_gbp) == 1596.30 and b.invoice_from_xero
+    other = booking(db_session, sor, "Visit Seattle", 1000, rate_usd=1300)
+    inv2 = invoice(db_session, "INV-3335", "Visit Seattle", 1000, cur="USD", rate=1.3)  # $1,000, not the agreed $1,300
+    link_bookings(db_session, inv2, [other], "auto", None)
+    assert round(float(other.invoice_value_gbp), 2) == 769.23  # a real difference still shows
