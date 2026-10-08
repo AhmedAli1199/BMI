@@ -144,7 +144,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
   const [changes, setChanges] = useState<FieldChange[] | null>(null);
 
   // Linked to Xero (and the number not being changed): the amount and date are Xero's, not typed.
-  const linked = !!existing?.xero && invNo.trim() === (existing.invoice_number ?? "");
+  const linked = !!existing?.xero?.figures_from_xero && invNo.trim() === (existing.invoice_number ?? "");
   const activeReps = useMemo(() => reps.filter((r) => r.active || r.id === repId), [reps, repId]);
   const valueNum = num(value);
   const creditTotal = credits.reduce((s, c) => s + (num(c.amount) || 0), 0);
@@ -456,7 +456,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             <Field label="Invoice number" htmlFor="os-inv">
               <Input id="os-inv" value={invNo} onChange={(e) => setInvNo(e.target.value)} placeholder="INV-3050" />
             </Field>
-            <Field label="Invoiced (£)" htmlFor="os-invv" hint={linked ? "Taken from the Xero invoice (before VAT) and kept in step with it." : "Filled in from Xero once the invoice number is linked. Until then, blank means the booking value."}>
+            <Field label="Invoiced (£)" htmlFor="os-invv" hint={linked ? "Taken from the Xero invoice (before VAT) and kept in step with it." : "What was invoiced, before VAT. Leave it blank and it's filled in from Xero once the invoice number is linked; an amount you enter is kept."}>
               <Input id="os-invv" inputMode="decimal" value={invValue} disabled={linked} onChange={(e) => setInvValue(e.target.value)} placeholder={value || "Same as value"} />
             </Field>
             <Field label="Invoiced on" htmlFor="os-invon" hint={linked ? "The invoice date in Xero." : undefined}>

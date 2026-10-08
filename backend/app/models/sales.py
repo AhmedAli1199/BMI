@@ -275,6 +275,9 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     # "19th/20th Jan", a value typed as "40, 0000") - shown as a warning
     # badge so a person can fix it, instead of the importer guessing.
     import_warning: Mapped[str | None] = mapped_column(Text)
+    # True when the invoiced amount and date were filled in from the linked Xero invoice (and so follow it);
+    # False when they were recorded by a person or the order register, which are never overwritten.
+    invoice_from_xero: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Commission: a manager's decision on whether this booking is new business (None = worked out from history).
     new_business_override: Mapped[bool | None] = mapped_column(Boolean)
     new_business_reason: Mapped[str | None] = mapped_column(String(300))

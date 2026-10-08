@@ -97,6 +97,8 @@ class XeroRef(BaseModel):
     url: str | None = None  # opens the invoice in Xero
     # How the booking came to be linked: "typed" (someone typed the number), "auto" (matched on its own), "confirmed" (a person confirmed it)
     link: str | None = None
+    # The booking's invoiced amount and date follow this invoice (False: they were recorded by a person or the sheet).
+    figures_from_xero: bool = False
 
 
 class OrderOut(BaseModel):
@@ -517,12 +519,12 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
             notes=o.notes, import_warning=o.import_warning,
             source=f"{o.source_file} › {o.source_sheet}, row {o.source_row}" if o.source_file else None,
             edition_date=ed.edition_date, created_at=o.created_at, updated_at=o.updated_at,
-            xero=_xero_ref(xero_by_id.get(o.xero_invoice_id) or xero.get(number_key(o.invoice_number) or ""), o.xero_link_source),
+            xero=_xero_ref(xero_by_id.get(o.xero_invoice_id) or xero.get(number_key(o.invoice_number) or ""), o.xero_link_source, o.invoice_from_xero),
         ))
     return out
 
 
-def _xero_ref(inv: XeroInvoice | None, link: str | None = None) -> XeroRef | None:
+def _xero_ref(inv: XeroInvoice | None, link: str | None = None, from_xero: bool = False) -> XeroRef | None:
     if not inv:
         return None
     due = float(inv.amount_due or 0)
@@ -531,7 +533,8 @@ def _xero_ref(inv: XeroInvoice | None, link: str | None = None) -> XeroRef | Non
              else "part_paid" if float(inv.amount_paid or 0) > 0 else "unpaid")
     return XeroRef(state=state, status=inv.status, currency=inv.currency, total=_f(inv.total),
                    amount_paid=_f(inv.amount_paid), amount_due=_f(inv.amount_due), due_on=inv.due_on, paid_on=inv.paid_on,
-                   invoice_number=inv.invoice_number, url=XERO_INVOICE_URL.format(inv.xero_id), link=link or "typed")
+                   invoice_number=inv.invoice_number, url=XERO_INVOICE_URL.format(inv.xero_id), link=link or "typed",
+                   figures_from_xero=from_xero)
 
 
 def _edition_summaries(db: Session, editions: list[SalesEdition], today: date) -> list[EditionSummary]:
@@ -1291,12 +1294,17 @@ def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends
         setattr(order, k, v.strip() or None if isinstance(v, str) and k != "client_name" else v)
     if "company_id" in data and data["company_id"]:
         order.match_dismissed = False
+    # The invoiced amount comes from Xero only when nobody recorded one; a typed amount is kept.
+    take_from_xero = "invoice_number" in data and (order.invoice_value_gbp is None or order.invoice_from_xero) \
+        and not ("invoice_value_gbp" in data and data["invoice_value_gbp"] is not None and data["invoice_value_gbp"] != before["invoice_value_gbp"])
     if data.get("invoice_number") and order.invoice_value_gbp is None:
         order.invoice_value_gbp = order.value_gbp
     if data.get("invoice_number") and not order.invoiced_on:
         order.invoiced_on = date.today()
     if "invoice_number" in data:
-        sync_link_after_edit(db, order)  # keep the real Xero link in step with what was typed
+        sync_link_after_edit(db, order, take_figures=take_from_xero)  # keep the real Xero link in step with what was typed
+    elif "invoice_value_gbp" in data or "invoiced_on" in data:
+        order.invoice_from_xero = False  # a person changed the figures - they're theirs now
     if "size" in data:
         title = db.get(SalesTitle, db.get(SalesEdition, order.edition_id).title_id)
         order.pages = parse_pages(order.size, title.product_line)

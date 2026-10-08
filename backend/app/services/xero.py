@@ -281,6 +281,10 @@ def link_typed_numbers(db: Session) -> int:
     db.flush()
     from app.sales.invoice_match import refresh_figures
 
+    # A linked booking with no invoiced amount recorded takes Xero's; recorded amounts are left alone.
+    db.execute(update(SalesOrder).where(SalesOrder.xero_invoice_id.isnot(None), SalesOrder.invoice_value_gbp.is_(None))
+               .values(invoice_from_xero=True))
+
     refresh_figures(db)  # invoiced amount and date as Xero has them, for every linked booking
     db.commit()
     return n

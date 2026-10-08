@@ -66,6 +66,8 @@ export type XeroRef = {
   url?: string | null;
   /** How the booking got linked: someone typed the number, it was matched automatically, or a person confirmed a suggestion. */
   link?: "typed" | "auto" | "confirmed" | null;
+  /** The booking's invoiced amount and date follow this invoice (false: recorded by a person or the order register). */
+  figures_from_xero?: boolean;
 };
 
 export type UnmatchedInvoice = {

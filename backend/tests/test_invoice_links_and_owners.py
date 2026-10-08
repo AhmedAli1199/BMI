@@ -98,3 +98,15 @@ def test_renewal_goes_to_its_salesperson_once_their_login_is_linked(client, db_s
     # one login per salesperson
     r = client.patch(f"/api/users/{other.id}", json={"sales_rep_id": str(sw.id)}, headers=identity_headers(admin_user))
     assert r.status_code == 409
+
+
+def test_recorded_invoice_amount_is_never_overwritten_by_xero(client, db_session, sor):
+    from app.services.xero import link_typed_numbers
+    admin = identity_headers(make_user(db_session, role="admin"))
+    b = booking(db_session, sor, "Missouri", 3000, invoice_number="INV-2213", invoice_value_gbp=3000)  # from the sheet
+    invoice(db_session, "INV-2213", "Missouri Division of Tourism", 2778.54, cur="USD", rate=1.35)
+    link_typed_numbers(db_session)
+    db_session.refresh(b)
+    assert b.xero_invoice_id and float(b.invoice_value_gbp) == 3000 and not b.invoice_from_xero
+    r = client.patch(f"/api/sales/orders/{b.id}", json={"invoice_number": "INV-2213", "invoice_value_gbp": 3000}, headers=admin).json()
+    assert r["invoice_value_gbp"] == 3000 and r["xero"]["figures_from_xero"] is False

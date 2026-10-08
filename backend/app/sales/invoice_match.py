@@ -368,6 +368,7 @@ def link_bookings(db: Session, inv: XeroInvoice, orders: list[SalesOrder], sourc
         o.invoice_value_gbp = value
         o.invoiced_on = issued or o.invoiced_on or now.date()
         o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, source, now
+        o.invoice_from_xero = True
         record_field_changes(
             db, entity_type="sales_order", entity_id=o.id, before=before,
             updates={"invoice_number": o.invoice_number, "invoice_value_gbp": o.invoice_value_gbp,
@@ -380,7 +381,8 @@ def link_bookings(db: Session, inv: XeroInvoice, orders: list[SalesOrder], sourc
 def refresh_figures(db: Session, only: list[SalesOrder] | None = None) -> int:
     """Keeps every linked booking's invoiced amount and date the same as Xero's (an invoice edited or credited
     in Xero, or a number typed by hand). Changes go to the booking's history. Returns how many changed."""
-    q = select(SalesOrder, XeroInvoice).join(XeroInvoice, SalesOrder.xero_invoice_id == XeroInvoice.id)
+    q = (select(SalesOrder, XeroInvoice).join(XeroInvoice, SalesOrder.xero_invoice_id == XeroInvoice.id)
+         .where(SalesOrder.invoice_from_xero.is_(True)))  # figures someone recorded are never overwritten
     if only is not None:
         if not only:
             return 0
@@ -430,16 +432,20 @@ def unlink_order(db: Session, o: SalesOrder, user_id: uuid.UUID | None) -> None:
     o.updated_at = datetime.now(timezone.utc)
 
 
-def sync_link_after_edit(db: Session, o: SalesOrder) -> XeroInvoice | None:
+def sync_link_after_edit(db: Session, o: SalesOrder, take_figures: bool = False) -> XeroInvoice | None:
     """Called when someone edits a booking's invoice number by hand: keep
-    the real link in step with what was typed (however it was written), and
-    take the invoiced amount and date from Xero. Returns the invoice found."""
+    the real link in step with what was typed (however it was written). The
+    invoiced amount and date come from Xero only when the person didn't
+    record an amount themselves (take_figures). Returns the invoice found."""
     inv = find_invoice(db, o.invoice_number)
     if inv and o.xero_invoice_id != inv.id:
         o.xero_invoice_id, o.xero_link_source, o.xero_linked_at = inv.id, "typed", datetime.now(timezone.utc)
     elif not inv:
         o.xero_invoice_id = o.xero_link_source = o.xero_linked_at = None
-    if inv:
+    if not inv:
+        o.invoice_from_xero = False
+    elif take_figures:
+        o.invoice_from_xero = True
         db.flush()
         refresh_figures(db, [o])
     return inv
