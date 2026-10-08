@@ -16,6 +16,7 @@ import { RenewalPassButton } from "@/components/sales/renewal-pass-button";
 import { EditionLinkButton } from "@/components/sales/edition-link-button";
 import { EditionCostsPanel } from "@/components/sales/edition-costs-panel";
 import { EditionNotes } from "@/components/sales/edition-notes";
+import { EditionCommissionPanel } from "@/components/commission/edition-commission";
 import { PRODUCT_LINE_LABEL, SalesHeader, TitleIcon, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 function ChangeValue({ change }: { change: number | null }) {
@@ -211,6 +212,8 @@ export default async function EditionPage({
           </span>
         </div>
       )}
+
+      <EditionCommissionPanel editionId={ed.id} reps={meta.reps} />
 
       {(ed.costs?.lines.length || ["events", "awards"].includes(ed.title.product_line)) && ed.costs && (
         <EditionCostsPanel editionId={ed.id} booked={ed.booked_gbp} costs={ed.costs} />

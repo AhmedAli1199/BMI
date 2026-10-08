@@ -227,10 +227,16 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
 - Totals check: per edition, imported sum vs the sheet's "Cumulative value". 443/445 match; the 2 DIFFs are sheet formula errors (TBTM Dinner Dec 2023; State of Washington 2025) — app is right.
 - The importer reads text only — it **can't see cell colours** (a row marked cancelled only by red fill isn't caught).
 
-### 4.3 Commission
-- Default **2% of booked credit** — inferred from the sheets ("Commission payable" ÷ rep total = 2% on 343 sheets, 5% on 8). Editable per salesperson/booking. **The 2% vs 5% rule is an open question for BMI.**
-- Checked and rejected: "commission is paid on invoiced amount" (data shows booked value in 60 cases vs invoiced in 10).
-- Cancelled/contra/moved earn nothing. Salespeople see only their own commission; admins see all.
+### 4.3 Commission (BMI's structure from Matt, built 8 Oct 2026)
+- **Plans** (`commission_rules`, Sales Orders > Commissions > Commission plans): one rule per salesperson per product group: titles covered, rate on their own revenue, extra rate on new business (with an optional "from this publication date" change, e.g. David's 5% to 2% from June 2027), bonus per new customer, per new contract-publishing guide, when a title's yearly revenue passes a threshold, and a share of event profit. "Load BMI's commission structure" fills them from `app/sales/commission_seed.py` (Matt's note; title choices are written in each rule's notes). A booking on a title outside someone's plan uses their old default rate (2%) and is flagged.
+- **How it's applied** (`commission_settings`, one row, editable on the plans page): month a booking counts in (`earned_on`: publication by default, or booked), new-business look-back (24 months), first-deal window (0 = only same-day bookings count with the first), event profit basis (whole event or own sales). These are the open questions for Matt; changing an answer is a setting.
+- **Personal revenue** = the salesperson's credited share, after any agency cut (in proportion). Cancelled/contra/moved earn nothing.
+- **New business** (`app/sales/new_business.py`): no booked spend (any title) or paid Xero invoice by the same customer (CRM company / tidied name / names they've been invoiced under) in the look-back before the booking date. Same-day bookings are part of the first deal. A similar name with recent spend makes it "Needs a decision" (paid no top-up; the month can't be approved until a manager decides). Managers can override any booking, with a reason (kept in its history).
+- **Statements** (`app/sales/commission.py`, `api/routes/commission.py`): per salesperson per month, line by line with reasons; bonuses; event profit share (in the month the event's costs are signed off; a loss pays £0). Approving (admins, after the month ends) freezes it (`commission_statements`); later changes to an approved month appear as an adjustment on the next statement, once. Excel download and print. Salespeople see only their own.
+- **Event costs**: on the event's edition page, the organiser (rep with an event-profit rule for that title), admins or data managers enter costs and mark them final; an admin signs them off, which locks them (Reopen to change). Editing final costs puts them back to draft.
+- **New contract-publishing guide**: tick on the guide's edition page with who sold it; the bonus is paid in the month it publishes.
+- Migration `0038`. Tests `tests/test_commission.py` (each clause of Matt's note as a worked example).
+- **Waiting on Matt:** first deal across several days, when commission is earned, groups/sister brands, Kirsty's event profit basis and losses, plus 2-3 past statements to check figures against.
 
 ### 4.4 Invoicing logic
 - **Invoiced %** is by value, not row count; the tile also shows "N of M paid bookings invoiced" (£0 tickets excluded).

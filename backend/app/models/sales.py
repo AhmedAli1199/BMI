@@ -158,6 +158,14 @@ class SalesEdition(Base, UUIDPk, TimestampMixin):
     plan_needs_check: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # The publication date was set in the editorial plan - a re-import of the order register keeps it.
     date_set_in_plan: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Commission: a guide/supplement that is a new contract-publishing job (earns its seller the new-guide bonus).
+    new_contract_guide: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    new_contract_rep_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_reps.id", ondelete="SET NULL"))
+    # Event costs: marked final by whoever enters them, then signed off by a manager before profit share is paid.
+    costs_final_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    costs_final_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    costs_signed_off_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    costs_signed_off_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     source_file: Mapped[str | None] = mapped_column(String(200))
     source_sheet: Mapped[str | None] = mapped_column(String(120))
     sheet_total_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
@@ -267,6 +275,11 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     # "19th/20th Jan", a value typed as "40, 0000") - shown as a warning
     # badge so a person can fix it, instead of the importer guessing.
     import_warning: Mapped[str | None] = mapped_column(Text)
+    # Commission: a manager's decision on whether this booking is new business (None = worked out from history).
+    new_business_override: Mapped[bool | None] = mapped_column(Boolean)
+    new_business_reason: Mapped[str | None] = mapped_column(String(300))
+    new_business_set_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    new_business_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 

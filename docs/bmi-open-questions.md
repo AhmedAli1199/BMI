@@ -28,7 +28,7 @@ a record of what was decided and why.
       Without it, the added/updated/skipped summary just gets logged
       server-side instead of posted to a channel - works either way, but
       BMI presumably wants it visible somewhere the team actually looks.
-- [ ] **SOR commission rate - is 2% the standard, and what earns 5%?**
+- [x] **SOR commission rate - is 2% the standard, and what earns 5%?** ANSWERED (Oct 2026): Matt sent the full commission structure, now built (HANDOFF §4.3). Still open with Matt: first deal across several days, when commission is earned, groups/sister brands, Kirsty's event profit basis and losses.
       Every per-rep "Commission payable" figure across the 2026 SOR works
       out to exactly 2% of that rep's booked total, except two that are 5%.
       Shared bookings do exist but are rare (e.g. BA/Hungary 2025, booked

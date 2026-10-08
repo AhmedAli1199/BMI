@@ -905,6 +905,14 @@ def _edition_costs(db: Session, ed: SalesEdition, booked: float) -> EditionCosts
     )
 
 
+def _costs_editable(db: Session, ed: SalesEdition, identity: Identity) -> None:
+    """Signed-off costs are locked (they've been paid on); a change to final costs takes them back to draft."""
+    from app.api.routes.commission import can_edit_costs
+
+    can_edit_costs(db, ed, identity)
+    ed.costs_final_at = ed.costs_final_by_user_id = None
+
+
 @router.get("/editions/{edition_id}/costs", response_model=EditionCosts)
 def get_costs(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCosts:
     ed = _get_edition(db, edition_id)
@@ -912,8 +920,9 @@ def get_costs(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCo
 
 
 @router.post("/editions/{edition_id}/costs", response_model=EditionCosts, status_code=201)
-def add_cost(edition_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db)) -> EditionCosts:
+def add_cost(edition_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> EditionCosts:
     ed = _get_edition(db, edition_id)
+    _costs_editable(db, ed, identity)
     last = db.scalar(select(func.max(SalesEditionCost.sort_order)).where(SalesEditionCost.edition_id == ed.id)) or 0
     db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, sort_order=last + 1,
                             **{**payload.model_dump(), "label": payload.label.strip()}))
@@ -922,10 +931,12 @@ def add_cost(edition_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(g
 
 
 @router.put("/editions/{edition_id}/costs/{cost_id}", response_model=EditionCosts)
-def update_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db)) -> EditionCosts:
+def update_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db),
+                identity: Identity = Depends(get_identity)) -> EditionCosts:
     line = db.get(SalesEditionCost, cost_id)
     if not line or line.edition_id != edition_id:
         raise HTTPException(status_code=404, detail="Cost line not found")
+    _costs_editable(db, _get_edition(db, edition_id), identity)
     for k, v in payload.model_dump().items():
         setattr(line, k, v.strip() if isinstance(v, str) else v)
     db.commit()
@@ -933,9 +944,11 @@ def update_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, payload: CostLineIn, 
 
 
 @router.delete("/editions/{edition_id}/costs/{cost_id}", response_model=EditionCosts)
-def delete_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCosts:
+def delete_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, db: Session = Depends(get_db),
+                identity: Identity = Depends(get_identity)) -> EditionCosts:
     line = db.get(SalesEditionCost, cost_id)
     if line and line.edition_id == edition_id:
+        _costs_editable(db, _get_edition(db, edition_id), identity)
         db.delete(line)
         db.commit()
     return get_costs(edition_id, db)

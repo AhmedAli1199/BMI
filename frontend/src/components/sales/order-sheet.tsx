@@ -24,6 +24,7 @@ import { EntityPicker } from "@/components/entity-picker";
 import { InfoHint } from "@/components/sales/info-hint";
 import { UndoInvoiceLinkButton } from "@/components/sales/invoice-match-panel";
 import { FindInXeroButton } from "@/components/sales/xero-link-dialogs";
+import { BookingNewBusinessRow } from "@/components/commission/booking-new-business";
 import { fmtGBP } from "@/components/sales/sales-ui";
 
 const SIZES = ["FP", "1/2", "1/4", "DPS", "Banner", "Listing", "Advertorial", "Insert", "Partner", "Sponsor", "One ticket", "Table"];
@@ -418,6 +419,12 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             </div>
           )}
         </Group>
+
+        {existing && existing.status === "booked" && (
+          <Group title="Commission">
+            <BookingNewBusinessRow orderId={existing.id} />
+          </Group>
+        )}
 
         <Group title="Invoice">
           {existing?.xero && (
