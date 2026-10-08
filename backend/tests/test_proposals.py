@@ -167,3 +167,40 @@ def test_email_draft_uses_contact_address(client, db_session, world):
     p = create(client, world, contact_id=str(c.id)).json()
     d = client.get(f"/api/proposals/{p['id']}/email-draft", headers=world["h"]).json()
     assert d["to"] == ["ann@delta.test"] and d["body"].startswith("Hi Ann") and not d["outlook_connected"]
+
+
+def test_revise_with_an_instruction(client, world, monkeypatch):
+    from app.automations import llm
+    p = create(client, world).json()
+    monkeypatch.setattr(llm, "is_configured", lambda: True)
+    seen = {}
+
+    def fake(system, user, **kw):
+        seen["user"] = user
+        return {"summary": "Shorter intro and a new Awards section.", "sections": [
+            {"kind": "intro", "heading": "Hello Delta", "body": "A short hello."},
+            {"kind": "custom", "heading": "Onboard Awards", "body": "Enter the Awards this year."},
+            {"kind": "proposal", "heading": "Our idea", "body": "Two full pages at £4,500 each."}]}
+    monkeypatch.setattr(llm, "extract_json", fake)
+    r = client.post(f"/api/proposals/{p['id']}/revise", json={"instruction": "make the intro shorter and add an Awards section"}, headers=world["h"])
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert [s["heading"] for s in out["proposal"]["sections"]] == ["Hello Delta", "Onboard Awards", "Our idea", "Investment"]
+    assert out["summary"].startswith("Shorter") and len(out["previous_sections"]) == 5
+    assert "make the intro shorter" in seen["user"]
+    # an invented figure is refused and nothing changes
+    monkeypatch.setattr(llm, "extract_json", lambda *a, **k: {"sections": [{"kind": "intro", "heading": "Hi", "body": "We reach 95,000 readers."}]})
+    r = client.post(f"/api/proposals/{p['id']}/revise", json={"instruction": "sell harder"}, headers=world["h"])
+    assert r.status_code == 422 and "95000" in r.json()["detail"]
+    assert client.get(f"/api/proposals/{p['id']}", headers=world["h"]).json()["sections"][0]["heading"] == "Hello Delta"
+    # unless the salesperson gave that figure themselves
+    r = client.post(f"/api/proposals/{p['id']}/revise", json={"instruction": "mention we reach 95,000 readers"}, headers=world["h"])
+    assert r.status_code == 200
+
+
+def test_transcribe_needs_audio(client, world, monkeypatch):
+    from app.automations import llm
+    assert client.post("/api/proposals/transcribe", content=b"", headers=world["h"]).status_code == 422
+    monkeypatch.setattr(llm, "transcribe_audio", lambda audio, mime, **k: "make it friendlier")
+    r = client.post("/api/proposals/transcribe", content=b"abc", headers={**world["h"], "Content-Type": "audio/webm"})
+    assert r.json() == {"text": "make it friendlier"}

@@ -695,3 +695,37 @@ def _extract_json_from_image_gemini(
             prompt_tokens=0, completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_vision_model), success=False, error_type=exc.__class__.__name__,
         )
         return None
+
+
+def transcribe_audio(audio: bytes, mime_type: str, *, purpose: str = "transcribe") -> str | None:
+    """Speech to text for spoken instructions (e.g. "make the intro shorter"). Gemini only; None if it
+    isn't configured or the call fails - the caller tells the person to type instead."""
+    client = _get_gemini_client()
+    if client is None or not audio:
+        return None
+    cfg = _runtime_llm_settings()
+    _throttle(cfg["min_interval"])
+    try:
+        from google.genai import types
+        response = _with_retries(
+            lambda: client.models.generate_content(
+                model=settings.gemini_vision_model,
+                contents=[types.Part.from_bytes(data=audio, mime_type=mime_type),
+                          "Write down exactly what the speaker says, in British English. Return only the words spoken, nothing else."],
+                config=types.GenerateContentConfig(max_output_tokens=800, temperature=0.0,
+                                                   thinking_config=types.ThinkingConfig(thinking_budget=0)),
+            ),
+            max_retries=_gemini_retry_budget(cfg), base_delay=cfg["retry_base_delay"], log_label="Gemini transcribe_audio",
+        )
+        usage = getattr(response, "usage_metadata", None)
+        _log_usage(provider="gemini", model=settings.gemini_vision_model, call_type="audio", purpose=purpose,
+                   prompt_tokens=getattr(usage, "prompt_token_count", 0) or 0, completion_tokens=getattr(usage, "candidates_token_count", 0) or 0,
+                   cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_vision_model), success=True, error_type=None)
+        text = (getattr(response, "text", None) or "").strip()
+        return text or None
+    except Exception as exc:
+        logger.exception("Gemini transcribe_audio failed")
+        _log_usage(provider="gemini", model=settings.gemini_vision_model, call_type="audio", purpose=purpose, prompt_tokens=0,
+                   completion_tokens=0, cost_rates=_resolve_cost_rates(cfg, "gemini", settings.gemini_vision_model), success=False,
+                   error_type=exc.__class__.__name__)
+        return None

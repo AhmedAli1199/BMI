@@ -15,6 +15,7 @@ import { downloadFile } from "@/lib/download";
 import { InfoHint } from "@/components/sales/info-hint";
 import { SectionTitle, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
+import { ProposalAiRevise } from "@/components/sales/proposal-ai-revise";
 import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -219,13 +220,20 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPreview(!preview)}>{preview ? <><Pencil className="size-3.5" /> Edit</> : <><Eye className="size-3.5" /> Preview</>}</Button>
               {!sent && (
                 <Button size="sm" variant="outline" className="gap-1.5" disabled={pending} onClick={() => {
-                  if (!window.confirm("Rewrite every section? Your edits to the wording will be replaced.")) return;
+                  if (!window.confirm("Write every section again from scratch? Your edits to the wording will be replaced.")) return;
                   start(async () => { try { if (dirty) await saveProposal(proposal.id, saved()); const p = await redraftProposal(proposal.id); setSections(p.sections); setLines(p.lines); setLinesTouched(false); setIssueChanged(false); setDirty(false); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't redraft")); } });
-                }}><Sparkles className="size-3.5" /> Redraft wording</Button>
+                }}><Sparkles className="size-3.5" /> Start again</Button>
               )}
             </div>
           }>Wording</SectionTitle>
 
+          {!sent && !preview && (
+            <div className="mb-3">
+              <ProposalAiRevise proposalId={proposal.id} sections={sections}
+                onBeforeApply={async () => { if (dirty) { await saveProposal(proposal.id, saved()); setDirty(false); } }}
+                onApplied={(next) => { setSections(next); setIssueChanged(false); router.refresh(); }} />
+            </div>
+          )}
           {preview ? (
             <article className="rounded-xl border border-border/80 bg-card p-6 text-sm shadow-2xs" aria-label="Proposal preview">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{campaign}</p>
@@ -301,7 +309,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
                 onChange={(id) => changeIssue(id)} emptyLabel="No particular issue" />
             </label>
           )}
-          {issueChanged && !sent && <p className="mt-2 text-xs text-muted-foreground">Press <strong>Redraft wording</strong> to bring the new issue&apos;s details into the text.</p>}
+          {issueChanged && !sent && <p className="mt-2 text-xs text-muted-foreground">Press <strong>Start again</strong>, or ask the AI below, to bring the new issue&apos;s details into the text.</p>}
         </section>
         <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold">History with BMI <InfoHint>From the order register. The draft wording only uses these figures.</InfoHint></h2>

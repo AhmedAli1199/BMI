@@ -76,3 +76,12 @@ export async function getUpcomingIssues(titleId: string, include?: string | null
   if (include) q.set("include", include);
   return backendFetch<UpcomingIssue[]>(`/api/editorial/upcoming?${q}`);
 }
+
+/** Applies the salesperson's own instruction to the whole proposal; returns what changed and the previous version (for Undo). */
+export async function reviseProposal(id: string, instruction: string, sections: ProposalSection[]): Promise<{ proposal: Proposal; summary: string; previous_sections: ProposalSection[] }> {
+  const r = await backendFetch<{ proposal: Proposal; summary: string; previous_sections: ProposalSection[] }>(`/api/proposals/${id}/revise`, {
+    method: "POST", headers: json, body: JSON.stringify({ instruction, sections }),
+  });
+  refresh(r.proposal);
+  return r;
+}

@@ -136,3 +136,63 @@ def default_sections(wording: dict[str, str]) -> list[dict]:
         body = "All prices are before VAT." if kind == "investment" else wording.get(kind, "")
         secs.append({"id": str(uuid.uuid4()), "kind": kind, "heading": DEFAULT_HEADINGS[kind], "body": body})
     return secs
+
+
+REVISE_SYSTEM = (
+    "You revise a sales proposal for BMI Publishing, a UK travel and hospitality publisher, following the salesperson's instruction. "
+    "You may change anything the instruction asks for: headings, wording, tone, length, order of sections, add or remove sections. "
+    "Write plain, warm, professional British English. Never invent prices, dates, figures, circulation, audience numbers or claims: "
+    "only use figures that appear in the FACTS, the current proposal, or the instruction. Keep exactly one section with kind 'investment' "
+    "(its price table is added automatically - its body is a short note under the table). Use **double asterisks** for bold and start a "
+    "line with '- ' for a bullet. Return JSON: {\"sections\": [{\"kind\": \"intro|history|proposal|investment|next_steps|custom\", "
+    "\"heading\": \"...\", \"body\": \"...\"}], \"summary\": \"one short sentence saying what you changed\"}."
+)
+
+MAX_SECTIONS = 14
+
+
+class RevisionRefused(Exception):
+    """A plain sentence for the salesperson saying why nothing was changed."""
+
+
+def revise_sections(ctx: dict, lines: list[dict], campaign_name: str, sections: list[dict], instruction: str) -> tuple[list[dict], str]:
+    """(new sections, what changed). Raises RevisionRefused with a plain reason when it can't be done safely."""
+    from app.automations import llm
+    if not llm.is_configured():
+        raise RevisionRefused("The AI isn't switched on for this account, so changes can't be made from an instruction. Edit the sections directly instead.")
+    facts = facts_text(ctx, lines, campaign_name)
+    current = "\n\n".join(f"[{s.get('kind', 'custom')}] {s.get('heading', '')}\n{s.get('body', '')}" for s in sections)
+    user = (f"INSTRUCTION FROM THE SALESPERSON:\n{instruction}\n\nCURRENT PROPOSAL (kind in brackets, then heading, then text):\n{current}\n\n"
+            f"Client: {ctx.get('company')}\nTitle: {ctx.get('title')}\nIssue: {ctx.get('issue')}\nProducts and prices: {lines}\n\n"
+            f"FACTS (the only figures you may add): {facts}")
+    out = llm.extract_json(REVISE_SYSTEM, user, max_tokens=3000, purpose="proposal_revise")
+    raw = out.get("sections") if isinstance(out, dict) else None
+    if not isinstance(raw, list) or not raw:
+        raise RevisionRefused("The AI didn't come back with a usable version. Try again, or say what to change in a different way.")
+    allowed = numbers_in(facts) | numbers_in(current) | numbers_in(instruction)
+    new: list[dict] = []
+    for s in raw[:MAX_SECTIONS]:
+        if not isinstance(s, dict):
+            continue
+        heading, body = str(s.get("heading") or "").strip()[:200], str(s.get("body") or "").strip()
+        kind = s.get("kind") if s.get("kind") in (*SECTION_ORDER, "custom") else "custom"
+        if not heading and not body:
+            continue
+        bad = numbers_in(f"{heading} {body}") - allowed
+        if bad:
+            raise RevisionRefused(f"The new version mentioned figures we can't check against the rate card or booking history "
+                                  f"({', '.join(sorted(bad)[:4])}), so nothing was changed. Put the figure in your instruction if it's right.")
+        new.append({"id": str(uuid.uuid4()), "kind": kind, "heading": heading, "body": body})
+    if not new:
+        raise RevisionRefused("The AI didn't come back with a usable version. Try again, or say what to change in a different way.")
+    inv = [s for s in new if s["kind"] == "investment"]
+    if not inv:  # the price table hangs off the investment section, so it can't disappear
+        old = next((s for s in sections if s.get("kind") == "investment"), None)
+        new.append({"id": str(uuid.uuid4()), "kind": "investment", "heading": (old or {}).get("heading") or DEFAULT_HEADINGS["investment"],
+                    "body": (old or {}).get("body") or "All prices are before VAT."})
+    for extra in inv[1:]:
+        extra["kind"] = "custom"
+    summary = str(out.get("summary") or "").strip()[:300] or "Proposal updated."
+    if numbers_in(summary) - allowed:
+        summary = "Proposal updated."
+    return new, summary

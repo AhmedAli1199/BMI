@@ -10,7 +10,8 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -302,6 +303,52 @@ def redraft(pid: uuid.UUID, payload: RedraftIn, db: Session = Depends(get_db), u
     _draft(db, p, use_ai=payload.use_ai)
     db.commit()
     return _out(db, p)
+
+
+class ReviseIn(BaseModel):
+    instruction: str = Field(min_length=3, max_length=4000)
+    sections: list[SectionIn] | None = None  # what's on screen now (unsaved edits included)
+
+
+class ReviseOut(BaseModel):
+    proposal: ProposalOut
+    summary: str
+    previous_sections: list[dict]
+
+
+@router.post("/{pid}/revise", response_model=ReviseOut)
+def revise(pid: uuid.UUID, payload: ReviseIn, db: Session = Depends(get_db), user: User = Depends(current_user),
+           identity: Identity = Depends(get_identity)) -> ReviseOut:
+    """Applies the salesperson's own instruction ("shorter intro, add a section on the Awards, friendlier tone") to the
+    whole proposal. Figures still only come from the data; the previous version is returned so the screen can undo."""
+    p = _get(db, pid, user, identity)
+    if p.status == "sent":
+        raise HTTPException(409, "This proposal has been sent, so it can't be changed.")
+    current = ([{"id": s.id or str(uuid.uuid4()), "kind": s.kind, "heading": s.heading, "body": s.body} for s in payload.sections]
+               if payload.sections is not None else list(p.sections))
+    try:
+        new, summary = drafting.revise_sections(p.context or {}, p.lines, p.campaign_name, current, payload.instruction.strip())
+    except drafting.RevisionRefused as exc:
+        raise HTTPException(422, str(exc)) from exc
+    p.sections, p.drafted_by = new, "ai"
+    db.commit()
+    return ReviseOut(proposal=_out(db, p), summary=summary, previous_sections=current)
+
+
+@router.post("/transcribe")
+async def transcribe(request: Request, user: User = Depends(current_user)) -> dict:
+    """Spoken instruction to text. The browser sends the recording as the request body."""
+    from app.automations import llm
+    audio = await request.body()
+    if not audio:
+        raise HTTPException(422, "We didn't get any sound. Try again, a little closer to the microphone.")
+    if len(audio) > 8 * 1024 * 1024:
+        raise HTTPException(413, "That recording is too long. Keep it under a couple of minutes.")
+    mime = (request.headers.get("content-type") or "audio/webm").split(";")[0]
+    text = await run_in_threadpool(llm.transcribe_audio, audio, mime, purpose="proposal_voice")
+    if not text:
+        raise HTTPException(422, "We couldn't make out the recording. Try again, or type the change instead.")
+    return {"text": text}
 
 
 @router.get("/{pid}/download")
