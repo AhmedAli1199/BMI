@@ -53,9 +53,9 @@ function AccessRowEditor({
   const visibleGroups = row.source_db ? groups : [];
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5">
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] items-center gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5">
       <select
-        className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+        className="h-8 w-full min-w-0 truncate rounded-md border border-input bg-background px-2 text-xs"
         value={row.source_db}
         onChange={(e) => onChange({ source_db: e.target.value, group_id: null })}
       >
@@ -69,7 +69,7 @@ function AccessRowEditor({
         ))}
       </select>
       <select
-        className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+        className="h-8 w-full min-w-0 truncate rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
         value={row.group_id ?? ""}
         disabled={!row.source_db}
         onChange={(e) => onChange({ ...row, group_id: e.target.value || null })}
@@ -175,7 +175,7 @@ export function UserFormDialog({
         </Button>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{existing ? `Edit ${existing.name}` : "Add a team member"}</DialogTitle>
             <DialogDescription>
@@ -184,8 +184,8 @@ export function UserFormDialog({
                 : "Creates a real login. Set a temporary password and share it securely - never over chat."}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="uf-name">Name</Label>
                 <Input id="uf-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -214,7 +214,7 @@ export function UserFormDialog({
                   placeholder={existing ? "Leave blank to keep their current password" : "At least 8 characters"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="flex-1"
+                  className="min-w-0 flex-1"
                 />
                 <Button
                   type="button"
@@ -273,7 +273,7 @@ export function UserFormDialog({
                 id="uf-rep"
                 value={chosenRep}
                 onChange={(e) => { setRepId(e.target.value); setRepTouched(true); }}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                className="h-8 w-full min-w-0 truncate rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               >
                 <option value="">Not a salesperson</option>
                 {(reps ?? []).filter((r) => r.active || r.id === chosenRep).map((r) => (
