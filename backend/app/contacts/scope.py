@@ -48,8 +48,10 @@ def resolve(db: Session, scope: Scope, identity: Identity) -> list[uuid.UUID]:
     ids = lookup_ids(db, f, limit=MAX_CONTACTS + 1)
     if len(ids) > MAX_CONTACTS:
         raise HTTPException(413, f"That's more than {MAX_CONTACTS:,} contacts - narrow the search first.")
-    allowed = identity.allowed_source_dbs()
-    if allowed is not None and ids:
-        ok = set(db.scalars(select(Contact.id).where(Contact.id.in_(ids), Contact.source_db.in_(allowed))))
+    from app.core.visibility import contact_clause
+
+    seen = contact_clause(db, identity)  # whole databases or groups they've been given, read from their saved access
+    if seen is not None and ids:
+        ok = set(db.scalars(select(Contact.id).where(Contact.id.in_(ids), seen)))
         ids = [i for i in ids if i in ok]
     return ids

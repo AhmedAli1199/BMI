@@ -59,6 +59,9 @@ async def lifespan(_: FastAPI):
     stop_scheduler()
 
 
+from app.core.identity import Identity, get_identity  # noqa: E402
+from app.core.visibility import guard_records, set_current  # noqa: E402
+
 app = FastAPI(
     title=settings.app_name,
     docs_url="/docs" if docs_enabled else None,
@@ -75,14 +78,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api_router = APIRouter(prefix="/api", dependencies=[Depends(require_api_key)])
+async def bind_identity(identity: Identity = Depends(get_identity)) -> None:
+    """Makes the signed-in person available to shared queries for this request (app/core/visibility.py).
+    Async on purpose: it runs in the request's own context, which the endpoint then inherits."""
+    set_current(identity)
+
+
+api_router = APIRouter(prefix="/api", dependencies=[Depends(require_api_key), Depends(bind_identity)])
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(contact_imports.router)
 api_router.include_router(contact_tools.router)
-api_router.include_router(contacts.router)
-api_router.include_router(companies.router)
-api_router.include_router(groups.router)
+api_router.include_router(contacts.router, dependencies=[Depends(guard_records)])
+api_router.include_router(companies.router, dependencies=[Depends(guard_records)])
+api_router.include_router(groups.router, dependencies=[Depends(guard_records)])
 api_router.include_router(dashboard.router)
 api_router.include_router(review_queue.router)
 api_router.include_router(automations.router)

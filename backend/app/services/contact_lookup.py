@@ -89,6 +89,11 @@ def _quick_match(token: str):
 
 
 def apply_filters(db: Session, stmt, f: LookupFilters):
+    from app.core.visibility import contact_clause
+
+    visible = contact_clause(db)  # only contacts the signed-in person may see (whole databases, or their groups)
+    if visible is not None:
+        stmt = stmt.where(visible)
     if f.source_db:
         stmt = stmt.where(Contact.source_db == f.source_db)
     if f.company_id:

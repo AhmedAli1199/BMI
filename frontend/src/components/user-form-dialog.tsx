@@ -47,7 +47,7 @@ function AccessRowEditor({
 
   useEffect(() => {
     if (!row.source_db) return;
-    listGroupsForDatabase(row.source_db).then(setGroups);
+    listGroupsForDatabase(row.source_db).then(setGroups).catch(() => setGroups([]));
   }, [row.source_db]);
 
   const visibleGroups = row.source_db ? groups : [];
@@ -74,7 +74,7 @@ function AccessRowEditor({
         disabled={!row.source_db}
         onChange={(e) => onChange({ ...row, group_id: e.target.value || null })}
       >
-        <option value="">Full database (no group restriction)</option>
+        <option value="">Whole database</option>
         {visibleGroups.map((g) => (
           <option key={g.id} value={g.id}>
             {"—".repeat(g.hier_level ?? 0)} {g.name}

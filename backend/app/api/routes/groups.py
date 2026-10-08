@@ -20,6 +20,8 @@ from app.api.schemas import (
 from app.db.session import get_db
 from app.models import Company, Contact, Group, GroupMembership
 
+from app.core.visibility import contact_clause, group_clause  # noqa: E402
+
 router = APIRouter(prefix="/groups", tags=["groups"])
 
 
@@ -42,6 +44,9 @@ def list_groups(
     )
 
     stmt = select(Group, member_count_subq.label("member_count"))
+    visible = group_clause(db)
+    if visible is not None:
+        stmt = stmt.where(visible)
     if source_db:
         stmt = stmt.where(Group.source_db == source_db)
     if root_group_id:
@@ -89,7 +94,7 @@ def get_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> GroupDetail
         select(Contact, Company.name.label("company_name"))
         .join(GroupMembership, GroupMembership.contact_id == Contact.id)
         .outerjoin(Company, Contact.company_id == Company.id)
-        .where(GroupMembership.group_id == group_id)
+        .where(GroupMembership.group_id == group_id, *([contact_clause(db)] if contact_clause(db) is not None else []))
         .order_by(Contact.last_name.asc().nulls_last())
         .limit(500)
     ).all()

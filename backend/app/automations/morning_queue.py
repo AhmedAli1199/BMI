@@ -149,6 +149,11 @@ def build_today_queue(db: Session, owner_user_id: str | None = None, source_dbs:
     query = db.query(ReviewQueueItem).filter(
         ReviewQueueItem.kind.in_(_SOURCE_KINDS), ReviewQueueItem.status == "pending"
     )
+    from app.core.visibility import review_item_clause
+
+    seen = review_item_clause(db)
+    if seen is not None:
+        query = query.filter(seen)
     if source_dbs is not None:
         query = query.filter(
             (ReviewQueueItem.source_db.in_(source_dbs)) | (ReviewQueueItem.source_db.is_(None))

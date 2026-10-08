@@ -39,6 +39,8 @@ from app.services.field_audit import record_field_changes
 from app.models import Activity, Company, Contact, Email, FieldChange, HistoryEntry, Note, Opportunity, User
 from app.models.contact_channel import Address, Phone
 
+from app.core.visibility import company_clause, contact_clause  # noqa: E402
+
 router = APIRouter(prefix="/companies", tags=["companies"])
 
 
@@ -58,6 +60,9 @@ def list_companies(
     )
 
     stmt = select(Company, contact_count_subq.label("contact_count"))
+    visible = company_clause(db)
+    if visible is not None:
+        stmt = stmt.where(visible)
     if source_db:
         stmt = stmt.where(Company.source_db == source_db)
     if q:
@@ -124,8 +129,9 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
     addresses = db.scalars(select(Address).where(Address.company_id == company_id)).all()
     phones = db.scalars(select(Phone).where(Phone.company_id == company_id)).all()
     emails = db.scalars(select(Email).where(Email.company_id == company_id)).all()
+    seen = contact_clause(db)
     contacts = db.scalars(
-        select(Contact).where(Contact.company_id == company_id)
+        select(Contact).where(Contact.company_id == company_id, *([seen] if seen is not None else []))
         .order_by(Contact.last_name.asc().nulls_last())
         .limit(200)
     ).all()

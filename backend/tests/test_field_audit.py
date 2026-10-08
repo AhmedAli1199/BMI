@@ -28,7 +28,7 @@ def test_editing_a_field_records_who_changed_it(client, db_session):
 
     resp = client.patch(
         f"/api/contacts/{contact['id']}", json={"job_title": "Mathematician"},
-        headers=identity_headers(rep),
+        headers=identity_headers(rep, access=[("manual", None)]),
     )
     assert resp.status_code == 200
 
@@ -114,7 +114,7 @@ def test_company_field_edits_are_also_recorded(client, db_session):
 
     resp = client.patch(
         f"/api/companies/{company['id']}", json={"industry": "Travel"},
-        headers=identity_headers(rep),
+        headers=identity_headers(rep, access=[("manual", None)]),
     )
     assert resp.status_code == 200
 
@@ -153,7 +153,7 @@ def test_clearing_first_and_last_name_recomputes_full_name(client, db_session):
 
     resp = client.patch(
         f"/api/contacts/{contact['id']}", json={"first_name": "", "last_name": ""},
-        headers=identity_headers(rep),
+        headers=identity_headers(rep, access=[("manual", None)]),
     )
     assert resp.status_code == 200
     assert resp.json()["full_name"] is None

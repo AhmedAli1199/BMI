@@ -44,7 +44,7 @@ def _visible_kinds(identity: Identity) -> set[str] | None:
     return {k.kind for k in all_kinds() if k.audience == "sales"}
 
 
-def _apply_scope(stmt, identity: Identity):
+def _apply_scope(stmt, identity: Identity, db: Session | None = None):
     """Kind + database scoping shared by every read/write endpoint below.
     A NULL source_db row (e.g. bounce_unmatched - no contact matched yet,
     nothing to scope by) is always let through the database filter; the
@@ -62,6 +62,12 @@ def _apply_scope(stmt, identity: Identity):
             stmt = stmt.where(or_(ReviewQueueItem.kind != "renewal_due", mine,
                                   ReviewQueueItem.payload["owner_user_id"].astext == str(identity.user_uuid)))
 
+    if db is not None:
+        from app.core.visibility import review_item_clause
+
+        seen = review_item_clause(db, identity)  # items about records outside someone's groups stay hidden
+        if seen is not None:
+            stmt = stmt.where(seen)
     allowed_dbs = identity.allowed_source_dbs()
     if allowed_dbs is not None:
         stmt = stmt.where(
@@ -261,6 +267,7 @@ def list_counts(db: Session = Depends(get_db), identity: Identity = Depends(get_
             ReviewQueueItem.kind, ReviewQueueItem.status
         ),
         identity,
+        db,
     )
     rows = db.execute(stmt).all()
     by_kind: dict[str, dict[str, int]] = {}
@@ -336,7 +343,7 @@ def list_facets(
     out = []
     for key, label in kind_def.facets:
         expr = _facet_expr(key)
-        stmt = _apply_filters(_apply_scope(select(expr, func.count()), identity), kind=kind, status=status, q=q,
+        stmt = _apply_filters(_apply_scope(select(expr, func.count()), identity, db), kind=kind, status=status, q=q,
                               bucket=bucket, facets=chosen, skip=key).where(expr.isnot(None)).group_by(expr)
         rows = sorted(db.execute(stmt).all(), key=lambda r: (-r[1], str(r[0])))
         out.append(ReviewFacetOut(key=key, label=label, options=[ReviewFacetOption(value=v, count=c) for v, c in rows]))
@@ -373,7 +380,7 @@ def get_review_insights(
         condition = _bucket_condition(kind, key)
         stmt = _apply_scope(
             select(func.count()).select_from(ReviewQueueItem).where(ReviewQueueItem.kind == kind, condition),
-            identity,
+            identity, db,
         )
         if status:
             stmt = stmt.where(ReviewQueueItem.status == status)
@@ -395,7 +402,7 @@ def list_review_items(
     db: Session = Depends(get_db),
     identity: Identity = Depends(get_identity),
 ) -> ReviewQueuePage:
-    stmt = _apply_filters(_apply_scope(select(ReviewQueueItem), identity), kind=kind, status=status, q=q, bucket=bucket,
+    stmt = _apply_filters(_apply_scope(select(ReviewQueueItem), identity, db), kind=kind, status=status, q=q, bucket=bucket,
                           facets=_parse_facets(facet))
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
@@ -593,7 +600,7 @@ def bulk_resolve_review_items(
         input_data["note"] = payload.note
 
     items = db.scalars(
-        _apply_filters(_apply_scope(select(ReviewQueueItem), identity), kind=kind, status="pending", q=q, bucket=None,
+        _apply_filters(_apply_scope(select(ReviewQueueItem), identity, db), kind=kind, status="pending", q=q, bucket=None,
                        facets=_parse_facets(facet))
     ).all()
 

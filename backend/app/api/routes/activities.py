@@ -12,6 +12,8 @@ from app.api.routes._creators import creator_summary, resolve_creators
 from app.db.session import get_db
 from app.models import Activity, Company, Contact, User
 
+from app.core.visibility import company_clause, contact_clause  # noqa: E402
+
 router = APIRouter(prefix="/activities", tags=["activities"])
 
 
@@ -59,6 +61,11 @@ def list_activities(
     db: Session = Depends(get_db),
 ) -> ActivitiesPage:
     stmt = select(Activity)
+    seen_c, seen_co = contact_clause(db), company_clause(db)
+    if seen_c is not None:
+        # Restricted people see activities about contacts or companies they can see.
+        stmt = stmt.where(or_(Activity.contact_id.in_(select(Contact.id).where(seen_c)),
+                              Activity.company_id.in_(select(Company.id).where(seen_co))))
     if source_db:
         stmt = stmt.where(Activity.source_db == source_db)
     if assigned_user_id:

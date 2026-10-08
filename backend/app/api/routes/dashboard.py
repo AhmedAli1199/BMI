@@ -53,6 +53,10 @@ def get_dashboard_stats(
     contact_filter = [Contact.source_db == source_db] if source_db else []
     company_filter = [Company.source_db == source_db] if source_db else []
     group_filter = [Group.source_db == source_db] if source_db else []
+    from app.core.visibility import company_clause, contact_clause, group_clause
+    for lst, clause in ((contact_filter, contact_clause(db)), (company_filter, company_clause(db)), (group_filter, group_clause(db))):
+        if clause is not None:
+            lst.append(clause)
 
     # Companies/groups aren't group-scoped (a group is a contact-level
     # concept - see app/models/user_access.py's docstring), so a

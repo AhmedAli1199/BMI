@@ -523,11 +523,17 @@ export async function searchGroups(q: string): Promise<GroupListItem[]> {
  * source_db and returns everything (up to 500) rather than a text-search
  * top-10, since an admin picking an access grant needs to see the whole
  * tree, not guess a search term. */
+/** Every group in a database (fetched a page at a time - the server sends at most 200 per page). */
 export async function listGroupsForDatabase(source_db: string): Promise<GroupListItem[]> {
-  const page = await backendFetch<Page<GroupListItem>>(
-    `/api/groups?${new URLSearchParams({ source_db, page_size: "500" })}`
-  );
-  return page.items;
+  const all: GroupListItem[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const res = await backendFetch<Page<GroupListItem>>(
+      `/api/groups?${new URLSearchParams({ source_db, page_size: "200", page: String(page) })}`
+    );
+    all.push(...res.items);
+    if (all.length >= res.total || res.items.length === 0) break;
+  }
+  return all;
 }
 
 export async function searchContacts(q: string): Promise<ContactListItem[]> {

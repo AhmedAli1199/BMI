@@ -90,7 +90,7 @@ def test_group_from_selection_and_bulk_add(client, db_session, people):
 
 def test_reminder_fires_once_and_emails(client, db_session, people, monkeypatch):
     me = make_user(db_session, role="sales")
-    h = identity_headers(me)
+    h = identity_headers(me, access=[("manual", None)])
     due = datetime.now(timezone.utc) + timedelta(minutes=1)
     r = client.post("/api/reminders", headers=h, json={"due_at": due.isoformat(), "note": "Chase media pack",
                                                         "contact_id": str(people["amy"].id)})
@@ -121,12 +121,12 @@ def test_reminder_fires_once_and_emails(client, db_session, people, monkeypatch)
 
 def test_reminder_snooze_rearms_and_is_private(client, db_session):
     me, other = make_user(db_session), make_user(db_session)
-    r = client.post("/api/reminders", headers=identity_headers(me),
+    r = client.post("/api/reminders", headers=identity_headers(me, access=[("manual", None)]),
                     json={"due_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(), "email_me": False}).json()
     fire_due_reminders(db_session)
     assert db_session.get(Notification, db_session.query(Notification).filter_by(user_id=me.id).one().id).email_status is None
     later = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
-    r2 = client.patch(f"/api/reminders/{r['id']}", headers=identity_headers(me), json={"due_at": later}).json()
+    r2 = client.patch(f"/api/reminders/{r['id']}", headers=identity_headers(me, access=[("manual", None)]), json={"due_at": later}).json()
     assert r2["notified_at"] is None and r2["status"] == "open"
     assert client.patch(f"/api/reminders/{r['id']}", headers=identity_headers(other), json={"status": "done"}).status_code == 404
     assert client.get("/api/reminders", headers=identity_headers(other)).json() == []
@@ -143,10 +143,10 @@ def test_recipients_preview_flags(client, db_session, people):
     me = make_user(db_session)
     people["bob"].is_unsubscribed = True
     db_session.flush()
-    r = client.post("/api/mail-merge/recipients", headers=identity_headers(me), json={"kind": "lookup", "title": "buyer"}).json()
+    r = client.post("/api/mail-merge/recipients", headers=identity_headers(me, access=[("manual", None)]), json={"kind": "lookup", "title": "buyer"}).json()
     got = {i["name"]: i for i in r["items"]}
     assert got["Amy Zed"]["email"] == "amy@zeta.com" and got["Cat Xavier"]["email"] is None
-    r = client.post("/api/mail-merge/recipients", headers=identity_headers(me),
+    r = client.post("/api/mail-merge/recipients", headers=identity_headers(me, access=[("manual", None)]),
                     json={"kind": "company", "company_id": str(people["company"].id)}).json()
     assert r["label"] == "Company: Zeta Airways" and r["total"] == 1
 
@@ -155,7 +155,7 @@ def test_recipients_preview_flags(client, db_session, people):
 def test_document_outputs(client, db_session, people, output, magic):
     me = make_user(db_session)
     ids = [str(people[k].id) for k in ("amy", "bob", "cat")]
-    r = client.post("/api/mail-merge", headers=identity_headers(me), json={
+    r = client.post("/api/mail-merge", headers=identity_headers(me, access=[("manual", None)]), json={
         "output": output, "contact_ids": ids, "body": "Dear {{first_name}},\n\nThanks.", "subject": "Media pack",
         "record_history": "subject_only", "history_regarding": "Media pack letter"})
     assert r.status_code == 200, r.text
@@ -166,7 +166,7 @@ def test_document_outputs(client, db_session, people, output, magic):
 
 def test_email_merge_needs_outlook_then_queues_and_sends(client, db_session, people, monkeypatch):
     me = make_user(db_session)
-    h = identity_headers(me)
+    h = identity_headers(me, access=[("manual", None)])
     payload = {"output": "email", "contact_ids": [str(people[k].id) for k in ("amy", "bob", "cat")],
                "subject": "Hello {{first_name}}", "body": "Hi {{first_name|there}}", "record_history": "email_full"}
     assert client.post("/api/mail-merge", headers=h, json=payload).status_code == 409
