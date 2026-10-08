@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createReminder } from "@/lib/messaging-actions";
+import { friendlyError } from "@/lib/errors";
 
 const PRESETS: { label: string; days?: number; months?: number }[] = [
   { label: "Tomorrow", days: 1 },
@@ -92,7 +93,7 @@ export function RemindMeDialog({
         setOpen(false);
         setNote("");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't set the reminder");
+        toast.error(friendlyError(e, "Couldn't set the reminder"));
       }
     });
   }

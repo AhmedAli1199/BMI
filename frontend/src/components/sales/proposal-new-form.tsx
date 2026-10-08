@@ -14,6 +14,7 @@ import { EntityPicker } from "@/components/entity-picker";
 import { InfoHint } from "@/components/sales/info-hint";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 import { fmtGBP } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const labelCls = "flex flex-col gap-1 text-xs font-semibold text-muted-foreground";
@@ -77,7 +78,7 @@ export function ProposalNewForm({ titles, rates, year, company: initial, initial
         const p = await createProposal({ company_id: company.id, contact_id: contact?.id ?? null, title_id: titleId || null, edition_id: editionId || null, template, campaign_name: campaign.trim(), year, lines });
         router.push(`/sales/proposals/${p.id}`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't start the proposal");
+        toast.error(friendlyError(e, "Couldn't start the proposal"));
       }
     });
   }

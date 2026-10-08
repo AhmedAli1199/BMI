@@ -9,6 +9,7 @@ import { saveTitleLinks } from "@/lib/sales-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/sales/info-hint";
+import { friendlyError } from "@/lib/errors";
 
 const example = (t: string) => t.replace("{edition}", "105").replace("{year}", String(new Date().getFullYear())).replace("{page}", "23");
 
@@ -60,7 +61,7 @@ function TitleLinks({ title, canEdit }: { title: BrandTitle; canEdit: boolean })
               await saveTitleLinks(title.id, { digital_page_url: page.trim() || null, digital_issue_url: issue.trim() || null });
               toast.success("Links saved");
               router.refresh();
-            } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save the links"); }
+            } catch (e) { toast.error(friendlyError(e, "Couldn't save the links")); }
           })}>Save</Button>
         )}
       </div>

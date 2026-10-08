@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cancelMerge, resumeMerge } from "@/lib/messaging-actions";
 import { downloadFile } from "@/lib/download";
+import { friendlyError } from "@/lib/errors";
 
 /** Live-refreshes the progress page while a merge is sending, plus its
  * Cancel / Resume / "letters for the rest" buttons. */
@@ -38,7 +39,7 @@ export function MergeProgressControls({
         toast.success(ok);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "That didn't work");
+        toast.error(friendlyError(e, "That didn't work"));
       }
     });
   }
@@ -67,7 +68,7 @@ export function MergeProgressControls({
               try {
                 await downloadFile(`/api/files/mail-merge/${id}/letters`, "letters-no-email.docx", { method: "POST" });
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Couldn't make the letters");
+                toast.error(friendlyError(e, "Couldn't make the letters"));
               }
             })
           }

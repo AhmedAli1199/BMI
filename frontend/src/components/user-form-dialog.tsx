@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { createTeamUser, listGroupsForDatabase, listSalesRepsForLogins, updateTeamUser } from "@/lib/actions";
 import type { GroupListItem, Publication, RoleDef, UserAccessEntry, UserAccount } from "@/lib/types";
+import { friendlyError } from "@/lib/errors";
 
 type AccessRow = { source_db: string; group_id: string | null };
 
@@ -156,7 +157,7 @@ export function UserFormDialog({
         setOpen(false);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save this account");
+        toast.error(friendlyError(e, "Couldn't save this account"));
       }
     });
   }

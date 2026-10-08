@@ -16,6 +16,7 @@ import { OffersPanel } from "@/components/rate-card/offers-panel";
 import { NextYearDialog } from "@/components/rate-card/next-year-dialog";
 import { HistorySheet } from "@/components/rate-card/history-sheet";
 import { OnlineLinks } from "@/components/rate-card/online-links";
+import { friendlyError } from "@/lib/errors";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -78,7 +79,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
               {canEdit && (
                 <Button disabled={pending} className="gap-1.5" onClick={() => start(async () => {
                   try { const r = await loadMediaPack(brand.key, year); toast.success(`Loaded ${r.added} prices - now check them`); refresh(); }
-                  catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't load the prices"); }
+                  catch (e) { toast.error(friendlyError(e, "Couldn't load the prices")); }
                 })}>{pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />} Load the {year} media-pack prices</Button>
               )}
             </>
@@ -98,7 +99,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
           {canEdit && (
             <Button size="sm" variant="outline" className="gap-1.5 print-hide" disabled={pending} onClick={() => {
               if (!window.confirm(`Mark all ${brand.needs_check} as checked? Only do this if you've looked at them all.`)) return;
-              start(async () => { try { const r = await confirmAllRates(brand.key, year); toast.success(`${r.confirmed} marked as checked`); refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); } });
+              start(async () => { try { const r = await confirmAllRates(brand.key, year); toast.success(`${r.confirmed} marked as checked`); refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't save")); } });
             }}><CheckCheck className="size-3.5" /> I&apos;ve checked them all</Button>
           )}
         </div>
@@ -133,7 +134,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
               <li key={r.id} className="flex items-center gap-3 px-4 py-2 text-sm">
                 <span className="min-w-0 flex-1 text-muted-foreground line-through">{r.product}</span>
                 <span className="text-xs text-muted-foreground tabular-nums">{r.price_label}</span>
-                {canEdit && <Button size="xs" variant="outline" className="gap-1" onClick={() => archiveRateItem(r.id, true).then(() => { toast.success(`${r.product} is back`); refresh(); }).catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't restore it"))}><RotateCcw className="size-3" /> Put back</Button>}
+                {canEdit && <Button size="xs" variant="outline" className="gap-1" onClick={() => archiveRateItem(r.id, true).then(() => { toast.success(`${r.product} is back`); refresh(); }).catch((e) => toast.error(friendlyError(e, "Couldn't restore it")))}><RotateCcw className="size-3" /> Put back</Button>}
               </li>
             ))}
           </ul>
@@ -150,7 +151,7 @@ function SectionCard({ section, canEdit, onEdit, onAdd, onChanged }: { section: 
   function move(i: number, d: -1 | 1) {
     const ids = section.items.map((x) => x.id);
     [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
-    start(async () => { try { await reorderRateItems(ids); onChanged(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't move it"); } });
+    start(async () => { try { await reorderRateItems(ids); onChanged(); } catch (e) { toast.error(friendlyError(e, "Couldn't move it")); } });
   }
   return (
     <section id={section.key} aria-labelledby={`${section.key}-h`} className="scroll-mt-24 overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs print-avoid-break">
@@ -180,7 +181,7 @@ function SectionCard({ section, canEdit, onEdit, onAdd, onChanged }: { section: 
               <td className="w-40 px-3 py-2 text-right whitespace-nowrap align-middle print-hide">
                 {r.needs_check && (canEdit ? (
                   <Button size="xs" variant="outline" className="gap-1" style={{ borderColor: "color-mix(in oklab, var(--warn) 50%, transparent)" }} title="Read from the media pack - press if it's right"
-                    onClick={() => editRateItem(r.id, { needs_check: false }).then(onChanged).catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't save"))}>
+                    onClick={() => editRateItem(r.id, { needs_check: false }).then(onChanged).catch((e) => toast.error(friendlyError(e, "Couldn't save")))}>
                     <Check className="size-3" /> Looks right
                   </Button>
                 ) : <span className="text-[11px] font-semibold" style={{ color: "var(--warn)" }}>Please check</span>)}
@@ -220,7 +221,7 @@ function PriceCell({ item, canEdit, onChanged }: { item: RateItem; canEdit: bool
       if (item.price_gbp && (n > item.price_gbp * 5 || n < item.price_gbp / 5) && !window.confirm(`Change ${item.product} from £${item.price_gbp.toLocaleString("en-GB")} to £${n.toLocaleString("en-GB")}? That's a big change.`)) return;
       start(async () => {
         try { await editRateItem(item.id, { price_gbp: n, price_type: item.price_type === "poa" ? "fixed" : item.price_type }); toast.success(`${item.product}: £${n.toLocaleString("en-GB")}`); setEditing(false); onChanged(); }
-        catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save the price"); }
+        catch (e) { toast.error(friendlyError(e, "Couldn't save the price")); }
       });
     };
     return (

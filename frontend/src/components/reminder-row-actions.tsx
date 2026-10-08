@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteReminder, updateReminder } from "@/lib/messaging-actions";
+import { friendlyError } from "@/lib/errors";
 
 export function ReminderDoneButton({ id }: { id: string }) {
   const router = useRouter();
@@ -29,7 +30,7 @@ export function ReminderDoneButton({ id }: { id: string }) {
             toast.success("Reminder done");
             router.refresh();
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Couldn't update the reminder");
+            toast.error(friendlyError(e, "Couldn't update the reminder"));
           }
         })
       }
@@ -58,7 +59,7 @@ export function ReminderRowActions({ id, status }: { id: string; status: string 
         toast.success(ok);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Something went wrong");
+        toast.error(friendlyError(e, "Something went wrong"));
       }
     });
   }

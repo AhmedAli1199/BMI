@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Lock, LockOpen } from "lucide-react";
 import { updateEdition } from "@/lib/sales-actions";
 import { Button } from "@/components/ui/button";
+import { friendlyError } from "@/lib/errors";
 
 /** Close an edition once it's done selling (it stops appearing in
  * "Coming up"), or reopen it. Nothing is deleted or locked for editing -
@@ -28,7 +29,7 @@ export function EditionStatusButton({ editionId, status }: { editionId: string; 
             toast.success(closing ? "Edition closed" : "Edition reopened");
             router.refresh();
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Couldn't update the edition");
+            toast.error(friendlyError(e, "Couldn't update the edition"));
           }
         })
       }

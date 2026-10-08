@@ -26,6 +26,7 @@ import { UndoInvoiceLinkButton } from "@/components/sales/invoice-match-panel";
 import { FindInXeroButton } from "@/components/sales/xero-link-dialogs";
 import { BookingNewBusinessRow } from "@/components/commission/booking-new-business";
 import { fmtGBP } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const SIZES = ["FP", "1/2", "1/4", "DPS", "Banner", "Listing", "Advertorial", "Insert", "Partner", "Sponsor", "One ticket", "Table"];
 const STATUSES: { value: OrderStatus; label: string; hint: string }[] = [
@@ -217,7 +218,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         onClose();
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save the booking");
+        toast.error(friendlyError(e, "Couldn't save the booking"));
       }
     });
   }
@@ -231,7 +232,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         onClose();
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't update");
+        toast.error(friendlyError(e, "Couldn't update"));
       }
     });
   }
@@ -245,7 +246,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         onClose();
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't delete");
+        toast.error(friendlyError(e, "Couldn't delete"));
       }
     });
   }

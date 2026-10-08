@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/errors";
 
 /** Small icon-only delete affordance shared by every note/history/activity
  * row across the app (act-tab-workstation.tsx, the company Notes tab,
@@ -34,7 +35,7 @@ export function DeleteItemButton({
         await onDelete();
         toast.success("Deleted");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Couldn't delete");
+        toast.error(friendlyError(err, "Couldn't delete"));
       }
     });
   }

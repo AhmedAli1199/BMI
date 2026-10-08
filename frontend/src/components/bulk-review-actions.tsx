@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { ReviewAction, ReviewKind } from "@/lib/types";
 import { bulkResolveReviewItems } from "@/lib/actions";
+import { friendlyError } from "@/lib/errors";
 
 /** Only an action with no per-item input can be applied in bulk - the
  * backend enforces this too (see review_queue.py's bulk_resolve_review_items),
@@ -82,7 +83,7 @@ export function BulkReviewActions({
         }
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : `Couldn't apply "${action.label}" in bulk`);
+        toast.error(friendlyError(e, `Couldn't apply "${action.label}" in bulk`));
       }
     });
   }

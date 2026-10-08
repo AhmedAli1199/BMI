@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { InfoHint } from "@/components/sales/info-hint";
 import { fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const ICONS: Record<OfferKind, typeof Percent> = { volume: Percent, series: Layers, early_bird: CalendarClock, note: StickyNote };
@@ -113,12 +114,12 @@ function OfferForm({ offer, brand, year, sections, onClose }: { offer: RateOffer
           section, valid_until: validUntil || null }, offer?.id);
         toast.success("Offer saved");
         onClose();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save the offer"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't save the offer")); }
     });
   }
   function remove() {
     if (!offer || !window.confirm("Delete this offer?")) return;
-    start(async () => { try { await deleteOffer(offer.id); toast.success("Offer deleted"); onClose(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't delete it"); } });
+    start(async () => { try { await deleteOffer(offer.id); toast.success("Offer deleted"); onClose(); } catch (e) { toast.error(friendlyError(e, "Couldn't delete it")); } });
   }
 
   return (

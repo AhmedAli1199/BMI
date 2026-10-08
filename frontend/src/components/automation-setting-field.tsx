@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { updateAutomationSetting, resetAutomationSetting } from "@/lib/actions";
 import type { AutomationSetting } from "@/lib/types";
+import { friendlyError } from "@/lib/errors";
 
 /** One editable automation tunable - renders itself from the setting's own
  * `type`, same "backend registry drives the UI" pattern as review-item-card
@@ -31,7 +32,7 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
         await updateAutomationSetting(setting.key, next);
         toast.success(`${setting.label} updated`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save that setting");
+        toast.error(friendlyError(e, "Couldn't save that setting"));
       }
     });
   }
@@ -43,7 +44,7 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
         setValue(setting.default);
         toast.success(`${setting.label} reset to default`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't reset that setting");
+        toast.error(friendlyError(e, "Couldn't reset that setting"));
       }
     });
   }

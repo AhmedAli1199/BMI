@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { createPublication } from "@/lib/actions";
 import { COLOR_OPTIONS, ICON_OPTIONS, iconForKey, styleForColor } from "@/lib/publication-style";
+import { friendlyError } from "@/lib/errors";
 
 function slugify(name: string): string {
   return name
@@ -63,7 +64,7 @@ export function PublicationFormDialog() {
         setDescription("");
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't add that database");
+        toast.error(friendlyError(e, "Couldn't add that database"));
       }
     });
   }

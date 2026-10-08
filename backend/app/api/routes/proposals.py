@@ -397,7 +397,7 @@ def send_from_outlook(pid: uuid.UUID, payload: SendIn, db: Session = Depends(get
     except outlook.RateLimited:
         raise HTTPException(429, "Outlook is asking us to slow down - try again in a minute.")
     except Exception as exc:
-        raise HTTPException(502, f"Outlook didn't accept the message: {exc}")
+        raise HTTPException(502, "Outlook didn't accept the email, so nothing was sent or logged. Please try again.")
     _log_sent(db, p, user, "outlook", payload.follow_up_days, sent_to=[a.strip() for a in payload.to])
     db.commit()
     return _out(db, p)

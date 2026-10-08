@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { backendFetch } from "@/lib/backend";
+import { friendlyError } from "@/lib/errors";
 
 /** Xero redirects here after the admin picks BMI's organisation. The code is
  * exchanged by the backend, which stores the tokens encrypted and runs a
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     back.searchParams.set("xero_connected", res.organisation || "Xero");
     return NextResponse.redirect(back);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Couldn't connect Xero";
+    const msg = friendlyError(e, "Couldn't connect Xero");
     return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(msg)}`, url));
   }
 }

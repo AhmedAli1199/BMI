@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { InfoHint } from "@/components/sales/info-hint";
 import { brandColor } from "@/components/rate-card/brand-style";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const STD = [
@@ -45,7 +46,7 @@ export function BrandSettingsForm({ settings, brandName, canEdit }: { settings: 
       try {
         await saveEditorialSettings(settings.brand, { deadline_rules: rules.filter((r) => r.label.trim()), regular_sections: sections.filter((s) => s.name.trim()), about: about.trim() || null });
         toast.success("Saved"); router.refresh();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
     });
   }
 

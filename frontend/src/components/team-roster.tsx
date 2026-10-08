@@ -11,6 +11,7 @@ import { updateTeamUser } from "@/lib/actions";
 import { accessLabel } from "@/lib/access";
 import { UserFormDialog } from "@/components/user-form-dialog";
 import type { Publication, RoleDef, UserAccount } from "@/lib/types";
+import { friendlyError } from "@/lib/errors";
 
 const ROLE_BADGE: Record<string, string> = {
   admin: "border-[#5b3e8f] text-[#5b3e8f]",
@@ -39,7 +40,7 @@ export function TeamRoster({
         toast.success(user.is_active ? `${user.name} disabled` : `${user.name} re-enabled`);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't change that");
+        toast.error(friendlyError(e, "Couldn't change that"));
       }
     });
   }

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const STATE_LABEL: Record<string, string> = { paid: "Paid", part_paid: "Part paid", unpaid: "Awaiting payment", overdue: "Overdue", voided: "Voided" };
 
@@ -48,7 +49,7 @@ export function FindInXeroButton({ order, onLinked }: { order: SalesOrder; onLin
         setOpen(false);
         onLinked();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't link the invoice");
+        toast.error(friendlyError(e, "Couldn't link the invoice"));
       }
     });
   }
@@ -118,7 +119,7 @@ export function LinkInvoiceButton({ invoice }: { invoice: UnmatchedInvoice }) {
         setOpen(false);
         router.refresh();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't link the invoice");
+        toast.error(friendlyError(e, "Couldn't link the invoice"));
       }
     });
   }

@@ -90,7 +90,7 @@ def xero_sync_now(full: bool = False, db: Session = Depends(get_db), _: User = D
     try:
         return xero.sync(db, full=full)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Xero sync failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail="Couldn't get the latest invoices from Xero just now. Please try again in a few minutes.") from exc
 
 
 @router.delete("/xero", status_code=204, response_model=None)

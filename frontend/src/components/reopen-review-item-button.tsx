@@ -5,6 +5,7 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { reopenReviewItem } from "@/lib/actions";
+import { friendlyError } from "@/lib/errors";
 
 /** Puts a rejected item back into the pending queue - the audit/undo path
  * for "I dismissed a batch of these too fast and want a second look at
@@ -20,7 +21,7 @@ export function ReopenReviewItemButton({ itemId }: { itemId: string }) {
         await reopenReviewItem(itemId);
         toast.success("Back in the pending queue for another look");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't reopen this item");
+        toast.error(friendlyError(e, "Couldn't reopen this item"));
       }
     });
   }

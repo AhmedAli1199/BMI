@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
+import { friendlyError } from "@/lib/errors";
 
 /** "Connect Xero" - asks the backend for Xero's sign-in URL
  * (carrying a signed state naming this user) and sends the browser there. */
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.redirect(authorize);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Couldn't start Xero sign-in";
+    const msg = friendlyError(e, "Couldn't start Xero sign-in");
     return NextResponse.redirect(new URL(`${returnTo}?xero_error=${encodeURIComponent(msg)}`, url));
   }
 }

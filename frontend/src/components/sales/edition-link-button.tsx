@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { updateEdition } from "@/lib/sales-actions";
+import { friendlyError } from "@/lib/errors";
 
 /** Where this edition can be read online. Next year's renewal emails link
  * advertisers to it (when the title's link pattern can't point at their
@@ -56,7 +57,7 @@ export function EditionLinkButton({ editionId, url }: { editionId: string; url: 
                     setOpen(false);
                     router.refresh();
                   } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Couldn't save the link");
+                    toast.error(friendlyError(e, "Couldn't save the link"));
                   }
                 })
               }

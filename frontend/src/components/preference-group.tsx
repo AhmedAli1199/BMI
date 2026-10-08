@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { updateUserPreferences } from "@/lib/actions";
 import type { PreferenceDef } from "@/lib/types";
+import { friendlyError } from "@/lib/errors";
 
 /**
  * Renders ANY preference definition purely from data - one card per
@@ -41,7 +42,7 @@ export function PreferenceGroup({
         toast.success(`${def.label} updated`);
       } catch (e) {
         setSelected(previous);
-        toast.error(e instanceof Error ? e.message : "Couldn't save that - try again");
+        toast.error(friendlyError(e, "Couldn't save that - try again"));
       }
     });
   }

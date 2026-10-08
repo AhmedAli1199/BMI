@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { startRenewalPass } from "@/lib/sales-actions";
 import type { RenewalPassResult } from "@/lib/sales-types";
+import { friendlyError } from "@/lib/errors";
 
 /** SALES-021's "open a renewal pass": when an edition opens for bookings,
  * draft a renewal email for everyone who advertised in its equivalent
@@ -31,7 +32,7 @@ export function RenewalPassButton({ editionId, editionLabel, renewsFrom }: { edi
       try {
         setResult(await startRenewalPass(editionId));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't start the renewal pass");
+        toast.error(friendlyError(e, "Couldn't start the renewal pass"));
       }
     });
   }

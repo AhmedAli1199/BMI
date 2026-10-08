@@ -588,7 +588,7 @@ def run_merge(payload: MergeIn, db: Session = Depends(get_db), user: User = Depe
         except outlook.OutlookAuthError as exc:
             raise HTTPException(409, f"{exc}")
         except Exception as exc:
-            raise HTTPException(502, f"Outlook didn't accept the test: {exc}")
+            raise HTTPException(502, "Outlook didn't accept the test email. Check the connection in Settings and try again.")
         return {"test_sent_to": acct.email, "rendered_for": ctx["full_name"]}
 
     m = MailMerge(id=uuid.uuid4(), created_by_user_id=user.id, output="email", source_label=payload.source_label,

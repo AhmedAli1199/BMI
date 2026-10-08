@@ -14,6 +14,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { InfoHint } from "@/components/sales/info-hint";
 import { SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { NewBusinessPill, monthLabel, pctLabel } from "@/components/commission/commission-ui";
+import { friendlyError } from "@/lib/errors";
 
 function shift(period: string, d: number) {
   const [y, m] = period.split("-").map(Number);
@@ -48,7 +49,7 @@ export function StatementView({ s }: { s: CommissionStatement }) {
         await decideNewBusiness(l.order_id, decision, reason);
         toast.success(decision === null ? "Back to the automatic decision" : decision === "new" ? `${l.client}: new business` : `${l.client}: returning customer`);
         router.refresh();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save that"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't save that")); }
     });
   }
 
@@ -66,7 +67,7 @@ export function StatementView({ s }: { s: CommissionStatement }) {
         actions={<div className="print-hide flex flex-wrap items-center gap-2">
           <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/sales/commissions/${s.rep.id}/${shift(s.period, -1)}`} />}><ChevronLeft className="size-3.5" /> {monthLabel(shift(s.period, -1), true)}</Button>
           {shift(s.period, 1) <= thisMonth && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/sales/commissions/${s.rep.id}/${shift(s.period, 1)}`} />}>{monthLabel(shift(s.period, 1), true)} <ChevronRight className="size-3.5" /></Button>}
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadFile(`/api/files/commission/statement.xlsx?rep_id=${s.rep.id}&period=${s.period}`, "commission.xlsx").catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't download"))}><Download className="size-3.5" /> Excel</Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadFile(`/api/files/commission/statement.xlsx?rep_id=${s.rep.id}&period=${s.period}`, "commission.xlsx").catch((e) => toast.error(friendlyError(e, "Couldn't download")))}><Download className="size-3.5" /> Excel</Button>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.print()}><Printer className="size-3.5" /> Print</Button>
           {s.can_approve && <Button size="sm" className="gap-1.5" disabled={pending || checks.length > 0} title={checks.length ? "Decide the bookings marked “Needs a decision” first" : undefined} onClick={() => setConfirm(true)}><Lock className="size-3.5" /> Approve this month</Button>}
         </div>}
@@ -229,7 +230,7 @@ export function StatementView({ s }: { s: CommissionStatement }) {
             <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
             <Button disabled={pending} onClick={() => start(async () => {
               try { await approveStatement(s.rep.id, s.period); toast.success("Approved"); setConfirm(false); router.refresh(); }
-              catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't approve"); }
+              catch (e) { toast.error(friendlyError(e, "Couldn't approve")); }
             })}>Approve</Button>
           </DialogFooter>
         </DialogContent>

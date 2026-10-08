@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { InfoHint } from "@/components/sales/info-hint";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
@@ -52,7 +53,7 @@ export function AddIssueButton({ brands, year }: { brands: PlannerBrand[]; year:
         toast.success(`Added ${r.name}`);
         setOpen(false);
         router.push(`/editorial/issues/${r.id}`);
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't add it"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't add it")); }
     });
   }
 

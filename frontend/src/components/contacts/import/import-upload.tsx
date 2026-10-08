@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Download, FileSpreadsheet, Loader2, ShieldCheck, Sparkles, Undo2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/errors";
 
 const ACCEPT = ".xlsx,.xls,.csv,.pdf";
 
@@ -27,7 +28,7 @@ export function ImportUpload() {
       if (!res.ok) throw new Error(typeof body.detail === "string" ? body.detail : "We couldn't read that file.");
       router.push(`/contacts/import/${body.id}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "We couldn't read that file.");
+      toast.error(friendlyError(e, "We couldn't read that file."));
       setBusy(false);
     }
   }

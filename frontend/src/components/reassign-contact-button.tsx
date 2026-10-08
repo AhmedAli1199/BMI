@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
 import { reassignContact, searchContacts } from "@/lib/actions";
+import { friendlyError } from "@/lib/errors";
 
 /** "Mark as departed / move notes to another contact" - a manual action
  * for exactly the case BMI described: a rep already knows a contact left
@@ -43,7 +44,7 @@ export function ReassignContactButton({ contactId, contactName }: { contactId: s
         setSuccessor(null);
         router.push(`/contacts/${successor.id}`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't move those records - try again");
+        toast.error(friendlyError(e, "Couldn't move those records - try again"));
       }
     });
   }

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EntityPicker } from "@/components/entity-picker";
 import { InfoHint } from "@/components/sales/info-hint";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const GROUP_ORDER = ["Name", "Job", "Company", "Email", "Phone", "Address", "Other", "Custom fields"];
@@ -55,7 +56,7 @@ export function ImportMapStep({ imp, targets, publications, onChange, onNext }: 
   const opts = imp.options;
 
   function run(fn: () => Promise<ContactImport>, error = "Couldn't save that") {
-    start(async () => { try { onChange(await fn()); } catch (e) { toast.error(e instanceof Error ? e.message : error); } });
+    start(async () => { try { onChange(await fn()); } catch (e) { toast.error(friendlyError(e, error)); } });
   }
   const setMapping = (m: Mapping) => run(() => patchImport(imp.id, { mapping: m }));
   const setOptions = (o: Partial<ImportOptions>) => run(() => patchImport(imp.id, { options: o }));

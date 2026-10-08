@@ -7,6 +7,7 @@ import type { RateHistoryRow } from "@/lib/rate-card-types";
 import { getRateHistory, putBackChange } from "@/lib/rate-card-actions";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { friendlyError } from "@/lib/errors";
 
 function show(field: string, v: string | null): string {
   if (v === null || v === "None" || v === "") return "(empty)";
@@ -36,7 +37,7 @@ export function HistorySheet({ brand, year, onChanged }: { brand: string; year: 
         toast.success(`Put back: ${r.what}`);
         setRows(await getRateHistory(brand, year));
         onChanged();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't put it back"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't put it back")); }
     });
   }
 

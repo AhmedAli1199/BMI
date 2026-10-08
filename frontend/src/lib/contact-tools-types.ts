@@ -18,7 +18,8 @@ export type ContactScope = {
 };
 
 export type EmailsResult = {
-  addresses: string[];
+  count: number;
+  too_many: boolean;
   text: string;
   contacts: number;
   skipped_unsubscribed: number;

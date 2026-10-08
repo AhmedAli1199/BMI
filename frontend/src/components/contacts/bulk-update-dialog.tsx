@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InfoHint } from "@/components/sales/info-hint";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const labelCls = "flex flex-col gap-1 text-xs font-semibold text-muted-foreground";
@@ -47,7 +48,7 @@ export function BulkUpdateDialog({ scope, fields, count, trigger }: { scope: Con
 
   function runPreview() {
     start(async () => {
-      try { setPreview({ sig, data: await previewBulkUpdate(body()) }); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't work out the changes"); }
+      try { setPreview({ sig, data: await previewBulkUpdate(body()) }); } catch (e) { toast.error(friendlyError(e, "Couldn't work out the changes")); }
     });
   }
   function apply() {
@@ -56,12 +57,12 @@ export function BulkUpdateDialog({ scope, fields, count, trigger }: { scope: Con
         const r = await applyBulkUpdate(body());
         toast.success(`Changed ${r.changed.toLocaleString()} contact${r.changed === 1 ? "" : "s"}`, {
           duration: 12000,
-          action: { label: "Undo", onClick: () => undoBulkUpdate(r.id).then((u) => { toast.success(`Put back ${u.restored}${u.skipped ? ` (${u.skipped} had changed again, left alone)` : ""}`); router.refresh(); }).catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't undo")) },
+          action: { label: "Undo", onClick: () => undoBulkUpdate(r.id).then((u) => { toast.success(`Put back ${u.restored}${u.skipped ? ` (${u.skipped} had changed again, left alone)` : ""}`); router.refresh(); }).catch((e) => toast.error(friendlyError(e, "Couldn't undo"))) },
         });
         setOpen(false);
         setPreview(null);
         router.refresh();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't apply the change"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't apply the change")); }
     });
   }
   function undo(id: string) {
@@ -71,7 +72,7 @@ export function BulkUpdateDialog({ scope, fields, count, trigger }: { scope: Con
         toast.success(`Put back ${u.restored}${u.skipped ? ` (${u.skipped} had changed again, left alone)` : ""}`);
         setHistory(await getBulkHistory());
         router.refresh();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't undo"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't undo")); }
     });
   }
 

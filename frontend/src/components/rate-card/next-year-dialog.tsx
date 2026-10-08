@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtGBP } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
@@ -33,7 +34,7 @@ export function NextYearDialog({ brand, brandName, fromYear, hasNextYear }: { br
         setPreview(await previewNextYear({ brand, from_year: fromYear, raise_pct: raise, round_to: roundTo }));
         setOverrides({});
         setStep(2);
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't work out the new prices"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't work out the new prices")); }
     });
   }
   function save() {
@@ -45,7 +46,7 @@ export function NextYearDialog({ brand, brandName, fromYear, hasNextYear }: { br
         toast.success(`${r.copied} prices ready for ${r.year}`);
         setOpen(false);
         router.push(`/sales/rate-card/${brand}?year=${r.year}`);
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save next year's prices"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't save next year's prices")); }
     });
   }
 

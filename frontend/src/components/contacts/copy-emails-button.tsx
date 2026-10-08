@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { ContactScope } from "@/lib/contact-tools-types";
 import { getEmailAddresses } from "@/lib/contact-tools-actions";
 import { Button } from "@/components/ui/button";
+import { friendlyError } from "@/lib/errors";
 
 /** "Copy email addresses": the addresses for a search or ticked contacts, ready to paste into
  * Outlook's Bcc box. People who unsubscribed or whose address bounced are left out, and we say how many. */
@@ -16,23 +17,35 @@ export function CopyEmailsButton({ scope, size = "sm", variant = "outline", labe
     start(async () => {
       try {
         const r = await getEmailAddresses(scope);
-        if (r.addresses.length === 0) {
+        if (r.too_many) {
+          toast.error(`That's ${r.contacts.toLocaleString()} contacts - too many to copy at once.`, {
+            description: "Narrow it down with a search or filter (up to 5,000 contacts), or use Export to get every address in Excel.",
+            duration: 9000,
+          });
+          return;
+        }
+        if (r.count === 0) {
           toast.error("None of these contacts has an email address we can use.");
           return;
         }
-        await navigator.clipboard.writeText(r.text);
+        try {
+          await navigator.clipboard.writeText(r.text);
+        } catch {
+          toast.error("Your browser didn't let us copy. Click Copy emails again.");
+          return;
+        }
         const left = [
           r.skipped_unsubscribed && `${r.skipped_unsubscribed} unsubscribed`,
           r.skipped_bounced && `${r.skipped_bounced} bounced`,
           r.skipped_no_email && `${r.skipped_no_email} with no email`,
           r.duplicates_removed && `${r.duplicates_removed} repeated`,
         ].filter(Boolean);
-        toast.success(`Copied ${r.addresses.length.toLocaleString()} email address${r.addresses.length === 1 ? "" : "es"} - paste them into Bcc.`, {
-          description: [left.length ? `Left out: ${left.join(", ")}.` : "", r.addresses.length > 500 ? "Outlook only sends to about 500 people at once, so send in batches." : ""].filter(Boolean).join(" ") || undefined,
+        toast.success(`Copied ${r.count.toLocaleString()} email address${r.count === 1 ? "" : "es"} - paste them into Bcc.`, {
+          description: [left.length ? `Left out: ${left.join(", ")}.` : "", r.count > 500 ? "Outlook only sends to about 500 people at once, so send in batches." : ""].filter(Boolean).join(" ") || undefined,
           duration: 8000,
         });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't copy the addresses");
+        toast.error(friendlyError(e, "Couldn't copy the addresses"));
       }
     });
   }

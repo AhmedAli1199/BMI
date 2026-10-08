@@ -30,6 +30,7 @@ import { styleForKind } from "@/lib/automation-style";
 import { resolveReviewItem, searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
 import { DraftReviewDialog } from "@/components/draft-review-dialog";
 import type { CompanyListItem, GroupListItem, ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
+import { friendlyError } from "@/lib/errors";
 
 /** Kind+action combos whose payload.original_text is an AI-drafted note/
  * email (not source material) and whose approve action writes it verbatim
@@ -321,7 +322,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
         setConfirmingDestructive(null);
         resetInputs();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't complete this action");
+        toast.error(friendlyError(e, "Couldn't complete this action"));
       }
     });
   }

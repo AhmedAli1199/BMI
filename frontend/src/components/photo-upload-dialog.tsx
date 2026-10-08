@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { SOURCE_LABELS } from "@/lib/sources";
 import { confirmBusinessCardBatch } from "@/lib/actions";
+import { friendlyError } from "@/lib/errors";
 
 type Kind = "business-card" | "returned-copy";
 
@@ -104,7 +105,7 @@ export function PhotoUploadDialog({ kind, publications }: { kind: Kind; publicat
                         toast.success(`Batch confirmed: ${r.added} added, ${r.updated} updated, ${r.logged} logged, ${r.failed} failed`);
                         router.refresh();
                       })
-                      .catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't confirm that batch"));
+                      .catch((e) => toast.error(friendlyError(e, "Couldn't confirm that batch")));
                   },
                 },
               }

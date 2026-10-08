@@ -9,6 +9,7 @@ import { getEditionCommission, markCostsFinal, markNewGuide, signOffCosts } from
 import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/sales/info-hint";
 import { fmtDate } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-7 rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring dark:bg-input/30";
 
@@ -26,7 +27,7 @@ export function EditionCommissionPanel({ editionId, reps }: { editionId: string;
 
   if (!c || (!c.guide_title && !c.profit_share && !c.new_contract_guide)) return null;
   const run = (fn: () => Promise<EditionCommission>, ok: string) => start(async () => {
-    try { setC(await fn()); toast.success(ok); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); }
+    try { setC(await fn()); toast.success(ok); } catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
   });
   const who = c.profit_share_reps.map((r) => r.name.split(" ")[0]).join(" and ");
 

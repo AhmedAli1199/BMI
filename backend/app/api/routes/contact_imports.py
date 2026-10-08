@@ -372,7 +372,7 @@ def commit(iid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(c
         raise
     except Exception as exc:
         db.rollback()
-        raise HTTPException(500, f"The import failed and nothing was saved: {exc}")
+        raise HTTPException(500, "The import failed and nothing was saved. Please try again, or contact support if it keeps happening.")
     return _out(db, imp)
 
 

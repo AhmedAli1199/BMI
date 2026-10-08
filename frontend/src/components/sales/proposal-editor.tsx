@@ -15,6 +15,7 @@ import { downloadFile } from "@/lib/download";
 import { InfoHint } from "@/components/sales/info-hint";
 import { SectionTitle, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
@@ -76,7 +77,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
         router.refresh();
         after?.();
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save");
+        toast.error(friendlyError(e, "Couldn't save"));
       }
     });
   }
@@ -91,7 +92,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
         setIssueChanged(true);
         toast.success(id ? "Issue changed - redraft the wording to use its details" : "Issue removed");
         router.refresh();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't change the issue"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't change the issue")); }
     });
   }
   const split = (v: string) => v.split(/[,;\s]+/).filter(Boolean);
@@ -105,7 +106,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
         setMailTo(d.to.join(", "));
         setMailCc("");
         setMailOpen(true);
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't prepare the email"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't prepare the email")); }
     });
   }
 
@@ -116,7 +117,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
   }
 
   function download() {
-    const go = () => downloadFile(`/api/proposals/${proposal.id}/download`, "proposal.docx").catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't download"));
+    const go = () => downloadFile(`/api/proposals/${proposal.id}/download`, "proposal.docx").catch((e) => toast.error(friendlyError(e, "Couldn't download")));
     if (dirty) save(go);
     else go();
   }
@@ -219,7 +220,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
               {!sent && (
                 <Button size="sm" variant="outline" className="gap-1.5" disabled={pending} onClick={() => {
                   if (!window.confirm("Rewrite every section? Your edits to the wording will be replaced.")) return;
-                  start(async () => { try { if (dirty) await saveProposal(proposal.id, saved()); const p = await redraftProposal(proposal.id); setSections(p.sections); setLines(p.lines); setLinesTouched(false); setIssueChanged(false); setDirty(false); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't redraft"); } });
+                  start(async () => { try { if (dirty) await saveProposal(proposal.id, saved()); const p = await redraftProposal(proposal.id); setSections(p.sections); setLines(p.lines); setLinesTouched(false); setIssueChanged(false); setDirty(false); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't redraft")); } });
                 }}><Sparkles className="size-3.5" /> Redraft wording</Button>
               )}
             </div>
@@ -359,7 +360,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
                 toast.success("Sent and logged on the client");
                 setMailOpen(false);
                 router.refresh();
-              } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't send it"); }
+              } catch (e) { toast.error(friendlyError(e, "Couldn't send it")); }
             })}>{pending && <Loader2 className="size-4 animate-spin" />} Send</Button>
           </DialogFooter>
         </DialogContent>
@@ -393,7 +394,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
                 toast.success("Logged on the client");
                 setSendOpen(false);
                 router.refresh();
-              } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't log it"); }
+              } catch (e) { toast.error(friendlyError(e, "Couldn't log it")); }
             })}>Log it</Button>
           </DialogFooter>
         </DialogContent>

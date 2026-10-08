@@ -66,8 +66,12 @@ def save_custom_labels(payload: dict[str, str], db: Session = Depends(get_db), i
 
 # ---- copy email addresses -------------------------------------------------------
 
+MAX_COPY = 5000  # more than this is too many to paste anywhere useful (Outlook takes ~500 per email)
+
+
 class EmailsOut(BaseModel):
-    addresses: list[str]
+    count: int
+    too_many: bool = False
     text: str  # "a@x.com; b@y.com" - ready to paste into Outlook
     contacts: int
     skipped_unsubscribed: int
@@ -81,6 +85,9 @@ def email_addresses(scope: Scope, db: Session = Depends(get_db), identity: Ident
     """The email addresses for a search or selection, for pasting into Outlook's Bcc box.
     Leaves out people who unsubscribed or whose address bounced, and says how many."""
     ids = resolve(db, scope, identity)
+    if len(ids) > MAX_COPY:
+        return EmailsOut(count=0, too_many=True, text="", contacts=len(ids), skipped_unsubscribed=0, skipped_bounced=0,
+                         skipped_no_email=0, duplicates_removed=0)
     seen: dict[str, str] = {}
     unsub = bounced = no_email = dup = 0
     for i in range(0, len(ids), 2000):
@@ -108,7 +115,7 @@ def email_addresses(scope: Scope, db: Session = Depends(get_db), identity: Ident
                 else:
                     seen[key] = best[cid]
     addrs = list(seen.values())
-    return EmailsOut(addresses=addrs, text="; ".join(addrs), contacts=len(ids), skipped_unsubscribed=unsub,
+    return EmailsOut(count=len(addrs), text="; ".join(addrs), contacts=len(ids), skipped_unsubscribed=unsub,
                      skipped_bounced=bounced, skipped_no_email=no_email, duplicates_removed=dup)
 
 

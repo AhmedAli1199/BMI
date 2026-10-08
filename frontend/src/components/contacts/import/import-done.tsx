@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { ContactImport } from "@/lib/contact-tools-types";
 import { getImport, undoImport } from "@/lib/contact-tools-actions";
 import { Button } from "@/components/ui/button";
+import { friendlyError } from "@/lib/errors";
 
 /** Step 4: what happened, with a way back. */
 export function ImportDone({ imp, onChange }: { imp: ContactImport; onChange: (i: ContactImport) => void }) {
@@ -22,7 +23,7 @@ export function ImportDone({ imp, onChange }: { imp: ContactImport; onChange: (i
         const u = await undoImport(imp.id);
         setUndone(`Removed ${u.deleted} contact${u.deleted === 1 ? "" : "s"}${u.reverted ? `, put ${u.reverted} back as they were` : ""}${u.kept ? `, kept ${u.kept} you've worked on since` : ""}.`);
         onChange(await getImport(imp.id));
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't undo the import"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't undo the import")); }
     });
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { backendFetch } from "@/lib/backend";
+import { friendlyError } from "@/lib/errors";
 
 /** Microsoft redirects here after "Sign in with Microsoft". The code is
  * exchanged for tokens by the backend, which stores them encrypted. */
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
     back.searchParams.set("outlook_connected", res.email);
     return NextResponse.redirect(back);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Couldn't connect Outlook";
+    const msg = friendlyError(e, "Couldn't connect Outlook");
     return NextResponse.redirect(new URL(`/settings?outlook_error=${encodeURIComponent(msg)}`, url));
   }
 }

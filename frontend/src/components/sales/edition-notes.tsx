@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { updateEdition } from "@/lib/sales-actions";
+import { friendlyError } from "@/lib/errors";
 
 /** Free-text notes for a publication, event or project - anything worth
  * knowing when looking at its revenue (Matt, 8 Sep: "general notes on the
@@ -40,7 +41,7 @@ export function EditionNotes({ editionId, notes }: { editionId: string; notes: s
                   setSaved(value);
                   toast.success("Notes saved");
                 } catch (e) {
-                  toast.error(e instanceof Error ? e.message : "Couldn't save the notes");
+                  toast.error(friendlyError(e, "Couldn't save the notes"));
                 }
               })
             }

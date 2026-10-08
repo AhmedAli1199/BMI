@@ -20,6 +20,7 @@ import { ContactSelectionActions } from "@/components/contact-selection-actions"
 import type { ContactField } from "@/lib/contact-tools-types";
 import { lookupContactIds } from "@/lib/messaging-actions";
 import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
+import { friendlyError } from "@/lib/errors";
 
 type SortKey = "name" | "first_name" | "company" | "city" | "country" | "title" | "email" | "added";
 
@@ -116,7 +117,7 @@ export function InteractiveContactTable({
         setSelected(new Set(ids));
         setAllMatching(true);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't select them all");
+        toast.error(friendlyError(e, "Couldn't select them all"));
       }
     });
   }

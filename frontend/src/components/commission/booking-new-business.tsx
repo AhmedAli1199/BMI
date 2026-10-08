@@ -7,6 +7,7 @@ import { decideNewBusiness, getBookingNewBusiness } from "@/lib/commission-actio
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NewBusinessPill } from "@/components/commission/commission-ui";
+import { friendlyError } from "@/lib/errors";
 
 /** On a booking's edit panel: is it new business for commission, why, and (for managers) a way to decide it. */
 export function BookingNewBusinessRow({ orderId }: { orderId: string }) {
@@ -24,7 +25,7 @@ export function BookingNewBusinessRow({ orderId }: { orderId: string }) {
   if (!nb) return null;
   const save = (decision: "new" | "returning" | null) => start(async () => {
     try { setNb(await decideNewBusiness(orderId, decision, reason.trim() || undefined)); setEditing(false); setReason(""); toast.success("Saved"); }
-    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); }
+    catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
   });
 
   return (

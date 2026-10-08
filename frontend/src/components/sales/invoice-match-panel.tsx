@@ -9,6 +9,7 @@ import type { InvoiceMatch, InvoiceMatchBooking, InvoiceMatchCandidate, InvoiceM
 import { Button } from "@/components/ui/button";
 import { fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { unlinkXeroInvoice } from "@/lib/sales-actions";
+import { friendlyError } from "@/lib/errors";
 
 const STATE: Record<string, [string, string]> = {
   paid: ["Paid", "var(--ok)"],
@@ -95,7 +96,7 @@ export function UndoInvoiceLinkButton({ orderIds }: { orderIds: string[] }) {
             for (const id of orderIds) await unlinkXeroInvoice(id);
             toast.success("Link removed - the invoice number is cleared from the booking");
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Couldn't undo the link");
+            toast.error(friendlyError(e, "Couldn't undo the link"));
           }
           router.refresh();
         })

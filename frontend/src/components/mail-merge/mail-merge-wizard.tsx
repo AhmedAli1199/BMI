@@ -61,6 +61,7 @@ import type {
   RecipientsResult,
 } from "@/lib/messaging-types";
 import { MERGE_SELECTION_KEY, downloadFile, postJson } from "@/lib/download";
+import { friendlyError } from "@/lib/errors";
 
 export type InitialSource = { source: RecipientSource | null; label: string; fromSelection?: boolean };
 
@@ -173,7 +174,7 @@ export function MailMergeWizard({
         setPreviewIdx(0);
         if (!sourceLabel) setSourceLabel(r.label);
       })
-      .catch((e) => toast.error(e instanceof Error ? e.message : "Couldn't load those contacts"))
+      .catch((e) => toast.error(friendlyError(e, "Couldn't load those contacts")))
       .finally(() => !cancelled && setLoadingRecips(false));
     return () => {
       cancelled = true;
@@ -265,7 +266,7 @@ export function MailMergeWizard({
         setSaveOpen(false);
         toast.success(asNew ? `Saved as “${t.name}”` : "Template updated");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save the template");
+        toast.error(friendlyError(e, "Couldn't save the template"));
       }
     });
   }
@@ -283,7 +284,7 @@ export function MailMergeWizard({
         setAttachments((prev) => [...prev, data as Attachment]);
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      toast.error(friendlyError(e, "Upload failed"));
     } finally {
       setUploading(false);
     }
@@ -316,7 +317,7 @@ export function MailMergeWizard({
         );
         if ("test_sent_to" in r) toast.success(`Test (as ${r.rendered_for || "first contact"}) sent to ${r.test_sent_to}`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Test send failed");
+        toast.error(friendlyError(e, "Test send failed"));
       }
     });
   }
@@ -349,7 +350,7 @@ export function MailMergeWizard({
           );
         }
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "That didn't work");
+        toast.error(friendlyError(e, "That didn't work"));
       }
     });
   }

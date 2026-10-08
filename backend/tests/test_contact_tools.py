@@ -82,9 +82,16 @@ def test_copy_emails_skips_unsubscribed_and_dedupes(client, db_session, people):
     a, b, c = people
     mk(db_session, "Ann", "Twin", email="ANN@x.test")
     r = client.post("/api/contacts/emails", json={"scope": None} if False else {"q": "test"}).json()
-    assert sorted(x.lower() for x in r["addresses"]) == ["ann@x.test", "bob@y.test"]
+    assert sorted(x.lower() for x in r["text"].split("; ")) == ["ann@x.test", "bob@y.test"] and r["count"] == 2
     assert r["skipped_unsubscribed"] == 1 and r["duplicates_removed"] == 1
     assert "; " in r["text"]
+
+
+def test_copy_emails_refuses_huge_selections(client, db_session, people, monkeypatch):
+    from app.api.routes import contact_tools
+    monkeypatch.setattr(contact_tools, "MAX_COPY", 1)
+    r = client.post("/api/contacts/emails", json={"q": "test"}).json()
+    assert r["too_many"] and r["count"] == 0 and r["text"] == "" and r["contacts"] >= 2
 
 
 def test_bulk_update_preview_apply_audit_and_undo(client, db_session, people):

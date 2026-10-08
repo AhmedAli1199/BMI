@@ -17,6 +17,7 @@ import { ClickableTableRow } from "@/components/clickable-table-row";
 import { ContactSelectionActions } from "@/components/contact-selection-actions";
 import { removeGroupMembers } from "@/lib/actions";
 import type { ContactListItem } from "@/lib/types";
+import { friendlyError } from "@/lib/errors";
 
 /** The group member list, with multi-select bulk removal.
  *
@@ -71,7 +72,7 @@ export function GroupMembersTable({
         setSelected(new Set());
         toast.success(`Removed ${ids.length} ${ids.length === 1 ? "contact" : "contacts"} from the group`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't remove those contacts - try again");
+        toast.error(friendlyError(e, "Couldn't remove those contacts - try again"));
       }
     });
   }

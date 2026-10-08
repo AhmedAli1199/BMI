@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { duplicateContact } from "@/lib/messaging-actions";
+import { friendlyError } from "@/lib/errors";
 
 /** Act!'s "Duplicate contact": a new person at the same company - keeps
  * the company, business address, main phone, database and (optionally)
@@ -57,7 +58,7 @@ export function DuplicateContactDialog({
         setOpen(false);
         router.push(`/contacts/${c.id}`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't duplicate this contact");
+        toast.error(friendlyError(e, "Couldn't duplicate this contact"));
       }
     });
   }

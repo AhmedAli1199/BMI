@@ -23,6 +23,7 @@ import { downloadFile, postJson, stashMergeSelection } from "@/lib/download";
 import type { ContactField } from "@/lib/contact-tools-types";
 import { BulkUpdateDialog } from "@/components/contacts/bulk-update-dialog";
 import { CopyEmailsButton } from "@/components/contacts/copy-emails-button";
+import { friendlyError } from "@/lib/errors";
 
 type Option = { id: string; label: string; sublabel?: string | null };
 
@@ -70,7 +71,7 @@ export function ContactSelectionActions({
         setAddOpen(false);
         setGroup(null);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't add them to that group");
+        toast.error(friendlyError(e, "Couldn't add them to that group"));
       }
     });
   }
@@ -91,7 +92,7 @@ export function ContactSelectionActions({
         setName("");
         setDescription("");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't create the group");
+        toast.error(friendlyError(e, "Couldn't create the group"));
       }
     });
   }
@@ -101,7 +102,7 @@ export function ContactSelectionActions({
       try {
         await downloadFile("/api/files/contacts/export", "contacts.xlsx", postJson({ ids, title: label }));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Export failed");
+        toast.error(friendlyError(e, "Export failed"));
       }
     });
   }

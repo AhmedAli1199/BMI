@@ -8,6 +8,7 @@ import type { NewBusinessStatus } from "@/lib/commission-types";
 import { NB_LABEL } from "@/lib/commission-types";
 import { loadCommissionStructure } from "@/lib/commission-actions";
 import { Button } from "@/components/ui/button";
+import { friendlyError } from "@/lib/errors";
 export { monthLabel, pctLabel } from "@/lib/commission-format";
 
 const NB_TONE: Record<NewBusinessStatus, string> = { new: "var(--ok)", returning: "var(--muted-foreground)", check: "var(--warn)" };
@@ -34,7 +35,7 @@ export function LoadStructureButton({ replace = false, label = "Load BMI's commi
           const r = await loadCommissionStructure(replace);
           toast.success(`${r.rules} commission rules loaded`);
           router.refresh();
-        } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't load the structure"); }
+        } catch (e) { toast.error(friendlyError(e, "Couldn't load the structure")); }
       });
     }}>
       {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />} {label}

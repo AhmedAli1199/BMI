@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { redraftReviewItem, resolveReviewItem } from "@/lib/actions";
 import { useTypewriterReveal } from "@/lib/use-typewriter-reveal";
+import { friendlyError } from "@/lib/errors";
 
 /**
  * The full preview/edit/regenerate step for a kind whose "Draft follow-up"
@@ -72,7 +73,7 @@ export function DraftReviewDialog({
         setInstructions("");
         toast.success("Draft updated");
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't regenerate the draft");
+        toast.error(friendlyError(e, "Couldn't regenerate the draft"));
       }
     });
   }
@@ -94,7 +95,7 @@ export function DraftReviewDialog({
         onOpenChange(false);
         onApproved(send && which === "main" ? `Sent to ${to.trim()}` : label);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save this draft");
+        toast.error(friendlyError(e, "Couldn't save this draft"));
       }
     });
   }

@@ -8,6 +8,7 @@ import { commitImport, patchImport, reviewImport } from "@/lib/contact-tools-act
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { friendlyError } from "@/lib/errors";
 
 const STATUS: Record<ImportRowInfo["status"], { label: string; cls: string }> = {
   new: { label: "Will be added", cls: "bg-primary/10 text-primary" },
@@ -45,7 +46,7 @@ export function ImportReviewStep({ imp, onChange, onBack }: { imp: ContactImport
     let alive = true;
     reviewImport(imp.id, { status: filter, q: query, page, page_size: 50 })
       .then((review) => alive && setData({ key, review }))
-      .catch((e) => alive && toast.error(e instanceof Error ? e.message : "Couldn't prepare the review"));
+      .catch((e) => alive && toast.error(friendlyError(e, "Couldn't prepare the review")));
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, imp.id]);
@@ -60,7 +61,7 @@ export function ImportReviewStep({ imp, onChange, onBack }: { imp: ContactImport
   function toggle(row: ImportRowInfo) {
     const cur = new Set(imp.excluded);
     if (cur.has(row.n)) cur.delete(row.n); else cur.add(row.n);
-    start(async () => { try { onChange(await patchImport(imp.id, { excluded: [...cur] })); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save that"); } });
+    start(async () => { try { onChange(await patchImport(imp.id, { excluded: [...cur] })); } catch (e) { toast.error(friendlyError(e, "Couldn't save that")); } });
   }
   function run() {
     start(async () => {
@@ -70,7 +71,7 @@ export function ImportReviewStep({ imp, onChange, onBack }: { imp: ContactImport
         onChange(r);
       } catch (e) {
         setConfirm(false);
-        toast.error(e instanceof Error ? e.message : "The import didn't go through - nothing was saved.");
+        toast.error(friendlyError(e, "The import didn't go through - nothing was saved."));
       }
     });
   }

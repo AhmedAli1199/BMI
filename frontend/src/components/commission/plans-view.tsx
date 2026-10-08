@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { InfoHint } from "@/components/sales/info-hint";
 import { fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { pctLabel } from "@/components/commission/commission-ui";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const labelCls = "flex flex-col gap-1 text-xs font-semibold text-muted-foreground";
@@ -104,7 +105,7 @@ function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; can
           <Button size="sm" variant="ghost" onClick={() => setS(settings)}>Undo</Button>
           <Button size="sm" disabled={pending} onClick={() => start(async () => {
             try { await saveCommissionSettings(s); toast.success("Saved - unapproved months are worked out again"); router.refresh(); }
-            catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); }
+            catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
           })}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save</Button>
         </div>
       )}
@@ -140,7 +141,7 @@ function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRul
     };
     start(async () => {
       try { await saveCommissionRule(input, rule?.id); toast.success("Saved"); onDone(); router.refresh(); }
-      catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); }
+      catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
     });
   }
 
@@ -187,7 +188,7 @@ function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRul
       <SheetFooter className="flex-row border-t border-border/70">
         {rule && <Button variant="ghost" className="mr-auto gap-1.5 text-destructive hover:text-destructive" disabled={pending} onClick={() => {
           if (!window.confirm(`Remove ${rule.name} from ${rep.name}'s plan?`)) return;
-          start(async () => { try { await deleteCommissionRule(rule.id); toast.success("Removed"); onDone(); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't remove"); } });
+          start(async () => { try { await deleteCommissionRule(rule.id); toast.success("Removed"); onDone(); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't remove")); } });
         }}><Trash2 className="size-3.5" /> Remove</Button>}
         <Button variant="ghost" onClick={onDone}>Cancel</Button>
         <Button disabled={pending} onClick={save}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save</Button>

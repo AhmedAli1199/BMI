@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { disconnectXero, syncXero, type XeroStatus } from "@/lib/xero-actions";
+import { friendlyError } from "@/lib/errors";
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "never");
 
@@ -78,7 +79,7 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
                         const r = await syncXero();
                         toast.success(r.skipped ?? `Synced - ${r.invoices ?? 0} invoices changed`);
                       } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "Sync failed");
+                        toast.error(friendlyError(e, "Sync failed"));
                       }
                       router.refresh();
                     })
@@ -97,7 +98,7 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
                         const r = await syncXero(true);
                         toast.success(r.skipped ?? `Re-read ${r.invoices ?? 0} invoices`);
                       } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "Sync failed");
+                        toast.error(friendlyError(e, "Sync failed"));
                       }
                       router.refresh();
                     })

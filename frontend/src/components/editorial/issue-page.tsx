@@ -16,6 +16,7 @@ import { fmtGBP } from "@/components/sales/sales-ui";
 import { brandColor } from "@/components/rate-card/brand-style";
 import { countdownColor, daysLabel, fmtDay } from "@/components/editorial/editorial-ui";
 import { WhoToPitch } from "@/components/editorial/who-to-pitch";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 const daysFrom = (iso: string) => Math.round((new Date(iso + "T00:00:00").getTime() - new Date(new Date().toDateString()).getTime()) / 86400000);
@@ -26,7 +27,7 @@ export function IssuePage({ issue, pitch }: { issue: IssueDetail; pitch: PitchLi
   const [pending, start] = useTransition();
   const canEdit = issue.can_edit;
   const isPrint = issue.kind === "issue" || issue.kind === "guide";
-  const run = (fn: () => Promise<unknown>, ok?: string) => start(async () => { try { await fn(); if (ok) toast.success(ok); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save that"); } });
+  const run = (fn: () => Promise<unknown>, ok?: string) => start(async () => { try { await fn(); if (ok) toast.success(ok); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't save that")); } });
 
   return (
     <>
@@ -88,7 +89,7 @@ export function IssuePage({ issue, pitch }: { issue: IssueDetail; pitch: PitchLi
           <Notes issue={issue} canEdit={canEdit} />
           {canEdit && issue.can_delete && (
             <Button size="sm" variant="ghost" className="gap-1.5 self-start text-destructive hover:text-destructive" disabled={pending}
-              onClick={() => { if (window.confirm(`Delete ${issueLabel(issue)} from the plan? Its features go too.`)) start(async () => { try { await deleteIssue(issue.id); router.push(`/editorial?year=${issue.year}&brand=${issue.brand}`); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't delete it"); } }); }}>
+              onClick={() => { if (window.confirm(`Delete ${issueLabel(issue)} from the plan? Its features go too.`)) start(async () => { try { await deleteIssue(issue.id); router.push(`/editorial?year=${issue.year}&brand=${issue.brand}`); } catch (e) { toast.error(friendlyError(e, "Couldn't delete it")); } }); }}>
               <Trash2 className="size-3.5" /> Delete from the plan
             </Button>
           )}
@@ -128,7 +129,7 @@ function KeyDates({ issue, canEdit, isPrint }: { issue: IssueDetail; canEdit: bo
         await editIssue(issue.id, { edition_date: d.edition_date || null, ad_deadline: d.ad_deadline || null, editorial_deadline: d.editorial_deadline || null,
           copy_deadline: d.copy_deadline || null, milestones: ms.filter((m) => m.label.trim() && m.date) });
         toast.success("Dates saved"); setEditing(false); router.refresh();
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save the dates"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't save the dates")); }
     });
   }
   const allDates = [
@@ -145,7 +146,7 @@ function KeyDates({ issue, canEdit, isPrint }: { issue: IssueDetail; canEdit: bo
           <span className="ml-auto flex gap-1.5">
             {rules.length > 0 && isPrint && issue.edition_date && (
               <Button size="xs" variant="ghost" className="gap-1" disabled={pending} title="Work the deadlines out again from the publication date and the usual rules"
-                onClick={() => start(async () => { try { await applyIssueRules(issue.id); toast.success("Deadlines worked out from the usual rules"); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't work them out"); } })}>
+                onClick={() => start(async () => { try { await applyIssueRules(issue.id); toast.success("Deadlines worked out from the usual rules"); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't work them out")); } })}>
                 <CalendarCog className="size-3" /> Use the usual rules
               </Button>
             )}
@@ -204,7 +205,7 @@ function Features({ issue, canEdit }: { issue: IssueDetail; canEdit: boolean }) 
   const [openId, setOpenId] = useState<string | null>(null);
   const list = issue.feature_list;
   const live = list.filter((f) => f.status !== "dropped");
-  const run = (fn: () => Promise<unknown>) => start(async () => { try { await fn(); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save that"); } });
+  const run = (fn: () => Promise<unknown>) => start(async () => { try { await fn(); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't save that")); } });
 
   function add() {
     // Pasting a list ("Seafood; Napkins" or one per line) adds each one.
@@ -212,7 +213,7 @@ function Features({ issue, canEdit }: { issue: IssueDetail; canEdit: boolean }) 
     if (!titles.length) return;
     start(async () => {
       try { for (const t of titles) await addFeature(issue.id, { title: t }); setNewTitle(""); router.refresh(); }
-      catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't add it"); }
+      catch (e) { toast.error(friendlyError(e, "Couldn't add it")); }
     });
   }
   function move(i: number, dir: -1 | 1) {
@@ -282,11 +283,11 @@ function FeatureEditor({ feature, onDone }: { feature: Feature; onDone: () => vo
         <label className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><input type="checkbox" checked={spons} onChange={(e) => setSpons(e.target.checked)} className="size-4 accent-[var(--primary)]" /> Open to sponsors</label>
         <span className="ml-auto flex gap-1.5">
           <Button size="sm" variant="ghost" className="gap-1 text-destructive hover:text-destructive" disabled={pending}
-            onClick={() => { if (window.confirm("Delete this feature?")) start(async () => { try { await deleteFeature(feature.id); onDone(); router.refresh(); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't delete it"); } }); }}><Trash2 className="size-3.5" /> Delete</Button>
+            onClick={() => { if (window.confirm("Delete this feature?")) start(async () => { try { await deleteFeature(feature.id); onDone(); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't delete it")); } }); }}><Trash2 className="size-3.5" /> Delete</Button>
           <Button size="sm" variant="outline" onClick={onDone}>Cancel</Button>
           <Button size="sm" disabled={pending || !title.trim()} onClick={() => start(async () => {
             try { await editFeature(feature.id, { title: title.trim(), description: desc.trim() || null, status, sponsorable: spons }); onDone(); router.refresh(); }
-            catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save it"); }
+            catch (e) { toast.error(friendlyError(e, "Couldn't save it")); }
           })}>Save</Button>
         </span>
       </div>
@@ -330,7 +331,7 @@ function Details({ issue, canEdit }: { issue: IssueDetail; canEdit: boolean }) {
             <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
             <Button size="sm" disabled={pending || !v.name.trim()} onClick={() => start(async () => {
               try { await editIssue(issue.id, { name: v.name.trim(), theme: v.theme, distribution: v.distribution, period_label: v.period_label, format: v.format || null }); setEditing(false); toast.success("Saved"); router.refresh(); }
-              catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save"); }
+              catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
             })}>Save</Button>
           </div>
         </div>
@@ -346,7 +347,7 @@ function Notes({ issue, canEdit }: { issue: IssueDetail; canEdit: boolean }) {
     <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs" aria-labelledby="nt-h">
       <h2 id="nt-h" className="flex items-center gap-1 text-sm font-bold">Notes <InfoHint>The same notes as on this edition in the order register. Saved when you click away.</InfoHint></h2>
       <Textarea rows={4} value={text} disabled={!canEdit} onChange={(e) => setText(e.target.value)} placeholder="Anything the team should know about this issue"
-        onBlur={() => { if (text !== (issue.notes ?? "")) start(async () => { try { await editIssue(issue.id, { notes: text.trim() || null }); toast.success("Notes saved"); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't save the notes"); } }); }}
+        onBlur={() => { if (text !== (issue.notes ?? "")) start(async () => { try { await editIssue(issue.id, { notes: text.trim() || null }); toast.success("Notes saved"); } catch (e) { toast.error(friendlyError(e, "Couldn't save the notes")); } }); }}
         className="mt-2 text-sm" />
     </section>
   );

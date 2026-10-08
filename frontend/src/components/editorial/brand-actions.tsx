@@ -9,6 +9,7 @@ import { applyPlanNextYear, loadPublishedPlan, previewPlanNextYear } from "@/lib
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { fmtDay } from "@/components/editorial/editorial-ui";
+import { friendlyError } from "@/lib/errors";
 
 /** "We've prepared your published plan - load it?" */
 export function LoadPlanButton({ brand, brandName, year, count }: { brand: string; brandName: string; year: number; count: number }) {
@@ -17,7 +18,7 @@ export function LoadPlanButton({ brand, brandName, year, count }: { brand: strin
   return (
     <Button size="sm" disabled={pending} className="gap-1.5" onClick={() => start(async () => {
       try { const r = await loadPublishedPlan(brand, year); toast.success(`Loaded ${r.issues} issues and events with ${r.features} features for ${brandName}`); router.refresh(); }
-      catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't load the plan"); }
+      catch (e) { toast.error(friendlyError(e, "Couldn't load the plan")); }
     })}>{pending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />} Load {brandName}&apos;s {year} plan ({count})</Button>
   );
 }
@@ -36,7 +37,7 @@ export function PlanNextYearButton({ brand, brandName, fromYear }: { brand: stri
     setOpen(true);
     setRows(null);
     setSkip(new Set());
-    start(async () => { try { setRows(await previewPlanNextYear(brand, fromYear)); } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't prepare it"); setOpen(false); } });
+    start(async () => { try { setRows(await previewPlanNextYear(brand, fromYear)); } catch (e) { toast.error(friendlyError(e, "Couldn't prepare it")); setOpen(false); } });
   }
   function save() {
     start(async () => {
@@ -45,7 +46,7 @@ export function PlanNextYearButton({ brand, brandName, fromYear }: { brand: stri
         toast.success(`${r.created} issues and events added to ${r.year} - check their dates`);
         setOpen(false);
         router.push(`/editorial?year=${r.year}&brand=${brand}`);
-      } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't copy the plan"); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't copy the plan")); }
     });
   }
   return (

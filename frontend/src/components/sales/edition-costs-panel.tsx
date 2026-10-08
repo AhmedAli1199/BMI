@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/sales/info-hint";
 import { fmtGBP } from "@/components/sales/sales-ui";
+import { friendlyError } from "@/lib/errors";
 
 const KIND_LABEL: Record<CostLine["kind"], string> = { cost: "Cost", income: "Income", summary: "Sheet total", note: "Note" };
 
@@ -57,7 +58,7 @@ export function EditionCostsPanel({ editionId, booked, costs: initial }: { editi
         );
         setEditing(null);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't save the line");
+        toast.error(friendlyError(e, "Couldn't save the line"));
       }
     });
   }
@@ -67,7 +68,7 @@ export function EditionCostsPanel({ editionId, booked, costs: initial }: { editi
       try {
         setCosts(await deleteCostLine(editionId, id));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't remove the line");
+        toast.error(friendlyError(e, "Couldn't remove the line"));
       }
     });
   }

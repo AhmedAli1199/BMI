@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InfoHint } from "@/components/sales/info-hint";
+import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
@@ -41,7 +42,7 @@ export function NewEditionDialog({ titles, year, defaultTitleId }: { titles: Sal
         setOpen(false);
         router.push(`/sales/editions/${ed.id}`);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Couldn't create the edition");
+        toast.error(friendlyError(e, "Couldn't create the edition"));
       }
     });
   }
