@@ -16,6 +16,7 @@ from datetime import date
 from sqlalchemy import Select, and_, case, func, or_, select, union_all
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.sales.invoice_numbers import canonical_sql
 from app.models import Company, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, XeroInvoice
 from app.sales.analytics import BOOKED
@@ -114,7 +115,16 @@ def xero_state():
         .limit(1)
         .scalar_subquery()
     )
-    return case((SalesOrder.invoice_number.is_(None), None), else_=func.coalesce(state, "not_in_xero"))
+    # Xero is only read from settings.xero_sync_from, so an older booking that
+    # matches nothing isn't flagged - its invoice simply predates the link.
+    ed = SalesEdition.__table__.alias("xero_ed")
+    ed_date = select(ed.c.edition_date).where(ed.c.id == SalesOrder.edition_id).correlate(SalesOrder).scalar_subquery()
+    before_link = func.coalesce(SalesOrder.invoiced_on, ed_date) < date.fromisoformat(settings.xero_sync_from)
+    return case(
+        (SalesOrder.invoice_number.is_(None), None),
+        (and_(state.is_(None), before_link), None),
+        else_=func.coalesce(state, "not_in_xero"),
+    )
 
 
 def conditions(q: OrderQuery) -> list:

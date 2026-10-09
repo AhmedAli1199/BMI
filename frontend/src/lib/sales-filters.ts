@@ -25,7 +25,7 @@ export const XERO_OPTIONS = [
   { value: "unpaid", label: "Unpaid", hint: "Not yet due" },
   { value: "overdue", label: "Overdue", hint: "Past its due date in Xero with money still owed" },
   { value: "voided", label: "Voided" },
-  { value: "not_in_xero", label: "Not found in Xero", hint: "Has an invoice number that no Xero invoice matches - often a typo" },
+  { value: "not_in_xero", label: "Not found in Xero", hint: "Has an invoice number that no Xero invoice matches - often a typo. Bookings from before 2023 are not checked, as we only read Xero from 2023." },
 ];
 
 const shortTitle = (name: string) => name.replace(/\s*\(.*\)/, "");
