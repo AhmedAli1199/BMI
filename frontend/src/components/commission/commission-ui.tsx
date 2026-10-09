@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
-import type { NewBusinessStatus } from "@/lib/commission-types";
+import type { DecidedBy, NewBusinessStatus } from "@/lib/commission-types";
 import { NB_LABEL } from "@/lib/commission-types";
 import { loadCommissionStructure } from "@/lib/commission-actions";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,12 @@ export { monthLabel, pctLabel } from "@/lib/commission-format";
 
 const NB_TONE: Record<NewBusinessStatus, string> = { new: "var(--ok)", returning: "var(--muted-foreground)", check: "var(--warn)" };
 
-export function NewBusinessPill({ status, manager }: { status: NewBusinessStatus; manager?: boolean }) {
+export function NewBusinessPill({ status, by }: { status: NewBusinessStatus; by?: DecidedBy }) {
   const c = NB_TONE[status];
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
       style={{ color: c, background: `color-mix(in oklab, ${c} 14%, transparent)` }}>
-      {NB_LABEL[status]}{manager ? " · set by a manager" : ""}
+      {NB_LABEL[status]}{by === "manager" ? " · set by a manager" : by === "salesperson" ? " · ticked by the salesperson" : ""}
     </span>
   );
 }

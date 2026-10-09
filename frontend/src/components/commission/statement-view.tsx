@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Download, ExternalLink, Lock, Printer } from "lucide-react";
 import { toast } from "sonner";
-import type { CommissionLine, CommissionStatement } from "@/lib/commission-types";
-import { approveStatement, decideNewBusiness } from "@/lib/commission-actions";
+import type { CommissionAttendance, CommissionLine, CommissionStatement } from "@/lib/commission-types";
+import { approveStatement, decideNewBusiness, saveAdvances, saveAttendance } from "@/lib/commission-actions";
 import { downloadFile } from "@/lib/download";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,11 +101,12 @@ export function StatementView({ s }: { s: CommissionStatement }) {
         <Tile label="Commission" value={fmtGBP(s.totals.base_gbp)} hint="The plan's rate on their revenue, product by product." />
         <Tile label="New business top-up" value={fmtGBP(s.totals.new_business_gbp)} hint={`The extra rate on bookings from customers who hadn't spent with BMI in the previous ${s.settings.lookback_months} months.`} />
         <Tile label="Bonuses" value={fmtGBP(s.totals.bonuses_gbp)} />
-        <Tile label="Event profit share" value={fmtGBP(s.totals.event_profit_gbp)} hint="A share of each event's profit, in the month its costs are signed off." />
+        <Tile label={s.totals.attendance_gbp ? "Events" : "Event profit share"} value={fmtGBP(s.totals.event_profit_gbp + (s.totals.attendance_gbp ?? 0))}
+          hint={s.totals.attendance_gbp ? `${fmtGBP(s.totals.event_profit_gbp)} profit share and ${fmtGBP(s.totals.attendance_gbp)} for attendances.` : "A share of each event's profit, in the month its costs are signed off."} />
         <Tile label="Total" value={fmtGBP(s.totals.total_gbp ?? s.totals.core_gbp)} strong hint={s.totals.adjustments_gbp ? `Includes ${fmtGBP(s.totals.adjustments_gbp)} of adjustments for earlier months.` : undefined} />
       </section>
 
-      {s.lines.length === 0 && s.bonuses.length === 0 && s.events.length === 0 && (s.adjustments ?? []).length === 0 ? (
+      {s.lines.length === 0 && s.bonuses.length === 0 && s.events.length === 0 && (s.adjustments ?? []).length === 0 && !(s.attendance ?? []).length ? (
         <p className="rounded-xl border border-border/80 bg-card p-6 text-center text-sm text-muted-foreground">Nothing {earnedWord} this month.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
@@ -160,6 +161,10 @@ export function StatementView({ s }: { s: CommissionStatement }) {
                   </tr>
                 ))}
               </>}
+              {(s.attendance ?? []).length > 0 && <>
+                <tr className="border-b border-border/70 bg-muted/30"><th colSpan={7} scope="colgroup" className="px-4 py-2 text-left text-xs font-bold">Event attendance <span className="font-normal text-muted-foreground">· {fmtGBP(s.attendance![0].rate_gbp)} for each attendance, events held this month</span></th></tr>
+                {s.attendance!.map((a) => <AttendanceRow key={a.edition_id} a={a} repId={s.rep.id} canEdit={!!s.can_edit_attendance} />)}
+              </>}
               {(s.adjustments ?? []).map((a) => (
                 <tr key={a.period} className="border-b border-border/60">
                   <td colSpan={6} className="px-4 py-2">
@@ -184,6 +189,64 @@ export function StatementView({ s }: { s: CommissionStatement }) {
         </div>
       )}
 
+      {s.payout && <PayoutBox s={s} />}
+
+      {(s.new_business ?? []).length > 0 && (
+        <section className="rounded-xl border border-border/80 bg-card shadow-2xs" aria-labelledby="nb-h">
+          <h2 id="nb-h" className="flex items-center gap-1 border-b border-border/70 px-4 py-3 text-sm font-bold">
+            New business this month <InfoHint>The clients the new business money is for, and the bookings it comes from.</InfoHint>
+          </h2>
+          <ul className="divide-y divide-border/60">
+            {s.new_business!.map((c) => (
+              <li key={c.client} className="flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-2 text-sm">
+                <div className="min-w-0 flex-1">
+                  {c.company_id
+                    ? <Link href={`/companies/${c.company_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">{c.client} <ExternalLink className="size-3" aria-hidden="true" /></Link>
+                    : <span className="font-semibold">{c.client}</span>}
+                  <span className="ml-1 text-xs text-muted-foreground">· {c.decided_by.includes("salesperson") ? "ticked by the salesperson" : c.decided_by.includes("manager") ? "set by a manager" : "suggested from the last 24 months"}</span>
+                  <p className="text-xs text-muted-foreground">{c.bookings.map((b) => `${b.edition} (${fmtGBP(b.share_gbp)})`).join(" · ")}</p>
+                </div>
+                <div className="text-right text-xs tabular-nums">
+                  <div className="font-semibold">+{fmtGBP(c.new_business_gbp)}</div>
+                  {c.bonus_gbp > 0 && <div className="text-muted-foreground">+{fmtGBP(c.bonus_gbp)} bonus</div>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {(s.issues ?? []).length > 0 && (
+        <section className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs" aria-labelledby="iss-h">
+          <h2 id="iss-h" className="flex items-center gap-1 border-b border-border/70 px-4 py-3 text-sm font-bold">
+            Issues and events this month <InfoHint>Each issue&apos;s total invoicing, everyone&apos;s bookings, next to {s.rep.name.split(" ")[0]}&apos;s own sales on it.</InfoHint>
+          </h2>
+          <table className="w-full min-w-[36rem] text-sm">
+            <thead>
+              <tr className="border-b border-border/70 text-left text-xs text-muted-foreground">
+                <th scope="col" className="px-4 py-2 font-semibold">Issue or event</th>
+                <th scope="col" className="px-2 py-2 text-right font-semibold">Total invoicing</th>
+                <th scope="col" className="px-2 py-2 text-right font-semibold">Their sales</th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">Their commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.issues!.map((x) => (
+                <tr key={x.edition_id} className="border-b border-border/60 last:border-0">
+                  <td className="px-4 py-2">
+                    <Link href={`/sales/editions/${x.edition_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">{x.edition} <ExternalLink className="size-3" aria-hidden="true" /></Link>
+                    <div className="text-[11px] text-muted-foreground">{x.group}</div>
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">{fmtGBP(x.issue_total_gbp)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{fmtGBP(x.personal_gbp)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{fmtGBP(x.commission_gbp)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       <details className="print-hide rounded-xl border border-border/80 bg-card shadow-2xs">
         <summary className="cursor-pointer px-4 py-3 text-sm font-bold">{s.rep.name.split(" ")[0]}&apos;s plan</summary>
         <ul className="flex flex-col gap-1.5 border-t border-border/70 px-4 py-3 text-sm">
@@ -197,6 +260,8 @@ export function StatementView({ s }: { s: CommissionStatement }) {
               {r.new_guide_bonus_gbp ? `, ${fmtGBP(r.new_guide_bonus_gbp)} per new contract-publishing guide` : ""}
               {r.threshold_bonus_gbp && r.threshold_gbp ? `, ${fmtGBP(r.threshold_bonus_gbp)} when a title passes ${fmtGBP(r.threshold_gbp)} in a year` : ""}
               {r.event_profit_rate ? `, ${pctLabel(r.event_profit_rate)} of each event's profit` : ""}
+              {r.attendance_bonus_gbp ? `, ${fmtGBP(r.attendance_bonus_gbp)} per event attendance` : ""}
+              {r.edition_includes.length ? ` (only issues with “${r.edition_includes.join("” or “")}” in their name)` : ""}
             </li>
           ))}
         </ul>
@@ -206,14 +271,14 @@ export function StatementView({ s }: { s: CommissionStatement }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{ask?.new_business === "new" ? `${ask?.client} isn't new business?` : `${ask?.client} is new business?`}</DialogTitle>
-            <DialogDescription>{ask?.new_business_reason}. Your decision replaces the automatic one for this booking and is kept in its history.</DialogDescription>
+            <DialogDescription>{ask?.new_business_reason}. Your choice replaces the suggestion for this booking and is kept in its history.</DialogDescription>
           </DialogHeader>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Why
+          <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Why (optional)
             <Input autoFocus value={askReason} onChange={(e) => setAskReason(e.target.value)} placeholder={ask?.new_business === "new" ? "e.g. same group as Hilton, who booked in March" : "e.g. a different company with a similar name"} className="h-8 text-sm" />
           </label>
           <DialogFooter>
             <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
-            <Button disabled={pending || !askReason.trim()} onClick={() => { if (ask) onDecideAndClose(ask); }}>{ask?.new_business === "new" ? "Mark as returning" : "Mark as new business"}</Button>
+            <Button disabled={pending} onClick={() => { if (ask) onDecideAndClose(ask); }}>{ask?.new_business === "new" ? "Not new business" : "Tick as new business"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -280,19 +345,97 @@ function LineRow({ l, canDecide, pending, onDecide, onAsk }: { l: CommissionLine
       <td className="px-2 py-2 text-right tabular-nums">{fmtGBP(l.base_gbp)}</td>
       <td className="max-w-[18rem] px-2 py-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <NewBusinessPill status={l.new_business} manager={l.new_business_decided_by === "manager"} />
+          <NewBusinessPill status={l.new_business} by={l.new_business_decided_by} />
           {l.new_business_gbp > 0 && <span className="text-xs tabular-nums">+{fmtGBP(l.new_business_gbp)} ({pctLabel(l.new_business_rate)})</span>}
         </div>
         <div className="text-[11px] text-muted-foreground">{l.new_business_reason}</div>
         {canDecide && l.new_business !== "check" && (
           <div className="print-hide mt-0.5 flex gap-2 text-[11px]">
-            {l.new_business_decided_by === "manager"
-              ? <button type="button" disabled={pending} className="font-semibold text-primary hover:underline" onClick={() => onDecide(l, null)}>Undo decision</button>
-              : <button type="button" disabled={pending} className="font-semibold text-primary hover:underline" onClick={() => onAsk(l)}>{l.new_business === "new" ? "Not new business?" : "Is new business?"}</button>}
+            <button type="button" disabled={pending} className="font-semibold text-primary hover:underline" onClick={() => onAsk(l)}>{l.new_business === "new" ? "Not new business?" : "Tick as new business"}</button>
+            {l.new_business_decided_by !== "history" && <button type="button" disabled={pending} className="font-semibold text-primary hover:underline" onClick={() => onDecide(l, null)}>Use the suggestion</button>}
           </div>
         )}
       </td>
       <td className="px-4 py-2 text-right font-semibold tabular-nums">{fmtGBP(l.commission_gbp)}</td>
     </tr>
+  );
+}
+
+function AttendanceRow({ a, repId, canEdit }: { a: CommissionAttendance; repId: string; canEdit: boolean }) {
+  const router = useRouter();
+  const [count, setCount] = useState(String(a.count));
+  const [pending, start] = useTransition();
+  const save = () => {
+    const n = Number(count);
+    if (!Number.isInteger(n) || n < 0 || n > 100) { toast.error("Enter a whole number of attendances"); setCount(String(a.count)); return; }
+    if (n === a.count) return;
+    start(async () => {
+      try { await saveAttendance(repId, a.edition_id, n); toast.success("Saved"); router.refresh(); }
+      catch (e) { toast.error(friendlyError(e, "Couldn't save that")); setCount(String(a.count)); }
+    });
+  };
+  return (
+    <tr className="border-b border-border/60">
+      <td colSpan={6} className="px-4 py-2">
+        <Link href={`/sales/editions/${a.edition_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">{a.edition} <ExternalLink className="size-3" aria-hidden="true" /></Link>
+        <span className="ml-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          {canEdit
+            ? <Input type="number" min={0} max={100} value={count} disabled={pending} onChange={(e) => setCount(e.target.value)} onBlur={save}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} className="h-7 w-16 text-xs" aria-label={`Attendances at ${a.edition}`} />
+            : <strong className="text-foreground">{a.count}</strong>}
+          × {fmtGBP(a.rate_gbp)}
+        </span>
+      </td>
+      <td className="px-4 py-2 text-right font-semibold tabular-nums">{fmtGBP(a.amount_gbp)}</td>
+    </tr>
+  );
+}
+
+function PayoutBox({ s }: { s: CommissionStatement }) {
+  const router = useRouter();
+  const p = s.payout!;
+  const [adv, setAdv] = useState(p.advances_gbp ? String(p.advances_gbp) : "");
+  const [note, setNote] = useState(s.advances_note ?? "");
+  const [pending, start] = useTransition();
+  const dirty = (Number(adv) || 0) !== p.advances_gbp || (note.trim() || null) !== (s.advances_note ?? null);
+  const save = () => {
+    const n = adv.trim() === "" ? 0 : Number(adv);
+    if (Number.isNaN(n) || n < 0) return toast.error("Enter the advances as an amount in pounds");
+    start(async () => {
+      try { await saveAdvances(s.rep.id, s.period, n, note.trim() || null); toast.success("Saved"); router.refresh(); }
+      catch (e) { toast.error(friendlyError(e, "Couldn't save the advances")); }
+    });
+  };
+  return (
+    <section className="ml-auto w-full max-w-md rounded-xl border border-primary/30 bg-card px-4 py-3 text-sm shadow-2xs" aria-labelledby="pay-h">
+      <h2 id="pay-h" className="mb-1 flex items-center gap-1 text-sm font-bold">What&apos;s paid <InfoHint>As on BMI&apos;s commission statements: the month&apos;s total, less the amount held back for PAYE and National Insurance, less any advances already paid.</InfoHint></h2>
+      <div className="divide-y divide-border/60">
+        <PayRow label="Total commission payable for the month" value={p.total_gbp} strong />
+        <PayRow label={`Less retention for PAYE/NIC at ${Math.round(p.retention_rate * 1000) / 10}%`} value={p.retention_gbp} minus />
+        <PayRow label="Net commission due" value={p.net_gbp} strong />
+        <PayRow label={<>Less advances made{s.advances_note ? <span className="text-xs text-muted-foreground"> · {s.advances_note}</span> : null}</>} value={p.advances_gbp} minus />
+        <PayRow label="Cheque amount" value={p.payable_gbp} strong />
+      </div>
+      {s.can_edit_advances && (
+        <div className="print-hide mt-2 flex flex-wrap items-end gap-2 border-t border-border/60 pt-2">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Advances (£)
+            <Input inputMode="decimal" value={adv} onChange={(e) => setAdv(e.target.value)} placeholder="0" className="h-8 w-28 text-sm" />
+          </label>
+          <label className="flex min-w-40 flex-1 flex-col gap-1 text-xs font-semibold text-muted-foreground">Note (optional)
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. paid 15 Sept" className="h-8 text-sm" />
+          </label>
+          <Button size="sm" variant="outline" disabled={pending || !dirty} onClick={save}>Save</Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PayRow({ label, value, strong, minus }: { label: React.ReactNode; value: number; strong?: boolean; minus?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 py-1.5 ${strong ? "font-bold" : ""}`}>
+      <span>{label}</span>
+      <span className="tabular-nums" style={minus && value ? { color: "var(--destructive)" } : undefined}>{minus && value ? `(${fmtGBP(value)})` : fmtGBP(value)}</span>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ from app.models.activity import Activity
 from app.models.activity_link import ActivityCompany, ActivityContact, ActivityGroup, ActivityInvitee, Attachment
 from app.models.automation_setting import AutomationSetting
 from app.models.automation_state import AutomationState
-from app.models.commission import CommissionRule, CommissionSettings, CommissionStatement
+from app.models.commission import CommissionAttendance, CommissionMonth, CommissionRule, CommissionSettings, CommissionStatement
 from app.models.company import Company
 from app.models.contact import Contact, ContactCompanyLink
 from app.models.contact_channel import Address, Email, Phone
@@ -39,6 +39,8 @@ __all__ = [
     "CommissionRule",
     "CommissionSettings",
     "CommissionStatement",
+    "CommissionMonth",
+    "CommissionAttendance",
     "Company",
     "Contact",
     "ContactCompanyLink",

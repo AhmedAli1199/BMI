@@ -72,3 +72,19 @@ export async function signOffCosts(editionId: string, on: boolean): Promise<Edit
   revalidatePath("/sales/commissions", "layout");
   return r;
 }
+
+export async function saveAdvances(repId: string, period: string, advances: number, note: string | null): Promise<CommissionStatement> {
+  const r = await backendFetch<CommissionStatement>("/api/commission/statement/advances", {
+    method: "PUT", headers: json, body: JSON.stringify({ rep_id: repId, period, advances_gbp: advances, note }),
+  });
+  revalidatePath("/sales/commissions", "layout");
+  return r;
+}
+
+export async function saveAttendance(repId: string, editionId: string, count: number): Promise<{ count: number }> {
+  const r = await backendFetch<{ count: number }>("/api/commission/attendance", {
+    method: "PUT", headers: json, body: JSON.stringify({ rep_id: repId, edition_id: editionId, count }),
+  });
+  revalidatePath("/sales/commissions", "layout");
+  return r;
+}

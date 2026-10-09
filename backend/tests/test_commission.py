@@ -30,9 +30,9 @@ def w(db_session):
             eds[key] = e
         return eds[key]
 
-    def book(edition, client, value, rep, booked, *, split=None, agency=None, company_id=None, status="booked"):
+    def book(edition, client, value, rep, booked, *, split=None, agency=None, company_id=None, status="booked", invoice=None):
         o = SalesOrder(id=uuid.uuid4(), edition_id=edition.id, client_name=client, value_gbp=value, rep_id=reps[rep].id, booked_on=booked,
-                       agency_commission_gbp=agency, company_id=company_id, status=status)
+                       agency_commission_gbp=agency, company_id=company_id, status=status, invoice_number=invoice)
         db_session.add(o)
         db_session.flush()
         for code, amt in (split or {rep: value}).items():
@@ -80,6 +80,7 @@ def test_new_business_rule_24_months_same_day_and_later_bookings(w):
     assert got == [("Fresh Air", "2026-01-01", "new"), ("Fresh Air", "2026-01-01", "new"), ("Fresh Air", "2026-01-10", "returning"),
                    ("Long Gone Ltd", "2026-02-01", "new")]
     # a longer first deal is a setting
+    cm.settings(w["db"]).first_deal_rule = "days"
     cm.settings(w["db"]).first_deal_days = 30
     w["db"].flush()
     assert all(ln["new_business"] == "new" for ln in st(w, "SP", "2026-04")["lines"])
@@ -226,3 +227,66 @@ def test_one_off_supplements_only_compare_by_name(w):
     assert st_louis.id not in m and lc.id  # a different destination isn't "last year's edition"
     assert m[carib.id].id == carib_old.id   # the same guide a year on is
     assert m[jan26.id].id == jan25.id       # regular issues still fall back to the nearest date
+
+
+def test_first_deal_is_everything_on_the_first_invoice(w):
+    e = w["ed"]("selling-travel", "Jun 2026", date(2026, 6, 10))
+    w["book"](e, "Travel Wisconsin", 3000, "SP", date(2026, 1, 13), invoice="INV-500")
+    w["book"](e, "Travel Wisconsin", 1000, "SP", date(2026, 1, 20), invoice="inv 500")    # added later, same invoice: new
+    w["book"](e, "Travel Wisconsin", 1000, "SP", date(2026, 1, 20), invoice="INV-501")    # added later, new invoice: not new
+    got = sorted((ln["booked_on"], ln["new_business"]) for ln in st(w, "SP", "2026-06")["lines"])
+    assert got == [("2026-01-13", "new"), ("2026-01-20", "new"), ("2026-01-20", "returning")]
+
+
+def test_salesperson_ticks_new_business(w, client, db_session):
+    e = w["ed"]("selling-travel", "Jul 2026", date(2026, 7, 10))
+    w["book"](w["ed"]("selling-travel", "Jul 2025", date(2025, 7, 10)), "Hotel Group A", 1000, "SP", date(2025, 6, 1))
+    mine = w["book"](e, "Hotel Group A", 2000, "SP", date(2026, 6, 1))
+    other = w["book"](e, "Someone Else", 2000, "ST", date(2026, 6, 1))
+    sally = make_user(db_session, role="sales")
+    w["reps"]["SP"].user_id = sally.id
+    db_session.flush()
+    h = identity_headers(sally)
+    assert client.get(f"/api/commission/orders/{mine.id}/new-business", headers=h).json()["can_decide"]
+    assert client.put(f"/api/commission/orders/{other.id}/new-business", json={"decision": "new"}, headers=h).status_code == 403
+    r = client.put(f"/api/commission/orders/{mine.id}/new-business", json={"decision": "new"}, headers=h).json()
+    assert r["status"] == "new" and r["decided_by"] == "salesperson"
+    s = st(w, "SP", "2026-07")
+    assert [c["client"] for c in s["new_business"]] == ["Hotel Group A"]
+    assert s["new_business"][0]["new_business_gbp"] == 40 and s["new_business"][0]["decided_by"] == ["salesperson"]
+
+
+def test_payout_retention_advances_and_issue_totals(w, client):
+    e = w["ed"]("selling-travel", "Aug 2026", date(2026, 8, 10))
+    w["book"](e, "Old Client", 10000, "SP", date(2025, 1, 1))
+    w["book"](e, "Old Client", 10000, "SP", date(2026, 7, 1))
+    w["book"](e, "Other Rep Client", 5000, "ST", date(2026, 7, 1))
+    s = st(w, "SP", "2026-08")
+    total = s["totals"]["total_gbp"]
+    assert s["payout"]["retention_gbp"] == round(total * 0.35, 2) and s["payout"]["payable_gbp"] == round(total - total * 0.35, 2)
+    issue = next(x for x in s["issues"] if x["edition"].endswith("Aug 2026"))
+    assert issue["issue_total_gbp"] == 25000 and issue["personal_gbp"] == 20000
+    r = client.put("/api/commission/statement/advances", json={"rep_id": str(w["reps"]["SP"].id), "period": "2026-08", "advances_gbp": 100},
+                   headers=w["h"]).json()
+    assert r["payout"]["advances_gbp"] == 100 and r["payout"]["payable_gbp"] == round(r["payout"]["net_gbp"] - 100, 2)
+    x = client.get(f"/api/commission/statement.xlsx?rep_id={w['reps']['SP'].id}&period=2026-08", headers=w["h"])
+    cells = [c.value for row in openpyxl.load_workbook(io.BytesIO(x.content)).active.iter_rows() for c in row]
+    assert "Cheque amount" in cells and "Net commission due" in cells
+
+
+def test_attendance_bonus_and_hub_rule(w, client):
+    conn = w["ed"]("stm-connect-events", "Tenerife Sept 2026", date(2026, 9, 20), kind="event")
+    w["book"](conn, "Tenerife Tourism", 1000, "ST", date(2026, 5, 1))
+    s = st(w, "ST", "2026-09")
+    assert [a["edition"].endswith("Tenerife Sept 2026") and a["count"] == 0 for a in s["attendance"]] == [True]
+    r = client.put("/api/commission/attendance", json={"rep_id": str(w["reps"]["ST"].id), "edition_id": str(conn.id), "count": 3}, headers=w["h"])
+    assert r.status_code == 200
+    s = st(w, "ST", "2026-09")
+    assert s["totals"]["attendance_gbp"] == 225 and s["attendance"][0]["amount_gbp"] == 225
+    hub = w["ed"]("selling-canada", "Canada Hub September", date(2026, 9, 5))
+    annual = w["ed"]("selling-canada", "Annual", date(2026, 9, 6))
+    w["book"](hub, "Destination Canada", 450, "SP", date(2026, 8, 1))
+    w["book"](annual, "Destination Canada", 1000, "SP", date(2026, 8, 1))
+    by = {ln["edition"]: ln for ln in st(w, "SP", "2026-09")["lines"]}
+    rates = sorted((k.split()[-1], v["base_rate"], v["group"]) for k, v in by.items())
+    assert ("Annual", 0.025, "Guides and supplements") in rates and ("September", 0.055, "Canada Hub") in rates

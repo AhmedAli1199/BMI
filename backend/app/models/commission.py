@@ -35,6 +35,10 @@ class CommissionRule(Base, UUIDPk, TimestampMixin):
     threshold_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))           # ...this much (checked per title)
     new_client_bonus_gbp: Mapped[float | None] = mapped_column(Numeric(10, 2))    # once per new customer
     event_profit_rate: Mapped[float | None] = mapped_column(Numeric(6, 4))        # share of each signed-off event's gross profit
+    attendance_bonus_gbp: Mapped[float | None] = mapped_column(Numeric(10, 2))    # £ per attendance on an event (count entered per event)
+    # Only issues whose name contains one of these words (and none of the excluded ones), e.g. "Hub" within Selling Canada.
+    edition_includes: Mapped[list | None] = mapped_column(JSONB)
+    edition_excludes: Mapped[list | None] = mapped_column(JSONB)
     valid_from: Mapped[date | None] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
@@ -51,6 +55,8 @@ class CommissionSettings(Base):
     first_deal_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)    # 0 = bookings made the same day as the first one
     event_profit_basis: Mapped[str] = mapped_column(String(8), nullable=False, default="all")  # all (whole event) | own
     fallback_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    first_deal_rule: Mapped[str] = mapped_column(String(8), nullable=False, default="invoice")  # invoice (same invoice as the first booking) | days
+    retention_rate: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False, default=0.35)  # held back for PAYE/NIC
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -65,3 +71,24 @@ class CommissionStatement(Base, UUIDPk, TimestampMixin):
     snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     approved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CommissionMonth(Base, UUIDPk, TimestampMixin):
+    """Per salesperson and month: advances already paid (taken off the cheque amount)."""
+    __tablename__ = "commission_months"
+    __table_args__ = (UniqueConstraint("rep_id", "period", name="uq_commission_month_rep_period"),)
+
+    rep_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_reps.id", ondelete="CASCADE"), nullable=False, index=True)
+    period: Mapped[str] = mapped_column(String(7), nullable=False)
+    advances_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    advances_note: Mapped[str | None] = mapped_column(Text)
+
+
+class CommissionAttendance(Base, UUIDPk, TimestampMixin):
+    """How many attendances a salesperson is paid for on one event (e.g. Selling Travel Connect, £75 each)."""
+    __tablename__ = "commission_attendance"
+    __table_args__ = (UniqueConstraint("rep_id", "edition_id", name="uq_commission_attendance_rep_edition"),)
+
+    rep_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_reps.id", ondelete="CASCADE"), nullable=False, index=True)
+    edition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="CASCADE"), nullable=False, index=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

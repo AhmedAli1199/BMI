@@ -50,7 +50,14 @@ export function PlansView({ data }: { data: CommissionPlans }) {
                         {r.new_guide_bonus_gbp ? ` · ${fmtGBP(r.new_guide_bonus_gbp)} per new contract-publishing guide` : ""}
                         {r.threshold_bonus_gbp && r.threshold_gbp ? ` · ${fmtGBP(r.threshold_bonus_gbp)} when a title passes ${fmtGBP(r.threshold_gbp)} in a year` : ""}
                         {r.event_profit_rate ? ` · ${pctLabel(r.event_profit_rate)} of each event's profit` : ""}
+                        {r.attendance_bonus_gbp ? ` · ${fmtGBP(r.attendance_bonus_gbp)} per event attendance` : ""}
                       </p>
+                      {(r.edition_includes.length > 0 || r.edition_excludes.length > 0) && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {r.edition_includes.length > 0 && `Only issues with “${r.edition_includes.join("” or “")}” in their name. `}
+                          {r.edition_excludes.length > 0 && `Not issues with “${r.edition_excludes.join("” or “")}” in their name.`}
+                        </p>
+                      )}
                       <p className="text-[11px] text-muted-foreground">Covers: {r.title_slugs.map((s) => titleName[s] ?? s).join(", ") || "no titles yet"}</p>
                       {r.notes && <p className="text-[11px] italic text-muted-foreground">{r.notes}</p>}
                     </div>
@@ -79,7 +86,7 @@ function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; can
   return (
     <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs" aria-labelledby="cs-h">
       <h2 id="cs-h" className="mb-3 flex items-center gap-1 text-sm font-bold">How the plans are applied <InfoHint>These are the answers to BMI&apos;s open questions about the structure, so a change here is all it takes when a rule is clarified.</InfoHint></h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <label className={labelCls}>A booking counts in the month
           <select className={selectCls} disabled={!canEdit} value={s.earned_on} onChange={(e) => setS({ ...s, earned_on: e.target.value as CommissionSettings["earned_on"] })}>
             <option value="publication">its issue publishes or event runs</option>
@@ -90,14 +97,24 @@ function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; can
           <span className="flex items-center gap-2"><Input type="number" min={1} max={120} disabled={!canEdit} value={s.lookback_months} onChange={(e) => setS({ ...s, lookback_months: Number(e.target.value) || 24 })} className="h-8 w-20 text-sm" /><span className="font-normal">months</span></span>
         </label>
         <label className={labelCls}>
-          <span className="flex items-center gap-1">A new customer&apos;s first deal lasts <InfoHint>0 = only bookings made the same day as their first booking count as new business. Set e.g. 30 if a first deal booked in pieces over a month should all count.</InfoHint></span>
-          <span className="flex items-center gap-2"><Input type="number" min={0} max={366} disabled={!canEdit} value={s.first_deal_days} onChange={(e) => setS({ ...s, first_deal_days: Number(e.target.value) || 0 })} className="h-8 w-20 text-sm" /><span className="font-normal">days after the first booking</span></span>
+          <span className="flex items-center gap-1">A new customer&apos;s first deal is <InfoHint>Matt&apos;s rule: everything on the new customer&apos;s first invoice gets the new business rate. Items added later on a different invoice don&apos;t.</InfoHint></span>
+          <select className={selectCls} disabled={!canEdit} value={s.first_deal_rule} onChange={(e) => setS({ ...s, first_deal_rule: e.target.value as CommissionSettings["first_deal_rule"] })}>
+            <option value="invoice">everything on their first invoice</option>
+            <option value="days">bookings within a number of days</option>
+          </select>
+          {s.first_deal_rule === "days" && (
+            <span className="flex items-center gap-2"><Input type="number" min={0} max={366} disabled={!canEdit} value={s.first_deal_days} onChange={(e) => setS({ ...s, first_deal_days: Number(e.target.value) || 0 })} className="h-8 w-20 text-sm" aria-label="Days" /><span className="font-normal">days after the first booking</span></span>
+          )}
         </label>
         <label className={labelCls}>Event profit is worked out from
           <select className={selectCls} disabled={!canEdit} value={s.event_profit_basis} onChange={(e) => setS({ ...s, event_profit_basis: e.target.value as CommissionSettings["event_profit_basis"] })}>
             <option value="all">the whole event&apos;s income</option>
             <option value="own">only their own sales on it</option>
           </select>
+        </label>
+        <label className={labelCls}>
+          <span className="flex items-center gap-1">Held back for PAYE/NIC <InfoHint>Taken off each statement&apos;s total before the cheque amount, as on BMI&apos;s statements (35%).</InfoHint></span>
+          <span className="flex items-center gap-2"><Input inputMode="decimal" disabled={!canEdit} value={String(Math.round(s.retention_rate * 10000) / 100)} onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n) && n >= 0 && n <= 100) setS({ ...s, retention_rate: n / 100 }); }} className="h-8 w-20 text-sm" /><span className="font-normal">%</span></span>
         </label>
       </div>
       {canEdit && dirty && (
@@ -117,6 +134,7 @@ const pctIn = (v: number | null | undefined) => (v == null ? "" : String(Math.ro
 const numIn = (v: number | null | undefined) => (v == null ? "" : String(v));
 const toRate = (v: string) => (v.trim() === "" ? null : Number(v) / 100);
 const toNum = (v: string) => (v.trim() === "" ? null : Number(v));
+const words = (v: string) => v.split(",").map((w) => w.trim()).filter(Boolean);
 
 function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRule | null; titles: { slug: string; name: string }[]; onDone: () => void }) {
   const router = useRouter();
@@ -125,7 +143,8 @@ function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRul
     name: rule?.name ?? "", slugs: rule?.title_slugs ?? [], base: pctIn(rule?.base_rate), nb: pctIn(rule?.new_business_rate),
     change: rule?.new_business_rate_change_on ?? "", after: pctIn(rule?.new_business_rate_after), guide: numIn(rule?.new_guide_bonus_gbp),
     tBonus: numIn(rule?.threshold_bonus_gbp), threshold: numIn(rule?.threshold_gbp), client: numIn(rule?.new_client_bonus_gbp),
-    event: pctIn(rule?.event_profit_rate), from: rule?.valid_from ?? "", until: rule?.valid_until ?? "", notes: rule?.notes ?? "",
+    event: pctIn(rule?.event_profit_rate), attend: numIn(rule?.attendance_bonus_gbp),
+    includes: (rule?.edition_includes ?? []).join(", "), excludes: (rule?.edition_excludes ?? []).join(", "), from: rule?.valid_from ?? "", until: rule?.valid_until ?? "", notes: rule?.notes ?? "",
   });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
@@ -136,7 +155,8 @@ function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRul
       rep_id: rep.id, name: f.name.trim(), title_slugs: f.slugs, base_rate: Number(f.base) / 100, new_business_rate: toRate(f.nb) ?? 0,
       new_business_rate_change_on: f.change || null, new_business_rate_after: f.change ? toRate(f.after) : null,
       new_guide_bonus_gbp: toNum(f.guide), threshold_bonus_gbp: toNum(f.tBonus), threshold_gbp: toNum(f.threshold),
-      new_client_bonus_gbp: toNum(f.client), event_profit_rate: toRate(f.event), valid_from: f.from || null, valid_until: f.until || null,
+      new_client_bonus_gbp: toNum(f.client), event_profit_rate: toRate(f.event), attendance_bonus_gbp: toNum(f.attend),
+      edition_includes: words(f.includes), edition_excludes: words(f.excludes), valid_from: f.from || null, valid_until: f.until || null,
       notes: f.notes.trim() || null,
     };
     start(async () => {
@@ -178,6 +198,11 @@ function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRul
           <label className={labelCls}>Bonus when a title&apos;s yearly revenue passes (£)<Input inputMode="decimal" value={f.tBonus} onChange={set("tBonus")} placeholder="Bonus" className="h-8 text-sm" /></label>
           <label className={labelCls}>...this much (£)<Input inputMode="decimal" value={f.threshold} onChange={set("threshold")} placeholder="8000" className="h-8 text-sm" /></label>
           <label className={labelCls}>Share of each event&apos;s profit (%)<Input inputMode="decimal" value={f.event} onChange={set("event")} className="h-8 text-sm" /></label>
+          <label className={labelCls}><span className="flex items-center gap-1">Bonus per event attendance (£) <InfoHint>For example £75 for each Selling Travel Connect attendance. The number is entered for each event on the statement.</InfoHint></span><Input inputMode="decimal" value={f.attend} onChange={set("attend")} placeholder="75" className="h-8 text-sm" /></label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className={labelCls}><span className="flex items-center gap-1">Only issues named with (optional) <InfoHint>Words in the issue name, separated by commas. For example &quot;Hub&quot; gives the Canada Hub its own rate. A rule like this wins over the title&apos;s general rule.</InfoHint></span><Input value={f.includes} onChange={set("includes")} placeholder="e.g. Hub" className="h-8 text-sm" /></label>
+          <label className={labelCls}>Except issues named with (optional)<Input value={f.excludes} onChange={set("excludes")} placeholder="e.g. Annual" className="h-8 text-sm" /></label>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>Applies from (optional)<Input type="date" value={f.from} onChange={set("from")} className="h-8 text-sm" /></label>

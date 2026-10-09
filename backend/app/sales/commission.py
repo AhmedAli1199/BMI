@@ -19,8 +19,8 @@ from datetime import date, datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import (CommissionRule, CommissionSettings, CommissionStatement, SalesEdition, SalesEditionCost, SalesOrder,
-                        SalesOrderCredit, SalesRep, SalesTitle)
+from app.models import (CommissionAttendance, CommissionMonth, CommissionRule, CommissionSettings, CommissionStatement, SalesEdition,
+                        SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle)
 from app.sales.analytics import BOOKED
 from app.sales.new_business import NewBusinessIndex
 
@@ -30,7 +30,8 @@ FALLBACK = "Not in their plan"
 def settings(db: Session) -> CommissionSettings:
     st = db.get(CommissionSettings, 1)
     if not st:
-        st = CommissionSettings(id=1, earned_on="publication", lookback_months=24, first_deal_days=0, event_profit_basis="all", fallback_flag=True)
+        st = CommissionSettings(id=1, earned_on="publication", lookback_months=24, first_deal_days=0, event_profit_basis="all", fallback_flag=True,
+                                first_deal_rule="invoice", retention_rate=0.35)
         db.add(st)
         db.flush()
     return st
@@ -56,7 +57,8 @@ class Ctx:
     @classmethod
     def build(cls, db: Session) -> "Ctx":
         st = settings(db)
-        return cls(db, st, NewBusinessIndex.build(db, lookback_months=st.lookback_months, first_deal_days=st.first_deal_days),
+        return cls(db, st, NewBusinessIndex.build(db, lookback_months=st.lookback_months, first_deal_days=st.first_deal_days,
+                                                    first_deal_rule=st.first_deal_rule or "invoice"),
                    {t.id: t for t in db.scalars(select(SalesTitle))}, {})
 
     def edition(self, eid: uuid.UUID) -> SalesEdition:
@@ -82,8 +84,19 @@ def _rules(db: Session, rep: SalesRep, day: date | None = None) -> list[Commissi
     return list(rules)
 
 
-def _rule_for(rules: list[CommissionRule], slug: str) -> CommissionRule | None:
-    return next((r for r in rules if slug in (r.title_slugs or [])), None)
+def _fits(r: CommissionRule, slug: str, edition_name: str | None) -> bool:
+    if slug not in (r.title_slugs or []):
+        return False
+    name = (edition_name or "").lower()
+    if r.edition_includes and not any(w.lower() in name for w in r.edition_includes):
+        return False
+    return not (r.edition_excludes and any(w.lower() in name for w in r.edition_excludes))
+
+
+def _rule_for(rules: list[CommissionRule], slug: str, edition_name: str | None = None) -> CommissionRule | None:
+    """The rule for a title; a rule limited to some issues (e.g. "Hub") wins over the title's general rule."""
+    fits = [r for r in rules if _fits(r, slug, edition_name)]
+    return next((r for r in fits if r.edition_includes), None) or (fits[0] if fits else None)
 
 
 def _share(o: SalesOrder, credit: float) -> float:
@@ -111,7 +124,7 @@ def core(ctx: Ctx, rep: SalesRep, period: str) -> dict:
         ctx.editions[ed.id] = ed
         t = ctx.titles[ed.title_id]
         rules = [r for r in all_rules if (not r.valid_from or r.valid_from <= day) and (not r.valid_until or day <= r.valid_until)]
-        rule = _rule_for(rules, t.slug)
+        rule = _rule_for(rules, t.slug, ed.name)
         share = _share(o, float(credit.amount_gbp or 0))
         verdict = ctx.ix.classify(o, ed)
         line_flags = []
@@ -150,7 +163,7 @@ def core(ctx: Ctx, rep: SalesRep, period: str) -> dict:
         for credit, o, ed in rows:
             d = ctx.earned_on(o, ed)
             if d and d < start and ctx.ix.key_for(o.company_id, o.client_name) == key and ctx.ix.classify(o, ed).status == "new" \
-                    and _rule_for(all_rules, ctx.titles[ed.title_id].slug) is c["rule"]:
+                    and _rule_for(all_rules, ctx.titles[ed.title_id].slug, ed.name) is c["rule"]:
                 new_customers.pop(key)
                 break
     for c in new_customers.values():
@@ -163,7 +176,7 @@ def core(ctx: Ctx, rep: SalesRep, period: str) -> dict:
         if not d or not (start <= d <= end):
             continue
         t = ctx.titles[ed.title_id]
-        rule = _rule_for(_rules(db, rep, d), t.slug) or next((r for r in all_rules if r.new_guide_bonus_gbp), None)
+        rule = _rule_for(_rules(db, rep, d), t.slug, ed.name) or next((r for r in all_rules if r.new_guide_bonus_gbp), None)
         if rule and rule.new_guide_bonus_gbp:
             bonuses.append({"kind": "new_guide", "label": f"New contract-publishing guide: {_label(t, ed)}", "group": rule.name,
                             "amount_gbp": float(rule.new_guide_bonus_gbp), "edition_id": str(ed.id),
@@ -218,6 +231,53 @@ def core(ctx: Ctx, rep: SalesRep, period: str) -> dict:
                            "amount_gbp": _r(max(0.0, profit) * float(rule.event_profit_rate)), "group": rule.name,
                            "basis": "the whole event's income" if ctx.st.event_profit_basis == "all" else "their own sales on the event",
                            "loss": profit < 0})
+    # £ per attendance (e.g. Selling Travel Connect): counts entered per event, paid in the month the event runs
+    attendance = []
+    counts = {a.edition_id: a.count for a in db.scalars(select(CommissionAttendance).where(CommissionAttendance.rep_id == rep.id))}
+    for rule in all_rules:
+        if not rule.attendance_bonus_gbp:
+            continue
+        ids = [t.id for t in ctx.titles.values() if t.slug in set(rule.title_slugs or [])]
+        for ed in db.scalars(select(SalesEdition).where(SalesEdition.title_id.in_(ids), SalesEdition.edition_date >= start,
+                                                        SalesEdition.edition_date <= end)).all() if ids else []:
+            t = ctx.titles[ed.title_id]
+            if not _fits(rule, t.slug, ed.name):
+                continue
+            n = counts.get(ed.id, 0)
+            attendance.append({"edition_id": str(ed.id), "edition": _label(t, ed), "event_date": ed.edition_date.isoformat(), "group": rule.name,
+                               "count": n, "rate_gbp": float(rule.attendance_bonus_gbp), "amount_gbp": _r(n * float(rule.attendance_bonus_gbp))})
+    attendance.sort(key=lambda a: a["event_date"])
+    # Each issue's total invoicing (everyone's bookings) next to this person's own sales, as on BMI's statements
+    by_ed: dict[str, dict] = {}
+    for ln in lines:
+        x = by_ed.setdefault(ln["edition_id"], {"edition_id": ln["edition_id"], "edition": ln["edition"], "group": ln["group"],
+                                                "publication": ln["publication"], "personal_gbp": 0.0, "commission_gbp": 0.0, "bookings": 0})
+        x["personal_gbp"] += ln["share_gbp"]
+        x["commission_gbp"] += ln["commission_gbp"]
+        x["bookings"] += 1
+    if by_ed:
+        from sqlalchemy import func
+        totals_by_ed = dict(db.execute(select(SalesOrder.edition_id, func.coalesce(func.sum(SalesOrder.value_gbp), 0))
+                                       .where(SalesOrder.edition_id.in_([uuid.UUID(k) for k in by_ed]), SalesOrder.status == BOOKED)
+                                       .group_by(SalesOrder.edition_id)).all())
+        for k, x in by_ed.items():
+            x["issue_total_gbp"] = _r(float(totals_by_ed.get(uuid.UUID(k), 0)))
+            x["personal_gbp"], x["commission_gbp"] = _r(x["personal_gbp"]), _r(x["commission_gbp"])
+    issues = sorted(by_ed.values(), key=lambda x: (x["group"], x["publication"] or "", x["edition"]))
+    # Which bookings the new-business money is for (client by client)
+    nb: dict[str, dict] = {}
+    for ln in lines:
+        if ln["new_business"] != "new":
+            continue
+        c = nb.setdefault(ln["client"].lower(), {"client": ln["client"], "company_id": ln["company_id"], "bookings": [], "share_gbp": 0.0,
+                                                 "new_business_gbp": 0.0, "decided_by": set()})
+        c["bookings"].append({"order_id": ln["order_id"], "edition": ln["edition"], "share_gbp": ln["share_gbp"], "new_business_gbp": ln["new_business_gbp"]})
+        c["share_gbp"] += ln["share_gbp"]
+        c["new_business_gbp"] += ln["new_business_gbp"]
+        c["decided_by"].add(ln["new_business_decided_by"])
+    new_business = [{**c, "share_gbp": _r(c["share_gbp"]), "new_business_gbp": _r(c["new_business_gbp"]), "decided_by": sorted(c["decided_by"]),
+                     "bonus_gbp": _r(sum(b["amount_gbp"] for b in bonuses if b["kind"] == "new_client" and b["label"].endswith(c["client"])))}
+                    for c in sorted(nb.values(), key=lambda c: c["client"].lower())]
     lines.sort(key=lambda x: (x["group"], x["earned_on"], x["client"].lower()))
     groups = defaultdict(lambda: {"share_gbp": 0.0, "base_gbp": 0.0, "new_business_gbp": 0.0, "commission_gbp": 0.0, "bookings": 0})
     for ln in lines:
@@ -228,15 +288,29 @@ def core(ctx: Ctx, rep: SalesRep, period: str) -> dict:
     totals = {
         "share_gbp": _r(sum(ln["share_gbp"] for ln in lines)), "base_gbp": _r(sum(ln["base_gbp"] for ln in lines)),
         "new_business_gbp": _r(sum(ln["new_business_gbp"] for ln in lines)), "bonuses_gbp": _r(sum(b["amount_gbp"] for b in bonuses)),
-        "event_profit_gbp": _r(sum(e["amount_gbp"] for e in events)),
+        "event_profit_gbp": _r(sum(e["amount_gbp"] for e in events)), "attendance_gbp": _r(sum(a["amount_gbp"] for a in attendance)),
     }
-    totals["core_gbp"] = _r(totals["base_gbp"] + totals["new_business_gbp"] + totals["bonuses_gbp"] + totals["event_profit_gbp"])
+    totals["core_gbp"] = _r(totals["base_gbp"] + totals["new_business_gbp"] + totals["bonuses_gbp"] + totals["event_profit_gbp"]
+                            + totals["attendance_gbp"])
     checks = [ln for ln in lines if ln["new_business"] == "check"]
     if not all_rules:
         flags.append(f"{rep.name} has no commission plan yet, so every booking uses the standard {float(rep.commission_rate or 0):.1%}.")
-    return {"lines": lines, "bonuses": bonuses, "events": events, "totals": totals, "checks": len(checks),
+    return {"lines": lines, "bonuses": bonuses, "events": events, "attendance": attendance, "issues": issues, "new_business": new_business,
+            "totals": totals, "checks": len(checks),
             "groups": [{"name": k, **{kk: (_r(vv) if isinstance(vv, float) else vv) for kk, vv in v.items()}} for k, v in groups.items()],
             "flags": flags}
+
+
+def month_row(db: Session, rep: SalesRep, period: str) -> CommissionMonth | None:
+    return db.scalars(select(CommissionMonth).where(CommissionMonth.rep_id == rep.id, CommissionMonth.period == period)).first()
+
+
+def payout(total: float, retention_rate: float, advances: float) -> dict:
+    """The bottom of BMI's statement: total, less the PAYE/NIC holdback, less advances = cheque amount."""
+    retention = _r(total * retention_rate)
+    net = _r(total - retention)
+    return {"total_gbp": _r(total), "retention_rate": retention_rate, "retention_gbp": retention, "net_gbp": net,
+            "advances_gbp": _r(advances), "payable_gbp": _r(net - advances)}
 
 
 def statement(ctx: Ctx, rep: SalesRep, period: str) -> dict:
@@ -249,6 +323,9 @@ def statement(ctx: Ctx, rep: SalesRep, period: str) -> dict:
         live = core(ctx, rep, period)["totals"]["core_gbp"]
         snap["approved"] = {"at": st.approved_at.isoformat() if st.approved_at else None, "by": str(st.approved_by_user_id) if st.approved_by_user_id else None,
                             "changed_since_gbp": _r(live - float(snap["totals"]["core_gbp"]) - float(snap.get("carried_gbp", 0)))}
+        snap.setdefault("payout", payout(float(snap["totals"].get("total_gbp", snap["totals"]["core_gbp"])),
+                                         float(ctx.st.retention_rate if ctx.st.retention_rate is not None else 0.35), 0.0))
+        snap.setdefault("advances_note", None)
         return snap
     out = core(ctx, rep, period)
     adjustments = []
@@ -262,6 +339,10 @@ def statement(ctx: Ctx, rep: SalesRep, period: str) -> dict:
     out["adjustments"] = adjustments
     out["totals"]["adjustments_gbp"] = _r(sum(a["amount_gbp"] for a in adjustments))
     out["totals"]["total_gbp"] = _r(out["totals"]["core_gbp"] + out["totals"]["adjustments_gbp"])
+    m = month_row(db, rep, period)
+    out["payout"] = payout(out["totals"]["total_gbp"], float(ctx.st.retention_rate if ctx.st.retention_rate is not None else 0.35),
+                           float(m.advances_gbp) if m else 0.0)
+    out["advances_note"] = m.advances_note if m else None
     out["period"], out["rep_id"], out["approved"] = period, str(rep.id), None
     return out
 

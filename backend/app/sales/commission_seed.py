@@ -20,6 +20,8 @@ DW_CHANGE = date(2027, 6, 1)
 
 PLANS: dict[str, list[dict]] = {
     "SP": [
+        dict(name="Canada Hub", titles=["selling-canada", "selling-travel-guides"], base=0.055, nb=0.02, includes=["hub"],
+             notes="Issues with \"Hub\" in their name, at 5.5% (from Sally's August 2026 statement). Please check."),
         dict(name="Selling Travel Magazine (print and digital)", titles=STM, base=0.055, nb=0.02),
         dict(name="Guides and supplements", titles=GUIDES, base=0.025, nb=0.02, guide_bonus=200,
              notes="Includes Visit USA Travel Planner, Selling Canada and Guide to the Caribbean (recorded under Selling Travel Supplements)."),
@@ -29,7 +31,8 @@ PLANS: dict[str, list[dict]] = {
     "ST": [
         dict(name="Selling Travel Magazine (print and digital)", titles=STM, base=0.05, nb=0.02),
         dict(name="Guides and supplements (contract publishing)", titles=GUIDES, base=0.02, nb=0.02, guide_bonus=200),
-        dict(name="Events (Selling Travel Connect)", titles=["stm-connect-events", "selling-travel-events"], base=0.05, nb=0.02),
+        dict(name="Events (Selling Travel Connect)", titles=["stm-connect-events", "selling-travel-events"], base=0.05, nb=0.02, attendance=75,
+             notes="£75 for each attendance, entered per event on the statement (from Steve's September 2026 statement)."),
     ],
     "DW": [
         dict(name="Selling Travel Magazine (print and digital)", titles=STM, base=0.05, nb=0.05, nb_after=0.02, nb_change=DW_CHANGE),
@@ -68,7 +71,8 @@ def load_structure(db: Session, *, replace: bool = False) -> int:
                 id=uuid.uuid4(), rep_id=rep.id, name=d["name"], title_slugs=d["titles"], base_rate=d["base"], new_business_rate=d["nb"],
                 new_business_rate_after=d.get("nb_after"), new_business_rate_change_on=d.get("nb_change"),
                 new_guide_bonus_gbp=d.get("guide_bonus"), threshold_bonus_gbp=d.get("threshold_bonus"), threshold_gbp=d.get("threshold"),
-                new_client_bonus_gbp=d.get("client_bonus"), event_profit_rate=d.get("event_profit"), notes=d.get("notes"), sort_order=i))
+                new_client_bonus_gbp=d.get("client_bonus"), event_profit_rate=d.get("event_profit"), attendance_bonus_gbp=d.get("attendance"),
+                edition_includes=d.get("includes"), edition_excludes=d.get("excludes"), notes=d.get("notes"), sort_order=i))
             n += 1
     db.flush()
     return n

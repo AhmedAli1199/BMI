@@ -5,11 +5,14 @@ BMI, on any product or service, in the previous 24 months.
   bookings don't count), or a paid Xero invoice to that customer.
 - "Same customer" = the same CRM company, or the same client name once tidied
   ("Monty's" = "Montys Ltd"), or a name that customer has been invoiced under.
-- Bookings made the same day as a new customer's first booking all count as new
-  (settings.first_deal_days widens that window if BMI wants a longer first deal).
+- The first deal is everything on the new customer's first invoice: a later booking
+  counts as new only when it's on the same invoice number as their first booking
+  (Matt, Oct 2026). Bookings made the same day as the first one count too.
+  (settings.first_deal_rule="days" uses first_deal_days instead.)
 - A similar name that did spend recently (e.g. "Delta" vs "Delta Air Lines")
   isn't decided automatically: the booking is marked "check" for a manager.
-- A manager's decision on a booking (SalesOrder.new_business_override) always wins.
+- A decision on a booking (SalesOrder.new_business_override) always wins: the
+  salesperson ticks "New business" themselves and a manager checks it monthly.
 """
 from __future__ import annotations
 
@@ -22,8 +25,9 @@ from rapidfuzz import fuzz, process
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import SalesEdition, SalesOrder, SalesTitle, XeroInvoice
+from app.models import SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle, XeroInvoice
 from app.sales.analytics import BOOKED
+from app.sales.invoice_numbers import canonical
 from app.sales.matching import normalise
 
 
@@ -33,13 +37,14 @@ class Spend:
     label: str
     value: float
     order_id: uuid.UUID | None = None
+    invoice: str | None = None
 
 
 @dataclass
 class Verdict:
     status: str                  # new | returning | check
     reason: str
-    decided_by: str = "history"  # history | manager
+    decided_by: str = "history"  # history | manager | salesperson
     run_start: date | None = None  # first day of this new-business run (for once-per-customer bonuses)
     customer: str = ""           # the customer group's key
     last: dict | None = None
@@ -79,6 +84,8 @@ class _Groups:
 class NewBusinessIndex:
     lookback_months: int = 24
     first_deal_days: int = 0
+    first_deal_rule: str = "invoice"
+    rep_users: dict = field(default_factory=dict)                  # order id -> logins of the salespeople credited on it
     groups: _Groups = field(default_factory=_Groups)
     spends: dict[str, list[Spend]] = field(default_factory=dict)   # group -> sorted by day
     names: dict[str, str] = field(default_factory=dict)            # tidied name -> a display name
@@ -93,8 +100,11 @@ class NewBusinessIndex:
         return self.groups.find(f"n:{n}")
 
     @classmethod
-    def build(cls, db: Session, *, lookback_months: int = 24, first_deal_days: int = 0) -> "NewBusinessIndex":
-        ix = cls(lookback_months=lookback_months, first_deal_days=first_deal_days)
+    def build(cls, db: Session, *, lookback_months: int = 24, first_deal_days: int = 0, first_deal_rule: str = "invoice") -> "NewBusinessIndex":
+        ix = cls(lookback_months=lookback_months, first_deal_days=first_deal_days, first_deal_rule=first_deal_rule)
+        for oid, uid in db.execute(select(SalesOrderCredit.order_id, SalesRep.user_id).join(SalesRep, SalesOrderCredit.rep_id == SalesRep.id)
+                                   .where(SalesRep.user_id.isnot(None))):
+            ix.rep_users.setdefault(oid, set()).add(uid)
         titles = {t.id: t for t in db.scalars(select(SalesTitle))}
         rows = db.execute(select(SalesOrder, SalesEdition).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)).all()
         raw: list[tuple[str, Spend]] = []
@@ -110,7 +120,7 @@ class NewBusinessIndex:
                 ix.earliest = d
             if o.status == BOOKED and float(o.value_gbp or 0) > 0 and d:
                 t = titles.get(ed.title_id)
-                raw.append((node, Spend(d, f"{t.name if t else ''} {ed.name}".strip(), float(o.value_gbp), o.id)))
+                raw.append((node, Spend(d, f"{t.name if t else ''} {ed.name}".strip(), float(o.value_gbp), o.id, canonical(o.invoice_number))))
         # Names a customer has been invoiced under in Xero join that customer.
         for o_cid, o_name, contact in db.execute(
                 select(SalesOrder.company_id, SalesOrder.client_name, XeroInvoice.contact_name)
@@ -121,7 +131,7 @@ class NewBusinessIndex:
             if inv.contact_name and inv.issued_on and float(inv.amount_paid or 0) > 0:
                 n = normalise(inv.contact_name) or inv.contact_name.strip().lower()
                 ix.names.setdefault(n, inv.contact_name)
-                raw.append((f"n:{n}", Spend(inv.issued_on, f"Xero invoice {inv.invoice_number}", float(inv.sub_total or 0))))
+                raw.append((f"n:{n}", Spend(inv.issued_on, f"Xero invoice {inv.invoice_number}", float(inv.sub_total or 0), invoice=canonical(inv.invoice_number))))
         for node, sp in raw:
             ix.spends.setdefault(ix.groups.find(node), []).append(sp)
         for v in ix.spends.values():
@@ -148,14 +158,22 @@ class NewBusinessIndex:
         group = self.key_for(o.company_id, o.client_name)
         limited = bool(self.earliest and _months_back(day, self.lookback_months) < self.earliest)
         if o.new_business_override is not None:
+            by = "salesperson" if o.new_business_set_by_user_id in self.rep_users.get(o.id, ()) else "manager"
+            who = "the salesperson" if by == "salesperson" else "a manager"
             return Verdict("new" if o.new_business_override else "returning",
-                           o.new_business_reason or ("Marked as new business by a manager" if o.new_business_override else "Marked as returning by a manager"),
-                           decided_by="manager", run_start=day, customer=group)
+                           o.new_business_reason or (f"Ticked as new business by {who}" if o.new_business_override else f"Marked as not new business by {who}"),
+                           decided_by=by, run_start=day, customer=group)
         prior = self._prior(group, day, o.id)
         if prior:
             start = self._run_start(group, day, o.id)
             last = prior[-1]
-            if (day - start).days <= self.first_deal_days and not self._prior(group, start, o.id):
+            mine = canonical(o.invoice_number)
+            if self.first_deal_rule == "invoice":
+                firsts = [s for s in self.spends.get(group, []) if s.day == start and s.order_id != o.id]
+                if mine and any(s.invoice == mine for s in firsts) and not self._prior(group, start, o.id):
+                    return Verdict("new", f"On the same invoice ({o.invoice_number}) as the new customer's first booking on {start.day} {start:%b %Y}",
+                                   run_start=start, customer=group, limited_history=limited)
+            elif (day - start).days <= self.first_deal_days and not self._prior(group, start, o.id):
                 when = "the same day as" if day == start else f"{(day - start).days} days after"
                 return Verdict("new", f"Part of a new customer's first deal (booked {when} their first booking on {start.day} {start:%b %Y})",
                                run_start=start, customer=group, limited_history=limited)

@@ -1,6 +1,7 @@
 export type RepRef = { id: string; code: string; name: string; active: boolean; has_login: boolean };
 
 export type NewBusinessStatus = "new" | "returning" | "check";
+export type DecidedBy = "history" | "manager" | "salesperson";
 
 export type CommissionLine = {
   order_id: string;
@@ -24,7 +25,7 @@ export type CommissionLine = {
   base_gbp: number;
   new_business: NewBusinessStatus;
   new_business_reason: string;
-  new_business_decided_by: "history" | "manager";
+  new_business_decided_by: DecidedBy;
   new_business_rate: number;
   new_business_gbp: number;
   commission_gbp: number;
@@ -37,6 +38,13 @@ export type CommissionEvent = {
   rate: number; amount_gbp: number; group: string; basis: string; loss: boolean;
 };
 export type CommissionAdjustment = { period: string; amount_gbp: number; label: string };
+export type CommissionAttendance = { edition_id: string; edition: string; event_date: string; group: string; count: number; rate_gbp: number; amount_gbp: number };
+export type CommissionIssue = { edition_id: string; edition: string; group: string; publication: string | null; issue_total_gbp: number; personal_gbp: number; commission_gbp: number; bookings: number };
+export type CommissionNewClient = {
+  client: string; company_id: string | null; share_gbp: number; new_business_gbp: number; bonus_gbp: number; decided_by: DecidedBy[];
+  bookings: { order_id: string; edition: string; share_gbp: number; new_business_gbp: number }[];
+};
+export type CommissionPayout = { total_gbp: number; retention_rate: number; retention_gbp: number; net_gbp: number; advances_gbp: number; payable_gbp: number };
 
 export type CommissionRule = {
   id: string;
@@ -52,13 +60,19 @@ export type CommissionRule = {
   threshold_gbp: number | null;
   new_client_bonus_gbp: number | null;
   event_profit_rate: number | null;
+  attendance_bonus_gbp: number | null;
+  edition_includes: string[];
+  edition_excludes: string[];
   valid_from: string | null;
   valid_until: string | null;
   notes: string | null;
 };
 export type CommissionRuleInput = Omit<CommissionRule, "id">;
 
-export type CommissionSettings = { earned_on: "publication" | "booked"; lookback_months: number; first_deal_days: number; event_profit_basis: "all" | "own" };
+export type CommissionSettings = {
+  earned_on: "publication" | "booked"; lookback_months: number; first_deal_days: number; event_profit_basis: "all" | "own";
+  first_deal_rule: "invoice" | "days"; retention_rate: number;
+};
 
 export type CommissionStatement = {
   period: string;
@@ -67,13 +81,21 @@ export type CommissionStatement = {
   bonuses: CommissionBonus[];
   events: CommissionEvent[];
   adjustments: CommissionAdjustment[];
+  attendance?: CommissionAttendance[];
+  issues?: CommissionIssue[];
+  new_business?: CommissionNewClient[];
+  payout?: CommissionPayout;
+  advances_note?: string | null;
   groups: { name: string; share_gbp: number; base_gbp: number; new_business_gbp: number; commission_gbp: number; bookings: number }[];
-  totals: { share_gbp: number; base_gbp: number; new_business_gbp: number; bonuses_gbp: number; event_profit_gbp: number; core_gbp: number; adjustments_gbp: number; total_gbp: number };
+  totals: { share_gbp: number; base_gbp: number; new_business_gbp: number; bonuses_gbp: number; event_profit_gbp: number; attendance_gbp?: number; core_gbp: number; adjustments_gbp: number; total_gbp: number };
   checks: number;
   flags: string[];
   approved: { at: string | null; by: string | null; by_name?: string | null; changed_since_gbp: number } | null;
   can_approve: boolean;
   can_decide: boolean;
+  is_manager?: boolean;
+  can_edit_attendance?: boolean;
+  can_edit_advances?: boolean;
   plan: CommissionRule[];
   settings: CommissionSettings;
 };
@@ -94,7 +116,7 @@ export type CommissionPlans = {
   seed_available: boolean;
 };
 
-export type BookingNewBusiness = { status: NewBusinessStatus; reason: string; decided_by: "history" | "manager"; last: { label: string; day: string; value: number; order_id: string | null } | null; similar: string | null; can_decide: boolean };
+export type BookingNewBusiness = { status: NewBusinessStatus; reason: string; decided_by: DecidedBy; is_manager?: boolean; last: { label: string; day: string; value: number; order_id: string | null } | null; similar: string | null; can_decide: boolean };
 
 export type EditionCommission = {
   new_contract_guide: boolean;

@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import CommissionRule, CommissionStatement, SalesEdition, SalesOrder, SalesRep, SalesTitle, User
+from app.models import (CommissionAttendance, CommissionMonth, CommissionRule, CommissionStatement, SalesEdition, SalesOrder,
+                        SalesOrderCredit, SalesRep, SalesTitle, User)
 from app.roles import CAN_USE_AUTOMATIONS
 from app.sales import commission as cm
 from app.sales import commission_seed as seed
@@ -114,7 +115,9 @@ def get_statement(rep_id: uuid.UUID, period: str, db: Session = Depends(get_db),
         s["approved"]["by_name"] = u.name if u else None
     db.commit()  # settings row may have been created
     return {**s, "rep": _rep_ref(rep), "can_approve": _admin(identity) and not s.get("approved") and period < date.today().strftime("%Y-%m"),
-            "can_decide": _staff(identity) and not s.get("approved"), "plan": [_rule_out(r) for r in cm._rules(db, rep)],
+            "can_decide": (_staff(identity) or bool((me := _my_rep(db, identity)) and me.id == rep.id)) and not s.get("approved"),
+            "is_manager": _staff(identity), "can_edit_attendance": _staff(identity) and not s.get("approved"),
+            "can_edit_advances": _admin(identity) and not s.get("approved"), "plan": [_rule_out(r) for r in cm._rules(db, rep)],
             "settings": _settings_out(ctx.st)}
 
 
@@ -133,6 +136,58 @@ def approve_statement(payload: ApproveIn, db: Session = Depends(get_db), identit
         raise HTTPException(409, str(exc)) from exc
     db.commit()
     return get_statement(rep.id, payload.period, db, identity)
+
+
+def _not_approved(db: Session, rep: SalesRep, period: str) -> None:
+    if db.scalars(select(CommissionStatement.id).where(CommissionStatement.rep_id == rep.id, CommissionStatement.period == period)).first():
+        raise HTTPException(409, "This month is already approved, so it can't be changed.")
+
+
+class AdvancesIn(BaseModel):
+    rep_id: uuid.UUID
+    period: str
+    advances_gbp: float = Field(ge=0, le=1_000_000)
+    note: str | None = Field(default=None, max_length=300)
+
+
+@router.put("/statement/advances")
+def save_advances(payload: AdvancesIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Advances already paid to the salesperson for this month, taken off the cheque amount."""
+    _need_admin(identity)
+    rep = _rep_or_404(db, identity, payload.rep_id)
+    period = _period_ok(payload.period)
+    _not_approved(db, rep, period)
+    m = cm.month_row(db, rep, period)
+    if not m:
+        m = CommissionMonth(id=uuid.uuid4(), rep_id=rep.id, period=period)
+        db.add(m)
+    m.advances_gbp, m.advances_note = round(payload.advances_gbp, 2), (payload.note or "").strip() or None
+    db.commit()
+    return get_statement(rep.id, period, db, identity)
+
+
+class AttendanceIn(BaseModel):
+    rep_id: uuid.UUID
+    edition_id: uuid.UUID
+    count: int = Field(ge=0, le=100)
+
+
+@router.put("/attendance")
+def save_attendance(payload: AttendanceIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """How many attendances to pay on one event (e.g. £75 each for Selling Travel Connect)."""
+    _need_staff(identity)
+    rep = _rep_or_404(db, identity, payload.rep_id)
+    ed = _edition(db, payload.edition_id)
+    if not ed.edition_date:
+        raise HTTPException(422, "This event has no date yet, so it can't go on a statement.")
+    _not_approved(db, rep, ed.edition_date.strftime("%Y-%m"))
+    row = db.scalars(select(CommissionAttendance).where(CommissionAttendance.rep_id == rep.id, CommissionAttendance.edition_id == ed.id)).first()
+    if not row:
+        row = CommissionAttendance(id=uuid.uuid4(), rep_id=rep.id, edition_id=ed.id)
+        db.add(row)
+    row.count = payload.count
+    db.commit()
+    return {"count": row.count}
 
 
 @router.get("/statement.xlsx")
@@ -167,12 +222,36 @@ def statement_xlsx(rep_id: uuid.UUID, period: str, db: Session = Depends(get_db)
     for e in s["events"]:
         ws.append(["Event profit share", e["edition"], e["event_date"], None, e["income_gbp"], None, e["rate"], None, None, None, None, e["amount_gbp"],
                    f"£{e['income_gbp']:,.2f} income - £{e['costs_gbp']:,.2f} costs = £{e['profit_gbp']:,.2f} profit"])
+    for a in s.get("attendance", []):
+        if a["count"]:
+            ws.append(["Attendance", a["edition"], a["event_date"], None, None, None, None, None, None, None, None, a["amount_gbp"],
+                       f"{a['count']} x £{a['rate_gbp']:,.2f}"])
     for a in s.get("adjustments", []):
         ws.append(["Adjustment", a["label"], None, None, None, None, None, None, None, None, None, a["amount_gbp"], None])
     ws.append([])
-    ws.append(["Total", None, None, None, None, s["totals"]["share_gbp"], None, None, None, None, None, s["totals"].get("total_gbp", s["totals"]["core_gbp"])])
-    for c in ws[ws.max_row]:
-        c.font = Font(bold=True)
+    p = s.get("payout") or cm.payout(s["totals"].get("total_gbp", s["totals"]["core_gbp"]), 0.35, 0)
+    for label, amount, bold in (("Total commission payable for the month", p["total_gbp"], True),
+                                (f"Less retention for PAYE/NIC at {p['retention_rate']:.0%}", -p["retention_gbp"], False),
+                                ("Net commission due", p["net_gbp"], True), ("Less advances made", -p["advances_gbp"], False),
+                                ("Cheque amount", p["payable_gbp"], True)):
+        ws.append([label, None, None, None, None, None, None, None, None, None, None, amount])
+        if bold:
+            for c in ws[ws.max_row]:
+                c.font = Font(bold=True)
+    if s.get("issues"):
+        ws.append([])
+        ws.append(["Issue / event", "Product group", "Published", "Total invoicing for the issue £", "Their sales £", "Their commission £"])
+        for c in ws[ws.max_row]:
+            c.font = Font(bold=True)
+        for x in s["issues"]:
+            ws.append([x["edition"], x["group"], x["publication"], x.get("issue_total_gbp"), x["personal_gbp"], x["commission_gbp"]])
+    if s.get("new_business"):
+        ws.append([])
+        ws.append(["New business: client", "Bookings", "Their sales £", "New business £", "Bonus £"])
+        for c in ws[ws.max_row]:
+            c.font = Font(bold=True)
+        for c in s["new_business"]:
+            ws.append([c["client"], "; ".join(b["edition"] for b in c["bookings"]), c["share_gbp"], c["new_business_gbp"], c["bonus_gbp"] or None])
     for col, w in zip("ABCDEFGHIJKLM", (34, 26, 12, 30, 14, 13, 8, 13, 15, 10, 13, 12, 70)):
         ws.column_dimensions[col].width = w
     buf = io.BytesIO()
@@ -192,7 +271,16 @@ def booking_new_business(order_id: uuid.UUID, db: Session = Depends(get_db), ide
     ctx = cm.Ctx.build(db)
     v = ctx.ix.classify(o, db.get(SalesEdition, o.edition_id))
     db.commit()
-    return {"status": v.status, "reason": v.reason, "decided_by": v.decided_by, "last": v.last, "similar": v.similar, "can_decide": _staff(identity)}
+    return {"status": v.status, "reason": v.reason, "decided_by": v.decided_by, "last": v.last, "similar": v.similar,
+            "can_decide": _can_tick(db, identity, o), "is_manager": _staff(identity)}
+
+
+def _can_tick(db: Session, identity: Identity, o: SalesOrder) -> bool:
+    """Managers, and the salesperson credited on the booking (they tick New business themselves; a manager checks it monthly)."""
+    if _staff(identity):
+        return True
+    me = _my_rep(db, identity)
+    return bool(me and db.scalars(select(SalesOrderCredit.id).where(SalesOrderCredit.order_id == o.id, SalesOrderCredit.rep_id == me.id)).first())
 
 
 class DecisionIn(BaseModel):
@@ -202,13 +290,17 @@ class DecisionIn(BaseModel):
 
 @router.put("/orders/{order_id}/new-business")
 def decide_new_business(order_id: uuid.UUID, payload: DecisionIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
-    _need_staff(identity)
     o = db.get(SalesOrder, order_id)
     if not o:
         raise HTTPException(404, "Booking not found")
+    if not _can_tick(db, identity, o):
+        raise HTTPException(403, "Only the salesperson on this booking or a manager can change this.")
     before = {"new_business": None if o.new_business_override is None else ("new" if o.new_business_override else "returning")}
     o.new_business_override = None if payload.decision is None else payload.decision == "new"
-    o.new_business_reason = (payload.reason or "").strip() or None if payload.decision else None
+    u = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    who = u.name if u else None
+    default = (f"{'Ticked as new business' if payload.decision == 'new' else 'Marked as not new business'} by {who}") if who else None
+    o.new_business_reason = ((payload.reason or "").strip() or default) if payload.decision else None
     o.new_business_set_by_user_id = identity.user_uuid
     o.new_business_set_at = datetime.now(timezone.utc)
     record_field_changes(db, entity_type="sales_order", entity_id=o.id, before=before,
@@ -232,9 +324,19 @@ class RuleIn(BaseModel):
     threshold_gbp: float | None = Field(default=None, ge=0)
     new_client_bonus_gbp: float | None = Field(default=None, ge=0)
     event_profit_rate: float | None = Field(default=None, ge=0, le=1)
+    attendance_bonus_gbp: float | None = Field(default=None, ge=0)
+    edition_includes: list[str] | None = None
+    edition_excludes: list[str] | None = None
     valid_from: date | None = None
     valid_until: date | None = None
     notes: str | None = None
+
+
+def _rule_values(payload: "RuleIn") -> dict:
+    d = payload.model_dump()
+    for k in ("edition_includes", "edition_excludes"):
+        d[k] = [w.strip() for w in (d[k] or []) if w and w.strip()] or None
+    return d
 
 
 def _f(v):
@@ -246,13 +348,15 @@ def _rule_out(r: CommissionRule) -> dict:
             "new_business_rate": float(r.new_business_rate), "new_business_rate_change_on": r.new_business_rate_change_on.isoformat() if r.new_business_rate_change_on else None,
             "new_business_rate_after": _f(r.new_business_rate_after), "new_guide_bonus_gbp": _f(r.new_guide_bonus_gbp),
             "threshold_bonus_gbp": _f(r.threshold_bonus_gbp), "threshold_gbp": _f(r.threshold_gbp), "new_client_bonus_gbp": _f(r.new_client_bonus_gbp),
-            "event_profit_rate": _f(r.event_profit_rate), "valid_from": r.valid_from.isoformat() if r.valid_from else None,
+            "event_profit_rate": _f(r.event_profit_rate), "attendance_bonus_gbp": _f(r.attendance_bonus_gbp),
+            "edition_includes": r.edition_includes or [], "edition_excludes": r.edition_excludes or [], "valid_from": r.valid_from.isoformat() if r.valid_from else None,
             "valid_until": r.valid_until.isoformat() if r.valid_until else None, "notes": r.notes}
 
 
 def _settings_out(st) -> dict:
     return {"earned_on": st.earned_on, "lookback_months": st.lookback_months, "first_deal_days": st.first_deal_days,
-            "event_profit_basis": st.event_profit_basis}
+            "event_profit_basis": st.event_profit_basis, "first_deal_rule": st.first_deal_rule or "invoice",
+            "retention_rate": float(st.retention_rate if st.retention_rate is not None else 0.35)}
 
 
 @router.get("/plans")
@@ -288,7 +392,7 @@ def add_rule(payload: RuleIn, db: Session = Depends(get_db), identity: Identity 
     if not db.get(SalesRep, payload.rep_id):
         raise HTTPException(422, "Unknown salesperson")
     _check_titles(db, payload.title_slugs)
-    r = CommissionRule(id=uuid.uuid4(), **payload.model_dump())
+    r = CommissionRule(id=uuid.uuid4(), **_rule_values(payload))
     db.add(r)
     db.commit()
     return _rule_out(r)
@@ -301,7 +405,7 @@ def edit_rule(rule_id: uuid.UUID, payload: RuleIn, db: Session = Depends(get_db)
     if not r:
         raise HTTPException(404, "Rule not found")
     _check_titles(db, payload.title_slugs)
-    for k, v in payload.model_dump().items():
+    for k, v in _rule_values(payload).items():
         setattr(r, k, v)
     db.commit()
     return _rule_out(r)
@@ -321,6 +425,8 @@ class SettingsIn(BaseModel):
     lookback_months: int = Field(ge=1, le=120)
     first_deal_days: int = Field(ge=0, le=366)
     event_profit_basis: str = Field(pattern="^(all|own)$")
+    first_deal_rule: str = Field(default="invoice", pattern="^(invoice|days)$")
+    retention_rate: float = Field(default=0.35, ge=0, le=1)
 
 
 @router.put("/settings")
