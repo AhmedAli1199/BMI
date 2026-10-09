@@ -3,7 +3,7 @@ register and their plan (app/models/commission.py). Every figure carries the rul
 and the reason that produced it, so a statement can be checked by the person paid.
 
 A booking counts in the month it's earned: by default the month its issue
-publishes or its event runs (settings.earned_on="booked" uses the booking date).
+publishes or its event runs (or, for an item of an order, the item's own date) (settings.earned_on="booked" uses the booking date).
 Personal revenue is the salesperson's credited share of the booking, after any
 agency's cut. Approved statements are frozen; a later change to a paid month shows
 up as an adjustment on the next statement.
@@ -69,7 +69,8 @@ class Ctx:
     def earned_on(self, o: SalesOrder, ed: SalesEdition) -> date | None:
         if self.st.earned_on == "booked":
             return o.booked_on or ed.edition_date
-        return ed.edition_date or o.booked_on
+        # An item of an order can run on its own date (an email on 13 May within a month's activity).
+        return o.item_date or ed.edition_date or o.booked_on
 
 
 def _label(t: SalesTitle, ed: SalesEdition) -> str:

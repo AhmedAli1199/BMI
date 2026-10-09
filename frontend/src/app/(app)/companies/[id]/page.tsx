@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, FileText, Layers, Mail, ReceiptText, Users } from "lucide-react";
+import { ClipboardList, ArrowLeft, ExternalLink, FileText, Layers, Mail, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
@@ -129,6 +129,16 @@ export default async function CompanyDetailPage({
             >
               <FileText className="size-3.5" />
               Build a proposal
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href={`/sales/deals/new?company=${company.id}`} />}
+            >
+              <ClipboardList className="size-3.5" />
+              New order
             </Button>
           </div>
         </div>

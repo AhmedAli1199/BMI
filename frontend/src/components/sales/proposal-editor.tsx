@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ArrowUp, BadgePercent, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ClipboardList, ArrowUp, BadgePercent, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type ProposalSection } from "@/lib/proposals-types";
 import { deleteProposal, finishProposal, getProposalEmailDraft, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
@@ -279,6 +279,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
           )}
           {!sent && <Button variant="outline" disabled={pending || !dirty} onClick={() => save()} className="gap-1.5">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save</Button>}
           <Button variant={sent ? "default" : "outline"} onClick={download} disabled={pending} className="gap-1.5"><Download className="size-4" /> Download Word file</Button>
+          {sent && <Button variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}`} />}><ClipboardList className="size-4" /> They said yes: make the order</Button>}
           {!sent && <Button variant="outline" onClick={openMail} disabled={pending} className="gap-1.5"><Mail className="size-4" /> Email it from Outlook</Button>}
           {!sent && <Button onClick={() => setSendOpen(true)} disabled={pending} className="gap-1.5"><CheckCircle2 className="size-4" /> I&apos;ve sent it myself</Button>}
         </div>

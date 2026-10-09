@@ -136,6 +136,12 @@ class OrderOut(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     xero: XeroRef | None = None
+    # Part of a multi-item order (app/models/deal.py)
+    deal: Ref | None = None
+    description: str | None = None
+    item_date: date | None = None
+    copy_due: date | None = None
+    added_value: bool = False
 
 
 class EditionSummary(BaseModel):
@@ -497,6 +503,9 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
     linked_ids = {o.xero_invoice_id for o in orders if o.xero_invoice_id}
     xero_by_id = {i.id: i for i in db.scalars(select(XeroInvoice).where(XeroInvoice.id.in_(linked_ids)))} if linked_ids else {}
 
+    from app.models import SalesDeal
+    deal_ids = {o.deal_id for o in orders if o.deal_id}
+    deals = {d.id: d.number for d in db.scalars(select(SalesDeal).where(SalesDeal.id.in_(deal_ids)))} if deal_ids else {}
     out = []
     for o in orders:
         ed = eds[o.edition_id]
@@ -520,6 +529,8 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
             source=f"{o.source_file} › {o.source_sheet}, row {o.source_row}" if o.source_file else None,
             edition_date=ed.edition_date, created_at=o.created_at, updated_at=o.updated_at,
             xero=_xero_ref(xero_by_id.get(o.xero_invoice_id) or xero.get(number_key(o.invoice_number) or ""), o.xero_link_source, o.invoice_from_xero),
+            deal=Ref(id=o.deal_id, label=f"Order {deals[o.deal_id]}") if o.deal_id in deals else None,
+            description=o.description, item_date=o.item_date, copy_due=o.copy_due, added_value=bool(o.added_value),
         ))
     return out
 
@@ -594,8 +605,8 @@ def _set_credits(db: Session, order: SalesOrder, credits: list[CreditIn]) -> Non
 
 
 def _check_status(status: str) -> None:
-    if status not in ("booked", "cancelled", "contra", "moved"):
-        raise HTTPException(status_code=422, detail="Status must be booked, cancelled, contra or moved")
+    if status not in ("booked", "cancelled", "contra", "moved", "pencilled"):
+        raise HTTPException(status_code=422, detail="Status must be booked, pencilled, cancelled, contra or moved")
 
 
 # ---- Meta ---------------------------------------------------------------------
@@ -1272,6 +1283,10 @@ _AUDITED = ("client_name", "company_id", "rep_id", "booked_on", "size", "series"
             "invoice_note", "status", "moved_to_edition_id", "notes")
 
 
+# Set by the order an item belongs to (app/sales/deals.py) - changed there, not on the item.
+_DEAL_OWNED = ("client_name", "company_id", "rep_id", "value_gbp", "agency_commission_gbp", "edition_id", "booked_on")
+
+
 @router.patch("/orders/{order_id}", response_model=OrderOut)
 def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends(get_db),
                  identity: Identity = Depends(get_identity)) -> OrderOut:
@@ -1288,6 +1303,13 @@ def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends
     if data.get("moved_to_edition_id") and not db.get(SalesEdition, data["moved_to_edition_id"]):
         raise HTTPException(status_code=422, detail="Unknown edition")
 
+    if order.deal_id:
+        locked = sorted(k for k in data if k in _DEAL_OWNED and data[k] != getattr(order, k))
+        if locked or payload.credits is not None:
+            from app.models import SalesDeal
+            deal = db.get(SalesDeal, order.deal_id)
+            raise HTTPException(status_code=409, detail=f"This item is part of order {deal.number if deal else ''}. Change the client, issue, "
+                                                        "price or salesperson on the order, so the confirmation and every item stay in step.")
     before = {k: getattr(order, k) for k in _AUDITED}
     old_rep, old_value = order.rep_id, float(order.value_gbp or 0)
     for k, v in data.items():

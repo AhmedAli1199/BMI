@@ -34,7 +34,7 @@ from app.db.session import Base
 from app.models.base import TimestampMixin, UUIDPk
 
 EDITION_KINDS = ("issue", "month", "event", "awards", "guide")
-ORDER_STATUSES = ("booked", "cancelled", "contra", "moved")
+ORDER_STATUSES = ("booked", "cancelled", "contra", "moved", "pencilled")
 
 
 class SalesTitle(Base, UUIDPk):
@@ -212,7 +212,7 @@ class SalesRep(Base, UUIDPk):
 class SalesOrder(Base, UUIDPk, TimestampMixin):
     __tablename__ = "sales_orders"
     __table_args__ = (
-        CheckConstraint("status IN ('booked', 'cancelled', 'contra', 'moved')", name="ck_sales_orders_status"),
+        CheckConstraint("status IN ('booked', 'cancelled', 'contra', 'moved', 'pencilled')", name="ck_sales_orders_status"),
     )
 
     edition_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -283,6 +283,16 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     new_business_reason: Mapped[str | None] = mapped_column(String(300))
     new_business_set_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     new_business_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # ---- An item of a multi-item order (app/models/deal.py) ----
+    deal_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_deals.id", ondelete="SET NULL"), index=True)
+    deal_line: Mapped[str | None] = mapped_column(String(40))          # which line of the order it belongs to
+    description: Mapped[str | None] = mapped_column(String(300))       # "Solus html email", "Sponsored feature"
+    quantity: Mapped[int | None] = mapped_column(Integer)
+    unit_price_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    list_price_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))   # the rate card price ("usual rate £3,750")
+    added_value: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # given free with the order
+    item_date: Mapped[date | None] = mapped_column(Date, index=True)   # when this item runs, if not the issue's date (an email on 13 May)
+    copy_due: Mapped[date | None] = mapped_column(Date)                # copy / artwork deadline for this item
 
 
 

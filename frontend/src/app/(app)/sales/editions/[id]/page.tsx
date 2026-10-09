@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download, Info } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Download, Info } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
@@ -106,6 +106,9 @@ export default async function EditionPage({
                 <span className="border-l border-border/80 p-1.5 text-muted-foreground/40" aria-hidden="true"><ChevronRight className="size-4" /></span>
               )}
             </div>
+            <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false} render={<Link href={`/sales/deals/new?edition=${ed.id}`} />}>
+              <Plus className="size-3.5" aria-hidden="true" /> New order
+            </Button>
             <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false} render={<a href={`/api/sales/editions/${ed.id}/export`} download />}>
               <Download className="size-3.5" aria-hidden="true" /> Export .xlsx
             </Button>

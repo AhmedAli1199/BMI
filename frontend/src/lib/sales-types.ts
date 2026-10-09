@@ -1,6 +1,6 @@
 /** Types for the Sales Order Register - mirrors backend/app/api/routes/sales.py. */
 
-export type OrderStatus = "booked" | "cancelled" | "contra" | "moved";
+export type OrderStatus = "booked" | "cancelled" | "contra" | "moved" | "pencilled";
 export type ProductLine = "print" | "digital" | "events" | "awards";
 
 export type SalesTitle = {
@@ -88,6 +88,12 @@ export type UnmatchedInvoices = { as_of: string | null; items: UnmatchedInvoice[
 
 export type SalesOrder = {
   id: string;
+  /** Part of a multi-item order - its client, issue, price and salesperson are changed on the order. */
+  deal?: Ref | null;
+  description?: string | null;
+  item_date?: string | null;
+  copy_due?: string | null;
+  added_value?: boolean;
   edition_id: string;
   edition_label: string;
   title_id: string;

@@ -561,11 +561,16 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
                                                       "plan": plan, "features": features,
                                                       "edition_date": e.edition_date if e.date_set_in_plan else None}
         imported = db.query(SalesEdition.id).filter(SalesEdition.source_file.isnot(None))
+        # Bookings made in the app (orders, typed-in bookings) on imported issues aren't in the spreadsheets, so a
+        # refresh must not lose them: they wait on a placeholder issue and move to the re-imported one afterwards.
+        held = _hold_app_bookings(db)
         db.query(SalesOrder).filter(SalesOrder.edition_id.in_(imported.scalar_subquery())).delete(synchronize_session=False)  # credits cascade
         db.query(SalesEdition).filter(SalesEdition.source_file.isnot(None)).delete(synchronize_session=False)
         db.flush()
     elif db.query(SalesEdition).filter(SalesEdition.source_file.isnot(None)).first():
         raise RuntimeError("SOR workbooks were already imported - rerun with replace=True to reimport.")
+    else:
+        held = {}
 
     titles = {t.slug: t for t in db.query(SalesTitle).all()}
     reps = {r.code: r for r in db.query(SalesRep).all()}
@@ -740,7 +745,50 @@ def import_sor(db: Session, root: Path, *, replace: bool = False) -> ImportRepor
         db.flush()
 
     _link_moves(db)
+    _restore_app_bookings(db, held)
     return report
+
+
+def _hold_app_bookings(db: Session) -> dict:
+    """Moves bookings made in the app off imported issues onto placeholder issues; returns {placeholder id: original key}."""
+    rows = db.query(SalesOrder.edition_id).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id).filter(
+        SalesEdition.source_file.isnot(None), SalesOrder.source_file.is_(None)).distinct().all()
+    held: dict = {}
+    for (eid,) in rows:
+        e = db.get(SalesEdition, eid)
+        ph = SalesEdition(id=uuid.uuid4(), title_id=e.title_id, year=e.year, name=f"{e.name} [kept {uuid.uuid4().hex[:6]}]"[:120],
+                          edition_date=e.edition_date, kind=e.kind, status=e.status)
+        db.add(ph)
+        db.flush()
+        db.query(SalesOrder).filter(SalesOrder.edition_id == eid, SalesOrder.source_file.is_(None)).update(
+            {SalesOrder.edition_id: ph.id}, synchronize_session=False)
+        held[ph.id] = (e.title_id, e.year, e.name)
+    db.flush()
+    return held
+
+
+def _restore_app_bookings(db: Session, held: dict) -> None:
+    """Puts held bookings on the re-imported issue with the same title, year and name (or gives the placeholder its name
+    back when the spreadsheets no longer have that issue). A booking the spreadsheet now has too is flagged as a possible double."""
+    from app.sales.matching import normalise
+
+    for ph_id, (title_id, year, name) in held.items():
+        ph = db.get(SalesEdition, ph_id)
+        new = db.query(SalesEdition).filter_by(title_id=title_id, year=year, name=name).one_or_none()
+        if not new:
+            ph.name = name
+            continue
+        sheet = [(normalise(o.client_name), round(float(o.value_gbp or 0), 2), o.source_row)
+                 for o in db.query(SalesOrder).filter(SalesOrder.edition_id == new.id, SalesOrder.source_file.isnot(None))]
+        for o in db.query(SalesOrder).filter(SalesOrder.edition_id == ph.id).all():
+            o.edition_id = new.id
+            twin = next((r for c, v, r in sheet if c == normalise(o.client_name) and v == round(float(o.value_gbp or 0), 2)), None)
+            if twin is not None:
+                o.import_warning = (f"The order register now has this booking too (row {twin}). Check it isn't counted twice - "
+                                    "cancel one of them if it is.")
+        db.flush()
+        db.delete(ph)
+    db.flush()
 
 
 def _link_moves(db: Session) -> None:

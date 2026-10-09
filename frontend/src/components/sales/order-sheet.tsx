@@ -421,6 +421,12 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
           )}
         </Group>
 
+        {existing?.deal && (
+          <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+            Part of <a href={`/sales/deals/${existing.deal.id}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">{existing.deal.label}</a>.
+            Change its client, issue, price or salesperson on the order, so the confirmation and every item stay in step. Invoice details can be changed here.
+          </p>
+        )}
         {existing && existing.status === "booked" && (
           <Group title="Commission">
             <BookingNewBusinessRow orderId={existing.id} />

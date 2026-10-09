@@ -157,6 +157,7 @@ const STATUS_STYLE: Record<OrderStatus, { label: string; color: string }> = {
   cancelled: { label: "Cancelled", color: "var(--bad)" },
   contra: { label: "Contra", color: "var(--chart-4)" },
   moved: { label: "Moved", color: "var(--muted-foreground)" },
+  pencilled: { label: "Pencilled", color: "var(--warn)" },
 };
 
 export function OrderStatusPill({ status }: { status: OrderStatus }) {

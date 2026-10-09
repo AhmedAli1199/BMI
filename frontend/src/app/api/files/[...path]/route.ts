@@ -15,6 +15,7 @@ const ALLOWED: RegExp[] = [
   /^groups\/[0-9a-f-]{36}\/export$/,
   /^rate-card\/export\.xlsx$/,
   /^commission\/statement\.xlsx$/,
+  /^sales\/deals\/[0-9a-f-]{36}\/document\.docx$/,
   /^proposals\/transcribe$/,
   /^contact-imports$/,
   /^contact-imports\/template\.xlsx$/,
