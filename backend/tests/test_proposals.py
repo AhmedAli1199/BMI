@@ -204,3 +204,41 @@ def test_transcribe_needs_audio(client, world, monkeypatch):
     monkeypatch.setattr(llm, "transcribe_audio", lambda audio, mime, **k: "make it friendlier")
     r = client.post("/api/proposals/transcribe", content=b"abc", headers={**world["h"], "Content-Type": "audio/webm"})
     assert r.json() == {"text": "make it friendlier"}
+
+
+def test_several_issues_titles_options_and_discounts(client, db_session, world):
+    """Matt's ask: issue 108 plus digital in one proposal, a year's programme as an option, % off a line and the total."""
+    t = world["title"]
+    web = db_session.query(SalesTitle).filter_by(slug="obh-web").one()
+    eds = [SalesEdition(id=uuid.uuid4(), title_id=t.id, year=YEAR + 1, name=n, edition_date=date(YEAR + 1, m, 10), kind="issue")
+           for n, m in (("106", 6), ("107", 8), ("108", 12))]
+    db_session.add_all(eds)
+    db_session.flush()
+    lines = [
+        {"product": "FP", "source": "rate_card", "issues": [str(eds[2].id)], "option": "Option A: Issue 108"},
+        {"product": "FP", "source": "rate_card", "issues": [str(e.id) for e in eds], "discount_pct": 0.1, "option": "Option B: The year"},
+        {"product": "Newsletter banner", "source": "manual", "unit_price": 500, "qty": 2, "title_id": str(web.id)},
+    ]
+    r = create(client, world, lines=lines, kind="mixed", discount_pct=0.05)
+    assert r.status_code == 201, r.text
+    p = r.json()
+    tots = {x["option"]: x for x in p["totals"]}
+    assert tots["Option A: Issue 108"]["subtotal_gbp"] == 4500 + 1000
+    assert tots["Option B: The year"]["subtotal_gbp"] == 3 * 4500 * 0.9 + 1000
+    assert tots["Option B: The year"]["total_gbp"] == round((3 * 4500 * 0.9 + 1000) * 0.95, 2)
+    assert p["total_gbp"] == tots["Option A: Issue 108"]["total_gbp"] and p["kind_label"] == "A mixed package"
+    year_line = next(ln for ln in p["lines"] if ln.get("option") == "Option B: The year")
+    assert year_line["qty"] == 3 and year_line["issue_labels"][0].startswith("Issue 106")
+    assert set(p["titles"]) == {t.name, web.name}
+    assert "two options" in next(s for s in p["sections"] if s["kind"] == "proposal")["body"]
+    # Word file shows each option and its total
+    d = client.get(f"/api/proposals/{p['id']}/download", headers=world["h"])
+    text = "\n".join(par.text for par in docx.Document(io.BytesIO(d.content)).paragraphs)
+    assert "Option B: The year total" in text and "less 10%" in text and "Less 5% discount" in text and "Runs in Issue 106" in text
+    # the client picks option B: the order starts from it, with its issues and discounts
+    pre = client.get(f"/api/sales/deals/prefill?proposal_id={p['id']}&option=Option B: The year", headers=world["h"]).json()
+    assert pre["option"] == "Option B: The year" and pre["discount_pct"] == 0.05
+    assert [len(ln["placements"]) for ln in pre["lines"]] == [3, 2] and pre["lines"][0]["discount_pct"] == 0.1
+    # change the total discount without touching the lines
+    r = client.patch(f"/api/proposals/{p['id']}", json={"discount_pct": 0}, headers=world["h"])
+    assert r.json()["total_gbp"] == 5500

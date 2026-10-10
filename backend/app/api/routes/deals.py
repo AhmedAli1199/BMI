@@ -298,7 +298,8 @@ def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_
 
 @router.get("/prefill")
 def prefill(company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = None, proposal_id: uuid.UUID | None = None,
-            edition_id: uuid.UUID | None = None, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+            edition_id: uuid.UUID | None = None, option: str | None = None,
+            db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     """What a new order can start from: the client's address and contact details, a proposal's products, or an issue."""
     out: dict = {"lines": [], "rep_id": None}
     me = _my_rep(db, identity)
@@ -308,12 +309,30 @@ def prefill(company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = 
         company_id, contact_id = company_id or p.company_id, contact_id or p.contact_id
         out["proposal_id"] = str(p.id)
         out["title_id"] = str(p.title_id) if p.title_id else None
-        for ln in p.lines or []:
+        from app.proposals.pricing import totals as proposal_totals
+        tots = proposal_totals(p.lines or [], float(p.discount_pct or 0))
+        chosen = next((t for t in tots if t["option"] == option), tots[0]) if tots else None
+        out["option"] = chosen["option"] if chosen else None
+        out["options"] = [t["option"] for t in tots if t["option"]]
+        lines = [ln for ln in p.lines or [] if ln.get("option") in ((chosen or {}).get("option"), None)]
+        has_offers = any(ln.get("source") == "offer" for ln in lines)
+        for ln in lines:
+            if ln.get("source") == "offer":
+                continue
             rate = db.get(SalesRate, uuid.UUID(str(ln["rate_id"]))) if ln.get("rate_id") else None
-            out["lines"].append({"title_id": str(p.title_id) if p.title_id else None, "rate_id": ln.get("rate_id"),
-                                 "description": ln.get("product") or "", "qty": 1, "unit_price": ln.get("unit_price"),
+            tid = ln.get("title_id") or (str(p.title_id) if p.title_id else None)
+            issues = ln.get("issues") or []
+            places = [{"edition_id": i} for i in issues] or [{"edition_id": str(p.edition_id)} if p.edition_id else {} for _ in range(int(ln.get("qty") or 1))]
+            out["lines"].append({"title_id": tid, "rate_id": ln.get("rate_id"), "description": ln.get("product") or "", "qty": 1,
+                                 "unit_price": ln.get("unit_price"), "discount_pct": float(ln.get("discount_pct") or 0),
                                  "list_price": float(rate.price_gbp) if rate and rate.price_gbp is not None else ln.get("unit_price"),
-                                 "placements": [{"edition_id": str(p.edition_id)} if p.edition_id else {} for _ in range(int(ln.get("qty") or 1))]})
+                                 "placements": places})
+        if has_offers and chosen:
+            # Rate-card offers were taken off the whole group: keep the agreed total exactly as a package price.
+            out.update(pricing="package", package_price_gbp=chosen["total_gbp"], package_split="rate_card",
+                       package_label=f"{p.campaign_name}{' - ' + chosen['option'] if chosen['option'] else ''}")
+        else:
+            out["discount_pct"] = float(p.discount_pct or 0)
     ed = db.get(SalesEdition, edition_id) if edition_id else None
     if ed and not out["lines"]:
         out["title_id"] = str(ed.title_id)

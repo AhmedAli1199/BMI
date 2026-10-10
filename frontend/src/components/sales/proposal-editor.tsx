@@ -3,9 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ClipboardList, ArrowUp, BadgePercent, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ClipboardList, ArrowUp, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type ProposalSection } from "@/lib/proposals-types";
+import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type ProposalKind, type ProposalSection } from "@/lib/proposals-types";
+import type { SalesRate, SalesTitle } from "@/lib/sales-types";
+import { ProposalLines, localTotals, type EditLine } from "@/components/sales/proposal-lines";
 import { deleteProposal, finishProposal, getProposalEmailDraft, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +22,7 @@ import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
-type Line = Proposal["lines"][number];
+type Line = EditLine;
 
 /** Offer lines are worked out by the server from the rate card's offers, so they're never sent back. */
 const toSave = (lines: Line[]) => lines.filter((l) => l.source !== "offer").map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null }));
@@ -43,13 +45,15 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-export function ProposalEditor({ proposal }: { proposal: Proposal }) {
+export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal; titles: SalesTitle[]; rates: SalesRate[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [campaign, setCampaign] = useState(proposal.campaign_name);
   const [template, setTemplate] = useState<string>(proposal.template);
   const [sections, setSections] = useState<ProposalSection[]>(proposal.sections);
-  const [lines, setLines] = useState<Line[]>(proposal.lines);
+  const [lines, setLines] = useState<Line[]>(() => proposal.lines.map((l) => ({ ...l, id: l.id ?? crypto.randomUUID() })));
+  const [kind, setKind] = useState<ProposalKind>(proposal.kind ?? "issue");
+  const [discount, setDiscount] = useState(proposal.discount_pct ?? 0);
   const [linesTouched, setLinesTouched] = useState(false);
   const [issueChanged, setIssueChanged] = useState(false);
   const [preview, setPreview] = useState(false);
@@ -62,7 +66,6 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
   const [mailTo, setMailTo] = useState("");
   const [mailCc, setMailCc] = useState("");
   const sent = proposal.status === "sent";
-  const total = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
   const h = proposal.context.history;
 
   const touch = <T,>(fn: (v: T) => void) => (v: T) => { fn(v); setDirty(true); };
@@ -70,8 +73,8 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
   function save(after?: () => void) {
     start(async () => {
       try {
-        const p = await saveProposal(proposal.id, { campaign_name: campaign, template, sections, lines: toSave(lines) });
-        setLines(p.lines);
+        const p = await saveProposal(proposal.id, saved());
+        setLines(p.lines.map((l) => ({ ...l, id: l.id ?? crypto.randomUUID() })));
         setLinesTouched(false);
         setDirty(false);
         toast.success("Saved");
@@ -83,8 +86,8 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
     });
   }
 
-  const saved = () => ({ campaign_name: campaign, template, sections, lines: toSave(lines) });
-  const editLines = (next: Line[]) => { editLines(next); setLinesTouched(true); };
+  const saved = () => ({ campaign_name: campaign, template, sections, lines: toSave(lines), kind, discount_pct: discount });
+  const editLines = (next: Line[]) => { setLines(next); setLinesTouched(true); setDirty(true); };
 
   function changeIssue(id: string) {
     start(async () => {
@@ -157,61 +160,11 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
         </section>
 
         <section aria-labelledby="lines-h">
-          <SectionTitle id="lines-h" hint="Prices from the rate card are fixed. Your own lines can have any price. Everything is before VAT.">Products and prices</SectionTitle>
-          <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs">
-            <table className="w-full text-sm">
-              <caption className="sr-only">Products in this proposal</caption>
-              <thead><tr className="text-left text-xs text-muted-foreground">
-                <th scope="col" className="px-4 py-2 font-semibold">Product</th>
-                <th scope="col" className="w-20 px-2 py-2 text-right font-semibold">Qty</th>
-                <th scope="col" className="w-28 px-2 py-2 text-right font-semibold">Each</th>
-                <th scope="col" className="w-28 px-2 py-2 text-right font-semibold">Subtotal</th>
-                <th scope="col" className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th>
-              </tr></thead>
-              <tbody>
-                {lines.map((l, i) => l.source === "offer" ? (
-                  <tr key={l.id ?? i} className={`border-t border-border/60 ${linesTouched ? "opacity-50" : ""}`}>
-                    <td className="px-4 py-1.5" colSpan={3}>
-                      <span className="inline-flex items-center gap-1.5 font-medium text-[var(--ok)]"><BadgePercent className="size-3.5" aria-hidden="true" />{l.product.replace(/^Offer: /, "")}</span>
-                      <span className="block text-[11px] text-muted-foreground">Rate card offer - added for you, and worked out again whenever the products change</span>
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-[var(--ok)]">{fmtGBP(l.qty * l.unit_price)}</td>
-                    <td />
-                  </tr>
-                ) : (
-                  <tr key={l.id ?? i} className="border-t border-border/60">
-                    <td className="px-4 py-1.5">
-                      {l.source === "rate_card" || sent ? <span className="font-medium">{l.product}</span> : (
-                        <Input aria-label="Product" value={l.product} onChange={(e) => editLines(lines.map((x, j) => (j === i ? { ...x, product: e.target.value } : x)))} className="h-8 text-sm" />
-                      )}
-                      {l.source === "rate_card" && <span className="ml-2 text-[11px] text-muted-foreground">rate card</span>}
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
-                      {sent ? l.qty : <Input aria-label="Quantity" type="number" min={1} value={l.qty} onChange={(e) => editLines(lines.map((x, j) => (j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x)))} className="h-8 text-right text-sm tabular-nums" />}
-                    </td>
-                    <td className="px-2 py-1.5 text-right tabular-nums">
-                      {l.source === "rate_card" || sent ? fmtGBP(l.unit_price) : (
-                        <Input aria-label="Price each" type="number" min={0} value={l.unit_price} onChange={(e) => editLines(lines.map((x, j) => (j === i ? { ...x, unit_price: Number(e.target.value) || 0 } : x)))} className="h-8 text-right text-sm tabular-nums" />
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{fmtGBP(l.qty * l.unit_price)}</td>
-                    <td className="px-2 py-1.5">
-                      {!sent && <Button size="icon-sm" variant="ghost" aria-label={`Remove ${l.product}`} onClick={() => editLines(lines.filter((_, j) => j !== i))}><Trash2 className="size-3.5" /></Button>}
-                    </td>
-                  </tr>
-                ))}
-                {lines.length === 0 && <tr className="border-t border-border/60"><td colSpan={5} className="px-4 py-4 text-xs text-muted-foreground">No products yet.</td></tr>}
-              </tbody>
-              <tfoot><tr className="border-t border-border/70 bg-muted/30">
-                <td colSpan={3} className="px-4 py-2 text-xs text-muted-foreground">
-                  {!sent && <Button size="sm" variant="ghost" className="-ml-2 gap-1.5" onClick={() => editLines([...lines, { id: crypto.randomUUID(), product: "", qty: 1, unit_price: 0, source: "manual" }])}><Plus className="size-3.5" /> Add my own line</Button>}
-                </td>
-                <td className="px-2 py-2 text-right font-bold tabular-nums">{fmtGBP(total)}</td>
-                <td />
-              </tr></tfoot>
-            </table>
-          </div>
-          {dirty && <p className="mt-1.5 text-xs text-muted-foreground">Save to update the Investment section&apos;s figures in the Word file{linesTouched ? " - any rate card offers are worked out again when you save" : ""}.</p>}
+          <SectionTitle id="lines-h" hint="Prices from the rate card are fixed; your own lines can have any price. Add products from any title, pick the issues each one runs in, take a % off a line or the whole proposal, and group lines into options the client chooses between. Everything is before VAT.">Products and prices</SectionTitle>
+          <ProposalLines lines={lines} onChange={editLines} titles={titles} rates={rates} defaultTitleId={proposal.title_id}
+            discount={discount} onDiscount={(v) => { setDiscount(v); setLinesTouched(true); setDirty(true); }}
+            kind={kind} onKind={(v) => { setKind(v); setDirty(true); }} disabled={sent} serverTotals={proposal.totals} stale={linesTouched} />
+          {dirty && <p className="mt-1.5 text-xs text-muted-foreground">Save to update the Investment section&apos;s figures in the Word file.</p>}
         </section>
 
         <section aria-labelledby="secs-h">
@@ -221,7 +174,7 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
               {!sent && (
                 <Button size="sm" variant="outline" className="gap-1.5" disabled={pending} onClick={() => {
                   if (!window.confirm("Write every section again from scratch? Your edits to the wording will be replaced.")) return;
-                  start(async () => { try { if (dirty) await saveProposal(proposal.id, saved()); const p = await redraftProposal(proposal.id); setSections(p.sections); setLines(p.lines); setLinesTouched(false); setIssueChanged(false); setDirty(false); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't redraft")); } });
+                  start(async () => { try { if (dirty) await saveProposal(proposal.id, saved()); const p = await redraftProposal(proposal.id); setSections(p.sections); setLines(p.lines.map((l) => ({ ...l, id: l.id ?? crypto.randomUUID() }))); setLinesTouched(false); setIssueChanged(false); setDirty(false); toast.success("Wording redrafted"); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't redraft")); } });
                 }}><Sparkles className="size-3.5" /> Start again</Button>
               )}
             </div>
@@ -241,10 +194,24 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
                 <div key={s.id} className="mt-4">
                   <h3 className="text-base font-bold">{s.heading}</h3>
                   {s.kind === "investment" && (
-                    <ul className="my-2">
-                      {lines.map((l, i) => <li key={i}>{l.product}: {l.qty > 1 ? `${l.qty} × ${fmtGBP(l.unit_price)} = ` : ""}{fmtGBP(l.qty * l.unit_price)}</li>)}
-                      <li className="mt-1 font-bold">Total: {fmtGBP(total)}</li>
-                    </ul>
+                    <div className="my-2">
+                      {localTotals(lines, discount).map((t, ti, all) => (
+                        <ul key={t.option ?? ti} className="mb-2">
+                          {all.length > 1 && <li className="font-bold">{t.option}</li>}
+                          {lines.filter((l) => !l.option || l.option === t.option).map((l) => {
+                            const q = l.issues?.length || l.qty, u = l.unit_price ?? 0, d = l.discount_pct ?? 0;
+                            return (
+                              <li key={l.id}>
+                                {l.product}: {q > 1 ? `${q} × ${fmtGBP(u)} = ${fmtGBP(q * u)}` : fmtGBP(q * u)}{d ? `, less ${Math.round(d * 1000) / 10}% = ${fmtGBP(q * u * (1 - d))}` : ""}
+                                {l.issue_labels?.length ? <div className="text-xs text-muted-foreground">Runs in {l.issue_labels.join(", ")}</div> : null}
+                              </li>
+                            );
+                          })}
+                          {t.discount_gbp ? <li>Less {Math.round(discount * 1000) / 10}% discount: -{fmtGBP(t.discount_gbp)}</li> : null}
+                          <li className="mt-1 font-bold">{all.length > 1 ? `${t.option} total` : "Total"}: {fmtGBP(t.total_gbp)}</li>
+                        </ul>
+                      ))}
+                    </div>
                   )}
                   <Rich text={s.body} />
                 </div>
@@ -279,7 +246,13 @@ export function ProposalEditor({ proposal }: { proposal: Proposal }) {
           )}
           {!sent && <Button variant="outline" disabled={pending || !dirty} onClick={() => save()} className="gap-1.5">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save</Button>}
           <Button variant={sent ? "default" : "outline"} onClick={download} disabled={pending} className="gap-1.5"><Download className="size-4" /> Download Word file</Button>
-          {sent && <Button variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}`} />}><ClipboardList className="size-4" /> They said yes: make the order</Button>}
+          {sent && (proposal.totals.length > 1
+            ? proposal.totals.map((t) => (
+              <Button key={t.option ?? ""} variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}&option=${encodeURIComponent(t.option ?? "")}`} />}>
+                <ClipboardList className="size-4" /> They chose {t.option}: make the order
+              </Button>
+            ))
+            : <Button variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}`} />}><ClipboardList className="size-4" /> They said yes: make the order</Button>)}
           {!sent && <Button variant="outline" onClick={openMail} disabled={pending} className="gap-1.5"><Mail className="size-4" /> Email it from Outlook</Button>}
           {!sent && <Button onClick={() => setSendOpen(true)} disabled={pending} className="gap-1.5"><CheckCircle2 className="size-4" /> I&apos;ve sent it myself</Button>}
         </div>

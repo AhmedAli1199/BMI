@@ -33,7 +33,12 @@ class Proposal(Base, UUIDPk, TimestampMixin):
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="draft", index=True)  # draft | sent
     # [{"id", "kind": intro|history|proposal|investment|next_steps|custom, "heading", "body"}]
     sections: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    # [{"id", "product", "qty", "unit_price", "source": rate_card|manual}] - prices before VAT.
+    # What sort of proposal it is (app/proposals/pricing.py KINDS) - shapes the wording.
+    kind: Mapped[str] = mapped_column(String(12), nullable=False, default="issue")
+    # % off the whole proposal (each option's total), after any % off a line and rate-card offers.
+    discount_pct: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False, default=0)
+    # [{"id", "product", "qty", "unit_price", "source": rate_card|manual|offer, "rate_id", "title_id", "issues": [edition ids],
+    #   "issue_labels", "discount_pct", "option"}] - prices before VAT (see app/proposals/pricing.py).
     lines: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     total_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     # What was known about the client when it was drafted (bookings history, rate card year, hints).

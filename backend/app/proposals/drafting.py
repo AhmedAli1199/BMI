@@ -44,7 +44,18 @@ def facts_text(ctx: dict, lines: list[dict], campaign_name: str) -> str:
     for r in ctx.get("rates") or []:
         parts += [r["product"], gbp(r["price_gbp"]), str(r["price_gbp"])]
     for ln in lines:
-        parts += [str(ln["qty"]), gbp(ln["unit_price"]), str(ln["unit_price"]), str(abs(ln["unit_price"])), ln["product"]]
+        parts += [str(ln["qty"]), gbp(ln["unit_price"]), str(ln["unit_price"]), str(abs(ln["unit_price"])), ln["product"],
+                  *(ln.get("issue_labels") or []), ln.get("option") or ""]
+        if ln.get("discount_pct"):
+            from app.proposals.pricing import line_total
+            parts += [f"{float(ln['discount_pct']) * 100:g}%", gbp(line_total(ln)), str(line_total(ln))]
+    for t in ctx.get("totals") or []:
+        parts += [t.get("option") or "", gbp(t["total_gbp"]), str(t["total_gbp"]), gbp(t["subtotal_gbp"]), gbp(t["discount_gbp"])]
+    if ctx.get("discount_pct"):
+        parts.append(f"{float(ctx['discount_pct']) * 100:g}%")
+    for f in ctx.get("issues") or []:
+        parts += [f.get("label") or "", f.get("name") or "", f.get("publication_text") or "", f.get("ad_deadline_text") or "",
+                  f.get("theme") or "", *(f.get("features") or [])]
     issue = ctx.get("issue") or {}
     if issue:
         parts += [issue.get("label") or "", issue.get("name") or "", issue.get("publication_text") or "", issue.get("ad_deadline_text") or "",
@@ -71,10 +82,29 @@ def template_wording(ctx: dict, lines: list[dict], campaign_name: str) -> dict[s
     products = ", ".join(ln["product"] for ln in lines if ln.get("source") != "offer") or "a package tailored to your goals"
     offers = [ln["product"].removeprefix("Offer: ") for ln in lines if ln.get("source") == "offer"]
     proposal = f"We propose the following for {campaign_name}: {products}."
+    next_steps = "- Let us know which of these options suits you\n- We'll confirm availability and send the booking form\n- We'll agree copy and artwork deadlines"
+    issues = ctx.get("issues") or []
+    issue = ctx.get("issue") if len(issues) <= 1 else None
+    kind = ctx.get("kind") or "issue"
+    titles = ctx.get("titles") or []
+    if len(titles) > 1:
+        proposal = f"We propose a package across {_join(titles)} for {campaign_name}: {products}."
+    if kind == "annual":
+        proposal = f"We propose a year-round programme for {campaign_name}, keeping {ctx.get('company', 'you')} in front of readers in every issue: {products}."
+    elif kind == "digital":
+        proposal = f"We propose a digital campaign for {campaign_name} across our website, newsletters and social channels: {products}."
+    elif kind == "sponsorship":
+        proposal = f"We propose a sponsorship for {campaign_name}, putting {ctx.get('company', 'your brand')} at the heart of the event: {products}."
     if offers:
         proposal += f" This includes our offer: {'; '.join(offers)}."
-    next_steps = "- Let us know which of these options suits you\n- We'll confirm availability and send the booking form\n- We'll agree copy and artwork deadlines"
-    issue = ctx.get("issue")
+    if len(issues) > 1:
+        proposal += " It runs in " + _join([f"{f['label']}" + (f" ({f['publication_text']})" if f.get("publication_text") else "") for f in issues]) + "."
+        feats = list(dict.fromkeys(x for f in issues for x in (f.get("sponsorable") or f.get("features") or [])))
+        if feats:
+            proposal += f" Features planned across these issues include {_join(feats[:5])}."
+    tots = ctx.get("totals") or []
+    if len(tots) > 1:
+        proposal += " We've set out " + ("two options" if len(tots) == 2 else f"{len(tots)} options") + " below, so you can choose what suits you best."
     if issue:
         proposal = f"{issue_sentence(issue)} {proposal}"
         feats = issue.get("sponsorable") or issue.get("features") or []
@@ -115,7 +145,9 @@ def draft_sections(ctx: dict, lines: list[dict], campaign_name: str, *, use_ai: 
     facts = facts_text(ctx, lines, campaign_name)
     user = (f"Client: {ctx.get('company')}\nCampaign: {campaign_name}\nTitle: {ctx.get('title')}\n"
             f"Booking history: {ctx.get('history')}\nProducts proposed: {lines}\n"
-            f"Issue it's for (from the editorial plan - mention its date, theme and relevant features if given): {ctx.get('issue')}\n\nFACTS (the only figures you may use): {facts}")
+            f"Issue it's for (from the editorial plan - mention its date, theme and relevant features if given): {ctx.get('issue')}\n"
+            f"Kind of proposal: {ctx.get('kind_label') or 'A single issue'}\nAll issues it runs in: {ctx.get('issues') or 'just the one above'}\n"
+            f"Titles: {ctx.get('titles')}\nOptions and totals (if more than one, the client chooses one): {ctx.get('totals')}\n\nFACTS (the only figures you may use): {facts}")
     out = llm.extract_json(SYSTEM, user, max_tokens=700, purpose="proposal_draft")
     if not isinstance(out, dict):
         return fallback, "template"

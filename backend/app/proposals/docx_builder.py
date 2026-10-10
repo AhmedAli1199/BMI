@@ -81,7 +81,34 @@ def _money(v: float) -> str:
     return f"-£{-v:,.2f}" if v < 0 else f"£{v:,.2f}"
 
 
-def build_docx(*, template: str, campaign_name: str, sections: list[dict], lines: list[dict], total: float) -> bytes:
+def investment_paragraphs(lines: list[dict], discount_pct: float = 0.0) -> list[tuple[str, str]]:
+    """The price table as (text, "body"|"bold") paragraphs: each option with its lines, the issues they run in,
+    any % off, offers, the % off the whole proposal and the total. Shared by the Word file and the screen preview."""
+    from app.proposals.pricing import line_total, totals
+
+    out: list[tuple[str, str]] = []
+    tots = totals(lines, discount_pct)
+    many = len(tots) > 1
+    for t in tots:
+        if many:
+            out.append((t["option"], "bold"))
+        for ln in [x for x in lines if x.get("option") in (t["option"], None)]:
+            qty, price = float(ln.get("qty") or 1), float(ln.get("unit_price") or 0)
+            disc = float(ln.get("discount_pct") or 0)
+            gross, net = qty * price, line_total(ln)
+            head = f"{ln['product']}: " + (f"{qty:g} x {_money(price)} = {_money(gross)}" if qty != 1 else _money(price))
+            if disc:
+                head += f", less {disc * 100:g}% = {_money(net)}"
+            out.append((head, "body"))
+            if ln.get("issue_labels"):
+                out.append(("Runs in " + ", ".join(ln["issue_labels"]), "body"))
+        if t["discount_gbp"]:
+            out.append((f"Less {discount_pct * 100:g}% discount: {_money(-t['discount_gbp'])}", "body"))
+        out.append((f"{t['option'] + ' total' if many else 'Total'}: {_money(t['total_gbp'])}", "bold"))
+    return out
+
+
+def build_docx(*, template: str, campaign_name: str, sections: list[dict], lines: list[dict], total: float, discount_pct: float = 0.0) -> bytes:
     document = docx.Document(TEMPLATE_DIR / TEMPLATE_FILES[template])
 
     for part in _header_footers(document):
@@ -103,12 +130,8 @@ def build_docx(*, template: str, campaign_name: str, sections: list[dict], lines
         if heading:
             add(heading, STYLE_HEADING)
         if section.get("kind") == "investment" and lines:
-            for ln in lines:
-                qty, price = float(ln.get("qty") or 1), float(ln.get("unit_price") or 0)
-                sub = qty * price
-                head = f"{ln['product']}: " + (f"{qty:g} x {_money(price)} = {_money(sub)}" if qty != 1 else _money(price))
-                add(head, STYLE_BODY)
-            add(f"Total: {_money(total)}", STYLE_BOLD)
+            for text, style in investment_paragraphs(lines, discount_pct):
+                add(text, STYLE_BOLD if style == "bold" else STYLE_BODY)
         for chunk in _paragraphs(section.get("body", "")):
             if chunk.startswith("- "):
                 for item in (x.strip() for x in chunk.split("\n") if x.strip()):

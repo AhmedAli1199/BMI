@@ -21,6 +21,8 @@ export async function createProposal(input: {
   campaign_name: string;
   year: number;
   lines: ProposalLine[];
+  kind?: string;
+  discount_pct?: number;
 }): Promise<Proposal> {
   const p = await backendFetch<Proposal>("/api/proposals", { method: "POST", headers: json, body: JSON.stringify(input) });
   refresh(p);
@@ -29,7 +31,7 @@ export async function createProposal(input: {
 
 export async function saveProposal(
   id: string,
-  patch: { campaign_name?: string; template?: string; edition_id?: string | null; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null }
+  patch: { campaign_name?: string; template?: string; edition_id?: string | null; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null; kind?: string; discount_pct?: number }
 ): Promise<Proposal> {
   const p = await backendFetch<Proposal>(`/api/proposals/${id}`, { method: "PATCH", headers: json, body: JSON.stringify(patch) });
   refresh(p);

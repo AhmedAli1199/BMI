@@ -29,6 +29,7 @@ from app.models.messaging import Reminder
 from app.models.proposal import PROPOSAL_TEMPLATES, Proposal
 from app.proposals import context as ctx_mod
 from app.proposals import drafting
+from app.proposals import pricing
 from app.proposals.docx_builder import TEMPLATE_LABELS, build_docx, template_for_slug
 from app.roles import CAN_USE_AUTOMATIONS
 from app.sales.editorial import issue_facts, next_issue
@@ -44,6 +45,10 @@ class LineIn(BaseModel):
     unit_price: float | None = Field(default=None, ge=0)
     source: str = "manual"  # rate_card | manual | offer (offer lines are worked out here, so the browser's copy is ignored)
     rate_id: uuid.UUID | None = None
+    title_id: uuid.UUID | None = None          # a line can be for another title (newsletter, awards) than the proposal's
+    issues: list[uuid.UUID] = Field(default_factory=list, max_length=24)   # the issues it runs in (sets the quantity)
+    discount_pct: float = Field(default=0, ge=0, le=1)
+    option: str | None = Field(default=None, max_length=80)   # "Option A: one issue" - lines without one are in every option
 
 
 class SectionIn(BaseModel):
@@ -63,6 +68,8 @@ class ProposalCreate(BaseModel):
     year: int | None = None
     lines: list[LineIn] = []
     use_ai: bool = True
+    kind: str = Field(default="issue", pattern="^(issue|multi|annual|digital|sponsorship|mixed)$")
+    discount_pct: float = Field(default=0, ge=0, le=1)
 
 
 class ProposalPatch(BaseModel):
@@ -73,6 +80,8 @@ class ProposalPatch(BaseModel):
     lines: list[LineIn] | None = None
     sections: list[SectionIn] | None = None
     notes: str | None = None
+    kind: str | None = Field(default=None, pattern="^(issue|multi|annual|digital|sponsorship|mixed)$")
+    discount_pct: float | None = Field(default=None, ge=0, le=1)
 
 
 class RedraftIn(BaseModel):
@@ -126,6 +135,12 @@ class ProposalOut(BaseModel):
     sent_via: str | None
     follow_up_due: datetime | None = None
     notes: str | None
+    kind: str = "issue"
+    kind_label: str = ""
+    discount_pct: float = 0
+    totals: list[dict] = []          # one per option (or a single one)
+    titles: list[str] = []           # every title the lines are for
+    kinds: dict[str, str] = {}
 
 
 def _is_staff(identity: Identity) -> bool:
@@ -145,40 +160,16 @@ def _out(db: Session, p: Proposal) -> ProposalOut:
         sections=p.sections, lines=p.lines, total_gbp=float(p.total_gbp), context=p.context, flags=[*p.flags, *((p.context or {}).get("offer_notes") or [])],
         drafted_by=p.drafted_by, created_by=user.name if user else None, created_at=p.created_at, sent_at=p.sent_at,
         sent_via=p.sent_via, follow_up_due=rem.due_at if rem and rem.status == "open" else None, notes=p.notes,
+        kind=p.kind or "issue", kind_label=pricing.KINDS.get(p.kind or "issue", ""), discount_pct=float(p.discount_pct or 0),
+        totals=pricing.totals(p.lines or [], float(p.discount_pct or 0)), titles=pricing.title_names(db, p.lines or []), kinds=pricing.KINDS,
     )
 
 
-def _price_lines(db: Session, lines: list[LineIn], title_id: uuid.UUID | None, year: int) -> list[dict]:
-    """Rate-card lines are always priced from the rate card, whatever the
-    browser sent. Manual lines keep the price the salesperson typed."""
-    out = []
-    for ln in lines:
-        if ln.source == "offer":
-            continue
-        if ln.source == "rate_card":
-            rate = db.get(SalesRate, ln.rate_id) if ln.rate_id else None
-            if rate is None and title_id:
-                rate = db.scalars(select(SalesRate).where(SalesRate.title_id == title_id, SalesRate.year == year,
-                                                          SalesRate.product == ln.product)).first()
-            if rate is None:
-                raise HTTPException(422, f"“{ln.product}” isn't on the rate card - add it as a manual line instead.")
-            if rate.price_gbp is None:
-                raise HTTPException(422, f"“{rate.product}” is priced on request - add it as your own line with the price you've agreed.")
-            out.append({"id": ln.id or str(uuid.uuid4()), "product": rate.product, "qty": ln.qty,
-                        "unit_price": float(rate.price_gbp), "source": "rate_card", "rate_id": str(rate.id)})
-        else:
-            if ln.unit_price is None:
-                raise HTTPException(422, f"Add a price for “{ln.product}”.")
-            out.append({"id": ln.id or str(uuid.uuid4()), "product": ln.product.strip(), "qty": ln.qty,
-                        "unit_price": round(ln.unit_price, 2), "source": "manual"})
-    return out
-
-
 def _set_lines(db: Session, p: Proposal, lines: list[LineIn], year: int) -> None:
-    """Prices the lines, then adds any rate-card offers they qualify for (e.g. "book 3, save 20%")."""
-    priced = _price_lines(db, lines, p.title_id, year)
-    priced, notes = apply_offers(db, priced, p.title_id, year)
-    p.lines, p.total_gbp = priced, _total(priced)
+    """Prices the lines (rate card prices always from the rate card), adds any rate-card offers they qualify for
+    (e.g. "book 3, save 20%"), and works out each option's total."""
+    priced, notes = pricing.price_lines(db, [ln.model_dump(mode="json") for ln in lines], p.title_id, year)
+    p.lines, p.total_gbp = priced, pricing.headline_total(priced, float(p.discount_pct or 0))
     p.context = {**(p.context or {}), "offer_notes": notes}
 
 
@@ -189,10 +180,6 @@ def _edition_for(db: Session, title: SalesTitle | None, edition_id: uuid.UUID | 
     if not e or (title and e.title_id != title.id):
         raise HTTPException(422, "That issue isn't one of this title's issues.")
     return e
-
-
-def _total(lines: list[dict]) -> float:
-    return round(sum(ln["qty"] * ln["unit_price"] for ln in lines), 2)
 
 
 def _get(db: Session, pid: uuid.UUID, user: User, identity: Identity) -> Proposal:
@@ -209,6 +196,13 @@ def _draft(db: Session, p: Proposal, *, use_ai: bool) -> None:
     edition = db.get(SalesEdition, p.edition_id) if p.edition_id else None
     ctx, flags = ctx_mod.build_context(db, company, title, year, edition)
     ctx["offer_notes"] = (p.context or {}).get("offer_notes") or []
+    ctx["kind"], ctx["kind_label"] = p.kind or "issue", pricing.KINDS.get(p.kind or "issue")
+    ctx["titles"] = pricing.title_names(db, p.lines or [])
+    ctx["discount_pct"] = float(p.discount_pct or 0)
+    ctx["totals"] = pricing.totals(p.lines or [], ctx["discount_pct"])
+    # Every issue the lines run in (from the editorial plan), so the wording can name them.
+    seen = list(dict.fromkeys(i for ln in p.lines or [] for i in ln.get("issues") or []))[:8]
+    ctx["issues"] = [issue_facts(db, e) for e in (db.get(SalesEdition, uuid.UUID(i)) for i in seen) if e]
     if (p.context or {}).get("issue_auto") and edition:
         ctx["issue_auto"] = True
         flags.insert(0, f"We picked {ctx['issue']['label']}, the next one still open for bookings - change it if the client wants a different one.")
@@ -240,7 +234,7 @@ def create_proposal(payload: ProposalCreate, db: Session = Depends(get_db), user
                  edition_id=edition.id if edition else None,
                  template=template, campaign_name=(payload.campaign_name or f"{company.name} {year}/{str(year + 1)[2:]}").strip(),
                  status="draft", lines=[], total_gbp=0, context={"year": year, "issue_auto": auto}, flags=[], sections=[],
-                 created_by_user_id=user.id)
+                 created_by_user_id=user.id, kind=payload.kind, discount_pct=payload.discount_pct)
     _set_lines(db, p, payload.lines, year)
     _draft(db, p, use_ai=payload.use_ai)
     db.add(p)
@@ -284,8 +278,13 @@ def update_proposal(pid: uuid.UUID, payload: ProposalPatch, db: Session = Depend
         # The wording isn't rewritten (it may have been edited) - the screen offers a redraft.
         p.context = {**(p.context or {}), "issue": issue_facts(db, edition) if edition else None, "issue_auto": False}
         p.flags = [f for f in p.flags if not f.startswith("We picked ")]
+    if payload.kind is not None:
+        p.kind = payload.kind
+    if payload.discount_pct is not None:
+        p.discount_pct = payload.discount_pct
     if payload.lines is not None:
         _set_lines(db, p, payload.lines, (p.context or {}).get("year") or date.today().year)
+    p.total_gbp = pricing.headline_total(p.lines or [], float(p.discount_pct or 0))
     if payload.sections is not None:
         p.sections = [{"id": s.id or str(uuid.uuid4()), "kind": s.kind, "heading": s.heading.strip(), "body": s.body}
                       for s in payload.sections]
@@ -355,7 +354,8 @@ async def transcribe(request: Request, user: User = Depends(current_user)) -> di
 def download(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user),
              identity: Identity = Depends(get_identity)) -> Response:
     p = _get(db, pid, user, identity)
-    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp))
+    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp),
+                      discount_pct=float(p.discount_pct or 0))
     safe = "".join(c for c in p.campaign_name if c.isalnum() or c in " -_/").replace("/", "-").strip() or "Proposal"
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     headers={"Content-Disposition": f'attachment; filename="{safe} proposal.docx"'})
@@ -431,7 +431,8 @@ def send_from_outlook(pid: uuid.UUID, payload: SendIn, db: Session = Depends(get
     for a in [*payload.to, *payload.cc]:
         if "@" not in a or " " in a.strip():
             raise HTTPException(422, f"“{a}” doesn't look like an email address.")
-    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp))
+    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp),
+                      discount_pct=float(p.discount_pct or 0))
     if len(data) > 3 * 1024 * 1024:
         raise HTTPException(413, "The Word file is over 3 MB, which Outlook can't send in one go. Download it and attach it yourself.")
     safe = "".join(c for c in p.campaign_name if c.isalnum() or c in " -_").strip() or "Proposal"

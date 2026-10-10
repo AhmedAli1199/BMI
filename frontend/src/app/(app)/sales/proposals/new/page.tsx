@@ -9,7 +9,7 @@ export default async function NewProposalPage({ searchParams }: { searchParams: 
   const year = new Date().getFullYear();
   const [meta, rates, company, issue] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
-    backendFetch<SalesRate[]>(`/api/sales/rates?year=${year}`).catch(() => [] as SalesRate[]),
+    backendFetch<SalesRate[]>("/api/sales/rates").then((r) => r.filter((x) => x.year >= year && x.year <= year + 1)).catch(() => [] as SalesRate[]),
     sp.company ? backendFetch<CompanyListItem>(`/api/companies/${sp.company}`).catch(() => null) : Promise.resolve(null),
     sp.edition ? backendFetch<{ id: string; title_id: string }>(`/api/editorial/issues/${sp.edition}`).catch(() => null) : Promise.resolve(null),
   ]);
