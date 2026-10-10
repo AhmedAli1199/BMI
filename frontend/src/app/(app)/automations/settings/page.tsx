@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { ArrowLeft, Settings2, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
+import { getSession } from "@/lib/session";
+import { isAdmin } from "@/lib/access";
 import type { AutomationSetting } from "@/lib/types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AutomationSettingField } from "@/components/automation-setting-field";
 
 export default async function AutomationSettingsPage() {
-  const settingsList = await backendFetch<AutomationSetting[]>("/api/automations/settings");
+  const [settingsList, session] = await Promise.all([backendFetch<AutomationSetting[]>("/api/automations/settings"), getSession()]);
+  const readOnly = !isAdmin(session);
 
   const groups = new Map<string, AutomationSetting[]>();
   for (const s of settingsList) {
@@ -32,7 +35,9 @@ export default async function AutomationSettingsPage() {
           Tune every scan
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Changes take effect automatically on the next scheduled run or when you click &quot;Run now&quot;.
+          {readOnly
+            ? "You can see every setting here. Only administrators can change them - ask one if something needs adjusting."
+            : <>Changes take effect automatically on the next scheduled run or when you click &quot;Run now&quot;.</>}
         </p>
         <Link
           href="/automations/llm-usage"
@@ -53,7 +58,7 @@ export default async function AutomationSettingsPage() {
             </CardHeader>
             <CardContent className="flex flex-col p-4">
               {items.map((s) => (
-                <AutomationSettingField key={s.key} setting={s} />
+                <AutomationSettingField key={s.key} setting={s} readOnly={readOnly} />
               ))}
             </CardContent>
           </Card>

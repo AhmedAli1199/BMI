@@ -13,7 +13,7 @@ export function PaceChart({
   currentMonth,
 }: {
   monthly: { month: number; this_year: number; last_year: number }[];
-  currentMonth: number | null; // 1-12 for the current year, null for a finished year
+  currentMonth: number | null; // position 1-12 in the year shown (the current month), null for a finished year
 }) {
   const W = 800;
   const H = 240;
@@ -57,7 +57,7 @@ export function PaceChart({
       ))}
       {cum.map((c, i) => (
         <text key={c.month} x={x(i)} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--muted-foreground)">
-          {MONTHS_SHORT[i]}
+          {MONTHS_SHORT[c.month - 1]}
         </text>
       ))}
 
@@ -70,8 +70,8 @@ export function PaceChart({
         <g key={`hit-${c.month}`}>
           <title>
             {i <= lastIdx
-              ? `${MONTHS_SHORT[i]}: ${fmtGBP(c.thisYear)} booked so far this year (${fmtGBP(c.thisMonth)} that month) vs ${fmtGBP(c.lastYear)} last year`
-              : `${MONTHS_SHORT[i]}: last year had reached ${fmtGBP(c.lastYear)}`}
+              ? `${MONTHS_SHORT[c.month - 1]}: ${fmtGBP(c.thisYear)} booked so far this year (${fmtGBP(c.thisMonth)} that month) vs ${fmtGBP(c.lastYear)} last year`
+              : `${MONTHS_SHORT[c.month - 1]}: last year had reached ${fmtGBP(c.lastYear)}`}
           </title>
           <rect x={x(i) - iw / 22} y={pad.top} width={iw / 11} height={ih} fill="transparent" />
         </g>
@@ -80,7 +80,7 @@ export function PaceChart({
   );
 }
 
-export function PaceLegend({ year }: { year: number }) {
+export function PaceLegend({ year, previous }: { year: number | string; previous?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
       <span className="flex items-center gap-1.5">
@@ -89,7 +89,7 @@ export function PaceLegend({ year }: { year: number }) {
       </span>
       <span className="flex items-center gap-1.5">
         <span aria-hidden="true" className="w-4 border-t-2 border-dashed" style={{ borderColor: LAST_COLOR }} />
-        {year - 1}
+        {previous ?? (typeof year === "number" ? year - 1 : "")}
       </span>
     </div>
   );

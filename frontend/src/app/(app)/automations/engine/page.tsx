@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Coins, Settings2 } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import { canUseAutomations } from "@/lib/access";
+import { canUseAutomations, isAdmin } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import { humanizeCron } from "@/lib/automation-style";
 import { fmtAgo, fmtCount, fmtDuration } from "@/lib/automation-format";
@@ -142,7 +142,7 @@ export default async function ScannersPage() {
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex justify-end">
-                      <RunJobButton jobId={j.id} hasCursor={j.has_cursor} />
+                      <RunJobButton jobId={j.id} hasCursor={j.has_cursor && isAdmin(session)} />
                     </div>
                   </td>
                 </tr>

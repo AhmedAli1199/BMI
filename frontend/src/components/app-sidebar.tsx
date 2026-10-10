@@ -3,8 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarClock, CalendarRange, ChevronRight, ClipboardCheck, HeartPulse, ReceiptText, Settings, Sparkles } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  CalendarClock,
+  CalendarRange,
+  ChevronRight,
+  ClipboardCheck,
+  HeartPulse,
+  ReceiptText,
+  Settings,
+  Sparkles,
+} from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -26,6 +39,7 @@ import { ThemeMotif } from "@/components/theme-motif";
 import { canUseAutomations, canViewAutomationsQueue } from "@/lib/access";
 import type { SessionPayload } from "@/lib/session";
 import type { WorkstreamSummary } from "@/lib/types";
+import type { SectionKey } from "@/lib/sections";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrator",
@@ -55,13 +69,31 @@ export function AppSidebar({
   workstreams = [],
   scanners,
   salesOverdue = 0,
+  hidden = [],
 }: {
   session: SessionPayload | null;
   workstreams?: WorkstreamSummary[];
   scanners?: { active: number; total: number };
   salesOverdue?: number;
+  /** Sections an admin has hidden for this person's role. */
+  hidden?: SectionKey[];
 }) {
   const pathname = usePathname();
+  const show = (key: SectionKey) => !hidden.includes(key);
+  const salesKeys: SectionKey[] = [
+    "sales_overview",
+    "sales_dashboard",
+    "editions",
+    "bookings",
+    "renewals",
+    "proposals",
+    "orders",
+    "rate_card",
+    "invoicing",
+    "commissions",
+  ];
+  // Weekly summary is a staff page that can't be hidden, so staff always keep the Sales Orders menu.
+  const anySales = salesKeys.some(show) || canUseAutomations(session);
   const inSales = pathname.startsWith("/sales");
   const [salesOpen, setSalesOpen] = useState(inSales);
   const [wasInSales, setWasInSales] = useState(inSales);
@@ -102,7 +134,9 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Platform</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">
+            Platform
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
               <SidebarMenuItem>
@@ -115,131 +149,240 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/contacts" />}
-                  isActive={pathname.startsWith("/contacts")}
-                  className={NAV_ITEM}
-                >
-                  Contacts
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("contacts") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/contacts" />}
+                    isActive={pathname.startsWith("/contacts")}
+                    className={NAV_ITEM}
+                  >
+                    Contacts
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/companies" />}
-                  isActive={pathname.startsWith("/companies")}
-                  className={NAV_ITEM}
-                >
-                  Companies
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("companies") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/companies" />}
+                    isActive={pathname.startsWith("/companies")}
+                    className={NAV_ITEM}
+                  >
+                    Companies
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/groups" />}
-                  isActive={pathname.startsWith("/groups")}
-                  className={NAV_ITEM}
-                >
-                  Groups
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("groups") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/groups" />}
+                    isActive={pathname.startsWith("/groups")}
+                    className={NAV_ITEM}
+                  >
+                    Groups
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/activities" />}
-                  isActive={pathname.startsWith("/activities")}
-                  className={NAV_ITEM}
-                >
-                  Calendar &amp; Tasks
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("calendar") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/activities" />}
+                    isActive={pathname.startsWith("/activities")}
+                    className={NAV_ITEM}
+                  >
+                    Calendar &amp; Tasks
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/reminders" />}
-                  isActive={pathname.startsWith("/reminders")}
-                  className={NAV_ITEM}
-                >
-                  Reminders
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("reminders") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/reminders" />}
+                    isActive={pathname.startsWith("/reminders")}
+                    className={NAV_ITEM}
+                  >
+                    Reminders
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/mail-merge" />}
-                  isActive={pathname.startsWith("/mail-merge") && !pathname.startsWith("/mail-merge/templates")}
-                  className={NAV_ITEM}
-                >
-                  Mail merge
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("mail_merge") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/mail-merge" />}
+                    isActive={
+                      pathname.startsWith("/mail-merge") &&
+                      !pathname.startsWith("/mail-merge/templates")
+                    }
+                    className={NAV_ITEM}
+                  >
+                    Mail merge
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  render={<Link href="/mail-merge/templates" />}
-                  isActive={pathname.startsWith("/mail-merge/templates")}
-                  className={NAV_ITEM}
-                >
-                  Email templates
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {show("email_templates") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/mail-merge/templates" />}
+                    isActive={pathname.startsWith("/mail-merge/templates")}
+                    className={NAV_ITEM}
+                  >
+                    Email templates
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {session && (
+        {session && (anySales || show("editorial")) && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">Sales</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">
+              Sales
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1.5">
-                <Collapsible open={salesOpen} onOpenChange={setSalesOpen} render={<SidebarMenuItem />}>
-                  <CollapsibleTrigger render={<SidebarMenuButton isActive={inSales && !salesOpen} className={NAV_ITEM} />}>
-                    <ReceiptText className={`mr-1.5 size-4 ${inSales ? "text-primary" : "text-sidebar-foreground/70"}`} />
-                    <span>Sales Orders</span>
-                    {!salesOpen && salesOverdue > 0 && (
-                      <span className="ml-auto rounded-full bg-amber-600 px-1.5 py-px text-[10.5px] font-bold text-white tabular-nums" title="Bookings overdue for an invoice">
-                        {salesOverdue.toLocaleString("en-GB")}
-                      </span>
-                    )}
-                    <ChevronRight
-                      aria-hidden="true"
-                      className={`${!salesOpen && salesOverdue > 0 ? "" : "ml-auto"} size-4! shrink-0 text-sidebar-foreground/60 transition-transform duration-200 ${salesOpen ? "rotate-90" : ""}`}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub className="mt-1">
-                      <HubSubItem href="/sales" label="Overview" active={pathname === "/sales"} />
-                      <HubSubItem href="/sales/dashboard" label="Dashboard" active={pathname === "/sales/dashboard"} />
-                      {canUseAutomations(session) && (
-                        <HubSubItem href="/sales/summaries" label="Weekly summary" active={pathname === "/sales/summaries"} />
+                {anySales && (
+                  <Collapsible
+                    open={salesOpen}
+                    onOpenChange={setSalesOpen}
+                    render={<SidebarMenuItem />}
+                  >
+                    <CollapsibleTrigger
+                      render={
+                        <SidebarMenuButton
+                          isActive={inSales && !salesOpen}
+                          className={NAV_ITEM}
+                        />
+                      }
+                    >
+                      <ReceiptText
+                        className={`mr-1.5 size-4 ${inSales ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
+                      <span>Sales Orders</span>
+                      {!salesOpen && salesOverdue > 0 && (
+                        <span
+                          className="ml-auto rounded-full bg-amber-600 px-1.5 py-px text-[10.5px] font-bold text-white tabular-nums"
+                          title="Bookings overdue for an invoice"
+                        >
+                          {salesOverdue.toLocaleString("en-GB")}
+                        </span>
                       )}
-                      <HubSubItem href="/sales/editions" label="Editions" active={pathname.startsWith("/sales/editions")} />
-                      <HubSubItem href="/sales/bookings" label="All bookings" active={pathname === "/sales/bookings"} />
-                      <HubSubItem href="/sales/renewals" label="Renewals" active={pathname === "/sales/renewals"} />
-                      <HubSubItem href="/sales/proposals" label="Proposals" active={pathname.startsWith("/sales/proposals")} />
-                      <HubSubItem href="/sales/deals" label="Orders" active={pathname.startsWith("/sales/deals")} />
-                      <HubSubItem href="/sales/rate-card" label="Rate card" active={pathname === "/sales/rate-card"} />
-                      <HubSubItem
-                        href="/sales/invoicing"
-                        label="Invoicing"
-                        active={pathname === "/sales/invoicing"}
-                        badge={salesOverdue > 0 ? salesOverdue.toLocaleString("en-GB") : undefined}
+                      <ChevronRight
+                        aria-hidden="true"
+                        className={`${!salesOpen && salesOverdue > 0 ? "" : "ml-auto"} size-4! shrink-0 text-sidebar-foreground/60 transition-transform duration-200 ${salesOpen ? "rotate-90" : ""}`}
                       />
-                      <HubSubItem
-                        href="/sales/commissions"
-                        label={canUseAutomations(session) ? "Commissions" : "My commission"}
-                        active={pathname === "/sales/commissions"}
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub className="mt-1">
+                        {show("sales_overview") && (
+                          <HubSubItem
+                            href="/sales"
+                            label="Overview"
+                            active={pathname === "/sales"}
+                          />
+                        )}
+                        {show("sales_dashboard") && (
+                          <HubSubItem
+                            href="/sales/dashboard"
+                            label="Dashboard"
+                            active={pathname === "/sales/dashboard"}
+                          />
+                        )}
+                        {canUseAutomations(session) && (
+                          <HubSubItem
+                            href="/sales/summaries"
+                            label="Weekly summary"
+                            active={pathname === "/sales/summaries"}
+                          />
+                        )}
+                        {show("editions") && (
+                          <HubSubItem
+                            href="/sales/editions"
+                            label="Editions"
+                            active={pathname.startsWith("/sales/editions")}
+                          />
+                        )}
+                        {show("bookings") && (
+                          <HubSubItem
+                            href="/sales/bookings"
+                            label="All bookings"
+                            active={pathname === "/sales/bookings"}
+                          />
+                        )}
+                        {show("renewals") && (
+                          <HubSubItem
+                            href="/sales/renewals"
+                            label="Renewals"
+                            active={pathname === "/sales/renewals"}
+                          />
+                        )}
+                        {show("proposals") && (
+                          <HubSubItem
+                            href="/sales/proposals"
+                            label="Proposals"
+                            active={pathname.startsWith("/sales/proposals")}
+                          />
+                        )}
+                        {show("orders") && (
+                          <HubSubItem
+                            href="/sales/deals"
+                            label="Orders"
+                            active={pathname.startsWith("/sales/deals")}
+                          />
+                        )}
+                        {show("rate_card") && (
+                          <HubSubItem
+                            href="/sales/rate-card"
+                            label="Rate card"
+                            active={pathname === "/sales/rate-card"}
+                          />
+                        )}
+                        {show("invoicing") && (
+                          <HubSubItem
+                            href="/sales/invoicing"
+                            label="Invoicing"
+                            active={pathname === "/sales/invoicing"}
+                            badge={
+                              salesOverdue > 0
+                                ? salesOverdue.toLocaleString("en-GB")
+                                : undefined
+                            }
+                          />
+                        )}
+                        {show("commissions") && (
+                          <HubSubItem
+                            href="/sales/commissions"
+                            label={
+                              canUseAutomations(session)
+                                ? "Commissions"
+                                : "My commission"
+                            }
+                            active={pathname === "/sales/commissions"}
+                          />
+                        )}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+                {show("editorial") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href="/editorial" />}
+                      isActive={pathname.startsWith("/editorial")}
+                      className={NAV_ITEM}
+                    >
+                      <CalendarRange
+                        className={`mr-1.5 size-4 ${pathname.startsWith("/editorial") ? "text-primary" : "text-sidebar-foreground/70"}`}
                       />
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </Collapsible>
-                <SidebarMenuItem>
-                  <SidebarMenuButton render={<Link href="/editorial" />} isActive={pathname.startsWith("/editorial")} className={NAV_ITEM}>
-                    <CalendarRange className={`mr-1.5 size-4 ${pathname.startsWith("/editorial") ? "text-primary" : "text-sidebar-foreground/70"}`} />
-                    <span>Editorial plan</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                      <span>Editorial plan</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -247,7 +390,9 @@ export function AppSidebar({
 
         {canViewAutomationsQueue(session) && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">BMI Brain</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">
+              BMI Brain
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1.5">
                 {/* Every icon in this group shares one rule - bright/
@@ -258,40 +403,55 @@ export function AppSidebar({
                     other two were always text-muted-foreground, which
                     read as broken/inconsistent rather than as a
                     deliberate active-state design. */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link href="/automations/today" />}
-                    isActive={pathname.startsWith("/automations/today")}
-                    className={NAV_ITEM}
-                  >
-                    <CalendarClock
-                      className={`mr-1.5 size-4 ${pathname.startsWith("/automations/today") ? "text-primary" : "text-sidebar-foreground/70"}`}
-                    />
-                    <span>Today</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link href="/automations/review" />}
-                    isActive={pathname.startsWith("/automations/review")}
-                    className={NAV_ITEM}
-                  >
-                    <ClipboardCheck
-                      className={`mr-1.5 size-4 ${pathname.startsWith("/automations/review") ? "text-primary" : "text-sidebar-foreground/70"}`}
-                    />
-                    <span>Review Queue</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {show("today") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href="/automations/today" />}
+                      isActive={pathname.startsWith("/automations/today")}
+                      className={NAV_ITEM}
+                    >
+                      <CalendarClock
+                        className={`mr-1.5 size-4 ${pathname.startsWith("/automations/today") ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
+                      <span>Today</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {show("review_queue") && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href="/automations/review" />}
+                      isActive={pathname.startsWith("/automations/review")}
+                      className={NAV_ITEM}
+                    >
+                      <ClipboardCheck
+                        className={`mr-1.5 size-4 ${pathname.startsWith("/automations/review") ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
+                      <span>Review Queue</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 {/* The job/settings/cost control panel - stays
                     admin/data_manager only even though Today/Review Queue
                     above are now open to sales too (scoped to their own
                     data server-side - see lib/access.ts). */}
-                {canUseAutomations(session) && (
-                  <Collapsible open={hubOpen} onOpenChange={setHubOpen} render={<SidebarMenuItem />}>
+                {canUseAutomations(session) && show("automations_hub") && (
+                  <Collapsible
+                    open={hubOpen}
+                    onOpenChange={setHubOpen}
+                    render={<SidebarMenuItem />}
+                  >
                     <CollapsibleTrigger
-                      render={<SidebarMenuButton isActive={inHub && !hubOpen} className={NAV_ITEM} />}
+                      render={
+                        <SidebarMenuButton
+                          isActive={inHub && !hubOpen}
+                          className={NAV_ITEM}
+                        />
+                      }
                     >
-                      <Sparkles className={`mr-1.5 size-4 ${inHub ? "text-primary" : "text-sidebar-foreground/70"}`} />
+                      <Sparkles
+                        className={`mr-1.5 size-4 ${inHub ? "text-primary" : "text-sidebar-foreground/70"}`}
+                      />
                       <span>Automations Hub</span>
                       {!hubOpen && hubPending > 0 && (
                         <span className="ml-auto rounded-full bg-amber-600 px-1.5 py-px text-[10.5px] font-bold text-white tabular-nums">
@@ -305,28 +465,43 @@ export function AppSidebar({
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub className="mt-1">
-                        <HubSubItem href="/automations" label="Overview" active={pathname === "/automations"} />
+                        <HubSubItem
+                          href="/automations"
+                          label="Overview"
+                          active={pathname === "/automations"}
+                        />
                         {workstreams.map((w) => (
                           <HubSubItem
                             key={w.id}
                             href={`/automations/${w.id}`}
                             label={w.label}
                             active={pathname === `/automations/${w.id}`}
-                            badge={w.pending > 0 ? w.pending.toLocaleString("en-GB") : undefined}
+                            badge={
+                              w.pending > 0
+                                ? w.pending.toLocaleString("en-GB")
+                                : undefined
+                            }
                           />
                         ))}
                         <HubSubItem
                           href="/automations/engine"
                           label="Scanners & Settings"
-                          active={pathname === "/automations/engine" || pathname === "/automations/settings"}
-                          badge={scanners && scanners.total > 0 ? `${scanners.active}/${scanners.total}` : undefined}
+                          active={
+                            pathname === "/automations/engine" ||
+                            pathname === "/automations/settings"
+                          }
+                          badge={
+                            scanners && scanners.total > 0
+                              ? `${scanners.active}/${scanners.total}`
+                              : undefined
+                          }
                           badgeTone="neutral"
                         />
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </Collapsible>
                 )}
-                {canUseAutomations(session) && (
+                {canUseAutomations(session) && show("data_health") && (
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       render={<Link href="/data-health" />}
@@ -344,7 +519,6 @@ export function AppSidebar({
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-
       </SidebarContent>
       <SidebarFooter>
         {session && (
@@ -363,7 +537,9 @@ export function AppSidebar({
                 title="Settings"
                 render={<Link href="/settings" />}
                 className={`border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                  pathname === "/settings" ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
+                  pathname === "/settings"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : ""
                 }`}
               >
                 <Settings className="size-4" />

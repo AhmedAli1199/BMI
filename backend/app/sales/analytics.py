@@ -132,6 +132,34 @@ def same_point_last_year(today: date) -> date:
         return today - timedelta(days=365)
 
 
+# ---- Reporting year: calendar or financial -----------------------------------------
+
+def period_bounds(year: int, financial: bool, start_month: int = 7) -> tuple[date, date]:
+    """First and last day of a reporting year. A financial year is named by
+    the year it starts in: with a July start, 2026 = 1 Jul 2026 - 30 Jun 2027."""
+    if not financial or start_month == 1:
+        return date(year, 1, 1), date(year, 12, 31)
+    return date(year, start_month, 1), date(year + 1, start_month, 1) - timedelta(days=1)
+
+
+def period_label(year: int, financial: bool, start_month: int = 7) -> str:
+    if not financial or start_month == 1:
+        return str(year)
+    return f"{year}/{(year + 1) % 100:02d}"
+
+
+def period_year_of(d: date, financial: bool, start_month: int = 7) -> int:
+    """Which reporting year a date falls in."""
+    if not financial or start_month == 1:
+        return d.year
+    return d.year if d.month >= start_month else d.year - 1
+
+
+def edition_date_expr():
+    """An edition's date for period filters; undated editions count from 1 January of their year."""
+    return func.coalesce(SalesEdition.edition_date, func.make_date(SalesEdition.year, 1, 1))
+
+
 # ---- Edition pace (SALES-026 dashboard, SALES-028 alerts) ------------------------
 
 def comparison_cutoff(edition: SalesEdition, prev: SalesEdition, today: date) -> date:

@@ -44,9 +44,15 @@ export type SalesMeta = {
   titles: SalesTitle[];
   reps: SalesRep[];
   years: number[];
+  /** Financial years, each named by the year it starts in (2026 = 2026/27). */
+  financial_years: number[];
+  year_basis: YearBasis;
+  fy_start_month: number;
   my_rep_id: string | null;
   can_see_all_commission: boolean;
 };
+
+export type YearBasis = "calendar" | "financial";
 
 export type Ref = { id: string; label: string };
 
@@ -175,6 +181,12 @@ export type SalesOverview = {
   year: number;
   as_of: string;
   is_current_year: boolean;
+  basis: YearBasis;
+  label: string;
+  previous_label: string;
+  period_start: string;
+  period_end: string;
+  fy_start_month: number;
   booked_gbp: number;
   last_year_same_point_gbp: number;
   last_year_total_gbp: number;
@@ -286,6 +298,16 @@ export type PaceRow = {
 };
 
 export type SalesDashboard = {
+  year_to_date: {
+    basis: YearBasis;
+    year: number;
+    label: string;
+    previous_label: string;
+    fy_start_month: number;
+    booked_gbp: number;
+    last_year_same_point_gbp: number;
+    last_year_total_gbp: number;
+  } | null;
   as_of: string;
   threshold_pct: number;
   min_prior_gbp: number;
@@ -302,12 +324,15 @@ export type SalesDashboard = {
   }[];
   unattributed: { orders: number; value_gbp: number };
   unattributed_year: number;
+  unattributed_label: string;
 };
 
 export type SummarySection = {
   key: string;
   title: string;
   paragraphs: string[];
+  /** Optional table (the per-salesperson breakdown); bullets carry the same facts for email and Teams. */
+  table?: { columns: string[]; rows: { cells: string[]; href?: string | null; links?: Record<string, string> }[] };
   bullets: { text: string; href: string | null }[];
 };
 

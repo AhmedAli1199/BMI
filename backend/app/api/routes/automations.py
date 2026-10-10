@@ -34,6 +34,14 @@ logger = logging.getLogger("app.api.automations")
 router = APIRouter(prefix="/automations", tags=["automations"])
 
 
+def require_admin(identity: Identity = Depends(get_identity)) -> Identity:
+    """Changing how the platform behaves (settings, scan positions, wiping data) is for
+    administrators only; data managers can still see the Hub and run jobs."""
+    if identity.is_known and identity.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can change automation settings.")
+    return identity
+
+
 def require_staff(identity: Identity = Depends(get_identity)) -> Identity:
     """Gate for the Automations Hub (job status/control, settings, LLM
     cost, the data-reset action) - admin/data_manager only, mirroring
@@ -149,7 +157,7 @@ def run_job_now(job_id: str, _staff: Identity = Depends(require_staff)) -> dict:
 
 
 @router.post("/jobs/{job_id}/reset-cursor")
-def reset_job_cursor(job_id: str, db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> dict:
+def reset_job_cursor(job_id: str, db: Session = Depends(get_db), _admin: Identity = Depends(require_admin)) -> dict:
     """Deletes a job's remembered "since last run" position (see
     app/automations/state.py), so its next run treats every mailbox it
     scans as brand new - bounded only by that job's own initial-lookback
@@ -181,7 +189,7 @@ def reset_automation_data(
     reset_cursors: bool = Query(True, description="Also clear every scan job's remembered mailbox/scan position, so the next run re-reads from its configured lookback instead of picking up where it left off."),
     reset_signals: bool = Query(False, description="Also delete every EmailSignal row (SALES-010-lite's extracted budget/renewal/callback/touchpoint facts), not just the review queue built on top of them - forces a full re-extraction from scratch on the next email scan, not just re-triggering off what's already there."),
     db: Session = Depends(get_db),
-    _staff: Identity = Depends(require_staff),
+    _admin: Identity = Depends(require_admin),
 ) -> dict:
     """Wipes every ReviewQueueItem (every kind, every status) so the whole
     review queue starts empty. Deliberately does NOT touch the durable
@@ -293,7 +301,7 @@ def list_automation_settings(db: Session = Depends(get_db), _staff: Identity = D
 
 
 @router.put("/settings/{key}", response_model=AutomationSettingOut)
-def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> AutomationSettingOut:
+def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Session = Depends(get_db), _admin: Identity = Depends(require_admin)) -> AutomationSettingOut:
     """Sets (or replaces) a runtime override - takes effect on that
     setting's next read, which for a scan job means its next scheduled
     tick or "Run now" click, never requiring a restart."""
@@ -314,7 +322,7 @@ def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Se
 
 
 @router.delete("/settings/{key}", response_model=AutomationSettingOut)
-def reset_automation_setting(key: str, db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> AutomationSettingOut:
+def reset_automation_setting(key: str, db: Session = Depends(get_db), _admin: Identity = Depends(require_admin)) -> AutomationSettingOut:
     """Removes a stored override, reverting the setting to its env var
     default - the "reset to default" action in the UI."""
     d = get_def(key)

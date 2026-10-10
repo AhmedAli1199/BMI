@@ -22,7 +22,7 @@ import { friendlyError } from "@/lib/errors";
  * rendering any automation's actions from its registered kind. A brand-new
  * setting (app/automations/settings_registry.py) shows up here with zero
  * frontend changes. */
-export function AutomationSettingField({ setting }: { setting: AutomationSetting }) {
+export function AutomationSettingField({ setting, readOnly = false }: { setting: AutomationSetting; readOnly?: boolean }) {
   const [value, setValue] = useState(setting.value);
   const [pending, startTransition] = useTransition();
 
@@ -72,7 +72,7 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
             </Badge>
           )}
         </div>
-        {setting.is_overridden && (
+        {setting.is_overridden && !readOnly && (
           <Button size="sm" variant="outline" disabled={pending} onClick={reset}>
             <RotateCcw className="size-3.5" />
             Reset to default ({String(setting.default)})
@@ -86,7 +86,7 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
             type="checkbox"
             className="size-4"
             checked={Boolean(value)}
-            disabled={pending}
+            disabled={pending || readOnly}
             onChange={(e) => {
               setValue(e.target.checked);
               save(e.target.checked);
@@ -105,13 +105,15 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
             min={setting.min ?? undefined}
             max={setting.max ?? undefined}
             value={String(value)}
-            disabled={pending}
+            disabled={pending || readOnly}
             onChange={(e) => setValue(e.target.valueAsNumber)}
           />
-          <Button size="sm" disabled={pending || value === setting.value} onClick={() => save()}>
-            <Save className="size-3.5" />
-            Save
-          </Button>
+          {!readOnly && (
+            <Button size="sm" disabled={pending || value === setting.value} onClick={() => save()}>
+              <Save className="size-3.5" />
+              Save
+            </Button>
+          )}
         </div>
       )}
 
@@ -121,13 +123,15 @@ export function AutomationSettingField({ setting }: { setting: AutomationSetting
             className="h-8 flex-1 text-sm"
             placeholder={setting.type === "csv" ? "comma-separated addresses…" : "…"}
             value={String(value)}
-            disabled={pending}
+            disabled={pending || readOnly}
             onChange={(e) => setValue(e.target.value)}
           />
-          <Button size="sm" disabled={pending || value === setting.value} onClick={() => save()}>
-            <Save className="size-3.5" />
-            Save
-          </Button>
+          {!readOnly && (
+            <Button size="sm" disabled={pending || value === setting.value} onClick={() => save()}>
+              <Save className="size-3.5" />
+              Save
+            </Button>
+          )}
         </div>
       )}
     </div>

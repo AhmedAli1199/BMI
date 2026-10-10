@@ -124,10 +124,12 @@ export function YearSwitch({
   years,
   current,
   href,
+  label = String,
 }: {
   years: number[];
   current: number;
   href: (year: number) => string;
+  label?: (year: number) => string;
 }) {
   const shown = years.slice(0, 4);
   return (
@@ -144,7 +146,50 @@ export function YearSwitch({
               active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
-            {y}
+            {label(y)}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "2026/27" for a financial year starting in 2026. */
+export function fyLabel(year: number): string {
+  return `${year}/${String((year + 1) % 100).padStart(2, "0")}`;
+}
+
+/** Calendar year / financial year toggle; the choice lives in the URL. */
+export function YearBasisSwitch({
+  current,
+  startMonth,
+  href,
+}: {
+  current: "calendar" | "financial";
+  startMonth: number;
+  href: (basis: "calendar" | "financial") => string;
+}) {
+  const fyName = `${MONTHS_SHORT[startMonth - 1]}-${MONTHS_SHORT[(startMonth + 10) % 12]}`;
+  const options = [
+    { key: "financial" as const, text: "Financial year", title: `Financial year, ${fyName}` },
+    { key: "calendar" as const, text: "Calendar year", title: "Calendar year, Jan-Dec" },
+  ];
+  return (
+    <div role="group" aria-label="Year type" className="flex items-center gap-0.5 rounded-lg border border-border/80 bg-card p-0.5">
+      {options.map((o) => {
+        const active = o.key === current;
+        return (
+          <Link
+            key={o.key}
+            href={href(o.key)}
+            scroll={false}
+            title={o.title}
+            aria-current={active ? "true" : undefined}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring ${
+              active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {o.text}
           </Link>
         );
       })}

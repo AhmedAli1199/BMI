@@ -24,6 +24,12 @@ def _staff(user: User = Depends(current_user)) -> User:
     return user
 
 
+def _admin(user: User = Depends(current_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can connect or disconnect Xero.")
+    return user
+
+
 class XeroStatus(BaseModel):
     configured: bool
     connected: bool
@@ -55,7 +61,7 @@ def xero_status(db: Session = Depends(get_db), _: User = Depends(_staff)) -> Xer
 
 
 @router.get("/xero/start")
-def xero_start(return_to: str = "/settings", user: User = Depends(_staff)) -> dict:
+def xero_start(return_to: str = "/settings", user: User = Depends(_admin)) -> dict:
     try:
         return {"url": xero.authorize_url(outlook.make_state(user.id, return_to))}
     except xero.XeroNotConfigured as exc:
@@ -94,7 +100,7 @@ def xero_sync_now(full: bool = False, db: Session = Depends(get_db), _: User = D
 
 
 @router.delete("/xero", status_code=204, response_model=None)
-def xero_disconnect(db: Session = Depends(get_db), _: User = Depends(_staff)) -> None:
+def xero_disconnect(db: Session = Depends(get_db), _: User = Depends(_admin)) -> None:
     """Forgets the connection. Invoices already copied stay (they're history)."""
     if xero.webhook_mode():
         raise HTTPException(status_code=400, detail="Xero is linked through the n8n token workflow. To disconnect, remove the token webhook setting on the server.")

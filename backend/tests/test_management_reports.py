@@ -53,10 +53,10 @@ def test_weekly_summary_template_has_every_section_and_is_idempotent(db_session,
     seed_behind(db_session, world)
     row, created = mr.generate_weekly_summary(db_session, TODAY)
     assert created and row.source == "template" and row.week_of == TODAY - timedelta(days=TODAY.weekday())
-    assert [s["key"] for s in row.sections] == ["headline", "revenue", "activity", "editions", "alerts", "delivery", "decisions"]
+    assert [s["key"] for s in row.sections] == ["headline", "revenue", "activity", "people", "editions", "alerts", "delivery", "decisions"]
     assert "behind last cycle" in row.sections[0]["paragraphs"][0]
     assert "## Sold-work delivery" in row.brief_markdown and "## Needs a decision" in row.brief_markdown
-    assert any("behind" in b["text"] for b in row.sections[3]["bullets"])
+    assert any("behind" in b["text"] for b in row.sections[4]["bullets"])
     assert db_session.query(Notification).filter_by(kind="weekly_summary").count() == 1
     row2, created2 = mr.generate_weekly_summary(db_session, TODAY)  # manual re-run
     assert row2.id == row.id and not created2
@@ -104,3 +104,26 @@ def test_jobs_registered_and_default_off():
     jobs = {j.id: j for j in all_jobs()}
     assert jobs["management_alerts_scan"].enabled_flag == "automations_management_alerts_enabled"
     assert jobs["weekly_management_summary"].enabled_flag == "automations_weekly_summary_enabled"
+
+
+def test_weekly_summary_breaks_down_by_salesperson(db_session, world, monkeypatch):
+    """Bookings taken this week per person, and commission earned when an issue publishes."""
+    from app.models import SalesEdition
+
+    monkeypatch.setattr(mr, "is_configured", lambda: False)
+    sp = world["reps"]["SP"]
+    order(db_session, world["this"], "Week Co", 2000, rep=sp, booked_on=TODAY - timedelta(days=1))
+    published = SalesEdition(id=uuid.uuid4(), title_id=world["title"].id, year=TODAY.year, name="99",
+                             edition_date=max(TODAY - timedelta(days=2), TODAY.replace(day=1)))
+    db_session.add(published)
+    db_session.flush()
+    order(db_session, published, "Published Co", 1000, rep=sp, booked_on=TODAY - timedelta(days=90))
+    row, _ = mr.generate_weekly_summary(db_session, TODAY, notify=False)
+    people = next(s for s in row.sections if s["key"] == "people")
+    me = next(p for p in row.metrics_snapshot["people"] if p["id"] == str(sp.id))
+    assert me["bookings"] == 1 and me["booked"] == 2000
+    assert me["commission_week"] > 0 and me["commission_month"] >= me["commission_week"]
+    assert people["table"]["columns"][0] == "Salesperson"
+    names = [r["cells"][0] for r in people["table"]["rows"]]
+    assert names == sorted(names)  # alphabetical, not a league table
+    assert "## By salesperson" in row.brief_markdown

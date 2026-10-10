@@ -247,6 +247,9 @@ class Settings(BaseSettings):
     sales_pace_threshold_pct: float = 0.25
     sales_pace_min_prior_gbp: float = 2000.0
     sales_pace_min_prior_orders: int = 3
+    # Sales figures by financial year (BMI's runs July-June) or calendar year.
+    sales_use_financial_year: bool = True
+    sales_financial_year_start_month: int = 7
     automations_management_alerts_enabled: bool = False  # SALES-028 daily "behind last cycle" alerts
     # Comma-separated emails who get the alerts and the weekly brief. Empty = every active admin.
     management_recipients: str = ""

@@ -1,25 +1,50 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, FileWarning, Layers, RefreshCcw } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { SalesMeta, SalesOverview } from "@/lib/sales-types";
+import type { SalesMeta, SalesOverview, YearBasis } from "@/lib/sales-types";
 import { fmtPercent, pctChange } from "@/lib/automation-format";
 import { Button } from "@/components/ui/button";
 import { Delta, KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { PaceChart, PaceLegend } from "@/components/sales/pace-chart";
-import { PaceBar, SalesHeader, SectionTitle, TitleIcon, YearSwitch, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+import {
+  MONTHS_SHORT,
+  PaceBar,
+  SalesHeader,
+  SectionTitle,
+  TitleIcon,
+  YearBasisSwitch,
+  YearSwitch,
+  fmtDate,
+  fmtGBP,
+  fyLabel,
+} from "@/components/sales/sales-ui";
 
-export default async function SalesOverviewPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
-  const { year: rawYear } = await searchParams;
+export default async function SalesOverviewPage({ searchParams }: { searchParams: Promise<{ year?: string; basis?: string }> }) {
+  const { year: rawYear, basis: rawBasis } = await searchParams;
   const meta = await backendFetch<SalesMeta>("/api/sales/meta");
-  const year = Number(rawYear) || new Date().getFullYear();
-  const ov = await backendFetch<SalesOverview>(`/api/sales/overview?year=${year}`);
+  const basis: YearBasis = rawBasis === "calendar" || rawBasis === "financial" ? rawBasis : meta.year_basis;
+  const yearParam = Number(rawYear) ? `&year=${Number(rawYear)}` : "";
+  const ov = await backendFetch<SalesOverview>(`/api/sales/overview?basis=${basis}${yearParam}`);
+  const year = ov.year;
+  const fy = ov.basis === "financial";
+  const label = ov.label;
+  const prevLabel = ov.previous_label;
+  const yearWord = fy ? "financial year" : "year";
+  const startMonth = MONTHS_SHORT[ov.fy_start_month - 1];
+  const overviewHref = (b: YearBasis, y?: number) => `/sales?basis=${b}${y ? `&year=${y}` : ""}`;
 
-  const lyLabel = ov.is_current_year ? "by this date last year" : `in ${year - 1}`;
+  // Calendar years link to the editions list; financial years filter bookings by edition date.
+  const periodQuery = fy ? `edition_from=${ov.period_start}&edition_to=${ov.period_end}` : `year=${year}`;
+  const titleHref = (id: string) => (fy ? `/sales/bookings?title=${id}&${periodQuery}` : `/sales/editions?year=${year}&title=${id}`);
+  const editionsHref = fy ? `/sales/bookings?${periodQuery}` : `/sales/editions?year=${year}`;
+
+  const lyLabel = ov.is_current_year ? "by this date last year" : `in ${prevLabel}`;
   const compare = ov.is_current_year ? ov.last_year_same_point_gbp : ov.last_year_total_gbp;
   const titleMax = Math.max(...ov.by_title.map((t) => Math.max(t.booked_gbp, t.last_year_total_gbp)), 1);
   const repMax = Math.max(...ov.by_rep.map((r) => r.credit_gbp), 1);
-  const currentMonth = ov.is_current_year ? new Date(ov.as_of).getMonth() + 1 : null;
+  const asOfMonth = new Date(ov.as_of).getMonth() + 1;
+  const currentMonth = ov.is_current_year ? ov.monthly.findIndex((m) => m.month === asOfMonth) + 1 || null : null;
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -28,10 +53,16 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
         description="BMI's order book - every booking across every title, issue and event, in one place instead of fifteen spreadsheets."
         actions={
           <>
-            <YearSwitch years={meta.years} current={year} href={(y) => `/sales?year=${y}`} />
-            <Button size="sm" className="gap-1.5 font-semibold" render={<Link href={`/sales/editions?year=${year}`} />} nativeButton={false}>
+            <YearBasisSwitch current={ov.basis} startMonth={ov.fy_start_month} href={(b) => overviewHref(b)} />
+            <YearSwitch
+              years={fy ? meta.financial_years : meta.years}
+              current={year}
+              href={(y) => overviewHref(ov.basis, y)}
+              label={fy ? fyLabel : String}
+            />
+            <Button size="sm" className="gap-1.5 font-semibold" render={<Link href={editionsHref} />} nativeButton={false}>
               <Layers className="size-3.5" aria-hidden="true" />
-              Editions
+              {fy ? "Bookings" : "Editions"}
               <ArrowRight className="size-3.5" aria-hidden="true" />
             </Button>
           </>
@@ -40,15 +71,18 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
 
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile
-          label={`Booked in ${year}`}
+          label={`Booked in ${label}`}
           value={fmtGBP(ov.booked_gbp, { compact: true })}
           delta={<Delta change={pctChange(ov.booked_gbp, compare)} goodWhenUp />}
           footer={
             <span className="flex items-center gap-1">
               {fmtGBP(compare, { compact: true })} {lyLabel}
               <InfoHint>
-                Live bookings for {year}&apos;s editions - cancelled, contra and moved bookings aren&apos;t counted.
-                {ov.is_current_year && " Compared with last year's editions, counting only what had been booked by today's date a year ago."}
+                {fy
+                  ? `Live bookings for editions published or held from ${fmtDate(ov.period_start)} to ${fmtDate(ov.period_end)}`
+                  : `Live bookings for ${year}'s editions`}{" "}
+                - cancelled, contra and moved bookings aren&apos;t counted.
+                {ov.is_current_year && ` Compared with last ${yearWord}'s editions, counting only what had been booked by today's date a year ago.`}
               </InfoHint>
             </span>
           }
@@ -74,7 +108,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
             <span>
               {ov.new_advertisers} new ·{" "}
               <Link href="/sales/renewals" className="font-medium text-primary hover:underline">
-                {ov.renewal_candidates} from {year - 1} not back yet
+                {ov.renewal_candidates} from {prevLabel} not back yet
               </Link>
             </span>
           }
@@ -84,14 +118,14 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
       <section aria-labelledby="pace-heading" className="rounded-xl border border-border/80 bg-card p-5 shadow-2xs">
         <SectionTitle
           id="pace-heading"
-          hint="Running total of booked value through the year, by the month each booking was taken. Bookings taken before 1 January for this year's editions are the starting point in January."
-          aside={<PaceLegend year={year} />}
+          hint={`Running total of booked value through the ${yearWord}, by the month each booking was taken. Bookings taken before the ${yearWord} began (for its editions) are the starting point in ${startMonth}.`}
+          aside={<PaceLegend year={label} previous={prevLabel} />}
         >
           Booking pace
-          <span className="font-normal text-muted-foreground">· {year} vs {year - 1}</span>
+          <span className="font-normal text-muted-foreground">· {label} vs {prevLabel}</span>
         </SectionTitle>
         <p className="sr-only">
-          {fmtGBP(ov.booked_gbp)} booked for {year} so far, against {fmtGBP(compare)} {lyLabel} and {fmtGBP(ov.last_year_total_gbp)} for the whole of {year - 1}.
+          {fmtGBP(ov.booked_gbp)} booked for {label} so far, against {fmtGBP(compare)} {lyLabel} and {fmtGBP(ov.last_year_total_gbp)} for the whole of {prevLabel}.
         </p>
         <PaceChart monthly={ov.monthly} currentMonth={currentMonth} />
       </section>
@@ -100,7 +134,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
         <section aria-labelledby="titles-heading" className="lg:col-span-3">
           <SectionTitle
             id="titles-heading"
-            hint={`The bar is ${year} so far. The tick marks where the title was ${lyLabel}; the full width is the larger of this year and ${year - 1}'s final total.`}
+            hint={`The bar is ${label} so far. The tick marks where the title was ${lyLabel}; the full width is the larger of this ${yearWord} and ${prevLabel}'s final total.`}
           >
             By title
           </SectionTitle>
@@ -111,7 +145,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
                 <tr className="border-b border-border/70 text-left text-xs font-semibold text-muted-foreground">
                   <th scope="col" className="px-4 py-2.5 font-semibold">Title</th>
                   <th scope="col" className="px-3 py-2.5 text-right font-semibold">Booked</th>
-                  <th scope="col" className="px-3 py-2.5 text-right font-semibold">vs {ov.is_current_year ? "same point" : year - 1}</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-semibold">vs {ov.is_current_year ? "same point" : prevLabel}</th>
                   <th scope="col" className="w-[30%] px-4 py-2.5 font-semibold"><span className="sr-only">Progress</span></th>
                 </tr>
               </thead>
@@ -121,7 +155,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
                   return (
                     <tr key={t.title.id} className="group relative border-b border-border/60 last:border-0 hover:bg-accent/40">
                       <td className="px-4 py-2.5">
-                        <Link href={`/sales/editions?year=${year}&title=${t.title.id}`} className="flex items-center gap-2 font-semibold text-foreground after:absolute after:inset-0">
+                        <Link href={titleHref(t.title.id)} className="flex items-center gap-2 font-semibold text-foreground after:absolute after:inset-0">
                           <span className="text-muted-foreground">
                             <TitleIcon line={t.title.product_line} />
                           </span>
@@ -188,7 +222,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
             </SectionTitle>
             <div className="flex flex-col gap-2.5 rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
               {ov.by_rep.map((r) => (
-                <Link key={r.rep.id} href={`/sales/bookings?rep=${r.rep.id}&year=${year}`} className="group flex flex-col gap-1">
+                <Link key={r.rep.id} href={`/sales/bookings?rep=${r.rep.id}&${periodQuery}`} className="group flex flex-col gap-1">
                   <div className="flex items-baseline justify-between text-xs">
                     <span className="font-semibold text-foreground group-hover:text-primary">
                       {r.rep.name}
@@ -212,7 +246,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
         {[
           { href: "/sales/renewals", icon: RefreshCcw, title: "Renewals", text: `${ov.renewal_candidates} of last year's advertisers haven't rebooked yet` },
           { href: "/sales/invoicing", icon: FileWarning, title: "Invoicing", text: `${ov.uninvoiced_count} bookings awaiting an invoice` },
-          { href: `/sales/editions?year=${year}`, icon: CalendarClock, title: "All editions", text: "Every issue, month and event, with its bookings" },
+          { href: fy ? `/sales/editions?year=${new Date(ov.period_end).getFullYear()}` : `/sales/editions?year=${year}`, icon: CalendarClock, title: "All editions", text: "Every issue, month and event, with its bookings" },
         ].map((l) => (
           <Link key={l.href} href={l.href} className="group flex items-start gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-2xs transition-colors hover:border-primary/40">
             <l.icon className="mt-0.5 size-4 text-primary" aria-hidden="true" />

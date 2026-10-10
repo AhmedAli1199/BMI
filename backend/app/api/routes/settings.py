@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -11,11 +12,60 @@ from app.api.schemas import (
     UserPreferencesOut,
     UserPreferencesUpdate,
 )
+from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import User
 from app.preferences import PREFERENCE_DEFS, get_def, resolve
 
 router = APIRouter(tags=["settings"])
+
+
+def require_admin(identity: Identity = Depends(get_identity)) -> Identity:
+    """Platform settings are for administrators only. Like require_staff, it lets
+    the shared-key system caller through when no person is signed in."""
+    if identity.is_known and identity.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can change this setting.")
+    return identity
+
+
+# ---- Sections shown to each role -------------------------------------------------
+
+class SectionOut(BaseModel):
+    key: str
+    label: str
+    group: str
+    description: str
+
+
+class SectionsOut(BaseModel):
+    sections: list[SectionOut]
+    roles: list[str]
+    hidden: dict[str, list[str]]  # role -> hidden section keys (only filled in for admins)
+    mine: list[str]  # what's hidden for the person asking
+
+
+class SectionsIn(BaseModel):
+    hidden: dict[str, list[str]]
+
+
+@router.get("/ui/sections", response_model=SectionsOut)
+def get_sections(db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> SectionsOut:
+    from app import ui_sections as us
+
+    is_admin = not identity.is_known or identity.role == "admin"
+    return SectionsOut(
+        sections=[SectionOut(**s.__dict__) for s in us.SECTIONS], roles=list(us.HIDEABLE_ROLES),
+        hidden=us.hidden_by_role(db) if is_admin else {}, mine=us.hidden_for(db, identity.role if identity.is_known else None),
+    )
+
+
+@router.put("/ui/sections", response_model=SectionsOut)
+def save_sections(payload: SectionsIn, db: Session = Depends(get_db), identity: Identity = Depends(require_admin)) -> SectionsOut:
+    from app import ui_sections as us
+
+    us.save(db, payload.hidden)
+    db.commit()
+    return get_sections(db, identity)
 
 
 @router.get("/settings/definitions", response_model=list[PreferenceDefOut])

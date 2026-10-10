@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarClock } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { PaceRow, PaceState, SalesDashboard } from "@/lib/sales-types";
-import { fmtPercent } from "@/lib/automation-format";
-import { KpiTile } from "@/components/automations/hub-ui";
+import type { PaceRow, PaceState, SalesDashboard, YearBasis } from "@/lib/sales-types";
+import { fmtPercent, pctChange } from "@/lib/automation-format";
+import { Delta, KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { WeeklyChart } from "@/components/sales/weekly-chart";
-import { EmptyState, PaceBar, SalesHeader, SectionTitle, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
+import { EmptyState, PaceBar, SalesHeader, SectionTitle, YearBasisSwitch, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 const STATE_LABEL: Record<PaceState, string> = {
   behind: "Behind",
@@ -36,8 +36,11 @@ function gapText(r: PaceRow) {
   return `${sign}${fmtGBP(Math.abs(r.gap_gbp), { compact: true })} (${sign}${Math.abs(Math.round(r.gap_pct * 100))}%)`;
 }
 
-export default async function SalesDashboardPage() {
-  const d = await backendFetch<SalesDashboard>("/api/sales/dashboard");
+export default async function SalesDashboardPage({ searchParams }: { searchParams: Promise<{ basis?: string }> }) {
+  const { basis: rawBasis } = await searchParams;
+  const basis = rawBasis === "calendar" || rawBasis === "financial" ? `?basis=${rawBasis}` : "";
+  const d = await backendFetch<SalesDashboard>(`/api/sales/dashboard${basis}`);
+  const ytd = d.year_to_date;
   const behind = d.pace.filter((p) => p.state === "behind").length;
   const ahead = d.pace.filter((p) => p.state === "ahead").length;
   const weeklyTotal = d.weekly.reduce((s, w) => s + w.value_gbp, 0);
@@ -49,6 +52,11 @@ export default async function SalesDashboardPage() {
       <SalesHeader
         title="Sales dashboard"
         description="How every issue and event is selling against the same point last cycle, the weekly flow of bookings, and what the team has been doing. Every figure is a sum over the order register - click through to the bookings behind it."
+        actions={
+          ytd ? (
+            <YearBasisSwitch current={ytd.basis} startMonth={ytd.fy_start_month} href={(b: YearBasis) => `/sales/dashboard?basis=${b}`} />
+          ) : undefined
+        }
       />
 
       {d.unattributed.orders > 0 && (
@@ -56,7 +64,7 @@ export default async function SalesDashboardPage() {
           <AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: "var(--warn)" }} aria-hidden="true" />
           <p className="text-muted-foreground">
             <span className="font-semibold text-foreground">
-              {d.unattributed.orders} {d.unattributed.orders === 1 ? "booking" : "bookings"} ({fmtGBP(d.unattributed.value_gbp)}) in {d.unattributed_year}
+              {d.unattributed.orders} {d.unattributed.orders === 1 ? "booking" : "bookings"} ({fmtGBP(d.unattributed.value_gbp)}) in {d.unattributed_label || d.unattributed_year}
             </span>{" "}
             {d.unattributed.orders === 1 ? "isn't" : "aren't"} credited to any salesperson, so {d.unattributed.orders === 1 ? "it doesn't" : "they don't"} show in the per-person
             figures below. Open the booking and pick a salesperson to fix it.
@@ -65,7 +73,25 @@ export default async function SalesDashboardPage() {
       )}
 
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiTile label="Editions selling" value={d.pace.length.toLocaleString("en-GB")} footer="Open, publishing in the next few months" />
+        {ytd ? (
+          <KpiTile
+            label={`Booked in ${ytd.label} so far`}
+            value={fmtGBP(ytd.booked_gbp, { compact: true })}
+            delta={<Delta change={pctChange(ytd.booked_gbp, ytd.last_year_same_point_gbp)} goodWhenUp />}
+            footer={
+              <span className="flex items-center gap-1">
+                {fmtGBP(ytd.last_year_same_point_gbp, { compact: true })} by this date in {ytd.previous_label}
+                <InfoHint>
+                  Live bookings for editions in the {ytd.basis === "financial" ? "financial year" : "year"} {ytd.label}, against {ytd.previous_label}&apos;s editions
+                  counting only what had been booked by today&apos;s date a year ago. {ytd.previous_label} finished on{" "}
+                  {fmtGBP(ytd.last_year_total_gbp, { compact: true })}.
+                </InfoHint>
+              </span>
+            }
+          />
+        ) : (
+          <KpiTile label="Editions selling" value={d.pace.length.toLocaleString("en-GB")} footer="Open, publishing in the next few months" />
+        )}
         <KpiTile label="Behind last cycle" value={behind.toLocaleString("en-GB")} footer={`${fmtPercent(d.threshold_pct)} or more below the same point`} />
         <KpiTile label="Ahead of last cycle" value={ahead.toLocaleString("en-GB")} footer={`${fmtPercent(d.threshold_pct)} or more above`} />
         <KpiTile label={`Booked, last ${d.weekly.length} weeks`} value={fmtGBP(weeklyTotal, { compact: true })} footer={`${fmtGBP(weeklyLast, { compact: true })} the same weeks last year`} />
@@ -77,6 +103,7 @@ export default async function SalesDashboardPage() {
           hint={`Each edition is compared with its equivalent from last cycle at the same distance before publication (so an issue that moved a fortnight isn't judged against a calendar date). "Behind" means ${fmtPercent(d.threshold_pct)} or more below. An edition is only judged once last cycle had at least ${fmtGBP(d.min_prior_gbp)} across ${d.min_prior_orders} bookings by that point - earlier than that a comparison would just be noise.`}
         >
           Edition tracker
+          <span className="font-normal text-muted-foreground">· {d.pace.length} selling</span>
         </SectionTitle>
         {d.pace.length === 0 ? (
           <EmptyState icon={CalendarClock} title="No editions are currently selling">

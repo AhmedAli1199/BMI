@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ChevronRight, Settings as SettingsIcon, Sparkles, Users } from "lucide-react";
+import { ChevronRight, EyeOff, Settings as SettingsIcon, Sparkles, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
-import { canManageUsers, canUseAutomations } from "@/lib/access";
+import { canManageUsers, canUseAutomations, isAdmin } from "@/lib/access";
 import type { PreferenceDef, UserPreferences } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { PreferenceGroup } from "@/components/preference-group";
@@ -76,6 +76,25 @@ export default async function SettingsPage() {
         </Link>
       )}
 
+      {isAdmin(session) && (
+        <Link href="/settings/sections">
+          <Card className="editorial-card transition-colors hover:border-primary/40 hover:bg-accent/30">
+            <CardContent className="flex items-center gap-3 p-4">
+              <span className="brand-icon size-9 shrink-0 text-primary">
+                <EyeOff className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-foreground">Sections people see</p>
+                <p className="text-xs text-muted-foreground">
+                  Hide parts of the app that Sales or Data Manager users don&apos;t need, so their screens stay simple
+                </p>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       <div className="flex flex-col gap-4">
         <h2 className="editorial-heading text-lg font-bold text-foreground">Appearance</h2>
         <Card className="editorial-card">
@@ -97,7 +116,7 @@ export default async function SettingsPage() {
       {xeroStatus && (
         <div id="integrations" className="flex scroll-mt-20 flex-col gap-4">
           <h2 className="editorial-heading text-lg font-bold text-foreground">Integrations</h2>
-          <XeroConnectionCard status={xeroStatus} />
+          <XeroConnectionCard status={xeroStatus} canManage={isAdmin(session)} />
         </div>
       )}
 

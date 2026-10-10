@@ -267,7 +267,7 @@ def test_overview_and_renewals(client, db_session, sor):
     _order(db_session, sor["this"], "Foodcase", 1500, sp, booked_on=date.today() - timedelta(days=5))
     _order(db_session, sor["this"], "Brand New", 700, sp, booked_on=date.today() - timedelta(days=5), invoice_number="INV-1",
            invoice_value_gbp=700)
-    ov = client.get("/api/sales/overview").json()
+    ov = client.get("/api/sales/overview?basis=calendar").json()
     assert ov["booked_gbp"] == 2200 and ov["last_year_total_gbp"] == 4000
     assert ov["uninvoiced_count"] == 1 and ov["renewal_candidates"] == 1
     assert ov["new_advertisers"] == 1  # "Brand New" never booked before
@@ -275,6 +275,33 @@ def test_overview_and_renewals(client, db_session, sor):
     ren = client.get(f"/api/sales/renewals?title_id={sor['title'].id}").json()
     assert [r["client_name"] for r in ren["items"]] == ["Lapsed Ltd"]
     assert ren["previous_advertisers"] == 2 and ren["rebooked"] == 1 and ren["retention_rate"] == 0.5
+
+
+def test_overview_by_financial_year(client, db_session, sor):
+    """FY 2025/26 runs 1 Jul 2025 - 30 Jun 2026; editions go by their date."""
+    title, sp = sor["title"], sor["reps"]["SP"]
+    jun = SalesEdition(id=uuid.uuid4(), title_id=title.id, year=2026, name="FY-A", edition_date=date(2026, 6, 15))
+    aug = SalesEdition(id=uuid.uuid4(), title_id=title.id, year=2026, name="FY-B", edition_date=date(2026, 8, 15))
+    prev = SalesEdition(id=uuid.uuid4(), title_id=title.id, year=2025, name="FY-C", edition_date=date(2025, 6, 15))
+    db_session.add_all([jun, aug, prev])
+    db_session.flush()
+    _order(db_session, jun, "June Co", 100, sp, booked_on=date(2025, 6, 1))  # sold before the year started
+    _order(db_session, jun, "June Co", 50, sp, booked_on=date(2025, 9, 3))
+    _order(db_session, aug, "August Co", 200, sp, booked_on=date(2026, 7, 1))
+    _order(db_session, prev, "Old Co", 300, sp, booked_on=date(2025, 2, 1))
+    fy = client.get("/api/sales/overview?year=2025&basis=financial").json()
+    assert fy["label"] == "2025/26" and fy["previous_label"] == "2024/25"
+    assert fy["period_start"] == "2025-07-01" and fy["period_end"] == "2026-06-30"
+    assert fy["booked_gbp"] == 150 and fy["last_year_total_gbp"] == 300
+    assert [m["month"] for m in fy["monthly"]][:3] == [7, 8, 9]
+    assert fy["monthly"][0]["this_year"] == 100 and fy["monthly"][2]["this_year"] == 50
+    cal = client.get("/api/sales/overview?year=2026&basis=calendar").json()
+    assert cal["label"] == "2026" and cal["monthly"][0]["month"] == 1
+    meta = client.get("/api/sales/meta").json()
+    assert {2024, 2025, 2026} <= set(meta["financial_years"]) and meta["fy_start_month"] == 7
+    ytd = client.get("/api/sales/dashboard?basis=financial").json()["year_to_date"]
+    assert ytd["basis"] == "financial" and "/" in ytd["label"]
+    assert client.get("/api/sales/dashboard?basis=calendar").json()["year_to_date"]["label"] == str(date.today().year)
 
 
 def test_commissions_are_scoped_for_sales_reps(client, db_session, sor):

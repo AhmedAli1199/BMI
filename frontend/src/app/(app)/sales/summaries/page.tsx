@@ -61,7 +61,42 @@ export default async function SummariesPage({ searchParams }: { searchParams: Pr
                       {p}
                     </p>
                   ))}
-                  {s.bullets.length > 0 && (
+                  {s.table ? (
+                    <div className="mt-2 overflow-x-auto rounded-lg border border-border/70">
+                      <table className="w-full min-w-[34rem] text-sm">
+                        <caption className="sr-only">{s.title}</caption>
+                        <thead>
+                          <tr className="border-b border-border/70 text-left text-xs font-semibold text-muted-foreground">
+                            {s.table.columns.map((c, i) => (
+                              <th key={c} scope="col" className={`px-3 py-2 font-semibold ${i ? "text-right" : ""}`}>
+                                {c}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {s.table.rows.map((r, ri) => (
+                            <tr key={ri} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
+                              {r.cells.map((c, ci) => {
+                                const href = ci === 0 ? r.href : r.links?.[String(ci)];
+                                return (
+                                  <td key={ci} className={`px-3 py-2 ${ci ? "text-right tabular-nums" : "font-semibold text-foreground"}`}>
+                                    {href ? (
+                                      <Link href={href} className="hover:text-primary hover:underline">
+                                        {c}
+                                      </Link>
+                                    ) : (
+                                      c
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : s.bullets.length > 0 && (
                     <ul className="mt-1 flex list-disc flex-col gap-1 pl-5 text-sm text-foreground/90">
                       {s.bullets.map((b, i) => (
                         <li key={i}>

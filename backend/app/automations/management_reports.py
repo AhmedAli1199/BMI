@@ -37,7 +37,7 @@ from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.teams_notify import post_summary
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models import ManagementAlert, ReviewQueueItem, SalesOrder, User, WeeklySummary
+from app.models import ManagementAlert, ReviewQueueItem, SalesOrder, SalesOrderCredit, User, WeeklySummary
 from app.sales.analytics import BOOKED, edition_pace
 from app.services.notify import create_notification
 
@@ -134,8 +134,8 @@ def build_snapshot(db: Session, today: date) -> dict:
     dashboard and overview pages call, so the two can never disagree."""
     from app.api.routes.sales import dashboard, overview
 
-    ov = overview(year=today.year, db=db)
-    dash = dashboard(db=db)
+    ov = overview(year=None, basis=None, db=db)
+    dash = dashboard(basis=None, db=db)
 
     def booked_between(start: date, end: date) -> tuple[int, float]:
         n, v = db.execute(select(func.count(), func.coalesce(func.sum(SalesOrder.value_gbp), 0)).where(
@@ -156,7 +156,7 @@ def build_snapshot(db: Session, today: date) -> dict:
     since = datetime.now(timezone.utc) - timedelta(days=7)
     alerts = db.scalars(select(ManagementAlert).where(ManagementAlert.fired_at >= since).order_by(ManagementAlert.fired_at.desc())).all()
     return {
-        "as_of": today.isoformat(), "year": ov.year,
+        "as_of": today.isoformat(), "year": ov.label, "year_basis": ov.basis,
         "booked_gbp": ov.booked_gbp, "last_year_same_point_gbp": ov.last_year_same_point_gbp,
         "invoiced_gbp": ov.invoiced_gbp, "uninvoiced_count": ov.uninvoiced_count, "uninvoiced_gbp": ov.uninvoiced_gbp,
         "advertisers": ov.advertisers, "new_advertisers": ov.new_advertisers, "renewal_candidates": ov.renewal_candidates,
@@ -170,7 +170,56 @@ def build_snapshot(db: Session, today: date) -> dict:
         "unattributed": {"orders": dash.unattributed.orders, "value": dash.unattributed.value_gbp},
         "pending": {"invoice": pending("sor_invoice_missing"), "renewal": pending("renewal_due"), "client_match": pending("sor_client_match"), "xero_match": pending("sor_invoice_match")},
         "threshold_pct": dash.threshold_pct,
+        "people": _people(db, today - timedelta(days=7), today),
+        "week_uncredited": db.scalar(select(func.count()).select_from(SalesOrder).where(
+            SalesOrder.status == BOOKED, SalesOrder.booked_on >= today - timedelta(days=7), SalesOrder.booked_on <= today,
+            SalesOrder.value_gbp > 0, SalesOrder.id.notin_(select(SalesOrderCredit.order_id)))) or 0,
     }
+
+
+def _people(db: Session, start: date, end: date) -> list[dict]:
+    """Per salesperson: bookings taken in the window (their credited share)
+    and commission earned - in the window and so far this month. Commission
+    comes from the same engine as the monthly statements, so it is earned
+    when an issue publishes (or as the plan says), not when it is booked.
+    Alphabetical on purpose: a picture of the week, not a league table."""
+    from app.models import SalesRep
+    from app.sales.commission import Ctx, core
+
+    rows = db.execute(
+        select(SalesOrderCredit.rep_id, func.count(func.distinct(SalesOrderCredit.order_id)), func.coalesce(func.sum(SalesOrderCredit.amount_gbp), 0))
+        .join(SalesOrder, SalesOrderCredit.order_id == SalesOrder.id)
+        .where(SalesOrder.status == BOOKED, SalesOrder.booked_on >= start, SalesOrder.booked_on <= end)
+        .group_by(SalesOrderCredit.rep_id)).all()
+    booked = {rid: (n, float(v)) for rid, n, v in rows}
+    try:
+        ctx = Ctx.build(db)
+    except Exception:  # commission is extra detail; never lose the brief over it
+        logger.exception("weekly summary: commission figures unavailable")
+        ctx = None
+    months = sorted({f"{start:%Y-%m}", f"{end:%Y-%m}"})
+    out = []
+    for rep in db.scalars(select(SalesRep).order_by(SalesRep.name)):
+        n, v = booked.get(rep.id, (0, 0.0))
+        if not rep.active and not n:
+            continue
+        week_comm = month_comm = None
+        if ctx is not None:
+            try:
+                week_comm = month_comm = 0.0
+                for period in months:
+                    c = core(ctx, rep, period)
+                    week_comm += sum(ln["commission_gbp"] for ln in c["lines"] if start.isoformat() <= ln["earned_on"] <= end.isoformat())
+                    if period == f"{end:%Y-%m}":
+                        later = sum(ln["commission_gbp"] for ln in c["lines"] if ln["earned_on"] > end.isoformat())
+                        month_comm = c["totals"]["core_gbp"] - later
+                week_comm, month_comm = round(week_comm, 2), round(month_comm, 2)
+            except Exception:
+                logger.exception("weekly summary: commission failed for %s", rep.code)
+                week_comm = month_comm = None
+        out.append({"id": str(rep.id), "name": rep.name, "bookings": n, "booked": round(v, 2),
+                    "commission_week": week_comm, "commission_month": month_comm})
+    return out
 
 
 def _sections(s: dict, headline: str) -> list[dict]:
@@ -221,7 +270,42 @@ def _sections(s: dict, headline: str) -> list[dict]:
         decisions.append({"text": f"{len(s['behind'])} edition(s) are behind last cycle - is extra sales effort needed?", "href": "/sales/dashboard"})
     dec = {"key": "decisions", "title": "Needs a decision", "paragraphs": [] if decisions else ["Nothing is waiting on a decision."], "bullets": decisions}
     head = {"key": "headline", "title": "Headline", "paragraphs": [headline], "bullets": []}
-    return [head, revenue, activity, watch, alerts, delivery, dec]
+    sections = [head, revenue, activity]
+    if s.get("people"):
+        sections.append(_people_section(s))
+    return sections + [watch, alerts, delivery, dec]
+
+
+def _people_section(s: dict) -> dict:
+    month = date.fromisoformat(s["as_of"]).strftime("%B")
+    month_key = s["as_of"][:7]
+    booked_from = (date.fromisoformat(s["as_of"]) - timedelta(days=7)).isoformat()
+    people = s["people"]
+
+    def comm(v: float | None) -> str:
+        return "-" if v is None else _money(v)
+
+    bullets, rows = [], []
+    for p in people:
+        bullets.append({
+            "text": f"{p['name']}: {p['bookings']} booking(s) worth {_money(p['booked'])}; commission earned {comm(p['commission_week'])} this week, "
+                    f"{comm(p['commission_month'])} so far in {month}",
+            "href": f"/sales/bookings?rep={p['id']}&booked_from={booked_from}&booked_to={s['as_of']}",
+        })
+        rows.append({"cells": [p["name"], str(p["bookings"]), _money(p["booked"]), comm(p["commission_week"]), comm(p["commission_month"])],
+                     "href": f"/sales/bookings?rep={p['id']}&booked_from={booked_from}&booked_to={s['as_of']}",
+                     "links": {"3": f"/sales/commissions/{p['id']}/{month_key}", "4": f"/sales/commissions/{p['id']}/{month_key}"}})
+    total_n = sum(p["bookings"] for p in people)
+    total_v = sum(p["booked"] for p in people)
+    return {"key": "people", "title": "By salesperson", "paragraphs": [
+        f"Bookings taken in the last 7 days and commission earned. Commission is earned when an issue publishes (or an event runs), "
+        f"so it can differ from what was booked this week. {total_n} booking(s) worth {_money(total_v)} in all; a shared booking is split between the people on it."
+        + (f" {s['week_uncredited']} booking(s) taken this week aren't credited to anyone, so they aren't in this table."
+           if s.get("week_uncredited") else "")
+    ], "bullets": bullets, "table": {
+        "columns": ["Salesperson", "Bookings", "Booked", "Commission this week", f"Commission in {month}"],
+        "rows": rows,
+    }}
 
 
 def _template_headline(s: dict) -> str:
@@ -247,7 +331,9 @@ def _ai_headline(db: Session, snapshot: dict, facts_text: str) -> str | None:
         return None
     import json
 
-    text = draft_text(_HEADLINE_SYSTEM, json.dumps(snapshot, default=str), max_tokens=250, purpose="management_summary.headline")
+    # Individual people stay out of the headline: the model never sees them.
+    shown = {k: v for k, v in snapshot.items() if k != "people"}
+    text = draft_text(_HEADLINE_SYSTEM, json.dumps(shown, default=str), max_tokens=250, purpose="management_summary.headline")
     if not text or not text.strip():
         return None
     text = text.strip()

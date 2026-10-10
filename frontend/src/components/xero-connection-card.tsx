@@ -13,7 +13,7 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB"
 
 /** Settings › Integrations: the read-only Xero link. Sales invoices sync
  * every hour and show as paid / unpaid / overdue next to each booking. */
-export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
+export function XeroConnectionCard({ status, canManage = true }: { status: XeroStatus | null; canManage?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   const [pending, start] = useTransition();
@@ -62,7 +62,7 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
             </div>
           </div>
           <div className="flex gap-2">
-            {status.configured && !viaN8n && (!status.connected || broken) && (
+            {canManage && status.configured && !viaN8n && (!status.connected || broken) && (
               <Button size="sm" nativeButton={false} render={<a href="/api/xero/connect?return_to=/settings" />}>
                 {status.connected ? "Reconnect" : "Connect Xero"}
               </Button>
@@ -106,15 +106,19 @@ export function XeroConnectionCard({ status }: { status: XeroStatus | null }) {
                 >
                   <RefreshCw className="size-3.5" /> Re-read all invoices
                 </Button>
-                {!viaN8n && (
+                {canManage && !viaN8n && (
                   <Button
                     size="sm"
                     variant="ghost"
                     disabled={pending}
                     onClick={() =>
                       start(async () => {
-                        await disconnectXero();
-                        toast.success("Xero disconnected");
+                        try {
+                          await disconnectXero();
+                          toast.success("Xero disconnected");
+                        } catch (e) {
+                          toast.error(friendlyError(e, "Couldn't disconnect Xero"));
+                        }
                         router.refresh();
                       })
                     }

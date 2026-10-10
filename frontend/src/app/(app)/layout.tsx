@@ -12,6 +12,7 @@ import { listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, canUseAutomations } from "@/lib/access";
 import { backendFetch } from "@/lib/backend";
 import type { ScheduledJob, WorkstreamSummary } from "@/lib/types";
+import type { SectionKey, SectionsInfo } from "@/lib/sections";
 
 export default async function AppLayout({
   children,
@@ -22,7 +23,7 @@ export default async function AppLayout({
   const showHub = canUseAutomations(session);
   // Sidebar badges for the Automations Hub sub-pages. Never allowed to
   // break the whole app shell: a failed call just means no badges.
-  const [publicationFilter, allPublications, workstreams, jobs, salesOverdue] = await Promise.all([
+  const [publicationFilter, allPublications, workstreams, jobs, salesOverdue, hiddenSections] = await Promise.all([
     getPublicationFilter(),
     listPublications(),
     showHub
@@ -34,6 +35,10 @@ export default async function AppLayout({
     session
       ? backendFetch<{ total: number }>("/api/sales/orders?overdue=true&limit=1").then((r) => r.total).catch(() => 0)
       : Promise.resolve(0),
+    // Sections an admin has hidden for this person's role; admins always get none.
+    session && session.role !== "admin"
+      ? backendFetch<SectionsInfo>("/api/ui/sections").then((r) => r.mine).catch(() => [] as SectionKey[])
+      : Promise.resolve([] as SectionKey[]),
   ]);
   // Same rule as the dashboard's own tiles (page.tsx) - a non-admin only
   // ever sees their own granted title(s) as switcher options, never the
@@ -50,6 +55,7 @@ export default async function AppLayout({
         workstreams={workstreams}
         scanners={{ active: jobs.filter((j) => j.enabled).length, total: jobs.length }}
         salesOverdue={salesOverdue}
+        hidden={hiddenSections}
       />
       <SidebarInset>
         <header className="app-topbar flex h-14 shrink-0 items-center gap-3 border-b border-sidebar-border px-4 text-sidebar-foreground">

@@ -400,6 +400,16 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Management Reporting", type="bool",
     ),
     AutomationSettingDef(
+        key="sales_use_financial_year", label="Show sales by financial year",
+        description="On: the sales overview and dashboard open on the financial year (e.g. July to June). Off: calendar years. Either view can still be switched on the page.",
+        group="Management Reporting", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sales_financial_year_start_month", label="Financial year starts in month (1-12)",
+        description="The month BMI's financial year begins. 7 = July, so the year runs July to June.",
+        group="Management Reporting", type="int", min=1, max=12,
+    ),
+    AutomationSettingDef(
         key="sales_pace_threshold_pct", label="Behind / ahead threshold (0.0-1.0)",
         description="How far below (or above) its equivalent edition's position an edition must be to count as behind (or ahead). 0.25 = 25%.",
         group="Management Reporting", type="float", min=0.01, max=1.0,

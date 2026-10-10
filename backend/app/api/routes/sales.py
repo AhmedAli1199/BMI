@@ -32,7 +32,17 @@ from app.sales.order_query import SORTS as ORDER_SORTS
 from app.sales.order_query import XERO_STATES, OrderQuery
 from app.sales.order_query import facets as order_facets
 from app.sales.order_query import page as order_page
-from app.sales.analytics import BOOKED, edition_pace, edition_totals, equivalent_editions, same_point_last_year
+from app.sales.analytics import (
+    BOOKED,
+    edition_date_expr,
+    edition_pace,
+    edition_totals,
+    equivalent_editions,
+    period_bounds,
+    period_label,
+    period_year_of,
+    same_point_last_year,
+)
 from app.sales.reference import ensure_reference_data
 from app.sales.sor_import import parse_pages
 from app.services.field_audit import record_field_changes
@@ -67,6 +77,9 @@ class Meta(BaseModel):
     titles: list[TitleOut]
     reps: list[RepOut]
     years: list[int]
+    financial_years: list[int] = []  # each named by the year it starts in
+    year_basis: str = "calendar"  # the org's default view: calendar | financial
+    fy_start_month: int = 7
     my_rep_id: uuid.UUID | None = None
     can_see_all_commission: bool
 
@@ -318,6 +331,12 @@ class Overview(BaseModel):
     year: int
     as_of: date
     is_current_year: bool
+    basis: str  # calendar | financial
+    label: str  # "2026" or "2026/27"
+    previous_label: str
+    period_start: date
+    period_end: date
+    fy_start_month: int
     booked_gbp: float
     last_year_same_point_gbp: float
     last_year_total_gbp: float
@@ -371,8 +390,20 @@ class Unattributed(BaseModel):
     value_gbp: float
 
 
+class YearToDate(BaseModel):
+    basis: str
+    year: int
+    label: str
+    previous_label: str
+    fy_start_month: int
+    booked_gbp: float
+    last_year_same_point_gbp: float
+    last_year_total_gbp: float
+
+
 class Dashboard(BaseModel):
     as_of: date
+    year_to_date: YearToDate | None = None
     threshold_pct: float
     min_prior_gbp: float
     min_prior_orders: int
@@ -382,6 +413,7 @@ class Dashboard(BaseModel):
     activity: list[ActivityRow]
     unattributed: Unattributed
     unattributed_year: int
+    unattributed_label: str = ""  # "2026" or "2026/27"
 
 
 class CommissionEditionRow(BaseModel):
@@ -618,26 +650,54 @@ def meta(db: Session = Depends(get_db), identity: Identity = Depends(get_identit
     titles = db.scalars(select(SalesTitle).where(SalesTitle.active.is_(True)).order_by(SalesTitle.sort_order)).all()
     reps = db.scalars(select(SalesRep).order_by(SalesRep.active.desc(), SalesRep.name)).all()
     years = sorted({y for y in db.scalars(select(SalesEdition.year).distinct())} | {date.today().year}, reverse=True)
+    financial, start_month = _year_basis(db, None)
+    fy = {period_year_of(d, True, start_month) for d in db.scalars(select(edition_date_expr()).distinct()) if d}
+    fy.add(period_year_of(date.today(), True, start_month))
     me = _my_rep(db, identity)
     return Meta(titles=[_title_out(t) for t in titles], reps=[_rep_out(r) for r in reps], years=years,
+                financial_years=sorted(fy, reverse=True), year_basis="financial" if financial else "calendar",
+                fy_start_month=start_month,
                 my_rep_id=me.id if me else None, can_see_all_commission=_is_staff(identity))
 
 
 # ---- Overview -----------------------------------------------------------------
 
+def _year_basis(db: Session, basis: str | None) -> tuple[bool, int]:
+    """(financial?, start month) from the request, falling back to the org setting."""
+    from app.automations import runtime_settings
+    start_month = min(12, max(1, runtime_settings.get_int(db, "sales_financial_year_start_month") or 7))
+    if basis in ("calendar", "financial"):
+        financial = basis == "financial"
+    else:
+        financial = runtime_settings.get_bool(db, "sales_use_financial_year")
+    return financial and start_month != 1, start_month
+
+
+def _in_period(year: int, financial: bool, start_month: int):
+    """SQL filter: editions belonging to a reporting year. Calendar years go by the
+    edition's year (as always); financial years by the edition's date."""
+    if not financial:
+        return SalesEdition.year == year
+    lo, hi = period_bounds(year, True, start_month)
+    return edition_date_expr().between(lo, hi)
+
+
 @router.get("/overview", response_model=Overview)
-def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview:
+def overview(year: int | None = None, basis: str | None = None, db: Session = Depends(get_db)) -> Overview:
     today = date.today()
-    year = year or today.year
-    is_current = year == today.year
-    as_of = today if is_current else date(year, 12, 31)
+    financial, start_month = _year_basis(db, basis)
+    year = year or period_year_of(today, financial, start_month)
+    p_start, p_end = period_bounds(year, financial, start_month)
+    prev_start, prev_end = period_bounds(year - 1, financial, start_month)
+    is_current = p_start <= today <= p_end
+    as_of = today if is_current else p_end
     cutoff_prev = same_point_last_year(as_of)
 
     def booked_rows(y: int, before: date | None = None):
         q = (select(SalesOrder.value_gbp, SalesOrder.booked_on, SalesEdition.title_id, SalesOrder.client_name,
                     SalesOrder.invoice_number, SalesOrder.invoice_value_gbp, SalesEdition.edition_date, SalesOrder.id)
              .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-             .where(SalesEdition.year == y, SalesOrder.status == BOOKED))
+             .where(_in_period(y, financial, start_month), SalesOrder.status == BOOKED))
         if before:
             q = q.where(func.coalesce(SalesOrder.booked_on, date.min) <= before)
         return db.execute(q).all()
@@ -646,28 +706,32 @@ def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview
     last_point = booked_rows(year - 1, cutoff_prev)
     last_all = booked_rows(year - 1)
     ck = lambda n: normalise(n) or n.strip().lower()  # noqa: E731 - same client key as renewals
+    before_period = edition_date_expr() < p_start if financial else SalesEdition.year < year
     earlier_clients = {ck(r.client_name) for r in db.execute(
         select(SalesOrder.client_name).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-        .where(SalesEdition.year < year, SalesOrder.status == BOOKED)).all()}
+        .where(before_period, SalesOrder.status == BOOKED)).all()}
     this_clients = {ck(r.client_name) for r in this}
     last_clients = {ck(r.client_name) for r in last_all if float(r.value_gbp) > 0}
 
-    def month_of(r, y: int) -> int:
-        """Booking month relative to the edition year: anything booked
-        before 1 January (next year's issue sold early) is the position the
-        year started from, so it lands in January; undated -> January too."""
+    def slot_of(r, lo: date, hi: date) -> int:
+        """Booking month as a position 0-11 in the reporting year: anything
+        booked before the year starts (next year's issue sold early) is the
+        position the year started from, so it lands in the first month;
+        undated -> the first month too."""
         d = r.booked_on or r.edition_date
-        if not d or d.year < y:
-            return 1
-        return 12 if d.year > y else d.month
+        if not d or d < lo:
+            return 0
+        if d > hi:
+            return 11
+        return (d.year - lo.year) * 12 + d.month - lo.month
 
     monthly = []
-    for m in range(1, 13):
+    for i in range(12):
         monthly.append(SeriesPoint(
-            month=m,
-            this_year=round(sum(float(r.value_gbp) for r in this if month_of(r, year) == m
+            month=(p_start.month - 1 + i) % 12 + 1,
+            this_year=round(sum(float(r.value_gbp) for r in this if slot_of(r, p_start, p_end) == i
                                 and (not is_current or not r.booked_on or r.booked_on <= today)), 2),
-            last_year=round(sum(float(r.value_gbp) for r in last_all if month_of(r, year - 1) == m), 2),
+            last_year=round(sum(float(r.value_gbp) for r in last_all if slot_of(r, prev_start, prev_end) == i), 2),
         ))
 
     titles = {t.id: t for t in db.scalars(select(SalesTitle))}
@@ -690,7 +754,7 @@ def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview
         select(SalesOrderCredit.rep_id, func.sum(SalesOrderCredit.amount_gbp), func.count(func.distinct(SalesOrderCredit.order_id)))
         .join(SalesOrder, SalesOrderCredit.order_id == SalesOrder.id)
         .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-        .where(SalesEdition.year == year, SalesOrder.status == BOOKED)
+        .where(_in_period(year, financial, start_month), SalesOrder.status == BOOKED)
         .group_by(SalesOrderCredit.rep_id)
     ).all()
     reps = {r.id: r for r in db.scalars(select(SalesRep))}
@@ -704,6 +768,9 @@ def overview(year: int | None = None, db: Session = Depends(get_db)) -> Overview
     uninvoiced = [r for r in this if float(r.value_gbp) > 0 and not r.invoice_number]
     return Overview(
         year=year, as_of=as_of, is_current_year=is_current,
+        basis="financial" if financial else "calendar", label=period_label(year, financial, start_month),
+        previous_label=period_label(year - 1, financial, start_month),
+        period_start=p_start, period_end=p_end, fy_start_month=start_month,
         booked_gbp=round(sum(float(r.value_gbp) for r in this), 2),
         last_year_same_point_gbp=round(sum(float(r.value_gbp) for r in last_point), 2),
         last_year_total_gbp=round(sum(float(r.value_gbp) for r in last_all), 2),
@@ -723,7 +790,7 @@ ACTIVITY_DAYS = 30
 
 
 @router.get("/dashboard", response_model=Dashboard)
-def dashboard(db: Session = Depends(get_db)) -> Dashboard:
+def dashboard(basis: str | None = None, db: Session = Depends(get_db)) -> Dashboard:
     """The management view: how each selling edition is tracking against its
     equivalent last cycle, weekly booking flow, what each person has
     actually done recently, and anything the register can't attribute.
@@ -794,16 +861,33 @@ def dashboard(db: Session = Depends(get_db)) -> Dashboard:
             followups_outstanding=q["outstanding_now"] if q else (0 if rep.user_id else None)))
 
     # Booked orders this year with no credit to anyone: shown, never dropped.
+    financial, start_month = _year_basis(db, basis)
+    cur_year = period_year_of(today, financial, start_month)
     credited = select(SalesOrderCredit.order_id)
     un = db.execute(
         select(func.count(), func.coalesce(func.sum(SalesOrder.value_gbp), 0))
         .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-        .where(SalesEdition.year == today.year, SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0,
+        .where(_in_period(cur_year, financial, start_month), SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0,
                SalesOrder.id.notin_(credited))).one()
+    # The year so far (calendar or financial) against the same point last year.
+    def booked(y: int, before: date | None = None) -> float:
+        q = (select(func.coalesce(func.sum(SalesOrder.value_gbp), 0)).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+             .where(_in_period(y, financial, start_month), SalesOrder.status == BOOKED))
+        if before:
+            q = q.where(func.coalesce(SalesOrder.booked_on, date.min) <= before)
+        return round(float(db.scalar(q) or 0), 2)
+
+    ytd = YearToDate(
+        basis="financial" if financial else "calendar", year=cur_year, label=period_label(cur_year, financial, start_month),
+        previous_label=period_label(cur_year - 1, financial, start_month), fy_start_month=start_month,
+        booked_gbp=booked(cur_year, today), last_year_same_point_gbp=booked(cur_year - 1, same_point_last_year(today)),
+        last_year_total_gbp=booked(cur_year - 1),
+    )
     return Dashboard(
-        as_of=today, threshold_pct=threshold, min_prior_gbp=min_gbp, min_prior_orders=min_orders,
+        as_of=today, year_to_date=ytd, threshold_pct=threshold, min_prior_gbp=min_gbp, min_prior_orders=min_orders,
         pace=pace, weekly=weekly, activity_days=ACTIVITY_DAYS, activity=activity,
-        unattributed=Unattributed(orders=un[0], value_gbp=round(float(un[1]), 2)), unattributed_year=today.year,
+        unattributed=Unattributed(orders=un[0], value_gbp=round(float(un[1]), 2)), unattributed_year=cur_year,
+        unattributed_label=period_label(cur_year, financial, start_month),
     )
 
 
