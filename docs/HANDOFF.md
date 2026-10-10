@@ -367,4 +367,5 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 4. Xero figures on the SALES-026 dashboard once Xero is connected live.
 5. Load link patterns when BMI sends them; Selling Travel editorial plan when it arrives; have each publisher press "Looks right" on their rate card and plan.
 6. SALES-022, SALES-023, then (with Ahmed's go-ahead and a proper plan) the AI chat.
+   **Proposal AI (library, personal style, drafting agent) is planned and PARKED in `docs/proposal-ai-plan.md`** - build it with the AI chat and SALES-023, not before.
 7. Before go-live: fresh Act! migration, `refresh_sor` on live, reps test mail merge.

@@ -6,6 +6,11 @@ delete them once actually done (and note it in the relevant commit instead).
 
 ---
 
+## Proposal AI - parked (2026-10-10)
+
+- [ ] Proposal library + personal style + drafting agent + learning loop + detailed (RFP) proposals. Full plan: `docs/proposal-ai-plan.md`. Build together with the AI Hub chat and SALES-023, after the remaining automations and BMI feedback items. Needs Ahmed's go-ahead.
+
+
 ## Performance / scalability pass — parked (2026-09-18)
 
 Discussed but deliberately deferred to focus on automations. Concrete,
