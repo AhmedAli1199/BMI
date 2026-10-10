@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmailTemplateButton } from "@/components/mail-merge/email-template-button";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
@@ -120,6 +121,7 @@ export default async function ContactDetailPage({
               <Mail className="size-3.5" />
               Write
             </Button>
+            <EmailTemplateButton contact={{ id: contact.id, label: name }} />
             <DuplicateContactDialog
               contactId={contact.id}
               name={name}

@@ -30,12 +30,23 @@ function example(r: DeadlineRule): string {
 }
 
 /** A brand's usual deadlines (so new issues fill their dates in themselves) and its regular sections. */
+const FACTS: [string, string, string][] = [
+  ["print_run", "Print run", "e.g. 12,808"],
+  ["email_database", "Email database size", "e.g. 26,000"],
+  ["readership", "Who reads it", "e.g. travel professionals throughout the UK"],
+  ["website", "Website", "e.g. sellingtravel.co.uk"],
+  ["media_pack", "Media pack link", "https://…"],
+  ["video", "Video link", "https://…"],
+  ["latest_issue", "Latest issue link", "https://issuu.com/…"],
+];
+
 export function BrandSettingsForm({ settings, brandName, canEdit }: { settings: EditorialSettings; brandName: string; canEdit: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [rules, setRules] = useState<DeadlineRule[]>(settings.deadline_rules);
   const [sections, setSections] = useState<RegularSection[]>(settings.regular_sections);
   const [about, setAbout] = useState(settings.about ?? "");
+  const [facts, setFacts] = useState<Record<string, string>>(settings.facts ?? {});
   const usedStd = new Set(rules.map((r) => r.key));
 
   function addRule(key: string, label: string) {
@@ -44,7 +55,7 @@ export function BrandSettingsForm({ settings, brandName, canEdit }: { settings: 
   function save() {
     start(async () => {
       try {
-        await saveEditorialSettings(settings.brand, { deadline_rules: rules.filter((r) => r.label.trim()), regular_sections: sections.filter((s) => s.name.trim()), about: about.trim() || null });
+        await saveEditorialSettings(settings.brand, { deadline_rules: rules.filter((r) => r.label.trim()), regular_sections: sections.filter((s) => s.name.trim()), about: about.trim() || null, facts });
         toast.success("Saved"); router.refresh();
       } catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
     });
@@ -120,6 +131,18 @@ export function BrandSettingsForm({ settings, brandName, canEdit }: { settings: 
       <section aria-labelledby="ab-h" className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
         <h2 id="ab-h" className="text-sm font-bold">About the publishing schedule</h2>
         <Textarea rows={3} disabled={!canEdit} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="e.g. Quarterly magazine, published to coincide with the industry's key trade shows." className="mt-2 text-sm" />
+      </section>
+
+      <section aria-labelledby="fa-h" className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
+        <h2 id="fa-h" className="flex items-center gap-1 text-sm font-bold">Figures and links used in emails <InfoHint>Every email template quotes these through merge fields like {"{{print_run}}"}, so change a figure here once and every email that mentions it is up to date.</InfoHint></h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {FACTS.map(([key, label, placeholder]) => (
+            <label key={key} className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
+              <span>{label} <code className="font-normal">{`{{${key}}}`}</code></span>
+              <Input disabled={!canEdit} value={facts[key] ?? ""} onChange={(e) => setFacts({ ...facts, [key]: e.target.value })} placeholder={placeholder} className="h-8 text-sm" />
+            </label>
+          ))}
+        </div>
       </section>
 
       {canEdit ? (

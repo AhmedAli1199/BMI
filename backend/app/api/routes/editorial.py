@@ -80,6 +80,7 @@ class SettingsOut(BaseModel):
     regular_sections: list[dict]
     about: str | None
     rules_described: list[str]
+    facts: dict = {}
 
 
 class IssueDetail(IssueOut):
@@ -145,7 +146,8 @@ def _settings(db: Session, brand: str) -> SettingsOut:
     st = db.get(EditorialSetting, brand)
     rules = (st.deadline_rules if st else []) or []
     return SettingsOut(brand=brand, deadline_rules=rules, regular_sections=(st.regular_sections if st else []) or [],
-                       about=st.about if st else None, rules_described=[f"{r.get('label')}: {describe_rule(r)}" for r in rules])
+                       about=st.about if st else None, rules_described=[f"{r.get('label')}: {describe_rule(r)}" for r in rules],
+                       facts=(st.facts if st else None) or {})
 
 
 def _titles_by_id(db: Session) -> dict[uuid.UUID, SalesTitle]:
@@ -546,6 +548,7 @@ class SettingsIn(BaseModel):
     deadline_rules: list[RuleIn] = []
     regular_sections: list[dict] = []
     about: str | None = None
+    facts: dict[str, str] | None = None   # None = leave the brand's email figures as they are
 
 
 @router.put("/brands/{key}/settings", response_model=SettingsOut)
@@ -563,6 +566,11 @@ def save_settings(key: str, p: SettingsIn, db: Session = Depends(get_db), identi
     st.deadline_rules = [r.model_dump() for r in p.deadline_rules]
     st.regular_sections = sections
     st.about = (p.about or "").strip() or None
+    if p.facts is not None:
+        from app.services.mail_merge import BRAND_FIELDS
+        st.facts = {k: str(v).strip()[:500] for k, v in p.facts.items() if k in BRAND_FIELDS and k not in ("brand",) and str(v or "").strip()}
+    elif st.facts is None:
+        st.facts = {}
     db.merge(st)
     db.commit()
     return _settings(db, key)
@@ -691,6 +699,7 @@ class PitchCompany(BaseModel):
     company_id: uuid.UUID | None
     name: str
     reason: str
+    feature: str | None = None   # the planned feature they fit (feature matches) - fills {{feature}} in a pitch email
     last_booked: date | None
     last_value_gbp: float | None
     last_size: str | None
@@ -699,6 +708,7 @@ class PitchCompany(BaseModel):
 
 class PitchList(BaseModel):
     issue_id: uuid.UUID
+    title_id: uuid.UUID | None = None
     issue_label: str
     compared_with: dict | None
     lapsed: list[PitchCompany]  # booked the same issue last year, not booked on this one yet
@@ -779,9 +789,9 @@ def who_to_pitch(eid: uuid.UUID, db: Session = Depends(get_db)) -> PitchList:
             hit = next((ft for ft, ws in words.items() if ws & about), None)
             if hit:
                 seen.add(k)
-                matches.append(PitchCompany(company_id=c.id, name=c.name, reason=f"Fits the feature “{hit}”", last_booked=o.booked_on,
+                matches.append(PitchCompany(company_id=c.id, name=c.name, reason=f"Fits the feature “{hit}”", feature=hit, last_booked=o.booked_on,
                                             last_value_gbp=float(o.value_gbp or 0), last_size=o.size, rep=reps.get(o.rep_id)))
             if len(matches) >= 25:
                 break
-    return PitchList(issue_id=e.id, issue_label=issue_label(e), compared_with=compared, lapsed=lapsed[:50], previous=previous[:50],
+    return PitchList(issue_id=e.id, title_id=e.title_id, issue_label=issue_label(e), compared_with=compared, lapsed=lapsed[:50], previous=previous[:50],
                      feature_matches=matches, already_booked=len(here))

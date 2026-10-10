@@ -202,7 +202,9 @@ def _draft(db: Session, p: Proposal, *, use_ai: bool) -> None:
     ctx["totals"] = pricing.totals(p.lines or [], ctx["discount_pct"])
     # Every issue the lines run in (from the editorial plan), so the wording can name them.
     seen = list(dict.fromkeys(i for ln in p.lines or [] for i in ln.get("issues") or []))[:8]
-    ctx["issues"] = [issue_facts(db, e) for e in (db.get(SalesEdition, uuid.UUID(i)) for i in seen) if e]
+    eds = [e for e in (db.get(SalesEdition, uuid.UUID(i)) for i in seen) if e]
+    eds.sort(key=lambda e: (e.edition_date is None, e.edition_date))
+    ctx["issues"] = [issue_facts(db, e) for e in eds]
     if (p.context or {}).get("issue_auto") and edition:
         ctx["issue_auto"] = True
         flags.insert(0, f"We picked {ctx['issue']['label']}, the next one still open for bookings - change it if the client wants a different one.")

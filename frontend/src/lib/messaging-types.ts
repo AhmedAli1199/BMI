@@ -39,7 +39,17 @@ export type MailStatus = {
   per_minute: number;
 };
 
-export type MergeField = { key: string; label: string; example: string };
+export type MergeField = { key: string; label: string; example: string; group?: "contact" | "brand" | "issue" };
+
+export type TemplateKind = "pitch" | "follow_up" | "event" | "launch" | "renewal" | "general";
+export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
+  pitch: "Pitch a feature or issue", follow_up: "Follow-up", event: "Event invitation", launch: "New title or product", renewal: "Renewal", general: "General",
+};
+export const BRAND_LABEL: Record<string, string> = { obh: "Onboard Hospitality", tbtm: "The Business Travel Magazine", stm: "Selling Travel" };
+export type ComposeResult = {
+  to: string[]; subject: string; body: string; html: string; missing: string[]; unknown_fields: string[]; unsubscribed: boolean;
+  outlook_connected: boolean; outlook_email: string | null;
+};
 
 export type MailTemplate = {
   id: string;
@@ -50,6 +60,18 @@ export type MailTemplate = {
   mine: boolean;
   owner_name: string | null;
   updated_at: string | null;
+  brand?: string | null;
+  title_id?: string | null;
+  title_name?: string | null;
+  kind?: TemplateKind;
+  kind_label?: string;
+  description?: string | null;
+  source?: string | null;
+  needs_check?: boolean;
+  use_count?: number;
+  last_used_at?: string | null;
+  can_edit?: boolean;
+  uses_issue?: boolean;
 };
 
 export type RecipientSource =
@@ -137,4 +159,8 @@ export type MergeRequest = {
   include_unsubscribed: boolean;
   data_format: "xlsx" | "csv";
   test_only?: boolean;
+  brand?: string | null;
+  edition_id?: string | null;
+  feature?: string | null;
+  template_id?: string | null;
 };

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type {
+import type { ComposeResult,
   AppNotification,
   MailMergeSummary,
   MailStatus,
@@ -13,7 +13,7 @@ import type {
   RecipientsResult,
   Reminder,
 } from "@/lib/messaging-types";
-import type { ContactDetail } from "@/lib/types";
+import type { ContactDetail, ContactListItem, Page } from "@/lib/types";
 
 const json = (body: unknown): RequestInit => ({
   method: "POST",
@@ -88,7 +88,8 @@ export async function listTemplates() {
 }
 
 export async function saveTemplate(
-  input: { name: string; subject?: string | null; body: string; shared: boolean },
+  input: { name: string; subject?: string | null; body: string; shared: boolean; brand?: string | null; title_id?: string | null;
+    kind?: string; description?: string | null; needs_check?: boolean | null },
   id?: string
 ) {
   return id
@@ -106,8 +107,23 @@ export async function previewRecipients(source: RecipientSource) {
   return backendFetch<RecipientsResult>("/api/mail-merge/recipients", json(source));
 }
 
-export async function previewMerge(input: { contact_id?: string | null; subject?: string; body: string }) {
-  return backendFetch<{ subject: string; body: string; html: string; unknown_fields: string[] }>(
+export async function loadActTemplates() {
+  const r = await backendFetch<{ added: number }>("/api/mail/templates/load-act", { method: "POST" });
+  revalidatePath("/mail-merge/templates");
+  return r;
+}
+
+export async function composeFromTemplate(input: { contact_id?: string | null; template_id?: string | null; subject?: string | null; body?: string | null;
+  brand?: string | null; edition_id?: string | null; feature?: string | null }) {
+  return backendFetch<ComposeResult>("/api/mail/compose", json(input));
+}
+
+export async function sendComposed(input: { contact_id?: string | null; template_id?: string | null; to: string[]; cc: string[]; subject: string; body: string }) {
+  return backendFetch<{ sent_to: string[] }>("/api/mail/compose/send", json(input));
+}
+
+export async function previewMerge(input: { contact_id?: string | null; subject?: string; body: string; brand?: string | null; edition_id?: string | null; feature?: string | null }) {
+  return backendFetch<{ subject: string; body: string; html: string; unknown_fields: string[]; missing?: string[] }>(
     "/api/mail-merge/preview",
     json(input)
   );
@@ -173,4 +189,10 @@ export async function createGroupWithMembers(input: {
   const g = await backendFetch<{ id: string; name: string }>("/api/groups", json(input));
   revalidatePath("/groups");
   return g;
+}
+
+/** A company's contacts (for picking who to email), people with an email address first. */
+export async function listCompanyContacts(companyId: string) {
+  const page = await backendFetch<Page<ContactListItem>>(`/api/contacts?${new URLSearchParams({ company_id: companyId, page_size: "50" })}`);
+  return [...page.items].sort((a, b) => Number(!!b.primary_email) - Number(!!a.primary_email));
 }

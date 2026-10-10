@@ -79,7 +79,8 @@ def template_wording(ctx: dict, lines: list[dict], campaign_name: str) -> dict[s
                    f"worth {gbp(h['total_gbp'])} in total (before VAT).")
     else:
         history = "We haven't worked together before, and we would love the chance to start."
-    products = ", ".join(ln["product"] for ln in lines if ln.get("source") != "offer") or "a package tailored to your goals"
+    names = list(dict.fromkeys(ln["product"] for ln in lines if ln.get("source") != "offer"))
+    products = _join(names) if names else "a package tailored to your goals"
     offers = [ln["product"].removeprefix("Offer: ") for ln in lines if ln.get("source") == "offer"]
     proposal = f"We propose the following for {campaign_name}: {products}."
     next_steps = "- Let us know which of these options suits you\n- We'll confirm availability and send the booking form\n- We'll agree copy and artwork deadlines"

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Send, Users } from "lucide-react";
+import { ExternalLink, Mail, Send, Users } from "lucide-react";
+import { EmailFromTemplate } from "@/components/mail-merge/email-from-template";
 import type { PitchCompany, PitchList } from "@/lib/editorial-types";
 import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/sales/info-hint";
@@ -22,6 +23,7 @@ export function WhoToPitch({ pitch, open }: { pitch: PitchList; open: boolean })
   const total = pitch.lapsed.length + pitch.previous.length + pitch.feature_matches.length;
   const rows = pitch[tab];
   const current = tabs.find((t) => t.key === tab)!;
+  const [emailTo, setEmailTo] = useState<PitchCompany | null>(null);
 
   return (
     <section aria-labelledby="wp-h" className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs">
@@ -48,16 +50,20 @@ export function WhoToPitch({ pitch, open }: { pitch: PitchList; open: boolean })
             <p className="px-4 py-4 text-sm text-muted-foreground">Nobody here.</p>
           ) : (
             <ul className="divide-y divide-border/60">
-              {rows.map((c) => <PitchRow key={`${c.company_id ?? c.name}`} c={c} issueId={pitch.issue_id} open={open} />)}
+              {rows.map((c) => <PitchRow key={`${c.company_id ?? c.name}`} c={c} issueId={pitch.issue_id} titleId={pitch.title_id ?? null} open={open} onEmail={setEmailTo} />)}
             </ul>
           )}
         </>
+      )}
+      {emailTo && (
+        <EmailFromTemplate open={!!emailTo} onOpenChange={(o) => !o && setEmailTo(null)} companyId={emailTo.company_id}
+          titleId={pitch.title_id ?? null} editionId={pitch.issue_id} feature={emailTo.feature ?? null} />
       )}
     </section>
   );
 }
 
-function PitchRow({ c, issueId, open }: { c: PitchCompany; issueId: string; open: boolean }) {
+function PitchRow({ c, issueId, open, onEmail }: { c: PitchCompany; issueId: string; titleId: string | null; open: boolean; onEmail: (c: PitchCompany) => void }) {
   const last = [c.last_size, c.last_value_gbp != null ? fmtGBP(c.last_value_gbp) : null, c.last_booked ? `booked ${fmtDate(c.last_booked)}` : null].filter(Boolean).join(" · ");
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
@@ -71,6 +77,9 @@ function PitchRow({ c, issueId, open }: { c: PitchCompany; issueId: string; open
         )}
         <p className="text-xs text-muted-foreground">{c.reason}{last ? ` · ${last}` : ""}{c.rep ? ` · ${c.rep}` : ""}</p>
       </div>
+      {open && c.company_id && (
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onEmail(c)}><Mail className="size-3.5" /> Email</Button>
+      )}
       {open && c.company_id && (
         <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false}
           render={<Link href={`/sales/proposals/new?company=${c.company_id}&edition=${issueId}`} target="_blank" rel="noreferrer" />}>

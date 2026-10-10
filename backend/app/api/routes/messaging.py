@@ -261,11 +261,20 @@ def outlook_disconnect(db: Session = Depends(get_db), user: User = Depends(curre
 
 # ---- Templates --------------------------------------------------------------
 
+TEMPLATE_KINDS = {"pitch": "Pitch a feature or issue", "follow_up": "Follow-up", "event": "Event invitation", "launch": "New title or product",
+                  "renewal": "Renewal", "general": "General"}
+
+
 class TemplateIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     subject: str | None = Field(default=None, max_length=500)
     body: str = ""
     shared: bool = True
+    brand: str | None = Field(default=None, pattern="^(obh|tbtm|stm)$")
+    title_id: uuid.UUID | None = None
+    kind: str = Field(default="general", pattern="^(pitch|follow_up|event|launch|renewal|general)$")
+    description: str | None = Field(default=None, max_length=300)
+    needs_check: bool | None = None   # None = leave as it is (saving a loaded template marks it checked unless told otherwise)
 
 
 class TemplateOut(BaseModel):
@@ -277,17 +286,38 @@ class TemplateOut(BaseModel):
     mine: bool
     owner_name: str | None
     updated_at: datetime | None
+    brand: str | None = None
+    title_id: uuid.UUID | None = None
+    title_name: str | None = None
+    kind: str = "general"
+    kind_label: str = ""
+    description: str | None = None
+    source: str | None = None
+    needs_check: bool = False
+    use_count: int = 0
+    last_used_at: datetime | None = None
+    can_edit: bool = False
+    uses_issue: bool = False     # has {{issue}}-type fields: choose the issue when using it
 
 
 def _template_out(db: Session, t: MailTemplate, user: User) -> TemplateOut:
+    from app.models import SalesTitle
     owner = db.get(User, t.owner_user_id) if t.owner_user_id else None
+    title = db.get(SalesTitle, t.title_id) if t.title_id else None
+    fields = {m.group(1) for m in mm._FIELD_RE.finditer(f"{t.subject or ''} {t.body or ''}")}
     return TemplateOut(id=t.id, name=t.name, subject=t.subject, body=t.body, shared=t.shared,
-                       mine=t.owner_user_id == user.id, owner_name=owner.name if owner else None, updated_at=t.updated_at)
+                       mine=t.owner_user_id == user.id, owner_name=owner.name if owner else None, updated_at=t.updated_at,
+                       brand=t.brand, title_id=t.title_id, title_name=title.name if title else None, kind=t.kind or "general",
+                       kind_label=TEMPLATE_KINDS.get(t.kind or "general", ""), description=t.description, source=t.source,
+                       needs_check=t.needs_check, use_count=t.use_count or 0, last_used_at=t.last_used_at,
+                       can_edit=t.owner_user_id in (None, user.id) or user.role in ("admin", "data_manager"),
+                       uses_issue=bool(fields & set(mm.ISSUE_FIELDS)))
 
 
 @router.get("/mail/fields")
 def merge_fields() -> list[dict]:
-    return [{"key": k, "label": label, "example": ex} for k, (label, ex) in mm.FIELDS.items()]
+    group = lambda k: "issue" if k in mm.ISSUE_FIELDS else "brand" if k in mm.BRAND_FIELDS else "contact"  # noqa: E731
+    return [{"key": k, "label": label, "example": ex, "group": group(k)} for k, (label, ex) in mm.FIELDS.items()]
 
 
 @router.get("/mail/templates", response_model=list[TemplateOut])
@@ -299,7 +329,7 @@ def list_templates(db: Session = Depends(get_db), user: User = Depends(current_u
 
 @router.post("/mail/templates", response_model=TemplateOut, status_code=201)
 def create_template(payload: TemplateIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    t = MailTemplate(id=uuid.uuid4(), owner_user_id=user.id, **payload.model_dump())
+    t = MailTemplate(id=uuid.uuid4(), owner_user_id=user.id, **{**payload.model_dump(exclude={"needs_check"}), "needs_check": bool(payload.needs_check)})
     db.add(t)
     db.commit()
     return _template_out(db, t, user)
@@ -309,7 +339,7 @@ def _editable_template(db: Session, tid: uuid.UUID, user: User) -> MailTemplate:
     t = db.get(MailTemplate, tid)
     if not t or not (t.shared or t.owner_user_id == user.id):
         raise HTTPException(404, "Template not found")
-    if t.owner_user_id not in (None, user.id) and user.role != "admin":
+    if t.owner_user_id not in (None, user.id) and user.role not in ("admin", "data_manager"):
         raise HTTPException(403, "Only the template's owner (or an admin) can change it - save a copy instead.")
     return t
 
@@ -318,8 +348,9 @@ def _editable_template(db: Session, tid: uuid.UUID, user: User) -> MailTemplate:
 def update_template(template_id: uuid.UUID, payload: TemplateIn, db: Session = Depends(get_db),
                     user: User = Depends(current_user)):
     t = _editable_template(db, template_id, user)
-    for k, v in payload.model_dump().items():
+    for k, v in payload.model_dump(exclude={"needs_check"}).items():
         setattr(t, k, v)
+    t.needs_check = bool(payload.needs_check) if payload.needs_check is not None else False  # saved by a person = checked
     db.commit()
     return _template_out(db, t, user)
 
@@ -419,6 +450,9 @@ class PreviewIn(BaseModel):
     contact_id: uuid.UUID | None = None
     subject: str | None = None
     body: str = ""
+    brand: str | None = Field(default=None, pattern="^(obh|tbtm|stm)$")
+    edition_id: uuid.UUID | None = None
+    feature: str | None = Field(default=None, max_length=200)
 
 
 @router.post("/mail-merge/preview")
@@ -430,9 +464,14 @@ def preview_render(payload: PreviewIn, db: Session = Depends(get_db), user: User
         ctx = found[0][1]
     else:
         ctx = {k: ex for k, (_, ex) in mm.FIELDS.items()} | {"my_name": user.name, "my_email": user.email}
-    body = mm.render(payload.body, ctx)
-    return {"subject": mm.render(payload.subject or "", ctx), "body": body, "html": mm.to_html(body),
-            "unknown_fields": mm.unknown_fields(payload.subject, payload.body)}
+    shared = mm.shared_context(db, payload.brand, payload.edition_id, payload.feature)
+    chosen = bool(payload.brand or payload.edition_id or payload.feature)
+    subject_t = mm.fill_shared(payload.subject, shared) if chosen else payload.subject
+    body_t = mm.fill_shared(payload.body, shared) if chosen else payload.body
+    body = mm.render(body_t, ctx)
+    return {"subject": mm.render(subject_t or "", ctx), "body": body, "html": mm.to_html(body),
+            "unknown_fields": mm.unknown_fields(payload.subject, payload.body),
+            "missing": mm.missing_shared(shared, payload.subject, payload.body) if chosen else []}
 
 
 # ---- Attachments ------------------------------------------------------------
@@ -485,6 +524,11 @@ class MergeIn(BaseModel):
     include_unsubscribed: bool = False
     data_format: str = Field(default="xlsx", pattern="^(xlsx|csv)$")
     test_only: bool = False  # email: send one rendered copy to myself only
+    # Brand figures and the issue the mailing is about, filled in the same for everyone
+    brand: str | None = Field(default=None, pattern="^(obh|tbtm|stm)$")
+    edition_id: uuid.UUID | None = None
+    feature: str | None = Field(default=None, max_length=200)
+    template_id: uuid.UUID | None = None
 
 
 class MergeOut(BaseModel):
@@ -550,6 +594,17 @@ def run_merge(payload: MergeIn, db: Session = Depends(get_db), user: User = Depe
     unknown = mm.unknown_fields(payload.subject, payload.body)
     if unknown:
         raise HTTPException(400, f"Unknown merge field(s): {', '.join('{{' + u + '}}' for u in unknown)}")
+    shared = mm.shared_context(db, payload.brand, payload.edition_id, payload.feature)
+    missing = mm.missing_shared(shared, payload.subject, payload.body)
+    if missing:
+        labels = ", ".join(mm.SHARED_FIELDS[k][0].lower() for k in missing)
+        raise HTTPException(400, f"This email uses details that aren't filled in yet ({labels}). Choose the issue and brand, "
+                                 "type the feature, or add the figures to the brand's settings in the editorial plan.")
+    payload.subject, payload.body = mm.fill_shared(payload.subject, shared), mm.fill_shared(payload.body, shared)
+    if payload.template_id and not payload.test_only:
+        tpl = db.get(MailTemplate, payload.template_id)
+        if tpl:
+            tpl.use_count, tpl.last_used_at = (tpl.use_count or 0) + 1, datetime.now(timezone.utc)
     ctxs = mm.contexts(db, payload.contact_ids, user)
     if not ctxs:
         raise HTTPException(400, "None of those contacts exist any more.")
@@ -697,3 +752,90 @@ def letters_for_missing_email(merge_id: uuid.UUID, db: Session = Depends(get_db)
         db.commit()
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                              headers={"Content-Disposition": 'attachment; filename="letters-no-email.docx"'})
+
+
+# ---- Templates: Clare's ACT! templates, brand facts, and a one-off email -------------------------
+
+@router.post("/mail/templates/load-act")
+def load_act_templates(db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Brings in the sales templates Clare sent from ACT! as drafts to check (once each)."""
+    from app.services import act_templates
+    if user.role not in ("admin", "data_manager"):
+        raise HTTPException(403, "Only administrators and data managers can load the templates.")
+    n = act_templates.load(db)
+    db.commit()
+    return {"added": n}
+
+
+class ComposeIn(BaseModel):
+    contact_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
+    subject: str | None = Field(default=None, max_length=500)
+    body: str | None = None
+    brand: str | None = Field(default=None, pattern="^(obh|tbtm|stm)$")
+    edition_id: uuid.UUID | None = None
+    feature: str | None = Field(default=None, max_length=200)
+
+
+@router.post("/mail/compose")
+def compose(payload: ComposeIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """A template filled in for one contact (and the issue / feature it's about), ready to edit and send."""
+    t = db.get(MailTemplate, payload.template_id) if payload.template_id else None
+    if payload.template_id and (not t or not (t.shared or t.owner_user_id == user.id)):
+        raise HTTPException(404, "Template not found")
+    subject = payload.subject if payload.subject is not None else (t.subject if t else "")
+    body = payload.body if payload.body is not None else (t.body if t else "")
+    shared = mm.shared_context(db, payload.brand or (t.brand if t else None), payload.edition_id, payload.feature)
+    # No contact chosen yet: their fields use the template's fallback words ("Hi there"), never sample names.
+    ctx = {"my_name": user.name, "my_email": user.email, "today": mm.FIELDS["today"][1]}
+    to: list[str] = []
+    if payload.contact_id:
+        found = mm.contexts(db, [payload.contact_id], user)
+        if not found:
+            raise HTTPException(404, "Contact not found")
+        ctx = found[0][1]
+        to = [ctx["email"]] if ctx.get("email") else []
+    filled_subject, filled_body = mm.fill_shared(subject, shared), mm.fill_shared(body, shared)
+    out_body = mm.render(filled_body, ctx)
+    acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id))
+    return {"to": to, "subject": mm.render(filled_subject, ctx), "body": out_body, "html": mm.to_html(out_body),
+            "missing": mm.missing_shared(shared, subject, body), "unknown_fields": mm.unknown_fields(subject, body),
+            "unsubscribed": bool(ctx.get("_unsubscribed")), "outlook_connected": bool(acct), "outlook_email": acct.email if acct else None}
+
+
+class ComposeSendIn(BaseModel):
+    contact_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
+    to: list[str] = Field(min_length=1, max_length=20)
+    cc: list[str] = Field(default_factory=list, max_length=20)
+    subject: str = Field(min_length=1, max_length=500)
+    body: str = Field(min_length=1, max_length=50000)
+
+
+@router.post("/mail/compose/send")
+def compose_send(payload: ComposeSendIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Sends the email from the user's own Outlook and records it on the contact's history."""
+    acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id))
+    if not acct:
+        raise HTTPException(409, "Connect your Outlook first (Settings > Email) - emails are sent from your own account.")
+    to, cc = [a.strip() for a in payload.to if a.strip()], [a.strip() for a in payload.cc if a.strip()]
+    for a in [*to, *cc]:
+        if "@" not in a or " " in a:
+            raise HTTPException(422, f"“{a}” doesn't look like an email address.")
+    if mm._FIELD_RE.search(payload.subject + payload.body):
+        raise HTTPException(422, "Some merge fields weren't filled in (they look like {{this}}). Choose the issue or type the words in.")
+    try:
+        outlook.send_mail(db, acct, to=to, cc=cc, subject=payload.subject, html_body=mm.to_html(payload.body))
+    except outlook.OutlookAuthError:
+        raise HTTPException(409, "Your Outlook connection has expired. Reconnect it in Settings > Email, then send again.")
+    except outlook.RateLimited:
+        raise HTTPException(429, "Outlook is asking us to slow down - try again in a minute.")
+    except Exception:
+        raise HTTPException(502, "Outlook didn't accept the email, so nothing was sent. Please try again.")
+    if payload.contact_id and db.get(Contact, payload.contact_id):
+        mm.record_history(db, payload.contact_id, "E-mail Sent", payload.subject, mm.to_text(payload.body), user.id)
+    t = db.get(MailTemplate, payload.template_id) if payload.template_id else None
+    if t:
+        t.use_count, t.last_used_at = (t.use_count or 0) + 1, datetime.now(timezone.utc)
+    db.commit()
+    return {"sent_to": to}

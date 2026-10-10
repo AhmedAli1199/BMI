@@ -53,6 +53,31 @@ FIELDS: dict[str, tuple[str, str]] = {
     "my_email": ("My email", "you@bmipublishing.co.uk"),
     "today": ("Today's date", date.today().strftime("%d %B %Y")),
 }
+
+# The same for everyone in a mailing: the brand's figures and links (kept once, on the brand's settings in the
+# editorial plan) and the issue it's about (from the editorial plan). Filled in before the contact fields.
+BRAND_FIELDS: dict[str, tuple[str, str]] = {
+    "brand": ("Brand name", "Selling Travel"),
+    "website": ("Brand website", "sellingtravel.co.uk"),
+    "print_run": ("Print run", "12,808"),
+    "email_database": ("Email database size", "26,000"),
+    "readership": ("Readership / audience", "travel agents across the UK"),
+    "media_pack": ("Media pack link", "https://www.sellingtravelmedia.co.uk"),
+    "video": ("Video link", "https://www.sellingtravel.co.uk/advertise/"),
+    "latest_issue": ("Latest issue link", "https://issuu.com/bmipublishingltd"),
+}
+ISSUE_FIELDS: dict[str, tuple[str, str]] = {
+    "title": ("Title", "Selling Travel"),
+    "issue": ("Issue or event", "May/June issue"),
+    "issue_date": ("Publication or event date", "Monday 1 June 2026"),
+    "ad_deadline": ("Advertising deadline", "Friday 15 May 2026"),
+    "copy_deadline": ("Copy deadline", "Wednesday 20 May 2026"),
+    "theme": ("Issue theme", "Cruise special"),
+    "feature": ("The feature you're pitching", "Japan"),
+    "features": ("All planned features", "Japan, Malta and Cruise"),
+}
+SHARED_FIELDS = {**BRAND_FIELDS, **ISSUE_FIELDS}
+FIELDS = {**FIELDS, **SHARED_FIELDS}
 _IDX = {h: i for i, h in enumerate(HEADERS)}
 _FIELD_RE = re.compile(r"\{\{\s*([a-z_0-9]+)\s*(?:\|([^}]*))?\}\}")
 
@@ -78,6 +103,57 @@ def contexts(db: Session, ids: list[uuid.UUID], me: User | None = None) -> list[
             "my_name": me.name if me else "", "my_email": me.email if me else "", "today": today,
             "_unsubscribed": bool(g("Unsubscribed")), "_bounced": bool(g("Bounced")),
         }))
+    return out
+
+
+def shared_context(db: Session, brand: str | None = None, edition_id: uuid.UUID | None = None, feature: str | None = None) -> dict:
+    """Brand facts and issue details for a mailing. The issue decides the brand when one is chosen."""
+    from app.models import EditionFeature, EditorialSetting, SalesEdition, SalesTitle
+    from app.sales.brands import brand_for_title_slug, get_brand
+    from app.sales.editorial import fmt_day, issue_label
+
+    out: dict = {}
+    ed = db.get(SalesEdition, edition_id) if edition_id else None
+    title = db.get(SalesTitle, ed.title_id) if ed else None
+    b = (brand_for_title_slug(title.slug) if title else None) or (get_brand(brand) if brand else None)
+    if b:
+        st = db.get(EditorialSetting, b.key)
+        facts = (st.facts if st else None) or {}
+        out.update({"brand": b.name, "website": facts.get("website") or b.website,
+                    **{k: facts.get(k) or "" for k in BRAND_FIELDS if k not in ("brand", "website")}})
+    if ed:
+        feats = [f.title for f in db.scalars(select(EditionFeature).where(EditionFeature.edition_id == ed.id, EditionFeature.status != "dropped")
+                                             .order_by(EditionFeature.sort_order))]
+        out.update({"title": title.name if title else "", "issue": issue_label(ed), "issue_date": fmt_day(ed.edition_date),
+                    "ad_deadline": fmt_day(ed.ad_deadline), "copy_deadline": fmt_day(ed.copy_deadline), "theme": ed.theme or "",
+                    "features": _join(feats[:6]), "feature": (feature or "").strip() or (feats[0] if len(feats) == 1 else "")})
+    elif feature:
+        out["feature"] = feature.strip()
+    return out
+
+
+def _join(items: list[str]) -> str:
+    return "" if not items else items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def fill_shared(template: str | None, shared: dict) -> str:
+    """Fills the brand and issue fields, leaving each contact's own fields for the merge."""
+    def sub(m):
+        if m.group(1) not in SHARED_FIELDS:
+            return m.group(0)
+        val = shared.get(m.group(1))
+        return str(val) if val else (m.group(2) or "").strip()
+    return _FIELD_RE.sub(sub, template or "")
+
+
+def missing_shared(shared: dict, *templates: str | None) -> list[str]:
+    """Brand / issue fields the text uses that have nothing to fill them and no fallback."""
+    out = []
+    for t in templates:
+        for m in _FIELD_RE.finditer(t or ""):
+            k = m.group(1)
+            if k in SHARED_FIELDS and not shared.get(k) and not (m.group(2) or "").strip() and k not in out:
+                out.append(k)
     return out
 
 

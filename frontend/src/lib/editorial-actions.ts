@@ -58,7 +58,7 @@ export async function reorderFeatures(issueId: string, ids: string[]): Promise<v
   refresh();
 }
 
-export async function saveEditorialSettings(brand: string, input: { deadline_rules: DeadlineRule[]; regular_sections: RegularSection[]; about: string | null }): Promise<EditorialSettings> {
+export async function saveEditorialSettings(brand: string, input: { deadline_rules: DeadlineRule[]; regular_sections: RegularSection[]; about: string | null; facts?: Record<string, string> }): Promise<EditorialSettings> {
   const r = await backendFetch<EditorialSettings>(`/api/editorial/brands/${brand}/settings`, json(input, "PUT"));
   refresh();
   return r;

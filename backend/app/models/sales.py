@@ -193,6 +193,9 @@ class EditorialSetting(Base):
     # [{"name": "Take Five", "description": "Experts share five insights on a topic"}]
     regular_sections: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     about: Mapped[str | None] = mapped_column(Text)  # one paragraph on the brand's publishing schedule
+    # Figures and links every email about the brand quotes, kept once here ({{print_run}}, {{media_pack}}...):
+    # {"print_run": "12,808", "email_database": "26,000", "media_pack": "https://...", ...} - see app/services/mail_merge.py
+    facts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

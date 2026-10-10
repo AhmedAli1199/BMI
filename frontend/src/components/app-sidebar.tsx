@@ -168,10 +168,20 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   render={<Link href="/mail-merge" />}
-                  isActive={pathname.startsWith("/mail-merge")}
+                  isActive={pathname.startsWith("/mail-merge") && !pathname.startsWith("/mail-merge/templates")}
                   className={NAV_ITEM}
                 >
                   Mail merge
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  render={<Link href="/mail-merge/templates" />}
+                  isActive={pathname.startsWith("/mail-merge/templates")}
+                  className={NAV_ITEM}
+                >
+                  Email templates
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

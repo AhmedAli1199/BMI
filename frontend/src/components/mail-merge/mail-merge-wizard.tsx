@@ -61,6 +61,8 @@ import type {
   RecipientsResult,
 } from "@/lib/messaging-types";
 import { MERGE_SELECTION_KEY, downloadFile, postJson } from "@/lib/download";
+import type { SalesTitle } from "@/lib/sales-types";
+import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 import { friendlyError } from "@/lib/errors";
 
 export type InitialSource = { source: RecipientSource | null; label: string; fromSelection?: boolean };
@@ -87,11 +89,13 @@ export function MailMergeWizard({
   status,
   fields,
   templates: initialTemplates,
+  titles = [],
   initial,
 }: {
   status: MailStatus | null;
   fields: MergeField[];
   templates: MailTemplate[];
+  titles?: SalesTitle[];
   initial: InitialSource;
 }) {
   const router = useRouter();
@@ -122,8 +126,16 @@ export function MailMergeWizard({
   const subjectRef = useRef<HTMLInputElement>(null);
   const [lastFocus, setLastFocus] = useState<"subject" | "body">("body");
   const [previewIdx, setPreviewIdx] = useState(0);
-  const [preview, setPreview] = useState<{ subject: string; body: string; html: string; unknown_fields: string[] } | null>(null);
+  const [preview, setPreview] = useState<{ subject: string; body: string; html: string; unknown_fields: string[]; missing?: string[] } | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
+  // Brand figures and the issue the mailing is about (filled in the same for everyone)
+  const [mmBrand, setMmBrand] = useState("");
+  const [mmTitle, setMmTitle] = useState(titles[0]?.id ?? "");
+  const [mmEdition, setMmEdition] = useState("");
+  const [mmFeature, setMmFeature] = useState("");
+  const shared = `${subject} ${body}`;
+  const usesIssue = /\{\{\s*(issue|issue_date|ad_deadline|copy_deadline|theme|feature|features|title)\s*[|}]/.test(shared);
+  const usesBrand = /\{\{\s*(brand|website|print_run|email_database|readership|media_pack|video|latest_issue)\s*[|}]/.test(shared);
   const [tplName, setTplName] = useState("");
   const [tplShared, setTplShared] = useState(true);
 
@@ -200,12 +212,12 @@ export function MailMergeWizard({
   useEffect(() => {
     if (!needsMessage || step !== 2) return;
     const t = setTimeout(() => {
-      previewMerge({ contact_id: previewRecipient?.contact_id ?? null, subject, body })
+      previewMerge({ contact_id: previewRecipient?.contact_id ?? null, subject, body, brand: mmBrand || null, edition_id: mmEdition || null, feature: mmFeature || null })
         .then(setPreview)
         .catch(() => undefined);
     }, 350);
     return () => clearTimeout(t);
-  }, [subject, body, previewRecipient?.contact_id, needsMessage, step]);
+  }, [subject, body, previewRecipient?.contact_id, needsMessage, step, mmBrand, mmEdition, mmFeature]);
 
   function chooseKind(kind: string) {
     setSourceKind(kind);
@@ -250,6 +262,8 @@ export function MailMergeWizard({
     if (t) {
       setSubject(t.subject ?? "");
       setBody(t.body);
+      if (t.brand) setMmBrand(t.brand);
+      if (t.title_id) { setMmTitle(t.title_id); setMmEdition(""); }
     }
   }
 
@@ -305,6 +319,10 @@ export function MailMergeWizard({
       no_email: noEmail,
       include_unsubscribed: includeUnsub,
       data_format: dataFormat,
+      brand: mmBrand || null,
+      edition_id: mmEdition || null,
+      feature: mmFeature || null,
+      template_id: templateId || null,
       ...extra,
     };
   }
@@ -776,6 +794,37 @@ export function MailMergeWizard({
                     Save as new template
                   </Button>
                 </div>
+
+                {(usesIssue || usesBrand) && (
+                  <div className="grid gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Brand (for its figures and links)
+                      <select className={selectCls} value={mmBrand} onChange={(e) => setMmBrand(e.target.value)}>
+                        <option value="">Choose…</option>
+                        <option value="stm">Selling Travel</option>
+                        <option value="tbtm">The Business Travel Magazine</option>
+                        <option value="obh">Onboard Hospitality</option>
+                      </select>
+                    </label>
+                    {usesIssue && <>
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Title
+                        <select className={selectCls} value={mmTitle} onChange={(e) => { setMmTitle(e.target.value); setMmEdition(""); }}>
+                          {titles.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">The issue or event it&apos;s about
+                        <ProposalIssuePicker titleId={mmTitle || null} value={mmEdition} onChange={(id) => setMmEdition(id)} emptyLabel="Choose the issue…" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">The feature you&apos;re pitching
+                        <Input value={mmFeature} onChange={(e) => setMmFeature(e.target.value)} placeholder="e.g. Japan" className="h-8 text-sm" />
+                      </label>
+                    </>}
+                    {preview?.missing && preview.missing.length > 0 && (
+                      <p className="text-xs sm:col-span-2 lg:col-span-4" style={{ color: "var(--warn)" }}>
+                        Still to fill in: {preview.missing.map((k) => fields.find((f) => f.key === k)?.label ?? k).join(", ")}. Choose the issue and brand, type the feature, or add the figures to the brand&apos;s settings in the editorial plan.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid gap-4 xl:grid-cols-2">
                   <div className="flex flex-col gap-3">

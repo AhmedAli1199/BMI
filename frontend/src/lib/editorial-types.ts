@@ -11,7 +11,7 @@ export type Issue = {
 export type Feature = { id: string; title: string; description: string | null; status: "planned" | "confirmed" | "dropped"; sponsorable: boolean; sort_order: number };
 export type DeadlineRule = { key: string; label: string; kind: "days_before" | "day_prev_month"; value: number };
 export type RegularSection = { name: string; description: string | null };
-export type EditorialSettings = { brand: string; deadline_rules: DeadlineRule[]; regular_sections: RegularSection[]; about: string | null; rules_described: string[] };
+export type EditorialSettings = { brand: string; deadline_rules: DeadlineRule[]; regular_sections: RegularSection[]; about: string | null; rules_described: string[]; facts?: Record<string, string> };
 export type IssueRef = { id: string; name: string; year: number };
 export type IssueDetail = Issue & {
   feature_list: Feature[]; notes: string | null; can_edit: boolean; settings: EditorialSettings;
@@ -30,6 +30,7 @@ export const FORMAT_LABELS: Record<IssueFormat, string> = { print_digital: "Prin
 export const issueLabel = (i: { name: string; kind: string }) => (/^\d+$/.test(i.name.trim()) ? `Issue ${i.name}` : i.name);
 
 export type PitchCompany = {
+  feature?: string | null;
   company_id: string | null;
   name: string;
   reason: string;
@@ -41,6 +42,7 @@ export type PitchCompany = {
 
 /** "Who should we pitch?" for an issue. */
 export type PitchList = {
+  title_id?: string | null;
   issue_id: string;
   issue_label: string;
   compared_with: { id: string; label: string; year: number } | null;

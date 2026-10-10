@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { History, Mail } from "lucide-react";
+import { FileText, History, Mail } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { MailStatus, MailTemplate, MergeField, RecipientSource } from "@/lib/messaging-types";import { MailMergeWizard, type InitialSource } from "@/components/mail-merge/mail-merge-wizard";
 import type { CompanyDetail, ContactDetail, GroupDetail } from "@/lib/types";
+import type { SalesTitle } from "@/lib/sales-types";
 import { Button } from "@/components/ui/button";
 
 /** Act!'s Write > Mail Merge. Arrives with its contacts already chosen from
@@ -14,10 +15,11 @@ export default async function MailMergePage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const [status, fields, templates] = await Promise.all([
+  const [status, fields, templates, meta] = await Promise.all([
     backendFetch<MailStatus>("/api/mail/status").catch(() => null),
     backendFetch<MergeField[]>("/api/mail/fields").catch(() => [] as MergeField[]),
     backendFetch<MailTemplate[]>("/api/mail/templates").catch(() => [] as MailTemplate[]),
+    backendFetch<{ titles: SalesTitle[] }>("/api/sales/meta").catch(() => ({ titles: [] as SalesTitle[] })),
   ]);
 
   let initial: InitialSource = { source: null, label: "" };
@@ -68,13 +70,19 @@ export default async function MailMergePage({
             labels, or a data file for Mailchimp.
           </p>
         </div>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/mail-merge/history" />}>
-          <History className="size-3.5" />
-          Sent mail merges
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/mail-merge/templates" />}>
+            <FileText className="size-3.5" />
+            Email templates
+          </Button>
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/mail-merge/history" />}>
+            <History className="size-3.5" />
+            Sent mail merges
+          </Button>
+        </div>
       </div>
 
-      <MailMergeWizard status={status} fields={fields} templates={templates} initial={initial} />
+      <MailMergeWizard status={status} fields={fields} templates={templates} initial={initial} titles={meta.titles} />
     </div>
   );
 }

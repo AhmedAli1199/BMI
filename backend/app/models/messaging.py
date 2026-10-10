@@ -77,6 +77,16 @@ class MailTemplate(Base, UUIDPk):
     body: Mapped[str] = mapped_column(Text, nullable=False, default="")
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True)
     shared: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # What it's for, so a salesperson finds the right one: brand (obh | tbtm | stm), the title, and the kind of email
+    # (pitch | follow_up | event | launch | renewal | general).
+    brand: Mapped[str | None] = mapped_column(String(10), index=True)
+    title_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_titles.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(12), nullable=False, default="general")
+    description: Mapped[str | None] = mapped_column(String(300))
+    source: Mapped[str | None] = mapped_column(String(20))         # "act" = brought over from ACT!
+    needs_check: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)   # loaded, not yet read through by a person
+    use_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
