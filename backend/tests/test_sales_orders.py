@@ -272,7 +272,7 @@ def test_overview_and_renewals(client, db_session, sor):
     assert ov["uninvoiced_count"] == 1 and ov["renewal_candidates"] == 1
     assert ov["new_advertisers"] == 1  # "Brand New" never booked before
 
-    ren = client.get(f"/api/sales/renewals?title_id={sor['title'].id}").json()
+    ren = client.get(f"/api/sales/renewals?title_id={sor['title'].id}&basis=calendar").json()
     assert [r["client_name"] for r in ren["items"]] == ["Lapsed Ltd"]
     assert ren["previous_advertisers"] == 2 and ren["rebooked"] == 1 and ren["retention_rate"] == 0.5
 
@@ -411,7 +411,16 @@ def test_invoice_chase_queues_and_records_invoice(db_session, sor, monkeypatch):
     assert o.invoice_number == "INV-77" and float(o.invoice_value_gbp) == 850
 
 
-def test_renewal_scan_drafts_once_per_client(db_session, sor, monkeypatch):
+@pytest.fixture()
+def calendar_years(db_session):
+    """These tests were written on calendar years; the default is now BMI's financial year."""
+    from app.automations import runtime_settings
+
+    runtime_settings.set_override(db_session, "sales_use_financial_year", False)
+    db_session.flush()
+
+
+def test_renewal_scan_drafts_once_per_client(db_session, sor, monkeypatch, calendar_years):
     monkeypatch.setattr(sor_automations, "SessionLocal", lambda: _NoCloseSession(db_session))
     monkeypatch.setattr(sor_automations, "is_configured", lambda: False)
     anniversary_soon = date.today().replace(year=date.today().year - 1) + timedelta(days=20)
@@ -424,7 +433,7 @@ def test_renewal_scan_drafts_once_per_client(db_session, sor, monkeypatch):
     assert "a full page in OBH 101" in items[0].payload["original_text"]
 
 
-def test_renewal_quotes_rate_card_links_ad_and_routes_to_rep(db_session, sor, monkeypatch):
+def test_renewal_quotes_rate_card_links_ad_and_routes_to_rep(db_session, sor, monkeypatch, calendar_years):
     from app.models import Contact, Email, SalesRate
     from app.sales.renewals import page_number, product_key
 
@@ -458,7 +467,7 @@ def test_renewal_quotes_rate_card_links_ad_and_routes_to_rep(db_session, sor, mo
     assert db_session.query(Notification).filter_by(user_id=rep_user.id, kind="renewal").count() == 1
 
 
-def test_renewal_without_price_or_link_says_so_and_never_invents(db_session, sor, monkeypatch):
+def test_renewal_without_price_or_link_says_so_and_never_invents(db_session, sor, calendar_years, monkeypatch):
     monkeypatch.setattr(sor_automations, "SessionLocal", lambda: _NoCloseSession(db_session))
     monkeypatch.setattr(sor_automations, "is_configured", lambda: False)
     soon = date.today().replace(year=date.today().year - 1) + timedelta(days=20)
@@ -788,3 +797,28 @@ def test_costs_on_any_edition_with_parts_budgets_and_bookings(client, db_session
     sales = identity_headers(make_user(db_session, role="sales"))
     assert client.get(f"/api/sales/costs-report?year={ed.year}", headers=sales).status_code == 403
     assert client.get(f"/api/sales/costs-report/export.xlsx?year={ed.year}&basis=calendar", headers=admin).status_code == 200
+
+
+def test_renewals_by_financial_year_count_bookings_taken_this_year_and_flag_odd_dates(client, db_session, sor):
+    """FY 2025/26 advertisers who haven't booked FY 2026/27. Someone who took a booking this year (even into an old
+    issue) is back, not a renewal; a mistyped booking date is flagged and doesn't decide which booking is "last"."""
+    title, sp = sor["title"], sor["reps"]["SP"]
+    today = date.today()
+    fy = today.year if today.month >= 7 else today.year - 1  # the financial year we're in
+    old = SalesEdition(id=uuid.uuid4(), title_id=title.id, year=fy, name="FY-OLD", edition_date=date(fy, 3, 1))  # in last FY
+    db_session.add(old)
+    db_session.flush()
+    _order(db_session, old, "Lapsed Ltd", 3000, sp, booked_on=date(fy, 1, 10))
+    _order(db_session, old, "Typo Ltd", 2000, sp, booked_on=date(fy + 9, 2, 25))  # "2035"
+    _order(db_session, old, "Late Entry Co", 1500, sp, booked_on=today)  # booked today into an old issue
+    ren = client.get(f"/api/sales/renewals?title_id={title.id}&basis=financial&year={fy}").json()
+    assert ren["label"] == f"{fy}/{(fy + 1) % 100:02d}" and ren["basis"] == "financial"
+    names = [r["client_name"] for r in ren["items"]]
+    assert "Lapsed Ltd" in names and "Typo Ltd" in names
+    assert "Late Entry Co" not in names  # gave us money this year: no renewal email
+    typo = next(r for r in ren["items"] if r["client_name"] == "Typo Ltd")
+    assert "in the future" in typo["date_check"] and typo["check_order_id"]
+    from app.sales.renewals import rebooked
+
+    assert rebooked(db_session, title.id, fy, "Late Entry Co", None, True, 7)
+    assert not rebooked(db_session, title.id, fy, "Typo Ltd", None, True, 7)  # a future date doesn't count as booking

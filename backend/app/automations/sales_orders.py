@@ -353,6 +353,7 @@ def queue_renewal(db: Session, title: SalesTitle, order: SalesOrder, ed: SalesEd
             "client_name": order.client_name, "title_name": title.name, "title_id": str(title.id),
             "edition_id": str(ed.id), "order_id": str(order.id),
             "last_edition_label": last_label, "size": order.size, "target_year": target_year,
+            "target_basis": _basis_word(db),
             "company_id": str(order.company_id) if order.company_id else None,
             "owner_user_id": facts["owner_user_id"], "owner_name": facts["owner_name"],
             "suggested_to": facts["suggested_to"],
@@ -365,13 +366,22 @@ def queue_renewal(db: Session, title: SalesTitle, order: SalesOrder, ed: SalesEd
     return item
 
 
+def _basis_word(db: Session) -> str:
+    from app.api.routes.sales import renewal_basis
+
+    return "financial" if renewal_basis(db)[0] else "calendar"
+
+
 def _close_if_rebooked(db: Session, item: ReviewQueueItem) -> None:
+    from app.api.routes.sales import renewal_basis
     from app.sales.renewals import rebooked
 
     p = item.payload
     year = p.get("target_year") or date.today().year
+    _, start_month = renewal_basis(db)
+    financial = p.get("target_basis") == "financial"  # older items were made on calendar years
     if p.get("title_id") and rebooked(db, uuid.UUID(p["title_id"]), year, p.get("client_name", ""),
-                                      uuid.UUID(p["company_id"]) if p.get("company_id") else None):
+                                      uuid.UUID(p["company_id"]) if p.get("company_id") else None, financial, start_month):
         raise ValueError(f"{p.get('client_name')} has already booked {p.get('title_name')} for {year} - "
                          "no renewal needed. Use “Skip this year” to clear it.")
 
@@ -487,15 +497,18 @@ def scan_renewals() -> None:
     today = date.today()
     db = SessionLocal()
     try:
-        from app.api.routes.sales import renewal_candidates
+        from app.api.routes.sales import renewal_basis, renewal_candidates
+        from app.sales.analytics import period_year_of
 
+        financial, start_month = renewal_basis(db)
+        target_year = period_year_of(today, financial, start_month)
         lead = runtime_settings.get_int(db, "sor_renewal_lead_days")
         max_per_run = runtime_settings.get_int(db, "sor_renewal_max_per_run")
         seen = set(db.scalars(select(ReviewQueueItem.payload["dedupe_key"].astext).where(ReviewQueueItem.kind == RENEWAL_KIND)).all())
         reps = {r.id: r for r in db.scalars(select(SalesRep))}
         queued: list[ReviewQueueItem] = []
         for title in db.scalars(select(SalesTitle).where(SalesTitle.active.is_(True)).order_by(SalesTitle.sort_order)):
-            rows, _, _ = renewal_candidates(db, title.id, today.year)
+            rows, _, _ = renewal_candidates(db, title.id, target_year, financial, start_month, today)
             for r in rows:
                 if len(queued) >= max_per_run:
                     break
@@ -509,7 +522,7 @@ def scan_renewals() -> None:
                     anniversary = anchor + timedelta(days=365)
                 if not (anniversary - timedelta(days=lead) <= today <= anniversary + timedelta(days=90)):
                     continue
-                item = queue_renewal(db, title, order, ed, r["total"], r["count"], today.year,
+                item = queue_renewal(db, title, order, ed, r["total"], r["count"], target_year,
                                      reason="anniversary", due=anniversary, seen=seen, reps=reps)
                 if item:
                     queued.append(item)
@@ -527,7 +540,8 @@ def start_renewal_pass(db: Session, edition: SalesEdition) -> dict:
     anniversary scan would have done. Anyone already queued this year is
     skipped (same key), so running it twice - or after the scan - never
     double-approaches anyone. Caller commits."""
-    from app.sales.analytics import equivalent_editions
+    from app.api.routes.sales import renewal_basis
+    from app.sales.analytics import equivalent_editions, period_year_of
     from app.sales.matching import normalise
     from app.sales.renewals import rebooked
 
@@ -544,12 +558,14 @@ def start_renewal_pass(db: Session, edition: SalesEdition) -> dict:
     reps = {r.id: r for r in db.scalars(select(SalesRep))}
     queued: list[ReviewQueueItem] = []
     already_booked = already_queued = 0
+    financial, start_month = renewal_basis(db)
+    target_year = period_year_of(edition.edition_date, financial, start_month) if edition.edition_date else edition.year
     for orders in groups.values():
-        last = max(orders, key=lambda o: o.booked_on or date.min)
-        if rebooked(db, title.id, edition.year, last.client_name, last.company_id):
+        last = max(orders, key=lambda o: o.booked_on if o.booked_on and o.booked_on <= date.today() else date.min)
+        if rebooked(db, title.id, target_year, last.client_name, last.company_id, financial, start_month):
             already_booked += 1
             continue
-        item = queue_renewal(db, title, last, prev, sum(float(o.value_gbp) for o in orders), len(orders), edition.year,
+        item = queue_renewal(db, title, last, prev, sum(float(o.value_gbp) for o in orders), len(orders), target_year,
                              reason=f"renewal pass for {edition.name}", due=edition.edition_date, seen=seen, reps=reps)
         if item:
             queued.append(item)

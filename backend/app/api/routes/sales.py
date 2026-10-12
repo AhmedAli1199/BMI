@@ -482,11 +482,18 @@ class RenewalRow(BaseModel):
     last_year_value_gbp: float
     last_year_orders: int
     size: str | None = None
+    last_order_id: uuid.UUID | None = None
+    # A booking date that can't be right (in the future, or long after its issue) - shown so someone fixes it.
+    date_check: str | None = None
+    check_order_id: uuid.UUID | None = None
 
 
 class Renewals(BaseModel):
     title: TitleOut
     year: int
+    basis: str = "calendar"
+    label: str = ""
+    previous_label: str = ""
     previous_advertisers: int
     rebooked: int
     retention_rate: float | None = None
@@ -745,6 +752,10 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
         .where(before_period, SalesOrder.status == BOOKED)).all()}
     this_clients = {ck(r.client_name) for r in this}
     last_clients = {ck(r.client_name) for r in last_all if float(r.value_gbp) > 0}
+    # "Back" also counts anyone who took a booking during this year, whatever issue it went into (same rule as Renewals).
+    back_clients = this_clients | {ck(n) for n in db.scalars(
+        select(SalesOrder.client_name).where(SalesOrder.status == BOOKED, SalesOrder.booked_on >= p_start,
+                                             SalesOrder.booked_on <= min(p_end, today)))}
 
     def slot_of(r, lo: date, hi: date) -> int:
         """Booking month as a position 0-11 in the reporting year: anything
@@ -810,7 +821,7 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
         invoiced_gbp=round(sum(float(r.invoice_value_gbp or 0) for r in this), 2),
         uninvoiced_count=len(uninvoiced), uninvoiced_gbp=round(sum(float(r.value_gbp) for r in uninvoiced), 2),
         orders=len(this), advertisers=len(this_clients), new_advertisers=len(this_clients - earlier_clients),
-        renewal_candidates=len(last_clients - this_clients),
+        renewal_candidates=len(last_clients - back_clients),
         monthly=monthly, by_title=by_title_rows, by_rep=by_rep,
         upcoming=_edition_summaries(db, list(upcoming_eds), today),
     )
@@ -1871,23 +1882,33 @@ def commissions(year: int | None = None, db: Session = Depends(get_db), identity
 
 # ---- Renewals -------------------------------------------------------------------
 
-def renewal_candidates(db: Session, title_id: uuid.UUID, year: int) -> tuple[list[dict], int, int]:
+def renewal_basis(db: Session, basis: str | None = None) -> tuple[bool, int]:
+    """Renewals follow the same year as the sales overview (financial or calendar)."""
+    return _year_basis(db, basis)
+
+
+def renewal_candidates(db: Session, title_id: uuid.UUID, year: int, financial: bool = False, start_month: int = 7,
+                       today: date | None = None) -> tuple[list[dict], int, int]:
     """Advertisers who booked this title last year but haven't booked it
-    yet this year. Returns (rows, previous_advertisers, rebooked)."""
-    def orders_for(y: int):
-        return db.execute(
-            select(SalesOrder, SalesEdition).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-            .where(SalesEdition.title_id == title_id, SalesEdition.year == y, SalesOrder.status == BOOKED)
-        ).all()
+    yet this year. Returns (rows, previous_advertisers, rebooked).
+    "Last year" goes by the edition a booking is in; "back" also counts
+    any booking taken this year (app/sales/renewals.py::rebooked_rows)."""
+    from app.sales.renewals import date_problem, in_period, rebooked_rows
+
+    today = today or date.today()
+    prev = db.execute(
+        select(SalesOrder, SalesEdition).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+        .where(SalesEdition.title_id == title_id, in_period(year - 1, financial, start_month), SalesOrder.status == BOOKED)
+    ).all()
+
     def key(name: str) -> str:
         return normalise(name) or name.strip().lower()
 
-    prev = orders_for(year - 1)
-    now = orders_for(year)
+    now = rebooked_rows(db, title_id, year, financial, start_month, today)
     # Normalised names, so "Monty's" / "Montys" and "Sky-Blue" / "SkyBlue"
     # are one advertiser, not a renewal candidate and a rebooking.
-    now_keys = {key(o.client_name) for o, _ in now}
-    now_companies = {o.company_id for o, _ in now if o.company_id}
+    now_keys = {key(n) for n, _ in now}
+    now_companies = {c for _, c in now if c}
     groups: dict[str, list] = defaultdict(list)
     for o, e in prev:
         groups[key(o.client_name)].append((o, e))
@@ -1900,24 +1921,32 @@ def renewal_candidates(db: Session, title_id: uuid.UUID, year: int) -> tuple[lis
         total = sum(float(o.value_gbp) for o, _ in items)
         if total <= 0:
             continue  # only ever free/contra placements - nothing to renew
-        last_o, last_e = max(items, key=lambda it: (it[0].booked_on or date.min, it[1].edition_date or date.min))
-        rows.append({"order": last_o, "edition": last_e, "total": total, "count": len(items)})
+        # Latest by issue date first, so a mistyped booking date (2035) can't decide which booking is "last".
+        last_o, last_e = max(items, key=lambda it: (it[1].edition_date or date.min,
+                                                    it[0].booked_on if it[0].booked_on and it[0].booked_on <= today else date.min))
+        problems = [(o, date_problem(o.booked_on, e.edition_date, today)) for o, e in items]
+        problems = [(o, p) for o, p in problems if p]
+        rows.append({"order": last_o, "edition": last_e, "total": total, "count": len(items),
+                     "date_check": problems[0][1] if problems else None, "check_order_id": problems[0][0].id if problems else None})
     rows.sort(key=lambda r: -r["total"])
     return rows, len(groups), rebooked
 
 
 @router.get("/renewals", response_model=Renewals)
-def renewals(title_id: uuid.UUID, year: int | None = None, db: Session = Depends(get_db)) -> Renewals:
-    year = year or date.today().year
+def renewals(title_id: uuid.UUID, year: int | None = None, basis: str | None = None, db: Session = Depends(get_db)) -> Renewals:
+    financial, start_month = renewal_basis(db, basis)
+    year = year or period_year_of(date.today(), financial, start_month)
     title = db.get(SalesTitle, title_id)
     if not title:
         raise HTTPException(status_code=404, detail="Title not found")
-    rows, previous, rebooked = renewal_candidates(db, title_id, year)
+    rows, previous, rebooked = renewal_candidates(db, title_id, year, financial, start_month)
     reps = {r.id: r for r in db.scalars(select(SalesRep))}
     comp_ids = {r["order"].company_id for r in rows if r["order"].company_id}
     comps = {c.id: c.name for c in db.execute(select(Company.id, Company.name).where(Company.id.in_(comp_ids)))} if comp_ids else {}
     return Renewals(
         title=_title_out(title), year=year, previous_advertisers=previous, rebooked=rebooked,
+        basis="financial" if financial else "calendar", label=period_label(year, financial, start_month),
+        previous_label=period_label(year - 1, financial, start_month),
         retention_rate=(rebooked / previous) if previous else None,
         not_rebooked_value_gbp=round(sum(r["total"] for r in rows), 2),
         items=[RenewalRow(
@@ -1927,5 +1956,6 @@ def renewals(title_id: uuid.UUID, year: int | None = None, db: Session = Depends
             last_edition=Ref(id=r["edition"].id, label=edition_label(title, r["edition"])),
             last_booked_on=r["order"].booked_on, last_value_gbp=float(r["order"].value_gbp),
             last_year_value_gbp=round(r["total"], 2), last_year_orders=r["count"], size=r["order"].size,
+            last_order_id=r["order"].id, date_check=r["date_check"], check_order_id=r["check_order_id"],
         ) for r in rows],
     )

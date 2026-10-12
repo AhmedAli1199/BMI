@@ -1,31 +1,48 @@
 import Link from "next/link";
 import { PartyPopper, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { EditionSummary, Renewals, SalesMeta } from "@/lib/sales-types";
+import type { EditionSummary, Renewals, SalesMeta, YearBasis } from "@/lib/sales-types";
 import { fmtPercent } from "@/lib/automation-format";
 import { KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { RenewalsTable } from "@/components/sales/renewals-table";
-import { EmptyState, SalesHeader, TitleIcon, YearSwitch, fmtGBP } from "@/components/sales/sales-ui";
+import { EmptyState, SalesHeader, TitleIcon, YearBasisSwitch, YearSwitch, fmtGBP, fyLabel } from "@/components/sales/sales-ui";
 
-export default async function RenewalsPage({ searchParams }: { searchParams: Promise<{ title?: string; year?: string }> }) {
+export default async function RenewalsPage({ searchParams }: { searchParams: Promise<{ title?: string; year?: string; basis?: string }> }) {
   const sp = await searchParams;
   const meta = await backendFetch<SalesMeta>("/api/sales/meta");
-  const year = Number(sp.year) || new Date().getFullYear();
+  const basis: YearBasis = sp.basis === "calendar" || sp.basis === "financial" ? sp.basis : meta.year_basis;
   const title = meta.titles.find((t) => t.id === sp.title) ?? meta.titles[0];
-  const [data, editions] = await Promise.all([
-    backendFetch<Renewals>(`/api/sales/renewals?title_id=${title.id}&year=${year}`),
-    backendFetch<EditionSummary[]>(`/api/sales/editions?title_id=${title.id}&year=${year}`),
-  ]);
-  const href = (p: { title?: string; year?: number }) => `/sales/renewals?title=${p.title ?? title.id}&year=${p.year ?? year}`;
+  const data = await backendFetch<Renewals>(
+    `/api/sales/renewals?title_id=${title.id}&basis=${basis}${Number(sp.year) ? `&year=${Number(sp.year)}` : ""}`
+  );
+  const year = data.year;
+  const fy = data.basis === "financial";
+  // A financial year spans two calendar years; offer issues from both to book into.
+  const editionYears = fy ? [year, year + 1] : [year];
+  const editions = (
+    await Promise.all(editionYears.map((y) => backendFetch<EditionSummary[]>(`/api/sales/editions?title_id=${title.id}&year=${y}`)))
+  ).flat();
+  const href = (p: { title?: string; year?: number; basis?: YearBasis }) => {
+    const b = p.basis ?? data.basis;
+    const y = p.year ?? (p.basis && p.basis !== data.basis ? undefined : year);
+    return `/sales/renewals?title=${p.title ?? title.id}&basis=${b}${y ? `&year=${y}` : ""}`;
+  };
+  const now = data.label;
+  const before = data.previous_label;
 
   return (
     <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
         title="Renewals"
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}
-        description={`Who advertised with a title in ${year - 1} but hasn't booked it yet in ${year} - largest spend first.`}
-        actions={<YearSwitch years={meta.years} current={year} href={(y) => href({ year: y })} />}
+        description={`Who advertised with a title in ${before} but hasn't booked it yet in ${now} - largest spend first.${fy ? " Years run July to June." : ""}`}
+        actions={
+          <>
+            <YearBasisSwitch current={data.basis} startMonth={meta.fy_start_month} href={(b) => href({ basis: b })} />
+            <YearSwitch years={fy ? meta.financial_years : meta.years} current={year} href={(y) => href({ year: y })} label={fy ? fyLabel : String} />
+          </>
+        }
       />
 
       <nav aria-label="Choose a title" className="-mt-2 flex flex-wrap gap-1.5">
@@ -46,8 +63,20 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Pro
       </nav>
 
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiTile label={`${year - 1} advertisers`} value={data.previous_advertisers.toLocaleString("en-GB")} footer={`booked ${title.name} last year`} />
-        <KpiTile label={`Back in ${year}`} value={data.rebooked.toLocaleString("en-GB")} footer="have booked again this year" />
+        <KpiTile label={`${before} advertisers`} value={data.previous_advertisers.toLocaleString("en-GB")} footer={`booked ${title.name} last year`} />
+        <KpiTile
+          label={`Back in ${now}`}
+          value={data.rebooked.toLocaleString("en-GB")}
+          footer={
+            <span className="flex items-center gap-1">
+              have booked again this year
+              <InfoHint>
+                Booked into one of {now}&apos;s issues or events, or took any booking with this title during {now} - even into an
+                older issue. Someone who has paid us this year doesn&apos;t get a renewal email.
+              </InfoHint>
+            </span>
+          }
+        />
         <KpiTile
           label="Retention so far"
           value={fmtPercent(data.retention_rate)}
@@ -73,9 +102,9 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Pro
       </div>
 
       {data.items.length === 0 ? (
-        <EmptyState icon={PartyPopper} title={data.previous_advertisers ? "Everyone's back" : `No ${year - 1} bookings for this title`}>
+        <EmptyState icon={PartyPopper} title={data.previous_advertisers ? "Everyone's back" : `No ${before} bookings for this title`}>
           {data.previous_advertisers
-            ? `Every advertiser from ${year - 1} has booked ${title.name} again in ${year}.`
+            ? `Every advertiser from ${before} has booked ${title.name} again in ${now}.`
             : "There's nothing to compare against yet."}
         </EmptyState>
       ) : (

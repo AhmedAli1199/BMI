@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Building2, Plus, Search } from "lucide-react";
+import { AlertTriangle, Building2, ExternalLink, Plus, Search } from "lucide-react";
 import type { EditionSummary, Renewals, SalesRep } from "@/lib/sales-types";
 import type { FilterDef, SortState } from "@/lib/data-view/schema";
 import type { Accessors, SortAccessors } from "@/lib/data-view/client-engine";
@@ -28,6 +28,7 @@ const ACCESSORS: Accessors<Row> = {
   repeat: (r) => r.last_year_orders > 1,
   spent: (r) => r.last_year_value_gbp,
   last: (r) => r.last_booked_on,
+  check: (r) => !!r.date_check,
 };
 
 const SORTS: SortAccessors<Row> = {
@@ -58,6 +59,10 @@ export function RenewalsTable({ data, editions, reps }: { data: Renewals; editio
         options: [...sizes].sort().map((v) => ({ value: v, label: v === "none" ? "Not recorded" : v })),
       },
       { kind: "dates", key: "last", label: "Last booked on", section: "When" },
+      {
+        kind: "tristate", key: "check", label: "Booking date", section: "When", yes: "Looks wrong", no: "Looks fine",
+        hint: "A booked date in the future, or long after its issue came out - usually a typing slip on the sheet.",
+      },
     ];
   }, [data.items]);
 
@@ -141,6 +146,22 @@ function RenewalsBody({ rows, data, editions, reps }: { rows: Row[]; data: Renew
                     {r.size ?? "—"} · {fmtGBP(r.last_value_gbp)}
                     {r.last_booked_on ? ` · booked ${fmtDate(r.last_booked_on)}` : ""}
                   </div>
+                  {r.date_check && r.check_order_id && (
+                    <Link
+                      href={`/sales/orders/${r.check_order_id}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="mt-0.5 inline-flex items-start gap-1 text-[11px] font-medium hover:underline"
+                      style={{ color: "var(--warn)" }}
+                    >
+                      <AlertTriangle className="mt-px size-3 shrink-0" aria-hidden="true" />
+                      <span>
+                        {r.date_check} Open the booking to fix it.
+                        <ExternalLink className="ml-0.5 inline size-2.5" aria-hidden="true" />
+                        <span className="sr-only">(opens in a new tab)</span>
+                      </span>
+                    </Link>
+                  )}
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums">
                   <span className="font-semibold">{fmtGBP(r.last_year_value_gbp)}</span>

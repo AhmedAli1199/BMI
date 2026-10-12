@@ -228,6 +228,10 @@ export type Commissions = {
 export type Renewals = {
   title: SalesTitle;
   year: number;
+  basis: YearBasis;
+  /** "2026" or "2026/27" */
+  label: string;
+  previous_label: string;
   previous_advertisers: number;
   rebooked: number;
   retention_rate: number | null;
@@ -242,6 +246,10 @@ export type Renewals = {
     last_year_value_gbp: number;
     last_year_orders: number;
     size: string | null;
+    last_order_id: string | null;
+    /** A booking date that can't be right (in the future, or long after its issue) - to fix. */
+    date_check: string | null;
+    check_order_id: string | null;
   }[];
 };
 

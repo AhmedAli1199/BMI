@@ -11,12 +11,13 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Company, Contact, Email, SalesEdition, SalesOrder, SalesRate, SalesRep, SalesTitle
-from app.sales.analytics import BOOKED
+from app.sales.analytics import BOOKED, edition_date_expr, period_bounds
 from app.sales.matching import normalise
 
 _SIZE_ALIASES = {
@@ -90,14 +91,54 @@ def current_price(db: Session, title_id: uuid.UUID, year: int, size: str | None)
     return None
 
 
-def rebooked(db: Session, title_id: uuid.UUID, year: int, client_name: str, company_id: uuid.UUID | None) -> bool:
+# A booking taken this long after its issue came out is almost always a typing slip or a booking put in the wrong issue.
+LATE_BOOKING_DAYS = 60
+
+
+def in_period(year: int, financial: bool = False, start_month: int = 7):
+    """SQL filter for the editions of a renewals year: calendar years by the edition's year, financial years by its date
+    (the same rule as the sales overview)."""
+    if not financial:
+        return SalesEdition.year == year
+    lo, hi = period_bounds(year, True, start_month)
+    return edition_date_expr().between(lo, hi)
+
+
+def date_problem(booked_on: date | None, edition_date: date | None, today: date | None = None) -> str | None:
+    """Plain words when a booking date can't be right - in the future, or long after its issue came out."""
+    today = today or date.today()
+    if not booked_on:
+        return None
+    if booked_on > today + timedelta(days=1):
+        return f"Booked date {booked_on:%d %b %Y} is in the future - probably a typing slip."
+    if edition_date and booked_on > edition_date + timedelta(days=LATE_BOOKING_DAYS):
+        return f"Booked on {booked_on:%d %b %Y}, after the issue came out ({edition_date:%d %b %Y}) - is it in the right issue?"
+    return None
+
+
+def rebooked_rows(db: Session, title_id: uuid.UUID, year: int, financial: bool = False, start_month: int = 7,
+                  today: date | None = None) -> list[tuple[str, uuid.UUID | None]]:
+    """(client name, company) of everyone who counts as "back" this year: booked into one of this year's editions,
+    or took a booking with this title during this year (whatever issue it went into - if they gave us money this
+    year, a renewal email would be wrong). Booking dates in the future don't count."""
+    today = today or date.today()
+    lo, hi = period_bounds(year, financial, start_month)
+    in_year = db.execute(
+        select(SalesOrder.client_name, SalesOrder.company_id).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+        .where(SalesEdition.title_id == title_id, in_period(year, financial, start_month), SalesOrder.status == BOOKED)).all()
+    taken = db.execute(
+        select(SalesOrder.client_name, SalesOrder.company_id).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+        .where(SalesEdition.title_id == title_id, SalesOrder.status == BOOKED,
+               SalesOrder.booked_on >= lo, SalesOrder.booked_on <= min(hi, today))).all()
+    return [(n, c) for n, c in [*in_year, *taken]]
+
+
+def rebooked(db: Session, title_id: uuid.UUID, year: int, client_name: str, company_id: uuid.UUID | None,
+             financial: bool = False, start_month: int = 7) -> bool:
     """Booked this title again in `year` already - checked when the item is
     queued *and* again when someone approves or sends it, since the order
     register is the source of truth and may have changed in between."""
-    rows = db.execute(
-        select(SalesOrder.client_name, SalesOrder.company_id).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-        .where(SalesEdition.title_id == title_id, SalesEdition.year == year, SalesOrder.status == BOOKED)
-    ).all()
+    rows = rebooked_rows(db, title_id, year, financial, start_month)
     key = normalise(client_name) or client_name.strip().lower()
     return any((normalise(n) or n.strip().lower()) == key or (company_id and c == company_id) for n, c in rows)
 

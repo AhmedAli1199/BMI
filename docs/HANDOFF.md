@@ -274,6 +274,11 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
 - **Costs on any edition** (issues too, not just events): each cost line can have a part (`section`: "Judging day", "Ceremony"), what it was for (`category`, list in `sales.COST_CATEGORIES`), a budget (`budget_gbp`) and the booking it was for (`order_id`, same edition only, e.g. a cover wrap's printing). The panel shows totals per part, budget vs actual (over budget in amber), where the money went, and each linked booking's own profit. Events and awards open with the panel showing; an issue shows a one-line "Add the first cost" until it has costs. Commission profit share still uses every `kind == "cost"` line.
 - **Costs & profit report** (`/sales/costs`, staff only; `GET /sales/costs-report`, `/costs-report/export.xlsx`): every edition with costs in the year (calendar or financial), sold / budget / costs / profit / margin, filters (title, type, profit or loss, over budget, signed off), "where the money went" for the year, and a count of editions with bookings but no costs (can be shown in the list).
 
+### 4.3f Renewals follow the financial year (12 Oct 2026)
+- Renewals (page, anniversary scan, renewal pass, the overview's "not back yet") use the same year as the overview (`sales_use_financial_year`); the page has the same Financial / Calendar switch. Last year's advertisers still go by the issue they booked into.
+- **"Back" also counts any booking taken with the title during this year**, whatever issue it went into (`renewals.rebooked_rows`) - someone who paid us this year never gets a renewal email. Booking dates in the future don't count.
+- **Odd booking dates are flagged** (`renewals.date_problem`): in the future (a "2035" typo) or more than 60 days after the issue came out. Shown on the row with a link to the booking (new tab) and a "Booking date: looks wrong" filter. The "last booking" shown is picked by issue date, so a typo can't decide it.
+
 ### 4.4 Invoicing logic
 - **Invoiced %** is by value, not row count; the tile also shows "N of M paid bookings invoiced" (£0 tickets excluded).
 - Differences compared **per client within an edition** (handles split invoices), rows with an invoice number but no amount = unknown (not a difference), **< £2 ignored** (rounding).
