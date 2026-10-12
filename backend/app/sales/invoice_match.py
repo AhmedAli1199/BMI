@@ -219,6 +219,7 @@ WHY_LABELS = {
     "typo": "Typed number isn't in Xero",
     "auto_off": "Automatic linking is off",
     "taken": "Another invoice fits the same booking",
+    "again": "New booking since “None of these”",
     "check": "Needs a quick check",
 }
 STRENGTH_LABELS = {"strong": "Strong match", "likely": "Likely match", "possible": "Possible match"}

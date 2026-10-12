@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 
 from sqlalchemy import select
@@ -42,6 +42,9 @@ logger = logging.getLogger("app.automations.xero_matching")
 KIND = "sor_invoice_match"
 UNMATCHED_STATE = "xero_match_unmatched"
 DECLINED_STATE = "xero_match_declined"   # invoices whose automatic link someone undid - never offered again
+# Invoices someone marked "Not a booking" (a cost share, a refund...): never matched again, kept off the "in Xero,
+# not in the register" list. {"items": [{"id", "note", "by", "at"}]}; "Put back" on the Invoicing page removes one.
+NOT_BOOKING_STATE = "xero_not_a_booking"
 
 
 def _item(ctx: im.Context, inv: XeroInvoice, hyps: list[im.Hypothesis], reps: dict[uuid.UUID, SalesRep], *,
@@ -118,14 +121,30 @@ def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | N
     for it in existing:   # items made before the filters existed get their filter values and sort date now
         if it.status == "pending" and "facets" not in it.payload:
             _backfill_facets(db, it)
-    seen = {i.payload.get("invoice_id") for i in existing} | declined
+    not_booking = not_booking_ids(db)
+    # "None of these" isn't the end: the invoice is checked again on every run against bookings it wasn't already
+    # shown with, so a booking entered later still finds it. Only a waiting item, an undone automatic link or
+    # "Not a booking" stops it.
+    pending_for = {i.payload.get("invoice_id") for i in existing if i.status == "pending"}
+    rejected: dict[str, set[str]] = defaultdict(set)
+    for i in existing:
+        if i.status != "pending" and i.resolved_action == "none":
+            for c in (i.payload.get("invoice_match") or {}).get("candidates", []):
+                rejected[i.payload.get("invoice_id")].update(b["id"] for b in c.get("bookings", []))
+    seen = pending_for | declined | not_booking
     for it in existing:   # a waiting item whose invoice was linked by hand since: nothing left to decide
         if it.status == "pending" and uuid.UUID(it.payload["invoice_id"]) not in unclaimed_ids:
             it.status, it.resolved_action, it.reviewed_at = "approved", "linked_elsewhere", now
             it.review_note = "Someone typed this invoice number on a booking before it was reviewed."
             counts["withdrawn"] += 1
 
-    work = [(inv, im.hypotheses(ctx, inv)) for inv in unclaimed if str(inv.id) not in seen]
+    def fresh(inv: XeroInvoice) -> list[im.Hypothesis]:
+        hyps = im.hypotheses(ctx, inv)
+        shown = rejected.get(str(inv.id))
+        return [h for h in hyps if not any(str(o.id) in shown for o in h.orders)] if shown else hyps
+
+    work = [(inv, fresh(inv)) for inv in unclaimed if str(inv.id) not in seen]
+    # An invoice already answered "None of these" that nothing new fits is still "not in the register".
     no_fit = [inv for inv, h in work if not h]
     counts["no_fit"] = len(no_fit)
     taken: set[uuid.UUID] = set()
@@ -142,6 +161,8 @@ def run_matching(db: Session, *, auto_link: bool | None = None, max_new: int | N
         else:
             reason = im.why_not_automatic(top, rest, inv, auto_on) if not (ids & taken) else \
                 ("taken", "Another invoice in this batch fits the same booking. Pick the right one.")
+            if str(inv.id) in rejected and not (ids & taken):
+                reason = ("again", "You said none of the earlier bookings were right; this booking was added since and may be the one.")
             db.add(_item(ctx, inv, hyps, reps, status="pending", reason=reason))
             counts["review"] += 1
     set_state(db, UNMATCHED_STATE, {"ids": [str(i.id) for i in no_fit], "at": now.isoformat()})
@@ -165,6 +186,35 @@ def remember_declined(db: Session, invoice_id: uuid.UUID) -> None:
     set_state(db, DECLINED_STATE, {"ids": sorted(ids)})
 
 
+def not_booking_items(db: Session) -> list[dict]:
+    return list(get_state(db, NOT_BOOKING_STATE).get("items", []))
+
+
+def not_booking_ids(db: Session) -> set[str]:
+    return {x["id"] for x in not_booking_items(db)}
+
+
+def mark_not_booking(db: Session, invoice_id: uuid.UUID, note: str | None, user_id: str | None) -> None:
+    items = [x for x in not_booking_items(db) if x["id"] != str(invoice_id)]
+    items.append({"id": str(invoice_id), "note": (note or "").strip()[:300] or None, "by": user_id,
+                  "at": datetime.now(timezone.utc).isoformat()})
+    set_state(db, NOT_BOOKING_STATE, {"items": items})
+    st = get_state(db, UNMATCHED_STATE)   # off the "in Xero, not in the register" list straight away
+    if st.get("ids"):
+        set_state(db, UNMATCHED_STATE, {**st, "ids": [i for i in st["ids"] if i != str(invoice_id)]})
+
+
+def put_back_not_booking(db: Session, invoice_id: uuid.UUID) -> bool:
+    """Undo "Not a booking": the invoice is matched again on the next run."""
+    items = not_booking_items(db)
+    keep = [x for x in items if x["id"] != str(invoice_id)]
+    set_state(db, NOT_BOOKING_STATE, {"items": keep})
+    for it in db.scalars(select(ReviewQueueItem).where(ReviewQueueItem.kind == KIND, ReviewQueueItem.resolved_action == "not_booking",
+                                                       ReviewQueueItem.payload["invoice_id"].astext == str(invoice_id))):
+        it.resolved_action = "none"   # counts as an earlier "None of these", so the same bookings aren't offered twice
+    return len(keep) != len(items)
+
+
 def unmatched_invoice_ids(db: Session) -> tuple[list[uuid.UUID], str | None]:
     st = get_state(db, UNMATCHED_STATE)
     return [uuid.UUID(i) for i in st.get("ids", [])], st.get("at")
@@ -174,6 +224,9 @@ def unmatched_invoice_ids(db: Session) -> tuple[list[uuid.UUID], str | None]:
 
 def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
     if action_id == "none":
+        return
+    if action_id == "not_booking":
+        mark_not_booking(db, uuid.UUID(item.payload["invoice_id"]), input_data.get("note"), input_data.get("_actor_user_id"))
         return
     if action_id != "link":
         raise ValueError(f"Unknown action {action_id!r} for {KIND}")
@@ -211,6 +264,7 @@ register(ReviewKind(
     actions=[
         ReviewAction(id="link", label="Yes, link this invoice", style="primary", outcome="approved"),
         ReviewAction(id="none", label="None of these", style="secondary", outcome="rejected"),
+        ReviewAction(id="not_booking", label="Not a booking", style="secondary", outcome="rejected"),
     ],
     handler=_handle,
     audience="sales",

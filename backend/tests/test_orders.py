@@ -199,3 +199,44 @@ def test_reimporting_the_order_register_keeps_orders_made_in_the_app(w, client, 
     new_ed = w["db"].query(SalesEdition).filter_by(name="105").one()
     assert mine.edition_id == new_ed.id and "counted twice" in mine.import_warning
     assert not w["db"].query(SalesEdition).filter(SalesEdition.name.like("%[kept%")).count()
+
+
+def test_accounts_check_holds_the_confirmation_until_it_looks_right(w, client):
+    """Matt's safeguard: each new order is checked by accounts before its confirmation goes out."""
+    from app.models import Notification, ReviewQueueItem
+
+    db = w["db"]
+    rep_user = make_user(db, role="sales", name="Sally Parker")
+    w["reps"]["SP"].user_id = rep_user.id
+    db.flush()
+    body = _wisconsin(w)
+    d = client.post("/api/sales/deals", json=body, headers=w["h"]).json()
+    assert d["check"]["state"] == "waiting" and d["check"]["blocks_sending"]
+    item = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
+    labels = {x["label"]: x for x in item.payload["details"]}
+    assert labels["Order"]["href"] == f"/sales/deals/{d['id']}" and "Travel Wisconsin" in labels["Client on the order"]["value"]
+    assert "Sponsored feature" in labels["Items"]["value"] and item.payload["facets"]["salesperson"] == "Sally Parker"
+    r = client.post(f"/api/sales/deals/{d['id']}/mark-sent", json={}, headers=w["h"])
+    assert r.status_code == 409 and "waiting for the accounts check" in r.json()["detail"]
+    # needs a fix: the salesperson is told; saving again sends it back with the note
+    db.commit()
+    r = client.post(f"/api/review-queue/{item.id}/actions/fix", json={"note": "Client is Cellet Travel, not Travel Wisconsin"}, headers=w["h"])
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    assert db.query(Notification).filter_by(user_id=rep_user.id, kind="order_check").count() == 1
+    got = client.get(f"/api/sales/deals/{d['id']}", headers=w["h"]).json()
+    assert got["check"]["state"] == "fix" and "Cellet" in got["check"]["note"]
+    client.put(f"/api/sales/deals/{d['id']}", json={**body, "client_name": "Cellet Travel Services"}, headers=w["h"])
+    again = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
+    assert any(x["label"] == "Asked to fix last time" for x in again.payload["details"])
+    db.commit()
+    assert client.post(f"/api/review-queue/{again.id}/actions/approve", json={}, headers=w["h"]).status_code == 200
+    db.expire_all()
+    got = client.get(f"/api/sales/deals/{d['id']}", headers=w["h"]).json()
+    assert got["check"]["state"] == "checked" and not got["check"]["blocks_sending"]
+    assert client.post(f"/api/sales/deals/{d['id']}/mark-sent", json={}, headers=w["h"]).status_code == 200
+    # a checked order whose client changes goes back for checking; one that only gets a note doesn't
+    client.put(f"/api/sales/deals/{d['id']}", json={**body, "client_name": "Cellet Travel Services", "notes": "hi"}, headers=w["h"])
+    assert db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").count() == 0
+    client.put(f"/api/sales/deals/{d['id']}", json={**body, "client_name": "Cellet Travel Ltd"}, headers=w["h"])
+    assert db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").count() == 1

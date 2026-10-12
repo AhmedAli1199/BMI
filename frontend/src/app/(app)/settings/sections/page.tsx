@@ -35,7 +35,8 @@ export default async function SectionsSettingsPage() {
         </div>
         <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Keep the screens simple</h1>
         <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
-          Untick a section to take it out of the menu for that role. Administrators always see everything. Hiding a section
+          Untick a section to take it out of the menu for that role, or give one person their own choice. Administrators always see
+          everything. Hiding a section
           only tidies the menu: it doesn&apos;t change what anyone is allowed to see or do, which is still set under Team &amp; access.
         </p>
       </div>

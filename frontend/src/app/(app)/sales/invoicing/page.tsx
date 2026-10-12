@@ -3,8 +3,9 @@ import { CheckCircle2, Sparkles } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
-import type { OrdersPage, SalesMeta, UnmatchedInvoices } from "@/lib/sales-types";
+import type { NotBookingInvoice, OrdersPage, SalesMeta, UnmatchedInvoices } from "@/lib/sales-types";
 import { LinkInvoiceButton } from "@/components/sales/xero-link-dialogs";
+import { NotBookingButton, PutBackButton } from "@/components/sales/not-booking-controls";
 import type { OrderFilterKey } from "@/lib/sales-filters";
 import { KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
@@ -73,7 +74,7 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const xeroOnly = sp.view === "xero_only";
   const view = VIEWS.find((v) => v.key === sp.view) ?? VIEWS[0];
-  const [meta, session, current, overdue, mismatched, part, unmatched] = await Promise.all([
+  const [meta, session, current, overdue, mismatched, part, unmatched, notBooking] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     getSession(),
     backendFetch<OrdersPage>(`/api/sales/orders?${view.query}&limit=1`),
@@ -81,6 +82,7 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
     backendFetch<OrdersPage>("/api/sales/orders?mismatched=true&limit=1"),
     backendFetch<OrdersPage>("/api/sales/orders?part_invoiced=true&limit=1"),
     backendFetch<UnmatchedInvoices>("/api/sales/xero/unmatched").catch(() => ({ as_of: null, items: [] }) as UnmatchedInvoices),
+    backendFetch<NotBookingInvoice[]>("/api/sales/xero/not-a-booking").catch(() => [] as NotBookingInvoice[]),
   ]);
   const uninvoiced = view.key === "uninvoiced" ? current : await backendFetch<OrdersPage>("/api/sales/orders?uninvoiced=true&limit=1");
   // Switching view keeps the sidebar filters (e.g. one title, one person) but starts at page 1.
@@ -148,6 +150,34 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
           </InfoHint>
         </nav>
 
+        {xeroOnly && notBooking.length > 0 && (
+          <details className="mb-3 rounded-xl border border-border/80 bg-card shadow-2xs">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+              Marked as not a booking ({notBooking.length})
+              <span className="ml-2 text-xs font-normal text-muted-foreground">cost shares, refunds and other money that isn&apos;t a sale</span>
+            </summary>
+            <ul className="divide-y divide-border/60 border-t border-border/70">
+              {notBooking.map((i) => (
+                <li key={i.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-sm">
+                  <a href={i.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                    {i.number}
+                    <ExternalLink className="size-3" aria-hidden="true" />
+                    <span className="sr-only">(opens Xero in a new tab)</span>
+                  </a>
+                  <span className="font-medium text-foreground">{i.contact ?? "—"}</span>
+                  <span className="tabular-nums">{i.currency === "GBP" ? fmtGBP(i.net) : `${i.currency} ${i.net.toLocaleString("en-GB")}`}</span>
+                  <span className="min-w-0 flex-1 text-xs text-muted-foreground">
+                    {i.note ?? [i.reference, i.lines].filter(Boolean).join(" · ")}
+                    {i.marked_by && ` · marked by ${i.marked_by}`}
+                    {i.marked_at && ` on ${fmtDate(i.marked_at.slice(0, 10))}`}
+                  </span>
+                  <PutBackButton invoiceId={i.id} />
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
         {xeroOnly ? (
           unmatched.items.length === 0 ? (
             <EmptyState icon={CheckCircle2} title="Every invoice has a booking">
@@ -182,7 +212,9 @@ export default async function InvoicingPage({ searchParams }: { searchParams: Pr
                         {i.currency === "GBP" ? fmtGBP(i.net) : `${i.currency} ${i.net.toLocaleString("en-GB")}`}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-muted-foreground">{fmtDate(i.issued_on)}</td>
-                      <td className="px-4 py-2 text-right"><LinkInvoiceButton invoice={i} /></td>
+                      <td className="px-4 py-2 text-right whitespace-nowrap">
+                        <LinkInvoiceButton invoice={i} /> <NotBookingButton invoiceId={i.id} number={i.number} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

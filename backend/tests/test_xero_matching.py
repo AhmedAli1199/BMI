@@ -433,3 +433,46 @@ def test_a_bulk_action_only_touches_the_filtered_items(client, db_session, sor):
     assert r.status_code == 200 and r.json()["succeeded"] == 1
     db_session.expire_all()
     assert [i.status for i in db_session.query(ReviewQueueItem).filter_by(kind=xm.KIND).order_by(ReviewQueueItem.created_at)].count("pending") == 1
+
+
+def test_none_of_these_is_checked_again_when_a_new_booking_fits(client, db_session, sor):
+    """"None of these" only rules out the bookings that were shown; a booking entered later is offered."""
+    booking(db_session, sor, "Delta", 650, edition="this")
+    booking(db_session, sor, "Delta", 650, edition="last", booked=TODAY - timedelta(days=12))
+    inv = invoice(db_session, "56310", "Delta Air Lines", 650)
+    run(db_session)
+    item = items(db_session, "pending")[0]
+    h = identity_headers(make_user(db_session, role="admin"))
+    db_session.commit()
+    assert client.post(f"/api/review-queue/{item.id}/actions/none", headers=h, json={}).status_code == 200
+    db_session.expire_all()
+    assert run(db_session).get("review", 0) == 0   # nothing new fits: no new item, and it's "not in the register"
+    assert inv.id in xm.unmatched_invoice_ids(db_session)[0]
+    later = booking(db_session, sor, "Delta Air Lines", 650, edition="this", booked=TODAY - timedelta(days=3))
+    out = run(db_session, auto_link=False)
+    assert out["review"] == 1
+    again = items(db_session, "pending")[0]
+    shown = {b["id"] for c in again.payload["invoice_match"]["candidates"] for b in c["bookings"]}
+    assert shown == {str(later.id)} and again.payload["invoice_match"]["reason_key"] == "again"
+
+
+def test_not_a_booking_is_never_offered_again_and_can_be_put_back(client, db_session, sor):
+    booking(db_session, sor, "Reed Exhibitions", 1200, edition="this")
+    booking(db_session, sor, "Reed Exhibitions", 1200, edition="last", booked=TODAY - timedelta(days=12))
+    inv = invoice(db_session, "56311", "Reed Exhibitions", 1200, lines="50% share of freelancer fee")
+    run(db_session)
+    item = items(db_session, "pending")[0]
+    h = identity_headers(make_user(db_session, role="admin"))
+    db_session.commit()
+    r = client.post(f"/api/review-queue/{item.id}/actions/not_booking", headers=h, json={"note": "Reed's half of Joe's fee"})
+    assert r.status_code == 200, r.text
+    db_session.expire_all()
+    booking(db_session, sor, "Reed Exhibitions", 1200, edition="this", booked=TODAY - timedelta(days=2))
+    assert run(db_session, auto_link=False).get("review", 0) == 0   # even a new fitting booking doesn't bring it back
+    assert inv.id not in xm.unmatched_invoice_ids(db_session)[0]
+    listed = client.get("/api/sales/xero/not-a-booking", headers=h).json()
+    assert [x["number"] for x in listed] == ["56311"] and listed[0]["note"] == "Reed's half of Joe's fee"
+    assert client.post(f"/api/sales/xero/not-a-booking/{inv.id}/put-back", headers=h).status_code == 200
+    db_session.expire_all()
+    assert client.get("/api/sales/xero/not-a-booking", headers=h).json() == []
+    assert run(db_session, auto_link=False)["review"] == 1   # back in play, only with the booking it wasn't shown with

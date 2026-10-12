@@ -24,3 +24,20 @@ def test_admin_hides_sections_per_role(client, db_session):
     assert me["mine"] == ["groups"] and me["hidden"] == {}  # others' settings aren't shown to non-admins
     assert client.get("/api/ui/sections", headers=admin).json()["mine"] == []  # admins always see everything
     assert client.put("/api/ui/sections", json={"hidden": {}}, headers=sales).status_code == 403
+
+
+def test_one_person_can_have_their_own_choice(client, db_session):
+    admin = identity_headers(make_user(db_session, role="admin"))
+    kirsty_user = make_user(db_session, role="sales", name="Kirsty")
+    kirsty, other = identity_headers(kirsty_user), identity_headers(make_user(db_session, role="sales"))
+    client.put("/api/ui/sections", json={"hidden": {"sales": ["invoicing"]}, "users": {str(kirsty_user.id): ["groups", "rate_card"]}},
+               headers=admin)
+    assert client.get("/api/ui/sections", headers=kirsty).json()["mine"] == ["groups", "rate_card"]   # replaces the role's
+    assert client.get("/api/ui/sections", headers=other).json()["mine"] == ["invoicing"]
+    info = client.get("/api/ui/sections", headers=admin).json()
+    assert info["users"] == {str(kirsty_user.id): ["groups", "rate_card"]} and any(p["name"] == "Kirsty" for p in info["people"])
+    # saving the roles alone keeps people's own choices
+    client.put("/api/ui/sections", json={"hidden": {"sales": []}}, headers=admin)
+    assert client.get("/api/ui/sections", headers=kirsty).json()["mine"] == ["groups", "rate_card"]
+    client.put("/api/ui/sections", json={"hidden": {"sales": []}, "users": {}}, headers=admin)
+    assert client.get("/api/ui/sections", headers=kirsty).json()["mine"] == []

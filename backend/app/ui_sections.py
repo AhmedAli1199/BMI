@@ -55,21 +55,38 @@ SECTIONS: list[SectionDef] = [
 KEYS = {s.key for s in SECTIONS}
 
 
-def hidden_by_role(db: Session) -> dict[str, list[str]]:
+def _raw(db: Session) -> dict:
     row = db.get(AutomationSetting, STORE_KEY)
     raw = (row.value or {}).get("v") if row else None
-    raw = raw if isinstance(raw, dict) else {}
-    return {role: sorted(k for k in raw.get(role, []) if k in KEYS) for role in HIDEABLE_ROLES}
+    return raw if isinstance(raw, dict) else {}
 
 
-def hidden_for(db: Session, role: str | None) -> list[str]:
+def _clean(keys) -> list[str]:
+    return sorted({k for k in keys or [] if k in KEYS})
+
+
+def hidden_by_role(db: Session) -> dict[str, list[str]]:
+    raw = _raw(db)
+    return {role: _clean(raw.get(role)) for role in HIDEABLE_ROLES}
+
+
+def hidden_by_user(db: Session) -> dict[str, list[str]]:
+    """People with their own choice (it replaces their role's): {user id: hidden keys}."""
+    users = _raw(db).get("users") or {}
+    return {uid: _clean(keys) for uid, keys in users.items() if isinstance(keys, list)}
+
+
+def hidden_for(db: Session, role: str | None, user_id: str | None = None) -> list[str]:
     if role not in HIDEABLE_ROLES:
         return []
+    if user_id and (own := hidden_by_user(db).get(str(user_id))) is not None:
+        return own
     return hidden_by_role(db)[role]
 
 
-def save(db: Session, hidden: dict[str, list[str]]) -> dict[str, list[str]]:
-    clean = {role: sorted({k for k in hidden.get(role, []) if k in KEYS}) for role in HIDEABLE_ROLES}
+def save(db: Session, hidden: dict[str, list[str]], users: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+    clean = {role: _clean(hidden.get(role)) for role in HIDEABLE_ROLES}
+    clean["users"] = {str(uid): _clean(keys) for uid, keys in (users if users is not None else hidden_by_user(db)).items()}
     row = db.get(AutomationSetting, STORE_KEY)
     if row:
         row.value = {"v": clean}

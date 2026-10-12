@@ -75,7 +75,7 @@ export default async function SalesDashboardPage({ searchParams }: { searchParam
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {ytd ? (
           <KpiTile
-            label={`Booked in ${ytd.label} so far`}
+            label={`Booked for ${ytd.label} so far`}
             value={fmtGBP(ytd.booked_gbp, { compact: true })}
             delta={<Delta change={pctChange(ytd.booked_gbp, ytd.last_year_same_point_gbp)} goodWhenUp />}
             footer={
@@ -92,8 +92,27 @@ export default async function SalesDashboardPage({ searchParams }: { searchParam
         ) : (
           <KpiTile label="Editions selling" value={d.pace.length.toLocaleString("en-GB")} footer="Open, publishing in the next few months" />
         )}
-        <KpiTile label="Behind last cycle" value={behind.toLocaleString("en-GB")} footer={`${fmtPercent(d.threshold_pct)} or more below the same point`} />
-        <KpiTile label="Ahead of last cycle" value={ahead.toLocaleString("en-GB")} footer={`${fmtPercent(d.threshold_pct)} or more above`} />
+        {ytd && (
+          <KpiTile
+            label={`Invoiced in ${ytd.label} so far`}
+            value={fmtGBP(ytd.invoiced_gbp, { compact: true })}
+            delta={<Delta change={pctChange(ytd.invoiced_gbp, ytd.invoiced_last_year_same_point_gbp)} goodWhenUp />}
+            footer={
+              <span className="flex items-center gap-1">
+                {fmtGBP(ytd.invoiced_last_year_same_point_gbp, { compact: true })} by this date in {ytd.previous_label}
+                <InfoHint>
+                  Money actually billed: invoices dated in {ytd.label}, whatever issue they were for, against invoices dated by today&apos;s date a
+                  year ago. A booking counts here only once it&apos;s invoiced.
+                </InfoHint>
+              </span>
+            }
+          />
+        )}
+        <KpiTile
+          label="Editions behind last cycle"
+          value={behind.toLocaleString("en-GB")}
+          footer={`${fmtPercent(d.threshold_pct)} or more below the same point · ${ahead} ahead`}
+        />
         <KpiTile label={`Booked, last ${d.weekly.length} weeks`} value={fmtGBP(weeklyTotal, { compact: true })} footer={`${fmtGBP(weeklyLast, { compact: true })} the same weeks last year`} />
       </section>
 

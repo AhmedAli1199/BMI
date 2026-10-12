@@ -62,7 +62,7 @@ BRANDS: list[Brand] = [
         "obh", "Onboard Hospitality", "OBH", "onboardhospitality.com",
         ("obh", "obh-web", "obh-awards", "obh-forum-asia"),
         {"print": "obh", "sponsored": "obh", "website": "obh-web", "newsletter": "obh-web", "listings": "obh-web",
-         "awards": "obh-awards", "events": "obh-forum-asia", "other": "obh"},
+         "awards": "obh-awards", "events": "obh-awards", "other": "obh"},  # Forum Asia no longer runs (Matt, 8 Oct)
         ("SW", "CM"),
     ),
     Brand(
@@ -93,9 +93,11 @@ def brand_for_title_slug(slug: str) -> Brand | None:
     return next((b for b in BRANDS if slug in b.title_slugs), None)
 
 
-def brand_titles(db: Session, brand: Brand) -> list[SalesTitle]:
+def brand_titles(db: Session, brand: Brand, active_only: bool = False) -> list[SalesTitle]:
+    """The brand's sales titles, main one first. active_only drops retired ones (e.g. OBH Forum Asia) from
+    pickers; older bookings and prices under them still show."""
     rows = {t.slug: t for t in db.scalars(select(SalesTitle).where(SalesTitle.slug.in_(brand.title_slugs)))}
-    return [rows[s] for s in brand.title_slugs if s in rows]
+    return [rows[s] for s in brand.title_slugs if s in rows and (rows[s].active or not active_only)]
 
 
 def title_id_for_section(db: Session, brand: Brand, section: str) -> uuid.UUID | None:
@@ -111,8 +113,15 @@ def my_rep_code(db: Session, identity: Identity) -> str | None:
     return rep.code if rep else None
 
 
-def can_edit_brand(db: Session, identity: Identity, brand: Brand) -> bool:
-    """Admins and data managers edit every brand; a publisher edits only their own brand."""
+def can_edit_brand(db: Session, identity: Identity, brand: Brand, *, prices: bool = False) -> bool:
+    """Admins and data managers edit every brand; a publisher edits only their own brand. For prices (the rate card)
+    publishers only can when the "Publishers can change their own prices" setting is on - by default only
+    administrators and data managers change prices (Matt, 8 Oct)."""
     if not identity.is_known or identity.role in CAN_USE_AUTOMATIONS:
         return True
+    if prices:
+        from app.automations import runtime_settings
+
+        if not runtime_settings.get_bool(db, "rate_card_publishers_can_edit"):
+            return False
     return my_rep_code(db, identity) in brand.editors

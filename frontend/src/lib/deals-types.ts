@@ -92,6 +92,8 @@ export type Deal = Omit<DealInput, "status"> & {
   cancelled_reason: string | null;
   created_at: string | null;
   can_edit: boolean;
+  /** Where the order is with the accounts check; null when the check is switched off. */
+  check: { state: "waiting" | "fix" | "checked"; checked_at: string | null; checked_by: string | null; note: string | null; blocks_sending: boolean } | null;
   notes_after_save?: string[];
 };
 

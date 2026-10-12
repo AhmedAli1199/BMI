@@ -44,7 +44,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
         <SalesHeader
           title={`${brand.name} rate card`}
           crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Rate card", href: `/sales/rate-card?year=${year}` }]}
-          description={`${year} prices, before VAT. ${canEdit ? "Click a price to change it, or open a product for everything else." : "View only - ask an admin, a data manager or this brand's publisher to change a price."}`}
+          description={`${year} prices, before VAT. ${canEdit ? "Click a price to change it, or a product's name for everything else." : "View only - ask an admin, a data manager or this brand's publisher to change a price."}`}
           actions={<YearSwitch years={data.years} current={year} href={(y) => `/sales/rate-card/${brand.key}?year=${y}`} />}
         />
       </div>
@@ -64,7 +64,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
         <section className="rounded-xl border border-border/80 bg-card p-4 text-sm shadow-2xs print-hide" aria-label="How this page works">
           <ol className="grid list-decimal gap-1.5 pl-5 text-muted-foreground">
             <li><strong className="text-foreground">Change a price:</strong> click the price, type the new one and press Enter. It saves straight away.</li>
-            <li><strong className="text-foreground">Change anything else</strong> (name, size, pages, notes, “also called”): click the pencil next to the product.</li>
+            <li><strong className="text-foreground">Change anything else</strong> (name, size, pages, notes, “also called”): click the product&apos;s name.</li>
             <li><strong className="text-foreground">Something that doesn&apos;t fit the usual headings</strong> (cover wraps, belly bands): “Add a section” gives the rate card its own heading.</li>
             <li><strong className="text-foreground">“Please check”</strong> means the price was read from your media pack. If it&apos;s right, press the tick.</li>
             <li><strong className="text-foreground">Next year:</strong> “Prepare {year + 1} prices” copies this list, can raise everything by a percentage, and lets you check each price first.</li>
@@ -182,7 +182,14 @@ function SectionCard({ section, canEdit, onEdit, onAdd, onEditSection, onChanged
           {section.items.map((r, i) => (
             <tr key={r.id} className="group border-t border-border/50 first:border-t-0 align-top">
               <td className="px-4 py-2.5">
-                <p className="font-medium">{r.product}</p>
+                {canEdit ? (
+                  <button type="button" onClick={() => onEdit(r)} title="Change this product - name, size, pages, notes"
+                    className="text-left font-medium hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+                    {r.product}
+                  </button>
+                ) : (
+                  <p className="font-medium">{r.product}</p>
+                )}
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   {r.size_label && <span className="tabular-nums">{r.size_label}</span>}
                   {r.specs && <span>{r.specs}</span>}

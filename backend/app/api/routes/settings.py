@@ -37,25 +37,39 @@ class SectionOut(BaseModel):
     description: str
 
 
+class SectionPerson(BaseModel):
+    id: uuid.UUID
+    name: str
+    role: str
+
+
 class SectionsOut(BaseModel):
     sections: list[SectionOut]
     roles: list[str]
     hidden: dict[str, list[str]]  # role -> hidden section keys (only filled in for admins)
+    users: dict[str, list[str]] = {}  # people with their own choice: user id -> hidden keys (admins only)
+    people: list[SectionPerson] = []  # everyone who isn't an admin, to choose from (admins only)
     mine: list[str]  # what's hidden for the person asking
 
 
 class SectionsIn(BaseModel):
     hidden: dict[str, list[str]]
+    users: dict[str, list[str]] | None = None  # None = leave people's own choices as they are
 
 
 @router.get("/ui/sections", response_model=SectionsOut)
 def get_sections(db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> SectionsOut:
     from app import ui_sections as us
 
+    from sqlalchemy import select
+
     is_admin = not identity.is_known or identity.role == "admin"
+    people = db.scalars(select(User).where(User.is_active.is_(True), User.role.in_(us.HIDEABLE_ROLES)).order_by(User.name)).all() if is_admin else []
     return SectionsOut(
         sections=[SectionOut(**s.__dict__) for s in us.SECTIONS], roles=list(us.HIDEABLE_ROLES),
-        hidden=us.hidden_by_role(db) if is_admin else {}, mine=us.hidden_for(db, identity.role if identity.is_known else None),
+        hidden=us.hidden_by_role(db) if is_admin else {}, users=us.hidden_by_user(db) if is_admin else {},
+        people=[SectionPerson(id=u.id, name=u.name, role=u.role) for u in people],
+        mine=us.hidden_for(db, identity.role if identity.is_known else None, str(identity.user_uuid) if identity.user_uuid else None),
     )
 
 
@@ -63,7 +77,7 @@ def get_sections(db: Session = Depends(get_db), identity: Identity = Depends(get
 def save_sections(payload: SectionsIn, db: Session = Depends(get_db), identity: Identity = Depends(require_admin)) -> SectionsOut:
     from app import ui_sections as us
 
-    us.save(db, payload.hidden)
+    us.save(db, payload.hidden, payload.users)
     db.commit()
     return get_sections(db, identity)
 

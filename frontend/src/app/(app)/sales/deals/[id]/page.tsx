@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, ShieldAlert, ShieldCheck, ExternalLink } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { Deal, DealScheduleRow } from "@/lib/deals-types";
 import { DealActions } from "@/components/deals/deal-actions";
@@ -67,6 +67,46 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         {d.rebooked_from_id && <Link href={`/sales/deals/${d.rebooked_from_id}`} className="text-primary hover:underline">· Rebooked from order {d.rebooked_from_number}</Link>}
         {d.proposal_id && <Link href={`/sales/proposals/${d.proposal_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">· From a proposal <ExternalLink className="size-3" aria-hidden="true" /></Link>}
       </div>
+
+      {d.check && d.status !== "cancelled" && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm"
+          style={
+            d.check.state === "checked"
+              ? { borderColor: "color-mix(in oklab, var(--ok) 35%, transparent)", background: "color-mix(in oklab, var(--ok) 7%, transparent)" }
+              : { borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }
+          }
+        >
+          {d.check.state === "checked" ? (
+            <ShieldCheck className="mt-0.5 size-4 shrink-0" style={{ color: "var(--ok)" }} aria-hidden="true" />
+          ) : (
+            <ShieldAlert className="mt-0.5 size-4 shrink-0" style={{ color: "var(--warn)" }} aria-hidden="true" />
+          )}
+          <p>
+            {d.check.state === "checked" && (
+              <>
+                <span className="font-semibold">Checked by accounts</span>
+                {[d.check.checked_by, d.check.checked_at ? fmtDate(d.check.checked_at.slice(0, 10)) : null].some(Boolean) &&
+                  ` (${[d.check.checked_by, d.check.checked_at ? fmtDate(d.check.checked_at.slice(0, 10)) : null].filter(Boolean).join(", ")})`}
+                . The confirmation can go out.
+              </>
+            )}
+            {d.check.state === "waiting" && (
+              <>
+                <span className="font-semibold">Waiting for the accounts check.</span> Accounts look over the client, CRM company, addresses and items
+                before the confirmation goes out{d.check.blocks_sending ? " - it can be sent as soon as they say it looks right." : "."}
+              </>
+            )}
+            {d.check.state === "fix" && (
+              <>
+                <span className="font-semibold">Accounts asked for a fix:</span> &ldquo;{d.check.note}&rdquo;. Change the order and save it - it goes
+                back to them to check.
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {d.warnings.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }}>

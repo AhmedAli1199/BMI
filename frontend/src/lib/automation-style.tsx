@@ -1,6 +1,7 @@
 import {
   BookOpen,
   Link2,
+  ShieldCheck,
   ReceiptText,
   RefreshCcw,
   CalendarClock,
@@ -164,6 +165,13 @@ Object.assign(STYLES, {
     chipBg: "border-chart-4/30 bg-chart-4/10",
     accent: "bg-chart-4",
     ring: "hover:border-chart-4/60",
+  },
+  order_check: {
+    icon: ShieldCheck,
+    color: "text-chart-5",
+    chipBg: "border-chart-5/30 bg-chart-5/10",
+    accent: "bg-chart-5",
+    ring: "hover:border-chart-5/60",
   },
 } satisfies Record<string, AutomationStyle>);
 

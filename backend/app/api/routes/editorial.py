@@ -227,7 +227,7 @@ def planner(year: int | None = None, db: Session = Depends(get_db), identity: Id
             (rows[e.title_id].issues if e.edition_date else undated).append(o)
         st = db.get(EditorialSetting, b.key)
         out.append(PlannerBrand(key=b.key, name=b.name, short=b.short, can_edit=B.can_edit_brand(db, identity, b),
-                                titles=[TitleRef(id=t.id, name=t.name, slug=t.slug) for t in B.brand_titles(db, b)],
+                                titles=[TitleRef(id=t.id, name=t.name, slug=t.slug) for t in B.brand_titles(db, b, active_only=True)],
                                 seed_available=seed.seed_available(db, b.key, y), rows=[r for r in rows.values() if r.issues],
                                 undated=undated, about=st.about if st else None))
     return Planner(year=y, years=_years(db), today=date.today(), brands=out)

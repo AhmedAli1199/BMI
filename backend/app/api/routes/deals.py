@@ -24,6 +24,7 @@ from app.models.deal import DEAL_STATUSES
 from app.models.messaging import MailAccount
 from app.models.proposal import Proposal
 from app.roles import CAN_USE_AUTOMATIONS
+from app.automations import order_checks as oc
 from app.sales import deals as dl
 
 router = APIRouter(prefix="/sales/deals", tags=["orders"])
@@ -241,7 +242,18 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "confirmed_at": d.confirmed_at.isoformat() if d.confirmed_at else None, "sent_at": d.sent_at.isoformat() if d.sent_at else None,
         "sent_to": d.sent_to, "cancelled_reason": d.cancelled_reason, "created_at": d.created_at.isoformat() if d.created_at else None,
         "can_edit": _can_edit(db, identity, d),
+        "check": _check_out(db, d),
     }
+
+
+def _check_out(db: Session, d: SalesDeal) -> dict | None:
+    """Where the order is with the accounts check (None when the check is switched off)."""
+    if not oc.enabled(db):
+        return None
+    who = db.get(User, d.checked_by_user_id) if d.checked_by_user_id else None
+    state = "checked" if d.checked_at else "fix" if d.check_note else "waiting"
+    return {"state": state, "checked_at": d.checked_at.isoformat() if d.checked_at else None, "checked_by": who.name if who else None,
+            "note": d.check_note, "blocks_sending": oc.blocks_sending(db, d) is not None}
 
 
 # ---- list / read -------------------------------------------------------------------------------------
@@ -464,6 +476,7 @@ def create_deal(p: DealIn, db: Session = Depends(get_db), identity: Identity = D
     _apply(db, d, p)
     db.add(d)
     notes = _save(db, d, p, identity)
+    oc.request_check(db, d)
     db.commit()
     return {**_out(db, d, identity), "notes": notes}
 
@@ -474,7 +487,9 @@ def update_deal(deal_id: uuid.UUID, p: DealIn, db: Session = Depends(get_db), id
     _need_edit(db, identity, d)
     if d.status == "cancelled":
         raise HTTPException(409, "This order is cancelled. Reopen it first to change it.")
+    before = oc.snapshot(d)
     notes = _save(db, d, p, identity)
+    oc.request_check(db, d, before)
     db.commit()
     return {**_out(db, d, identity), "notes": notes}
 
@@ -514,6 +529,9 @@ def set_status(deal_id: uuid.UUID, p: StatusIn, db: Session = Depends(get_db), i
     if p.status != "cancelled":
         # live total again (a cancelled order keeps its total for the record)
         d.total_gbp = dl.price_deal(d).total_gbp
+        oc.request_check(db, d)
+    else:
+        oc.withdraw(db, d, "The order was cancelled.")
     db.commit()
     out = _out(db, d, identity)
     out["notes"] = [f"{kept} item{'s' if kept != 1 else ''} that already ran or were invoiced stay booked."] if kept else []
@@ -556,6 +574,7 @@ def rebook(deal_id: uuid.UUID, year: int | None = None, db: Session = Depends(ge
     pr = dl.price_deal(d, lines)
     dl.sync_items(db, d, pr, identity.user_uuid)
     d.lines, d.total_gbp = pr.lines, pr.total_gbp
+    oc.request_check(db, d)
     db.commit()
     return {**_out(db, d, identity), "notes": notes}
 
@@ -625,6 +644,8 @@ def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity:
     _need_edit(db, identity, d)
     if d.status == "cancelled":
         raise HTTPException(409, "This order is cancelled, so there's nothing to confirm.")
+    if why := oc.blocks_sending(db, d):
+        raise HTTPException(409, why)
     acct = db.scalar(select(MailAccount).where(MailAccount.user_id == identity.user_uuid)) if identity.user_uuid else None
     if not acct:
         raise HTTPException(409, "Connect your Outlook first (Settings > Email) - confirmations are sent from your own account.")
@@ -660,6 +681,8 @@ def mark_sent(deal_id: uuid.UUID, p: MarkSentIn, db: Session = Depends(get_db), 
     """Sent some other way (downloaded and emailed by hand): noted on the client the same way."""
     d = _get(db, deal_id)
     _need_edit(db, identity, d)
+    if why := oc.blocks_sending(db, d):
+        raise HTTPException(409, why)
     _log_sent(db, d, identity.user_uuid, "other", [p.to.strip()] if p.to and p.to.strip() else [])
     db.commit()
     return _out(db, d, identity)

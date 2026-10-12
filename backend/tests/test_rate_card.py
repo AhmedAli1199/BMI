@@ -46,8 +46,15 @@ def test_overview_and_media_pack_load(client, db_session, world):
     assert any(o["kind"] == "series" for o in page["offers"])
 
 
-def test_publisher_edits_only_own_brand(client, world):
+def test_publisher_edits_only_own_brand(client, db_session, world):
+    from app.automations import runtime_settings
+
     body = {"brand": "tbtm", "year": Y, "section": "print", "product": "Full page", "price_gbp": 2850}
+    # by default only admins and data managers change prices (Matt, 8 Oct)
+    assert client.post("/api/rate-card/items", json=body, headers=world["kirsty"]).status_code == 403
+    assert not next(b for b in client.get(f"/api/rate-card?year={Y}", headers=world["kirsty"]).json()["brands"] if b["key"] == "tbtm")["can_edit"]
+    runtime_settings.set_override(db_session, "rate_card_publishers_can_edit", True)
+    db_session.flush()
     assert client.post("/api/rate-card/items", json=body, headers=world["kirsty"]).status_code == 201
     assert client.post("/api/rate-card/items", json={**body, "brand": "obh"}, headers=world["kirsty"]).status_code == 403
     assert client.post("/api/rate-card/items", json={**body, "product": "Half page"}, headers=world["nobody"]).status_code == 403

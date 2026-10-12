@@ -65,7 +65,9 @@ export function DealActions({ d }: { d: Deal }) {
         <Button size="sm" className="gap-1.5" disabled={pending} onClick={() => run(() => setDealStatus(d.id, "confirmed"), "Order confirmed", "Couldn't confirm it")}><CheckCircle2 className="size-3.5" /> Confirm</Button>
       )}
       {d.status !== "cancelled" && (
-        <Button size="sm" variant={d.status === "confirmed" && !d.sent_at ? "default" : "outline"} className="gap-1.5" disabled={pending || !d.can_edit} onClick={openSend}>
+        <Button size="sm" variant={d.status === "confirmed" && !d.sent_at && !d.check?.blocks_sending ? "default" : "outline"} className="gap-1.5"
+          disabled={pending || !d.can_edit || !!d.check?.blocks_sending}
+          title={d.check?.blocks_sending ? "Waiting for the accounts check" : undefined} onClick={openSend}>
           <Mail className="size-3.5" /> Email the {kind}
         </Button>
       )}
@@ -76,7 +78,7 @@ export function DealActions({ d }: { d: Deal }) {
           <DropdownMenuItem onClick={() => downloadFile(`/api/files/sales/deals/${d.id}/document.docx`, `Order ${d.number}.docx`).catch((e) => toast.error(friendlyError(e, "Couldn't download it")))}>
             <Download className="size-3.5" /> Download as Word
           </DropdownMenuItem>
-          {d.can_edit && d.status !== "cancelled" && (
+          {d.can_edit && d.status !== "cancelled" && !d.check?.blocks_sending && (
             <DropdownMenuItem onClick={() => run(() => markDealSent(d.id, d.contact_email), "Noted as sent", "Couldn't save that")}><FileText className="size-3.5" /> I sent it another way</DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={rebook}><Repeat className="size-3.5" /> Rebook for next year</DropdownMenuItem>

@@ -31,5 +31,8 @@ export type SectionsInfo = {
   sections: SectionDef[];
   roles: string[];
   hidden: Record<string, SectionKey[]>;
+  /** People with their own choice (replaces their role's): user id -> hidden sections. */
+  users: Record<string, SectionKey[]>;
+  people: { id: string; name: string; role: string }[];
   mine: SectionKey[];
 };

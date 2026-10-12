@@ -199,8 +199,8 @@ def _titles(db: Session, brand: B.Brand) -> dict[uuid.UUID, SalesTitle]:
 
 
 def _require_edit(db: Session, identity: Identity, brand: B.Brand) -> None:
-    if not B.can_edit_brand(db, identity, brand):
-        raise HTTPException(403, f"Only admins, data managers and {brand.name}'s publishers can change this rate card.")
+    if not B.can_edit_brand(db, identity, brand, prices=True):
+        raise HTTPException(403, "Only administrators and data managers can change the rate card. Ask one of them if a price needs updating.")
 
 
 def _rates(db: Session, brand: B.Brand, year: int, archived: bool | None = False) -> list[SalesRate]:
@@ -223,7 +223,7 @@ def _summary(db: Session, identity: Identity, brand: B.Brand, year: int) -> Bran
     rows = _rates(db, brand, year)
     offers = db.scalar(select(func.count()).select_from(RateOffer).where(RateOffer.brand == brand.key, RateOffer.year == year)) or 0
     return BrandSummary(
-        key=brand.key, name=brand.name, short=brand.short, website=brand.website, can_edit=B.can_edit_brand(db, identity, brand),
+        key=brand.key, name=brand.name, short=brand.short, website=brand.website, can_edit=B.can_edit_brand(db, identity, brand, prices=True),
         products=len(rows), needs_check=sum(1 for r in rows if r.needs_check), on_request=sum(1 for r in rows if r.price_type == "poa"),
         offers=offers, last_updated=max((r.updated_at for r in rows), default=None), seed_available=seed.seed_available(db, brand.key, year),
         sections=[s.key for s in brand_sections(db, brand) if any(r.section == s.key for r in rows)],
@@ -255,7 +255,8 @@ def brand_page(key: str, year: int | None = None, db: Session = Depends(get_db),
     return BrandPage(
         brand=_summary(db, identity, brand, y), year=y, years=_years(db), sections=sections, offers=[_offer(o) for o in offers],
         archived=[_item(r, titles) for r in rows if r.archived],
-        titles=[TitleRef(id=t.id, slug=t.slug, name=t.name, digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url) for t in titles.values()],
+        titles=[TitleRef(id=t.id, slug=t.slug, name=t.name, digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url)
+                for t in titles.values() if t.active],
         has_next_year=has_next,
     )
 

@@ -349,6 +349,21 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="rate_card_publishers_can_edit", label="Publishers can change their own prices",
+        description="Off: only administrators and data managers change the rate card; everyone else sees it read-only. On: each brand's publishers can also change their own brand's prices.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="orders_accounts_check", label="Accounts check on new orders",
+        description="Each new or changed order goes to the Review Queue for accounts (e.g. Samantha) to check the client name, CRM company, address and items before the confirmation goes out.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="orders_check_before_sending", label="Confirmation waits for the check",
+        description="On: an order confirmation can't be sent (or marked as sent) until the accounts check says it looks right. Off: the check still happens, but doesn't hold anything up.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
         key="automations_sor_renewal_scan_enabled", label="Renewal outreach active",
         description="Weekdays: drafts a renewal email for last year's advertisers approaching the anniversary of their booking who haven't rebooked (SALES-021).",
         group="Sales Order Register", type="bool",

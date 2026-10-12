@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus, ChevronLeft, ChevronRight, Download, Info } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Download, GitCompare, Info } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
@@ -108,6 +108,10 @@ export default async function EditionPage({
             </div>
             <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false} render={<Link href={`/sales/deals/new?edition=${ed.id}`} />}>
               <Plus className="size-3.5" aria-hidden="true" /> New order
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false}
+              render={<Link href={`/sales/compare?a=${ed.id}${ed.previous ? `&b=${ed.previous.id}` : ""}`} />}>
+              <GitCompare className="size-3.5" aria-hidden="true" /> Compare
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false} render={<a href={`/api/sales/editions/${ed.id}/export`} download />}>
               <Download className="size-3.5" aria-hidden="true" /> Export .xlsx

@@ -95,6 +95,9 @@ export type UnmatchedInvoice = {
 
 export type UnmatchedInvoices = { as_of: string | null; items: UnmatchedInvoice[] };
 
+/** An invoice someone marked "Not a booking" (a cost share, a refund) - never matched to bookings. */
+export type NotBookingInvoice = UnmatchedInvoice & { note: string | null; marked_by: string | null; marked_at: string | null };
+
 export type SalesOrder = {
   id: string;
   /** Part of a multi-item order - its client, issue, price and salesperson are changed on the order. */
@@ -190,6 +193,10 @@ export type SalesOverview = {
   period_start: string;
   period_end: string;
   fy_start_month: number;
+  /** Invoiced in the year by invoice date (whatever issue it was for). */
+  invoiced_in_year_gbp: number;
+  invoiced_last_year_same_point_gbp: number;
+  invoiced_last_year_total_gbp: number;
   booked_gbp: number;
   last_year_same_point_gbp: number;
   last_year_total_gbp: number;
@@ -318,6 +325,9 @@ export type SalesDashboard = {
     booked_gbp: number;
     last_year_same_point_gbp: number;
     last_year_total_gbp: number;
+    invoiced_gbp: number;
+    invoiced_last_year_same_point_gbp: number;
+    invoiced_last_year_total_gbp: number;
   } | null;
   as_of: string;
   threshold_pct: number;
@@ -463,3 +473,27 @@ export type BookingChoiceBooking = {
 
 /** Booking(s) an unmatched Xero invoice could be for. */
 export type BookingChoice = { key: string; suggested: boolean; bookings: BookingChoiceBooking[]; total_gbp: number; reasons: string[] };
+
+export type CompareSide = {
+  edition: Ref;
+  title: SalesTitle;
+  edition_date: string | null;
+  kind: string;
+  booked_gbp: number;
+  orders: number;
+  advertisers: number;
+  pages: number;
+  invoiced_gbp: number;
+  average_gbp: number | null;
+  /** Running total by weeks before publication (matches EditionCompare.weeks). */
+  pace: number[];
+};
+export type CompareClient = { client: string; a_gbp: number; b_gbp: number };
+export type EditionCompare = {
+  a: CompareSide;
+  b: CompareSide;
+  weeks: number[];
+  in_both: CompareClient[];
+  only_a: CompareClient[];
+  only_b: CompareClient[];
+};

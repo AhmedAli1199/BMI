@@ -158,7 +158,8 @@ def build_snapshot(db: Session, today: date) -> dict:
     return {
         "as_of": today.isoformat(), "year": ov.label, "year_basis": ov.basis,
         "booked_gbp": ov.booked_gbp, "last_year_same_point_gbp": ov.last_year_same_point_gbp,
-        "invoiced_gbp": ov.invoiced_gbp, "uninvoiced_count": ov.uninvoiced_count, "uninvoiced_gbp": ov.uninvoiced_gbp,
+        "invoiced_gbp": ov.invoiced_gbp, "invoiced_in_year_gbp": ov.invoiced_in_year_gbp,
+        "invoiced_last_year_same_point_gbp": ov.invoiced_last_year_same_point_gbp, "uninvoiced_count": ov.uninvoiced_count, "uninvoiced_gbp": ov.uninvoiced_gbp,
         "advertisers": ov.advertisers, "new_advertisers": ov.new_advertisers, "renewal_candidates": ov.renewal_candidates,
         "titles": [{"name": t.title.name, "booked": t.booked_gbp, "last_year_same_point": t.last_year_same_point_gbp,
                     "orders": t.orders} for t in ov.by_title if t.orders or t.last_year_same_point_gbp][:8],
@@ -229,7 +230,8 @@ def _sections(s: dict, headline: str) -> list[dict]:
     revenue = {"key": "revenue", "title": "Revenue", "paragraphs": [
         f"{_money(s['booked_gbp'])} booked for {s['year']} so far"
         + (f", {_pct(rev_delta)} {'ahead of' if rev_delta >= 0 else 'behind'} the {_money(s['last_year_same_point_gbp'])} at this point last year." if rev_delta is not None else ".")
-        + f" {_money(s['invoiced_gbp'])} has been invoiced; {s['uninvoiced_count']} booking(s) worth {_money(s['uninvoiced_gbp'])} are still awaiting an invoice."
+        + f" {_money(s['invoiced_gbp'])} has been invoiced; {s['uninvoiced_count']} booking(s) worth {_money(s['uninvoiced_gbp'])} are still awaiting an invoice.",
+        _invoiced_sentence(s),
     ], "bullets": [
         {"text": f"{t['name']}: {_money(t['booked'])} ({t['orders']} bookings) vs {_money(t['last_year_same_point'])} at this point last year", "href": "/sales"}
         for t in s["titles"]
@@ -306,6 +308,16 @@ def _people_section(s: dict) -> dict:
         "columns": ["Salesperson", "Bookings", "Booked", "Commission this week", f"Commission in {month}"],
         "rows": rows,
     }}
+
+
+def _invoiced_sentence(s: dict) -> str:
+    """Invoices dated this year (whatever issue they were for) against the same point last year."""
+    now, before = s.get("invoiced_in_year_gbp", 0), s.get("invoiced_last_year_same_point_gbp", 0)
+    text = f"By invoice date, {_money(now)} has been invoiced in {s['year']} so far"
+    if before:
+        d = (now - before) / before
+        text += f", {_pct(d)} {'ahead of' if d >= 0 else 'behind'} the {_money(before)} invoiced by this point last year"
+    return text + "."
 
 
 def _template_headline(s: dict) -> str:

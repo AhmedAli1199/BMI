@@ -186,3 +186,17 @@ export async function linkInvoiceToBookings(invoiceId: string, orderIds: string[
   revalidatePath("/automations/review");
   return orders;
 }
+
+export async function markInvoiceNotBooking(invoiceId: string, note: string | null): Promise<void> {
+  await backendFetch(`/api/sales/xero/not-a-booking/${invoiceId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+  revalidatePath("/sales/invoicing");
+}
+
+export async function putBackInvoice(invoiceId: string): Promise<void> {
+  await backendFetch(`/api/sales/xero/not-a-booking/${invoiceId}/put-back`, { method: "POST" });
+  revalidatePath("/sales/invoicing");
+}

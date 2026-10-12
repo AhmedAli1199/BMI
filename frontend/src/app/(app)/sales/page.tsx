@@ -71,7 +71,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
 
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile
-          label={`Booked in ${label}`}
+          label={`Booked for ${label}`}
           value={fmtGBP(ov.booked_gbp, { compact: true })}
           delta={<Delta change={pctChange(ov.booked_gbp, compare)} goodWhenUp />}
           footer={
@@ -88,9 +88,20 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
           }
         />
         <KpiTile
-          label="Invoiced"
-          value={fmtPercent(ov.booked_gbp ? ov.invoiced_gbp / ov.booked_gbp : null)}
-          footer={`${fmtGBP(ov.invoiced_gbp, { compact: true })} of ${fmtGBP(ov.booked_gbp, { compact: true })} booked`}
+          label={`Invoiced in ${label}`}
+          value={fmtGBP(ov.invoiced_in_year_gbp, { compact: true })}
+          delta={<Delta change={pctChange(ov.invoiced_in_year_gbp, ov.is_current_year ? ov.invoiced_last_year_same_point_gbp : ov.invoiced_last_year_total_gbp)} goodWhenUp />}
+          footer={
+            <span className="flex items-center gap-1">
+              {fmtGBP(ov.is_current_year ? ov.invoiced_last_year_same_point_gbp : ov.invoiced_last_year_total_gbp, { compact: true })} {lyLabel} · {fmtPercent(ov.booked_gbp ? ov.invoiced_gbp / ov.booked_gbp : null)} of
+              this year&apos;s bookings invoiced
+              <InfoHint>
+                Money actually billed: invoices dated in {label}, whatever issue or event they were for - so a booking only counts here
+                once it&apos;s invoiced. &ldquo;Booked&rdquo; (left) counts every booking for this year&apos;s editions, invoiced or not.
+                The percentage is how much of this year&apos;s booked value has been invoiced so far.
+              </InfoHint>
+            </span>
+          }
         />
         <KpiTile
           label="Awaiting invoice"

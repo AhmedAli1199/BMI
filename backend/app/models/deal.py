@@ -78,6 +78,10 @@ class SalesDeal(Base, UUIDPk, TimestampMixin):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sent_to: Mapped[str | None] = mapped_column(String(400))
     cancelled_reason: Mapped[str | None] = mapped_column(String(300))
+    # Accounts check (credit control looks over the client, address and items before the confirmation goes out).
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    checked_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    check_note: Mapped[str | None] = mapped_column(String(500))  # "needs a fix: ..." from the checker
 
 
 class DealSettings(Base):

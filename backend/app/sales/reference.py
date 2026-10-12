@@ -34,12 +34,13 @@ class TitleDef:
     # Matched against the workbook's file name (case-insensitive), first
     # match wins - so more specific patterns come first.
     file_pattern: str
+    active: bool = True  # False = retired: kept for its old bookings, hidden from pickers
 
 
 TITLES: list[TitleDef] = [
     TitleDef("obh-awards", "OBH Awards", "awards", "onboard", 20, r"obh awards"),
     TitleDef("obh-web", "OBH Web", "digital", "onboard", 30, r"obh web"),
-    TitleDef("obh-forum-asia", "OBH Forum Asia", "events", "onboard", 40, r"obh forum asia"),
+    TitleDef("obh-forum-asia", "OBH Forum Asia", "events", "onboard", 40, r"obh forum asia", active=False),  # no longer runs
     TitleDef("obh", "OnBoard Hospitality (OBH)", "print", "onboard", 10, r"\bobh\b"),
     TitleDef("selling-travel-online", "Selling Travel Online", "digital", "sellingtravel", 60, r"selling travel online"),
     TitleDef("selling-travel-supplements", "Selling Travel Supplements", "print", "sellingtravel", 70, r"selling travel supplements"),
@@ -107,7 +108,7 @@ def ensure_reference_data(db: Session) -> None:
         row = db.query(SalesTitle).filter_by(slug=t.slug).one_or_none()
         if not row:
             db.add(SalesTitle(id=uuid.uuid4(), slug=t.slug, name=t.name, product_line=t.product_line,
-                              crm_source_db=t.crm_source_db, sort_order=t.sort_order))
+                              crm_source_db=t.crm_source_db, sort_order=t.sort_order, active=t.active))
     for r in REPS:
         row = db.query(SalesRep).filter_by(code=r.code).one_or_none()
         user_id = None

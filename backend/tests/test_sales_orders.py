@@ -822,3 +822,33 @@ def test_renewals_by_financial_year_count_bookings_taken_this_year_and_flag_odd_
 
     assert rebooked(db_session, title.id, fy, "Late Entry Co", None, True, 7)
     assert not rebooked(db_session, title.id, fy, "Typo Ltd", None, True, 7)  # a future date doesn't count as booking
+
+
+def test_invoiced_by_invoice_date_beside_booked(client, db_session, sor):
+    """"Invoiced this year" goes by the invoice's date, whatever issue it was for; compared at the same point last year."""
+    sp = sor["reps"]["SP"]
+    today = date.today()
+    _order(db_session, sor["this"], "Billed Co", 1000, sp, invoice_number="INV-1", invoice_value_gbp=900, invoiced_on=today - timedelta(days=3))
+    _order(db_session, sor["last"], "Old Issue Co", 500, sp, invoice_number="INV-2", invoiced_on=today - timedelta(days=1))  # last year's issue
+    _order(db_session, sor["last"], "Last Year Co", 700, sp, invoice_number="INV-3", invoiced_on=today.replace(year=today.year - 1) - timedelta(days=2))
+    _order(db_session, sor["this"], "Not Billed", 2000, sp)
+    ov = client.get("/api/sales/overview?basis=calendar").json()
+    assert ov["invoiced_in_year_gbp"] == 1400 and ov["invoiced_last_year_same_point_gbp"] == 700
+    ytd = client.get("/api/sales/dashboard?basis=calendar").json()["year_to_date"]
+    assert ytd["invoiced_gbp"] == 1400 and ytd["invoiced_last_year_same_point_gbp"] == 700
+
+
+def test_compare_any_two_editions(client, db_session, sor):
+    sp = sor["reps"]["SP"]
+    this, last = sor["this"], sor["last"]
+    _order(db_session, last, "Stayed Co", 1000, sp, booked_on=last.edition_date - timedelta(weeks=8))
+    _order(db_session, last, "Lapsed Co", 500, sp, booked_on=last.edition_date - timedelta(weeks=2))
+    _order(db_session, this, "Stayed Co", 1200, sp, booked_on=this.edition_date - timedelta(weeks=10))
+    _order(db_session, this, "New Co", 300, sp, booked_on=this.edition_date - timedelta(weeks=1), invoice_number="I-9", invoice_value_gbp=300)
+    r = client.get(f"/api/sales/editions/compare?a={this.id}&b={last.id}").json()
+    assert r["a"]["booked_gbp"] == 1500 and r["b"]["booked_gbp"] == 1500 and r["a"]["advertisers"] == 2
+    assert [c["client"] for c in r["in_both"]] == ["Stayed Co"] and r["in_both"][0]["a_gbp"] == 1200
+    assert [c["client"] for c in r["only_a"]] == ["New Co"] and [c["client"] for c in r["only_b"]] == ["Lapsed Co"]
+    w = r["weeks"]
+    assert r["a"]["pace"][w.index(-9)] == 1200 and r["b"]["pace"][w.index(-9)] == 0 and r["a"]["pace"][w.index(0)] == 1500
+    assert r["a"]["invoiced_gbp"] == 300

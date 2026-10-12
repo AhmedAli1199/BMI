@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import FieldChangeOut, UserSummary
@@ -384,6 +384,10 @@ class Overview(BaseModel):
     by_title: list[TitleRow]
     by_rep: list[RepRow]
     upcoming: list[EditionSummary]
+    # Invoiced in the year by invoice date (whatever issue it was for) - what was actually billed.
+    invoiced_in_year_gbp: float = 0
+    invoiced_last_year_same_point_gbp: float = 0
+    invoiced_last_year_total_gbp: float = 0
 
 
 class PaceRow(BaseModel):
@@ -432,6 +436,9 @@ class YearToDate(BaseModel):
     booked_gbp: float
     last_year_same_point_gbp: float
     last_year_total_gbp: float
+    invoiced_gbp: float = 0
+    invoiced_last_year_same_point_gbp: float = 0
+    invoiced_last_year_total_gbp: float = 0
 
 
 class Dashboard(BaseModel):
@@ -702,6 +709,21 @@ def meta(db: Session = Depends(get_db), identity: Identity = Depends(get_identit
 
 # ---- Overview -----------------------------------------------------------------
 
+def invoiced_between(db: Session, lo: date, hi: date) -> float:
+    """Value invoiced with an invoice dated lo..hi - whatever issue it was for. The invoice date is the one
+    from Xero when the booking is linked, else the date typed on the booking."""
+    inv_date = func.coalesce(SalesOrder.invoiced_on, XeroInvoice.issued_on)
+    q = (select(func.coalesce(func.sum(func.coalesce(SalesOrder.invoice_value_gbp, SalesOrder.value_gbp)), 0))
+         .select_from(SalesOrder).outerjoin(XeroInvoice, SalesOrder.xero_invoice_id == XeroInvoice.id)
+         .where(SalesOrder.status == BOOKED, or_(SalesOrder.invoice_number.isnot(None), SalesOrder.xero_invoice_id.isnot(None)),
+                inv_date >= lo, inv_date <= hi))
+    return round(float(db.scalar(q) or 0), 2)
+
+
+def _clip(bounds: tuple[date, date], upto: date) -> tuple[date, date]:
+    return bounds[0], min(bounds[1], upto)
+
+
 def _year_basis(db: Session, basis: str | None) -> tuple[bool, int]:
     """(financial?, start month) from the request, falling back to the org setting."""
     from app.automations import runtime_settings
@@ -824,6 +846,9 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
         renewal_candidates=len(last_clients - back_clients),
         monthly=monthly, by_title=by_title_rows, by_rep=by_rep,
         upcoming=_edition_summaries(db, list(upcoming_eds), today),
+        invoiced_in_year_gbp=invoiced_between(db, p_start, min(p_end, as_of)),
+        invoiced_last_year_same_point_gbp=invoiced_between(db, prev_start, min(prev_end, cutoff_prev)),
+        invoiced_last_year_total_gbp=invoiced_between(db, prev_start, prev_end),
     )
 
 
@@ -926,6 +951,9 @@ def dashboard(basis: str | None = None, db: Session = Depends(get_db)) -> Dashbo
         previous_label=period_label(cur_year - 1, financial, start_month), fy_start_month=start_month,
         booked_gbp=booked(cur_year, today), last_year_same_point_gbp=booked(cur_year - 1, same_point_last_year(today)),
         last_year_total_gbp=booked(cur_year - 1),
+        invoiced_gbp=invoiced_between(db, *_clip(period_bounds(cur_year, financial, start_month), today)),
+        invoiced_last_year_same_point_gbp=invoiced_between(db, *_clip(period_bounds(cur_year - 1, financial, start_month), same_point_last_year(today))),
+        invoiced_last_year_total_gbp=invoiced_between(db, *period_bounds(cur_year - 1, financial, start_month)),
     )
     return Dashboard(
         as_of=today, year_to_date=ytd, threshold_pct=threshold, min_prior_gbp=min_gbp, min_prior_orders=min_orders,
@@ -960,6 +988,82 @@ def _get_edition(db: Session, edition_id: uuid.UUID) -> SalesEdition:
     if not ed:
         raise HTTPException(status_code=404, detail="Edition not found")
     return ed
+
+
+class CompareSide(BaseModel):
+    edition: Ref
+    title: TitleOut
+    edition_date: date | None
+    kind: str
+    booked_gbp: float
+    orders: int
+    advertisers: int
+    pages: float
+    invoiced_gbp: float
+    average_gbp: float | None
+    # Running total by weeks before publication (week 0 = the week it came out), from 26 weeks before to 4 after.
+    pace: list[float]
+
+
+class CompareClient(BaseModel):
+    client: str
+    a_gbp: float
+    b_gbp: float
+
+
+class EditionCompare(BaseModel):
+    a: CompareSide
+    b: CompareSide
+    weeks: list[int]
+    in_both: list[CompareClient]
+    only_a: list[CompareClient]   # booked A, not B
+    only_b: list[CompareClient]   # booked B, not A
+
+
+COMPARE_WEEKS = list(range(-26, 5))
+
+
+@router.get("/editions/compare", response_model=EditionCompare)
+def compare_editions(a: uuid.UUID, b: uuid.UUID, db: Session = Depends(get_db)) -> EditionCompare:
+    """Any two editions side by side - this issue against last year's, one event against another: totals,
+    how fast each sold before it came out, and which advertisers were in one but not the other."""
+    titles = {t.id: t for t in db.scalars(select(SalesTitle))}
+    ck = lambda n: normalise(n) or n.strip().lower()  # noqa: E731 - the same client key as renewals
+
+    def side(eid: uuid.UUID) -> tuple[CompareSide, dict[str, tuple[str, float]]]:
+        ed = _get_edition(db, eid)
+        rows = db.scalars(select(SalesOrder).where(SalesOrder.edition_id == ed.id, SalesOrder.status == BOOKED)).all()
+        clients: dict[str, tuple[str, float]] = {}
+        for o in rows:
+            name, v = clients.get(ck(o.client_name), (o.client_name, 0.0))
+            clients[ck(o.client_name)] = (name, v + float(o.value_gbp or 0))
+        booked = sum(float(o.value_gbp or 0) for o in rows)
+        pace = []
+        for w in COMPARE_WEEKS:
+            if not ed.edition_date:
+                pace.append(0.0)
+                continue
+            cut = ed.edition_date + timedelta(weeks=w)
+            pace.append(round(sum(float(o.value_gbp or 0) for o in rows if (o.booked_on or ed.edition_date) <= cut), 2))
+        t = titles[ed.title_id]
+        return CompareSide(
+            edition=Ref(id=ed.id, label=edition_label(t, ed)), title=_title_out(t), edition_date=ed.edition_date, kind=ed.kind,
+            booked_gbp=round(booked, 2), orders=len(rows), advertisers=len(clients),
+            pages=round(sum(float(o.pages or 0) for o in rows), 2),
+            invoiced_gbp=round(sum(float(o.invoice_value_gbp or 0) for o in rows if o.invoice_number or o.xero_invoice_id), 2),
+            average_gbp=round(booked / len(rows), 2) if rows else None, pace=pace), clients
+
+    sa, ca = side(a)
+    sb, cb = side(b)
+
+    def cc(k: str) -> CompareClient:
+        return CompareClient(client=(ca.get(k) or cb.get(k))[0], a_gbp=round(ca.get(k, ("", 0.0))[1], 2), b_gbp=round(cb.get(k, ("", 0.0))[1], 2))
+
+    by_value = lambda xs: sorted(xs, key=lambda c: -(c.a_gbp + c.b_gbp))  # noqa: E731
+    return EditionCompare(a=sa, b=sb, weeks=COMPARE_WEEKS,
+                          in_both=by_value([cc(k) for k in ca.keys() & cb.keys()]),
+                          only_a=by_value([cc(k) for k in ca.keys() - cb.keys()]),
+                          only_b=by_value([cc(k) for k in cb.keys() - ca.keys()]))
 
 
 @router.get("/editions/{edition_id}", response_model=EditionDetail)
@@ -1786,6 +1890,69 @@ def unmatched_xero_invoices(db: Session = Depends(get_db)) -> UnmatchedInvoices:
                                       lines=inv.line_text, issued_on=inv.issued_on, currency=f["currency"], net=f["net"],
                                       total=f["total"], state=f["state"], url=f["url"]))
     return UnmatchedInvoices(as_of=datetime.fromisoformat(at) if at else None, items=items)
+
+
+class NotBookingInvoice(UnmatchedInvoice):
+    note: str | None = None
+    marked_by: str | None = None
+    marked_at: datetime | None = None
+
+
+@router.get("/xero/not-a-booking", response_model=list[NotBookingInvoice])
+def not_a_booking_invoices(db: Session = Depends(get_db)) -> list[NotBookingInvoice]:
+    """Invoices someone marked "Not a booking" (a cost share, a refund...) - never matched to bookings."""
+    from app.automations.xero_matching import not_booking_items
+    from app.sales.invoice_match import invoice_facts
+
+    marks = {x["id"]: x for x in not_booking_items(db)}
+    if not marks:
+        return []
+    rows = db.scalars(select(XeroInvoice).where(XeroInvoice.id.in_([uuid.UUID(i) for i in marks]))
+                      .order_by(XeroInvoice.issued_on.desc().nulls_last())).all()
+    uids = {uuid.UUID(m["by"]) for m in marks.values() if m.get("by")}
+    names = {u.id: u.name for u in db.scalars(select(User).where(User.id.in_(uids)))} if uids else {}
+    out = []
+    for inv in rows:
+        f, m = invoice_facts(inv), marks[str(inv.id)]
+        out.append(NotBookingInvoice(id=inv.id, number=inv.invoice_number, contact=inv.contact_name, reference=inv.reference,
+                                     lines=inv.line_text, issued_on=inv.issued_on, currency=f["currency"], net=f["net"],
+                                     total=f["total"], state=f["state"], url=f["url"], note=m.get("note"),
+                                     marked_by=names.get(uuid.UUID(m["by"])) if m.get("by") else None,
+                                     marked_at=datetime.fromisoformat(m["at"]) if m.get("at") else None))
+    return out
+
+
+class NotBookingIn(BaseModel):
+    note: str | None = Field(default=None, max_length=300)
+
+
+@router.post("/xero/not-a-booking/{invoice_id}")
+def mark_invoice_not_booking(invoice_id: uuid.UUID, payload: NotBookingIn, db: Session = Depends(get_db),
+                             identity: Identity = Depends(get_identity)) -> dict:
+    """Straight from the "In Xero, not in the register" list: this invoice isn't for a booking."""
+    from app.automations.xero_matching import KIND, mark_not_booking
+    from app.models import ReviewQueueItem
+
+    if not db.get(XeroInvoice, invoice_id):
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    mark_not_booking(db, invoice_id, payload.note, str(identity.user_uuid) if identity.user_uuid else None)
+    now = datetime.now(timezone.utc)
+    for it in db.scalars(select(ReviewQueueItem).where(ReviewQueueItem.kind == KIND, ReviewQueueItem.status == "pending",
+                                                       ReviewQueueItem.payload["invoice_id"].astext == str(invoice_id))):
+        it.status, it.resolved_action, it.reviewed_at = "rejected", "not_booking", now
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/xero/not-a-booking/{invoice_id}/put-back")
+def put_back_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
+    """Undo "Not a booking": the invoice is matched against bookings again on the next hourly run."""
+    from app.automations.xero_matching import put_back_not_booking
+
+    if not put_back_not_booking(db, invoice_id):
+        raise HTTPException(status_code=404, detail="That invoice isn't marked as not a booking.")
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/orders/{order_id}/changes", response_model=list[FieldChangeOut])
