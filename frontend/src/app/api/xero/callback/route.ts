@@ -1,3 +1,4 @@
+import { publicBase } from "@/lib/public-url";
 import { NextResponse } from "next/server";
 import { backendFetch } from "@/lib/backend";
 import { friendlyError } from "@/lib/errors";
@@ -7,11 +8,12 @@ import { friendlyError } from "@/lib/errors";
  * first invoice sync. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const base = publicBase(request);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error_description") || url.searchParams.get("error");
   if (error || !code || !state) {
-    return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(error || "Xero sign-in was cancelled")}`, url));
+    return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(error || "Xero sign-in was cancelled")}`, base));
   }
   try {
     const res = await backendFetch<{ organisation: string; return_to: string }>("/api/integrations/xero/callback", {
@@ -19,11 +21,11 @@ export async function GET(request: Request) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, state }),
     });
-    const back = new URL(res.return_to || "/settings", url);
+    const back = new URL(res.return_to || "/settings", base);
     back.searchParams.set("xero_connected", res.organisation || "Xero");
     return NextResponse.redirect(back);
   } catch (e) {
     const msg = friendlyError(e, "Couldn't connect Xero");
-    return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(msg)}`, url));
+    return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(msg)}`, base));
   }
 }

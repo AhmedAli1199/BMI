@@ -1,3 +1,4 @@
+import { publicBase } from "@/lib/public-url";
 import { NextResponse } from "next/server";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
@@ -8,7 +9,8 @@ import { friendlyError } from "@/lib/errors";
 export async function GET(request: Request) {
   const session = await getSession();
   const url = new URL(request.url);
-  if (!session) return NextResponse.redirect(new URL("/login", url));
+  const base = publicBase(request);
+  if (!session) return NextResponse.redirect(new URL("/login", base));
   const returnTo = url.searchParams.get("return_to") || "/settings";
   try {
     const { url: authorize } = await backendFetch<{ url: string }>(
@@ -17,6 +19,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(authorize);
   } catch (e) {
     const msg = friendlyError(e, "Couldn't start Xero sign-in");
-    return NextResponse.redirect(new URL(`${returnTo}?xero_error=${encodeURIComponent(msg)}`, url));
+    return NextResponse.redirect(new URL(`${returnTo}?xero_error=${encodeURIComponent(msg)}`, base));
   }
 }
