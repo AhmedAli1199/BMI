@@ -43,6 +43,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   followup_due: "mark_sent",
   personal_touchpoint_due: "draft_touchpoint",
   renewal_due: "send",
+  save_the_sale: "send",
 };
 
 /** Kinds whose draft can go straight out from the reviewer's own Outlook:
@@ -50,6 +51,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
  * action just logs the draft to the CRM for sending another way. */
 const DRAFT_LOG_ONLY_ACTIONS: Record<string, string> = {
   renewal_due: "approve",
+  save_the_sale: "approve",
 };
 
 const STYLE_CLASSES: Record<ReviewAction["style"], string> = {

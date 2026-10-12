@@ -288,6 +288,12 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
 - **Rate card**: click a product's name to edit it. Prices are changed by admins and data managers only unless `rate_card_publishers_can_edit` is switched on.
 - **Compare editions** (`/sales/compare`, `GET /sales/editions/compare`): any two editions - totals, a pace chart lined up on each one's publication date, who was in one and not the other. "Compare" on every edition page (defaults to last year's equivalent) and on Editions.
 
+### 4.3h SALES-022 save the sale (built 12 Oct 2026)
+- The email scan (`email_summary.py`) now also extracts **"decline"** signals (a client saying no to a booking) with a reason - budget / timing / results / competitor / other (model's answer if valid, else keyword rules, `decline_reason`). Migration `0047` (signal type + `email_signals.reason`).
+- `app/automations/save_the_sale.py` (job `save_the_sale_scan`, every 30 min, setting `automations_save_the_sale_enabled`, off by default; cap `save_the_sale_max_per_run`): one review item ("Save the sale") per decline with a draft reply from the reason's template. **The offer is chosen by rules, not AI**: budget = the next cheaper products in the same title on the rate card (below what they last paid) and the next issue; timing = the next open issue (with its ad deadline); results = the cheapest online/newsletter product in the brand; competitor/other = no offer, acknowledge and ask. AI polish only when configured and thrown away if it adds a figure.
+- Card: why they said no, what they said, contact / company / last booking / offer links (new tab), the original email excerpt, filters (salesperson, title, reason), date sort. Buttons: Send from my Outlook, Log to CRM only, Let it go (notes "Declined: reason" on the contact). Regenerate switches to the next option (or the one named in the instruction).
+- **Templates**: five "Save the sale" templates (kind `save_sale`) appear in the email template library, marked "needs a check", for BMI to rewrite in their own words; the library also has the spec's purposes New prospect, Existing advertiser and Join the project.
+
 ### 4.4 Invoicing logic
 - **Invoiced %** is by value, not row count; the tile also shows "N of M paid bookings invoiced" (£0 tickets excluded).
 - Differences compared **per client within an edition** (handles split invoices), rows with an invoice number but no amount = unknown (not a difference), **< £2 ignored** (rounding).

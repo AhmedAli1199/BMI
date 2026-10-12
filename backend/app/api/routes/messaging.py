@@ -262,7 +262,8 @@ def outlook_disconnect(db: Session = Depends(get_db), user: User = Depends(curre
 # ---- Templates --------------------------------------------------------------
 
 TEMPLATE_KINDS = {"pitch": "Pitch a feature or issue", "follow_up": "Follow-up", "event": "Event invitation", "launch": "New title or product",
-                  "renewal": "Renewal", "general": "General"}
+                  "renewal": "Renewal", "new_prospect": "New prospect", "existing": "Existing advertiser",
+                  "join_project": "Join the project", "save_sale": "Save the sale (reply to a no)", "general": "General"}
 
 
 class TemplateIn(BaseModel):
@@ -272,7 +273,7 @@ class TemplateIn(BaseModel):
     shared: bool = True
     brand: str | None = Field(default=None, pattern="^(obh|tbtm|stm)$")
     title_id: uuid.UUID | None = None
-    kind: str = Field(default="general", pattern="^(pitch|follow_up|event|launch|renewal|general)$")
+    kind: str = Field(default="general", pattern="^(pitch|follow_up|event|launch|renewal|new_prospect|existing|join_project|save_sale|general)$")
     description: str | None = Field(default=None, max_length=300)
     needs_check: bool | None = None   # None = leave as it is (saving a loaded template marks it checked unless told otherwise)
 
@@ -322,6 +323,10 @@ def merge_fields() -> list[dict]:
 
 @router.get("/mail/templates", response_model=list[TemplateOut])
 def list_templates(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    from app.automations.save_the_sale import ensure_templates
+
+    if ensure_templates(db):  # the default "Save the sale" replies appear once, marked "needs a check"
+        db.commit()
     rows = db.scalars(select(MailTemplate).where(or_(MailTemplate.shared.is_(True), MailTemplate.owner_user_id == user.id))
                       .order_by(func.lower(MailTemplate.name))).all()
     return [_template_out(db, t, user) for t in rows]

@@ -230,7 +230,7 @@ def test_templates_are_shared_but_owner_edits(client, db_session):
     a, b = make_user(db_session), make_user(db_session)
     t = client.post("/api/mail/templates", headers=identity_headers(a),
                     json={"name": "Renewal", "subject": "Renew {{company}}", "body": "Hi"}).json()
-    assert [x["name"] for x in client.get("/api/mail/templates", headers=identity_headers(b)).json()] == ["Renewal"]
+    assert [x["name"] for x in client.get("/api/mail/templates", headers=identity_headers(b)).json() if x["kind"] != "save_sale"] == ["Renewal"]
     assert client.put(f"/api/mail/templates/{t['id']}", headers=identity_headers(b),
                       json={"name": "X", "body": ""}).status_code == 403
 

@@ -85,8 +85,13 @@ _SIGNAL_EXTRACTION_PROMPT = (
     "- personal_touchpoint: a light, positive-or-neutral personal occasion mentioned in passing (leave, a "
     "holiday, a birthday, an anniversary) worth a friendly note later. NEVER extract a bereavement, death, "
     "serious illness, or other sensitive/difficult personal matter as a personal_touchpoint - those need a "
-    "human's own judgement, not an automated note, so leave them out entirely.\n\n"
-    "due_date rule (applies to all four types): only set due_date when the message states an exact, "
+    "human's own judgement, not an automated note, so leave them out entirely.\n"
+    "- decline: the CLIENT says no to booking or rebooking (\"no budget this year\", \"we'll give this one a miss\", "
+    "\"we've decided to go with another magazine\", \"the timing doesn't work\"). Only when the client is clearly "
+    "turning down an advertising/sponsorship/event booking - not a meeting, not a supplier, not a polite \"not "
+    "right now, call me in March\" with a date (that's a promised_callback). Also give reason: one of budget, "
+    "timing, results (it didn't work for them last time), competitor, other.\n\n"
+    "due_date rule (applies to all five types): only set due_date when the message states an exact, "
     "specific calendar date or day (\"25 October\", \"next Friday\", \"the 12th\"). If it only mentions a "
     "vague period - \"next year\", \"Q4\", \"early 2028\", \"sometime in the autumn\", \"in a few weeks\" - "
     "due_date MUST be null. NEVER invent a specific day (e.g. defaulting to the 1st of the month) to fill "
@@ -104,9 +109,9 @@ _SIGNAL_EXTRACTION_PROMPT = (
     "scheduling logistics with no substance, or an automated/templated reply. Judge the CONVERSATION AS A "
     "WHOLE (using the prior context given below), not just this one message - a \"thanks, speak soon\" "
     "reply to an otherwise substantive thread is still part of a meaningful conversation.\n\n"
-    "Return JSON of the exact shape: {\"signals\": [{\"type\": one of the four above, "
+    "Return JSON of the exact shape: {\"signals\": [{\"type\": one of the five above, "
     "\"due_date\": \"YYYY-MM-DD\" or null, \"summary\": \"one sentence\", \"confidence\": 0.0-1.0, "
-    "\"package_offered\": string or null, \"rate_offered\": string or null}], "
+    "\"package_offered\": string or null, \"rate_offered\": string or null, \"reason\": string or null}], "
     "\"thread_summary\": \"one or two sentences on where this conversation stands\", "
     "\"is_meaningful\": true or false}. "
     "Return {\"signals\": [], \"thread_summary\": \"...\", \"is_meaningful\": false} if nothing above is "
@@ -122,6 +127,27 @@ _SENSITIVE_TOUCHPOINT_KEYWORDS = (
     "bereavement", "passed away", "passing", "death", "died", "funeral", "condolence",
     "terminal", "cancer", "serious illness", "hospice", "miscarriage",
 )
+
+
+_DECLINE_REASONS = ("budget", "timing", "results", "competitor", "other")
+_REASON_WORDS = {
+    "budget": ("budget", "afford", "cost", "expensive", "price", "money", "funds", "spend"),
+    "timing": ("timing", "not this issue", "this time", "too soon", "deadline", "later in the year", "next year"),
+    "results": ("results", "response", "didn't work", "did not work", "no leads", "return", "roi"),
+    "competitor": ("another magazine", "another publication", "elsewhere", "competitor", "instead with", "gone with"),
+}
+
+
+def decline_reason(given: str | None, text: str) -> str:
+    """The model's reason when it's one we know, else plain keyword rules on the message; "other" when unclear."""
+    g = (given or "").strip().lower()
+    if g in _DECLINE_REASONS:
+        return g
+    low = (text or "").lower()
+    for reason, words in _REASON_WORDS.items():
+        if any(w in low for w in words):
+            return reason
+    return "other"
 
 
 def _is_sensitive_touchpoint(summary: str) -> bool:
@@ -270,7 +296,7 @@ def _upsert_signals(
     written = 0
     for signal in extracted.get("signals") or []:
         signal_type = signal.get("type")
-        if signal_type not in ("budget_window", "renewal_date", "promised_callback", "personal_touchpoint"):
+        if signal_type not in ("budget_window", "renewal_date", "promised_callback", "personal_touchpoint", "decline"):
             continue
         summary = (signal.get("summary") or "").strip()
         if not summary:
@@ -317,12 +343,15 @@ def _upsert_signals(
             existing.package_offered = package_offered
             existing.rate_offered = rate_offered
             existing.status = "open"  # a fresh mention re-opens a signal a rep may have already actioned/dismissed
+            if signal_type == "decline":
+                existing.reason = decline_reason(signal.get("reason"), summary + " " + message_body)
         else:
             new_row = EmailSignal(
                 id=uuid.uuid4(), contact_id=contact_id, signal_type=signal_type,
                 due_date=due_date, summary=summary,
                 source_thread_id=thread_id, source_message_id=message_id, source_snippet=snippet,
                 confidence=confidence, package_offered=package_offered, rate_offered=rate_offered,
+                reason=decline_reason(signal.get("reason"), summary + " " + message_body) if signal_type == "decline" else None,
             )
             db.add(new_row)
             existing_by_type[signal_type] = new_row

@@ -21,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 from app.models.base import UUIDPk
 
-EMAIL_SIGNAL_TYPES = ("budget_window", "renewal_date", "promised_callback", "personal_touchpoint")
+EMAIL_SIGNAL_TYPES = ("budget_window", "renewal_date", "promised_callback", "personal_touchpoint", "decline")
 EMAIL_SIGNAL_STATUSES = ("open", "actioned", "dismissed")
 
 
@@ -29,7 +29,7 @@ class EmailSignal(Base, UUIDPk):
     __tablename__ = "email_signals"
     __table_args__ = (
         CheckConstraint(
-            "signal_type IN ('budget_window', 'renewal_date', 'promised_callback', 'personal_touchpoint')",
+            "signal_type IN ('budget_window', 'renewal_date', 'promised_callback', 'personal_touchpoint', 'decline')",
             name="ck_email_signals_type",
         ),
         CheckConstraint("status IN ('open', 'actioned', 'dismissed')", name="ck_email_signals_status"),
@@ -44,6 +44,8 @@ class EmailSignal(Base, UUIDPk):
     signal_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     due_date: Mapped[date | None] = mapped_column(Date, index=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
+    # For a "decline" (SALES-022): budget | timing | results | competitor | other
+    reason: Mapped[str | None] = mapped_column(String(20))
 
     # Graph identifiers - just enough to find/update the right row.
     source_thread_id: Mapped[str] = mapped_column(String(256), nullable=False)

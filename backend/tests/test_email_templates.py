@@ -28,7 +28,7 @@ def test_load_act_templates_once_with_brand_facts(client, db_session):
     h = identity_headers(admin)
     assert client.post("/api/mail/templates/load-act", headers=h).json() == {"added": 7}
     assert client.post("/api/mail/templates/load-act", headers=h).json() == {"added": 0}
-    rows = client.get("/api/mail/templates", headers=h).json()
+    rows = [r for r in client.get("/api/mail/templates", headers=h).json() if r["kind"] != "save_sale"]   # SALES-022 defaults aside
     assert len(rows) == 7 and all(r["needs_check"] and r["brand"] == "stm" and r["source"] == "act" for r in rows)
     pitch = next(r for r in rows if r["name"] == "Feature pitch: first email")
     assert pitch["kind"] == "pitch" and pitch["uses_issue"] and "<Salutation>" not in pitch["body"] and "{{print_run}}" in pitch["body"]

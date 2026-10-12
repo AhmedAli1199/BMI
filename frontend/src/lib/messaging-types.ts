@@ -41,9 +41,11 @@ export type MailStatus = {
 
 export type MergeField = { key: string; label: string; example: string; group?: "contact" | "brand" | "issue" };
 
-export type TemplateKind = "pitch" | "follow_up" | "event" | "launch" | "renewal" | "general";
+export type TemplateKind = "pitch" | "follow_up" | "event" | "launch" | "renewal" | "new_prospect" | "existing" | "join_project" | "save_sale" | "general";
 export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
-  pitch: "Pitch a feature or issue", follow_up: "Follow-up", event: "Event invitation", launch: "New title or product", renewal: "Renewal", general: "General",
+  pitch: "Pitch a feature or issue", follow_up: "Follow-up", event: "Event invitation", launch: "New title or product", renewal: "Renewal",
+  new_prospect: "New prospect", existing: "Existing advertiser", join_project: "Join the project", save_sale: "Save the sale (reply to a no)",
+  general: "General",
 };
 export const BRAND_LABEL: Record<string, string> = { obh: "Onboard Hospitality", tbtm: "The Business Travel Magazine", stm: "Selling Travel" };
 export type ComposeResult = {

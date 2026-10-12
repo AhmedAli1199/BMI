@@ -349,6 +349,16 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_save_the_sale_enabled", label="Save the sale active",
+        description="Every 30 minutes: when the email scan finds a client saying no, drafts a reply that acknowledges it, asks why and offers a sensible alternative - for the salesperson to review and send.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="save_the_sale_max_per_run", label="Most save-the-sale drafts per run",
+        description="Upper limit on new drafts in one run, so a first run doesn't flood the queue.",
+        group="Sales Order Register", type="int", min=1,
+    ),
+    AutomationSettingDef(
         key="rate_card_publishers_can_edit", label="Publishers can change their own prices",
         description="Off: only administrators and data managers change the rate card; everyone else sees it read-only. On: each brand's publishers can also change their own brand's prices.",
         group="Sales Order Register", type="bool",

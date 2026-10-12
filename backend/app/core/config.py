@@ -231,6 +231,8 @@ class Settings(BaseSettings):
     sor_invoice_snooze_days: int = 7  # "remind me later" re-flags after this many days
     sor_invoice_max_per_run: int = 50
     # New orders go to the accounts check (Review Queue) and their confirmation waits until it's done.
+    automations_save_the_sale_enabled: bool = False  # SALES-022: drafts a reply to each client "no" from the email scan
+    save_the_sale_max_per_run: int = 25
     rate_card_publishers_can_edit: bool = False  # off: only admins and data managers change prices
     orders_accounts_check: bool = True
     orders_check_before_sending: bool = True

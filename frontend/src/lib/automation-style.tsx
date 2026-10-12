@@ -2,6 +2,7 @@ import {
   BookOpen,
   Link2,
   ShieldCheck,
+  LifeBuoy,
   ReceiptText,
   RefreshCcw,
   CalendarClock,
@@ -165,6 +166,13 @@ Object.assign(STYLES, {
     chipBg: "border-chart-4/30 bg-chart-4/10",
     accent: "bg-chart-4",
     ring: "hover:border-chart-4/60",
+  },
+  save_the_sale: {
+    icon: LifeBuoy,
+    color: "text-chart-2",
+    chipBg: "border-chart-2/30 bg-chart-2/10",
+    accent: "bg-chart-2",
+    ring: "hover:border-chart-2/60",
   },
   order_check: {
     icon: ShieldCheck,
