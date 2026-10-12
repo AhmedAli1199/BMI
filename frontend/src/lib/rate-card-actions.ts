@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { NextYearPreview, OfferKind, OfferTier, PriceType, PriceUnit, RateHistoryRow, RateItem, RateOffer } from "@/lib/rate-card-types";
+import type { NextYearPreview, OfferKind, OfferTier, PriceType, PriceUnit, RateHistoryRow, RateItem, RateOffer, RateSection, SizeUnit } from "@/lib/rate-card-types";
 
 const json = (body: unknown, method = "POST") => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const refresh = () => revalidatePath("/sales/rate-card", "layout");
@@ -10,7 +10,27 @@ const refresh = () => revalidatePath("/sales/rate-card", "layout");
 export type ItemInput = {
   section?: string; title_id?: string | null; product?: string; price_type?: PriceType; price_gbp?: number | null; unit?: PriceUnit;
   specs?: string | null; aliases?: string[]; notes?: string | null; valid_until?: string | null; needs_check?: boolean;
+  width?: number | null; height?: number | null; size_unit?: SizeUnit | null; bleed_mm?: number | null; pages?: number | null;
 };
+
+export type SectionInput = { label: string; hint?: string | null; title_id?: string | null };
+
+export async function addRateSection(brand: string, input: SectionInput): Promise<RateSection> {
+  const r = await backendFetch<RateSection>(`/api/rate-card/brands/${brand}/sections`, json(input));
+  refresh();
+  return r;
+}
+
+export async function editRateSection(id: string, input: SectionInput): Promise<RateSection> {
+  const r = await backendFetch<RateSection>(`/api/rate-card/sections/${id}`, json(input, "PATCH"));
+  refresh();
+  return r;
+}
+
+export async function deleteRateSection(id: string): Promise<void> {
+  await backendFetch(`/api/rate-card/sections/${id}`, { method: "DELETE" });
+  refresh();
+}
 
 export async function addRateItem(brand: string, year: number, input: ItemInput): Promise<RateItem> {
   const r = await backendFetch<RateItem>("/api/rate-card/items", json({ brand, year, ...input }));

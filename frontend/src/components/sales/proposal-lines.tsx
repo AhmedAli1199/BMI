@@ -159,7 +159,7 @@ export function ProposalLines({ lines, onChange, titles, rates, defaultTitleId, 
           </select>
           <select aria-label="Add from the rate card" className={`${selectCls} !w-auto min-w-48 max-w-80`} value="" onChange={(e) => addRate(e.target.value)} disabled={!addRates.length}>
             <option value="">{addRates.length ? "Add from its rate card…" : "Nothing on its rate card"}</option>
-            {addRates.map((r) => <option key={r.id} value={r.id}>{r.product} · {fmtGBP(r.price_gbp ?? 0)}{r.year !== new Date().getFullYear() ? ` (${r.year})` : ""}</option>)}
+            {addRates.map((r) => <option key={r.id} value={r.id}>{r.product}{r.size_label ? ` (${r.size_label})` : ""} · {fmtGBP(r.price_gbp ?? 0)}{r.year !== new Date().getFullYear() ? ` (${r.year})` : ""}</option>)}
           </select>
           <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => onChange([...lines, { id: crypto.randomUUID(), product: "", qty: 1, unit_price: null, source: "manual",
             title_id: addTitle === defaultTitleId ? null : addTitle, issues: [], discount_pct: 0, option: null }])}><Plus className="size-3.5" /> Add my own line</Button>

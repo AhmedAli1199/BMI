@@ -748,3 +748,43 @@ def test_xero_webhook_mode_status_and_no_sign_in(client, db_session, webhook_mod
     assert status["organisation"] == "BMI Publishing Limited"
     assert client.get("/api/integrations/xero/start", headers=h).status_code == 400  # nothing to sign in to
     assert client.delete("/api/integrations/xero", headers=h).status_code == 400  # disconnect = remove the setting
+
+
+def test_costs_on_any_edition_with_parts_budgets_and_bookings(client, db_session, sor):
+    """A magazine issue or an awards can carry costs too: parts (judging day / ceremony), what each was for,
+    the budget, and a cost tied to one booking (the printing of a cover wrap)."""
+    admin = identity_headers(make_user(db_session, role="admin"))
+    ed = sor["this"]
+    wrap = _order(db_session, ed, "Emirates", 4500, sor["reps"]["SP"], booked_on=date.today() - timedelta(days=10), size="Cover wrap")
+    _order(db_session, ed, "Other Co", 1500, sor["reps"]["SP"], booked_on=date.today() - timedelta(days=10))
+    url = f"/api/sales/editions/{ed.id}/costs"
+    add = lambda body: client.post(url, json=body, headers=admin)  # noqa: E731
+    assert add({"label": "Judges' lunch", "amount_gbp": 600, "budget_gbp": 500, "section": "Judging day", "category": "food"}).status_code == 201
+    add({"label": "Venue", "amount_gbp": 2000, "budget_gbp": 2500, "section": "Ceremony", "category": "venue"})
+    out = add({"label": "Wrap printing", "amount_gbp": 1200, "category": "print", "order_id": str(wrap.id)}).json()
+    assert out["total_costs_gbp"] == 3800 and out["total_budget_gbp"] == 3000
+    assert out["profit_gbp"] == 6000 - 3800
+    parts = {p["part"]: p for p in out["parts"]}
+    assert parts["Judging day"]["costs_gbp"] == 600 and parts["Ceremony"]["budget_gbp"] == 2500 and parts[None]["budget_gbp"] is None
+    assert out["by_category"] == {"venue": 2000, "print": 1200, "food": 600}
+    assert out["by_booking"][0]["order"]["label"] == "Emirates - Cover wrap" and out["by_booking"][0]["profit_gbp"] == 3300
+    line = next(l for l in out["lines"] if l["label"] == "Wrap printing")
+    assert line["order"]["id"] == str(wrap.id) and line["category"] == "print"
+    assert add({"label": "Bad", "amount_gbp": 1, "category": "yachts"}).status_code == 422
+    other = SalesEdition(id=uuid.uuid4(), title_id=sor["title"].id, year=ed.year, name="X", edition_date=ed.edition_date)
+    db_session.add(other)
+    db_session.flush()
+    stray = _order(db_session, other, "Elsewhere", 100, sor["reps"]["SP"])
+    assert add({"label": "Wrong issue", "amount_gbp": 1, "order_id": str(stray.id)}).status_code == 422
+    # the report across editions
+    rep = client.get(f"/api/sales/costs-report?year={ed.year}&basis=calendar", headers=admin).json()
+    row = next(r for r in rep["rows"] if r["edition"]["id"] == str(ed.id))
+    assert row["costs_gbp"] == 3800 and row["budget_gbp"] == 3000 and row["profit_gbp"] == 2200 and row["top_category"] == "venue"
+    assert rep["costs_gbp"] == 3800 and rep["by_category"]["print"] == 1200
+    assert all(r["cost_lines"] for r in rep["rows"])
+    every = client.get(f"/api/sales/costs-report?year={ed.year}&basis=calendar&include_all=true", headers=admin).json()
+    assert any(r["edition"]["id"] == str(other.id) and r["profit_gbp"] is None for r in every["rows"])
+    assert every["without_costs"] >= 1
+    sales = identity_headers(make_user(db_session, role="sales"))
+    assert client.get(f"/api/sales/costs-report?year={ed.year}", headers=sales).status_code == 403
+    assert client.get(f"/api/sales/costs-report/export.xlsx?year={ed.year}&basis=calendar", headers=admin).status_code == 200

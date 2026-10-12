@@ -354,6 +354,13 @@ export function AppSidebar({
                             }
                           />
                         )}
+                        {canUseAutomations(session) && (
+                          <HubSubItem
+                            href="/sales/costs"
+                            label="Costs & profit"
+                            active={pathname === "/sales/costs"}
+                          />
+                        )}
                         {show("commissions") && (
                           <HubSubItem
                             href="/sales/commissions"

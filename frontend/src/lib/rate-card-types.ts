@@ -6,13 +6,19 @@ export type RateItem = {
   id: string; title_id: string; title_name: string; year: number; section: string; product: string;
   price_type: PriceType; price_gbp: number | null; unit: PriceUnit; specs: string | null; aliases: string[]; notes: string | null;
   valid_until: string | null; sort_order: number; needs_check: boolean; source: string | null; archived: boolean; price_label: string; updated_at: string;
+  width: number | null; height: number | null; size_unit: SizeUnit | null; bleed_mm: number | null; pages: number | null; size_label: string | null;
 };
+export type SizeUnit = "mm" | "px";
 export type OfferTier = { qty: number; discount_pct?: number; unit_price?: number; total?: number };
 export type RateOffer = {
   id: string; brand: string; year: number; kind: OfferKind; label: string; details: string | null; rules: { tiers?: OfferTier[] };
   rate_ids: string[]; section: string | null; valid_until: string | null; needs_check: boolean;
 };
-export type RateSection = { key: string; label: string; hint: string; default_title_id: string | null; items: RateItem[] };
+export type RateSection = {
+  key: string; label: string; hint: string; default_title_id: string | null; items: RateItem[];
+  /** One of the brand's own sections (cover wraps, belly bands...) - can be renamed or removed. */
+  custom: boolean; id: string | null;
+};
 export type BrandSummary = {
   key: string; name: string; short: string; website: string; can_edit: boolean; products: number; needs_check: number; on_request: number;
   offers: number; last_updated: string | null; seed_available: number; sections: string[];

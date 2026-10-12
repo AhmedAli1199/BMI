@@ -183,6 +183,14 @@ class EditionSummary(BaseModel):
     previous_same_point_gbp: float | None = None
 
 
+# What a cost was spent on - plain words, the same list everywhere (the costs report adds these up).
+COST_CATEGORIES = {
+    "venue": "Venue", "food": "Food & drink", "av": "AV & production", "print": "Printing & paper", "postage": "Postage & distribution",
+    "design": "Design & artwork", "content": "Writers & photographers", "judging": "Judging", "prizes": "Trophies & prizes",
+    "travel": "Travel & hotels", "marketing": "Marketing", "staff": "Staff & freelancers", "other": "Other",
+}
+
+
 class CostLineOut(BaseModel):
     id: uuid.UUID
     kind: str
@@ -191,6 +199,9 @@ class CostLineOut(BaseModel):
     amount_inc_vat_gbp: float | None = None
     section: str | None = None
     from_sheet: bool
+    category: str | None = None
+    budget_gbp: float | None = None
+    order: Ref | None = None  # the booking this cost is for (a cover wrap's printing)
 
 
 class CostLineIn(BaseModel):
@@ -199,6 +210,23 @@ class CostLineIn(BaseModel):
     amount_gbp: float | None = None
     amount_inc_vat_gbp: float | None = None
     section: str | None = Field(default=None, max_length=300)
+    category: str | None = None
+    budget_gbp: float | None = Field(default=None, ge=0)
+    order_id: uuid.UUID | None = None
+
+
+class CostPart(BaseModel):
+    """One part of an edition (e.g. an awards' judging day and its ceremony) - its own cost subtotal."""
+    part: str | None  # None = not in a part
+    costs_gbp: float
+    budget_gbp: float | None
+
+
+class CostByBooking(BaseModel):
+    order: Ref
+    value_gbp: float
+    costs_gbp: float
+    profit_gbp: float
 
 
 class EditionCosts(BaseModel):
@@ -207,6 +235,11 @@ class EditionCosts(BaseModel):
     other_income_gbp: float
     # Booked value + other income - costs. None when there are no cost lines.
     profit_gbp: float | None = None
+    total_budget_gbp: float | None = None
+    parts: list[CostPart] = []
+    by_category: dict[str, float] = {}
+    by_booking: list[CostByBooking] = []
+    categories: dict[str, str] = COST_CATEGORIES
 
 
 class EditionDetail(EditionSummary):
@@ -988,19 +1021,60 @@ def update_edition(edition_id: uuid.UUID, payload: EditionPatch, db: Session = D
 def _edition_costs(db: Session, ed: SalesEdition, booked: float) -> EditionCosts:
     rows = db.scalars(select(SalesEditionCost).where(SalesEditionCost.edition_id == ed.id)
                       .order_by(SalesEditionCost.sort_order, SalesEditionCost.created_at)).all()
-    costs = round(sum(float(r.amount_gbp or 0) for r in rows if r.kind == "cost"), 2)
+    cost_rows = [r for r in rows if r.kind == "cost"]
+    costs = round(sum(float(r.amount_gbp or 0) for r in cost_rows), 2)
     income = round(sum(float(r.amount_gbp or 0) for r in rows if r.kind == "income"), 2)
-    has_costs = any(r.kind == "cost" for r in rows)
+    has_costs = bool(cost_rows)
+    budgets = [float(r.budget_gbp) for r in cost_rows if r.budget_gbp is not None]
+    order_ids = {r.order_id for r in rows if r.order_id}
+    orders = {o.id: o for o in db.scalars(select(SalesOrder).where(SalesOrder.id.in_(order_ids)))} if order_ids else {}
+
+    def oref(oid) -> Ref | None:
+        o = orders.get(oid)
+        return Ref(id=o.id, label=f"{o.client_name}{f' - {o.size}' if o.size else ''}") if o else None
+
+    parts: dict[str | None, list] = defaultdict(list)
+    for r in cost_rows:
+        parts[r.section].append(r)
+    by_cat: dict[str, float] = defaultdict(float)
+    for r in cost_rows:
+        by_cat[r.category or "other"] += float(r.amount_gbp or 0)
+    by_booking = []
+    for oid in order_ids:
+        o = orders.get(oid)
+        if not o:
+            continue
+        c = sum(float(r.amount_gbp or 0) for r in cost_rows if r.order_id == oid)
+        v = float(o.value_gbp or 0) if o.status == "booked" else 0.0
+        by_booking.append(CostByBooking(order=oref(oid), value_gbp=round(v, 2), costs_gbp=round(c, 2), profit_gbp=round(v - c, 2)))
     return EditionCosts(
         lines=[CostLineOut(id=r.id, kind=r.kind, label=r.label, section=r.section, from_sheet=r.source_row is not None,
                            amount_gbp=float(r.amount_gbp) if r.amount_gbp is not None else None,
-                           amount_inc_vat_gbp=float(r.amount_inc_vat_gbp) if r.amount_inc_vat_gbp is not None else None)
+                           amount_inc_vat_gbp=float(r.amount_inc_vat_gbp) if r.amount_inc_vat_gbp is not None else None,
+                           category=r.category, budget_gbp=float(r.budget_gbp) if r.budget_gbp is not None else None, order=oref(r.order_id))
                for r in rows],
         total_costs_gbp=costs, other_income_gbp=income,
         # A sponsorship "income" line restates the bookings on TBTM sheets, so
         # profit is bookings - costs; other income is shown, not added.
         profit_gbp=round(booked - costs, 2) if has_costs else None,
+        total_budget_gbp=round(sum(budgets), 2) if budgets else None,
+        parts=[CostPart(part=k, costs_gbp=round(sum(float(r.amount_gbp or 0) for r in v), 2),
+                        budget_gbp=round(sum(float(r.budget_gbp) for r in v if r.budget_gbp is not None), 2)
+                        if any(r.budget_gbp is not None for r in v) else None) for k, v in parts.items()],
+        by_category={k: round(v, 2) for k, v in sorted(by_cat.items(), key=lambda kv: -kv[1])},
+        by_booking=sorted(by_booking, key=lambda b: b.order.label.lower()),
     )
+
+
+def _check_cost_line(db: Session, ed: SalesEdition, payload: CostLineIn) -> None:
+    if payload.category and payload.category not in COST_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Choose what the cost was for from the list.")
+    if payload.order_id:
+        o = db.get(SalesOrder, payload.order_id)
+        if not o or o.edition_id != ed.id:
+            raise HTTPException(status_code=422, detail="A cost can only be linked to a booking in this edition.")
+    if payload.kind != "cost":
+        payload.category = payload.budget_gbp = payload.order_id = None
 
 
 def _costs_editable(db: Session, ed: SalesEdition, identity: Identity) -> None:
@@ -1021,6 +1095,7 @@ def get_costs(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCo
 def add_cost(edition_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> EditionCosts:
     ed = _get_edition(db, edition_id)
     _costs_editable(db, ed, identity)
+    _check_cost_line(db, ed, payload)
     last = db.scalar(select(func.max(SalesEditionCost.sort_order)).where(SalesEditionCost.edition_id == ed.id)) or 0
     db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, sort_order=last + 1,
                             **{**payload.model_dump(), "label": payload.label.strip()}))
@@ -1034,7 +1109,9 @@ def update_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, payload: CostLineIn, 
     line = db.get(SalesEditionCost, cost_id)
     if not line or line.edition_id != edition_id:
         raise HTTPException(status_code=404, detail="Cost line not found")
-    _costs_editable(db, _get_edition(db, edition_id), identity)
+    ed = _get_edition(db, edition_id)
+    _costs_editable(db, ed, identity)
+    _check_cost_line(db, ed, payload)
     for k, v in payload.model_dump().items():
         setattr(line, k, v.strip() if isinstance(v, str) else v)
     db.commit()
@@ -1050,6 +1127,121 @@ def delete_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, db: Session = Depends
         db.delete(line)
         db.commit()
     return get_costs(edition_id, db)
+
+
+class CostReportRow(BaseModel):
+    edition: Ref
+    title: TitleOut
+    edition_date: date | None
+    kind: str
+    booked_gbp: float
+    costs_gbp: float
+    budget_gbp: float | None
+    profit_gbp: float | None
+    margin: float | None
+    cost_lines: int
+    signed_off: bool
+    top_category: str | None
+
+
+class CostReport(BaseModel):
+    year: int
+    label: str
+    basis: str
+    rows: list[CostReportRow]
+    booked_gbp: float
+    costs_gbp: float
+    profit_gbp: float
+    by_category: dict[str, float]
+    categories: dict[str, str] = COST_CATEGORIES
+    without_costs: int  # editions in the period with bookings but no costs recorded
+
+
+@router.get("/costs-report", response_model=CostReport)
+def costs_report(year: int | None = None, basis: str | None = None, include_all: bool = False, db: Session = Depends(get_db),
+                 identity: Identity = Depends(get_identity)) -> CostReport:
+    """Every edition's costs and profit for a year - issues, events and awards alike. Profit is booked value minus cost lines,
+    the same sum as each edition's own page. Management figures, so administrators and data managers only."""
+    if not _is_staff(identity):
+        raise HTTPException(status_code=403, detail="The costs report is for administrators and data managers.")
+    today = date.today()
+    financial, start_month = _year_basis(db, basis)
+    year = year or period_year_of(today, financial, start_month)
+    eds = db.scalars(select(SalesEdition).where(_in_period(year, financial, start_month))).all()
+    ids = [e.id for e in eds]
+    booked = dict(db.execute(select(SalesOrder.edition_id, func.coalesce(func.sum(SalesOrder.value_gbp), 0))
+                             .where(SalesOrder.edition_id.in_(ids), SalesOrder.status == BOOKED)
+                             .group_by(SalesOrder.edition_id)).all()) if ids else {}
+    lines: dict[uuid.UUID, list[SalesEditionCost]] = defaultdict(list)
+    if ids:
+        for c in db.scalars(select(SalesEditionCost).where(SalesEditionCost.edition_id.in_(ids), SalesEditionCost.kind == "cost")):
+            lines[c.edition_id].append(c)
+    titles = {t.id: t for t in db.scalars(select(SalesTitle))}
+    rows, by_cat = [], defaultdict(float)
+    without = 0
+    for e in eds:
+        b = float(booked.get(e.id, 0))
+        ls = lines.get(e.id, [])
+        if not ls:
+            without += 1 if b > 0 else 0
+            if not include_all or b <= 0:
+                continue
+        c = sum(float(x.amount_gbp or 0) for x in ls)
+        cats = defaultdict(float)
+        for x in ls:
+            cats[x.category or "other"] += float(x.amount_gbp or 0)
+            by_cat[x.category or "other"] += float(x.amount_gbp or 0)
+        budgets = [float(x.budget_gbp) for x in ls if x.budget_gbp is not None]
+        profit = round(b - c, 2) if ls else None
+        rows.append(CostReportRow(
+            edition=Ref(id=e.id, label=edition_label(titles[e.title_id], e)), title=_title_out(titles[e.title_id]), edition_date=e.edition_date,
+            kind=e.kind, booked_gbp=round(b, 2), costs_gbp=round(c, 2), budget_gbp=round(sum(budgets), 2) if budgets else None,
+            profit_gbp=profit, margin=round(profit / b, 4) if profit is not None and b else None, cost_lines=len(ls),
+            signed_off=e.costs_signed_off_at is not None, top_category=max(cats, key=cats.get) if cats else None))
+    rows.sort(key=lambda r: (r.edition_date or date.max, r.edition.label))
+    with_costs = [r for r in rows if r.cost_lines]
+    tb, tc = sum(r.booked_gbp for r in with_costs), sum(r.costs_gbp for r in with_costs)
+    return CostReport(year=year, label=period_label(year, financial, start_month), basis="financial" if financial else "calendar", rows=rows,
+                      booked_gbp=round(tb, 2), costs_gbp=round(tc, 2), profit_gbp=round(tb - tc, 2),
+                      by_category={k: round(v, 2) for k, v in sorted(by_cat.items(), key=lambda kv: -kv[1])}, without_costs=without)
+
+
+@router.get("/costs-report/export.xlsx")
+def costs_report_export(year: int | None = None, basis: str | None = None, include_all: bool = False, db: Session = Depends(get_db),
+                        identity: Identity = Depends(get_identity)) -> StreamingResponse:
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+
+    rep = costs_report(year=year, basis=basis, include_all=include_all, db=db, identity=identity)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Costs and profit"
+    ws.append([f"Costs and profit - {rep.label}"])
+    ws["A1"].font = Font(bold=True, size=13)
+    ws.append([])
+    ws.append(["Edition", "Title", "Date", "Booked", "Costs", "Budget", "Profit", "Margin", "Biggest cost", "Signed off"])
+    for c in ws[ws.max_row]:
+        c.font, c.fill = Font(bold=True), PatternFill("solid", fgColor="DDE4F0")
+    for r in rep.rows:
+        ws.append([r.edition.label, r.title.name, r.edition_date, r.booked_gbp, r.costs_gbp, r.budget_gbp, r.profit_gbp,
+                   r.margin, COST_CATEGORIES.get(r.top_category or "", ""), "Yes" if r.signed_off else ""])
+        ws.cell(ws.max_row, 8).number_format = "0%"
+    ws.append([])
+    ws.append(["Total (editions with costs)", "", "", rep.booked_gbp, rep.costs_gbp, "", rep.profit_gbp])
+    ws.cell(ws.max_row, 1).font = Font(bold=True)
+    if rep.by_category:
+        ws.append([])
+        ws.append(["Costs by type"])
+        ws.cell(ws.max_row, 1).font = Font(bold=True)
+        for k, v in rep.by_category.items():
+            ws.append([COST_CATEGORIES.get(k, k), "", "", "", v])
+    for col, w in zip("ABCDEFGHIJ", (44, 30, 12, 12, 12, 12, 12, 9, 22, 10)):
+        ws.column_dimensions[col].width = w
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             headers={"Content-Disposition": f'attachment; filename="Costs and profit {rep.label.replace("/", "-")}.xlsx"'})
 
 
 @router.post("/editions/{edition_id}/renewal-pass")
@@ -1090,6 +1282,8 @@ class RateOut(BaseModel):
     price_type: str = "fixed"
     unit: str = "each"
     specs: str | None = None
+    pages: float | None = None
+    size_label: str | None = None
 
 
 class TitleLinks(BaseModel):
@@ -1099,7 +1293,14 @@ class TitleLinks(BaseModel):
 
 def _rate_out(r: SalesRate) -> RateOut:
     return RateOut(id=r.id, title_id=r.title_id, year=r.year, product=r.product, price_gbp=float(r.price_gbp) if r.price_gbp is not None else None,
-                   notes=r.notes, section=r.section, price_type=r.price_type, unit=r.unit, specs=r.specs)
+                   notes=r.notes, section=r.section, price_type=r.price_type, unit=r.unit, specs=r.specs,
+                   pages=float(r.pages) if r.pages is not None else None, size_label=_rate_size_label(r))
+
+
+def _rate_size_label(r: SalesRate) -> str | None:
+    from app.api.routes.rate_card import size_label
+
+    return size_label(r)
 
 
 @router.get("/rates", response_model=list[RateOut])

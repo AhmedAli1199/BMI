@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import FieldChange, RateOffer, SalesRate, SalesTitle, User
+from app.models import FieldChange, RateOffer, RateSection, SalesRate, SalesTitle, User
 from app.sales import brands as B
 from app.sales import rate_card_seed as seed
 from app.services.field_audit import record_field_changes
@@ -30,6 +30,7 @@ router = APIRouter(prefix="/rate-card", tags=["rate card"])
 PRICE_TYPES = ("fixed", "from", "poa")
 UNITS = ("each", "month", "week", "year", "event", "entry")
 OFFER_KINDS = ("volume", "series", "early_bird", "note")
+SIZE_UNITS = ("mm", "px")
 UNIT_WORDS = {"each": "", "month": " per month", "week": " per week", "year": " per year", "event": " per event", "entry": " per entry"}
 
 
@@ -55,6 +56,12 @@ class RateItem(BaseModel):
     archived: bool
     price_label: str
     updated_at: datetime
+    width: float | None = None
+    height: float | None = None
+    size_unit: str | None = None
+    bleed_mm: float | None = None
+    pages: float | None = None
+    size_label: str | None = None  # "210 x 297 mm, 3 mm bleed · 2 pages"
 
 
 class OfferOut(BaseModel):
@@ -77,6 +84,8 @@ class SectionOut(BaseModel):
     hint: str
     default_title_id: uuid.UUID | None
     items: list[RateItem]
+    custom: bool = False  # one of the brand's own sections (can be renamed or removed)
+    id: uuid.UUID | None = None
 
 
 class TitleRef(BaseModel):
@@ -127,12 +136,37 @@ def price_label(r: SalesRate) -> str:
     return ("From " if r.price_type == "from" else "") + money + UNIT_WORDS.get(r.unit, "")
 
 
+def _num(v) -> str:
+    f = float(v)
+    return f"{f:g}"
+
+
+def size_label(r: SalesRate) -> str | None:
+    """Plain words for a product's size and pages, e.g. "210 x 297 mm, 3 mm bleed · 2 pages"."""
+    parts = []
+    if r.width and r.height:
+        unit = r.size_unit or "mm"
+        size = f"{_num(r.width)} x {_num(r.height)} {unit}"
+        if r.bleed_mm and unit == "mm":
+            size += f", {_num(r.bleed_mm)} mm bleed"
+        parts.append(size)
+    if r.pages:
+        parts.append(f"{_num(r.pages)} page" + ("" if float(r.pages) == 1 else "s"))
+    return " · ".join(parts) or None
+
+
+def _f(v) -> float | None:
+    return float(v) if v is not None else None
+
+
 def _item(r: SalesRate, titles: dict[uuid.UUID, SalesTitle]) -> RateItem:
     t = titles.get(r.title_id)
     return RateItem(id=r.id, title_id=r.title_id, title_name=t.name if t else "", year=r.year, section=r.section, product=r.product,
                     price_type=r.price_type, price_gbp=float(r.price_gbp) if r.price_gbp is not None else None, unit=r.unit, specs=r.specs,
                     aliases=r.aliases or [], notes=r.notes, valid_until=r.valid_until, sort_order=r.sort_order, needs_check=r.needs_check,
-                    source=r.source, archived=r.archived, price_label=price_label(r), updated_at=r.updated_at)
+                    source=r.source, archived=r.archived, price_label=price_label(r), updated_at=r.updated_at,
+                    width=_f(r.width), height=_f(r.height), size_unit=r.size_unit, bleed_mm=_f(r.bleed_mm), pages=_f(r.pages),
+                    size_label=size_label(r))
 
 
 def _offer(o: RateOffer) -> OfferOut:
@@ -145,6 +179,19 @@ def _brand_or_404(key: str) -> B.Brand:
     if not b:
         raise HTTPException(404, "Brand not found")
     return b
+
+
+class _Sec:
+    def __init__(self, key: str, label: str, hint: str, title_slug: str, custom: bool = False, id: uuid.UUID | None = None):
+        self.key, self.label, self.hint, self.title_slug, self.custom, self.id = key, label, hint, title_slug, custom, id
+
+
+def brand_sections(db: Session, brand: B.Brand) -> list[_Sec]:
+    """The standard sections, then the brand's own (cover wraps, belly bands...)."""
+    out = [_Sec(s.key, s.label, s.hint, brand.title_for_section(s.key)) for s in B.SECTIONS]
+    for c in db.scalars(select(RateSection).where(RateSection.brand == brand.key).order_by(RateSection.sort_order, RateSection.created_at)):
+        out.append(_Sec(c.key, c.label, c.hint or "", c.title_slug or brand.title_slugs[0], True, c.id))
+    return out
 
 
 def _titles(db: Session, brand: B.Brand) -> dict[uuid.UUID, SalesTitle]:
@@ -179,7 +226,7 @@ def _summary(db: Session, identity: Identity, brand: B.Brand, year: int) -> Bran
         key=brand.key, name=brand.name, short=brand.short, website=brand.website, can_edit=B.can_edit_brand(db, identity, brand),
         products=len(rows), needs_check=sum(1 for r in rows if r.needs_check), on_request=sum(1 for r in rows if r.price_type == "poa"),
         offers=offers, last_updated=max((r.updated_at for r in rows), default=None), seed_available=seed.seed_available(db, brand.key, year),
-        sections=[s for s in B.SECTION_KEYS if any(r.section == s for r in rows)],
+        sections=[s.key for s in brand_sections(db, brand) if any(r.section == s.key for r in rows)],
     )
 
 
@@ -199,9 +246,9 @@ def brand_page(key: str, year: int | None = None, db: Session = Depends(get_db),
     rows = _rates(db, brand, y, archived=None)
     live = [r for r in rows if not r.archived]
     by_slug = {t.slug: t for t in titles.values()}
-    sections = [SectionOut(key=s.key, label=s.label, hint=s.hint,
-                           default_title_id=by_slug[brand.title_for_section(s.key)].id if brand.title_for_section(s.key) in by_slug else None,
-                           items=[_item(r, titles) for r in live if r.section == s.key]) for s in B.SECTIONS]
+    sections = [SectionOut(key=s.key, label=s.label, hint=s.hint, custom=s.custom, id=s.id,
+                           default_title_id=by_slug[s.title_slug].id if s.title_slug in by_slug else None,
+                           items=[_item(r, titles) for r in live if r.section == s.key]) for s in brand_sections(db, brand)]
     offers = db.scalars(select(RateOffer).where(RateOffer.brand == key, RateOffer.year == y).order_by(RateOffer.sort_order, RateOffer.created_at))
     next_ids = list(titles)
     has_next = bool(next_ids and db.scalar(select(SalesRate.id).where(SalesRate.title_id.in_(next_ids), SalesRate.year == y + 1).limit(1)))
@@ -228,6 +275,11 @@ class ItemIn(BaseModel):
     aliases: list[str] = []
     notes: str | None = Field(default=None, max_length=300)
     valid_until: date | None = None
+    width: float | None = Field(default=None, gt=0, le=10000)
+    height: float | None = Field(default=None, gt=0, le=10000)
+    size_unit: str | None = None
+    bleed_mm: float | None = Field(default=None, ge=0, le=50)
+    pages: float | None = Field(default=None, gt=0, le=500)
 
 
 class ItemPatch(BaseModel):
@@ -242,17 +294,23 @@ class ItemPatch(BaseModel):
     notes: str | None = Field(default=None, max_length=300)
     valid_until: date | None = None
     needs_check: bool | None = None
+    width: float | None = Field(default=None, gt=0, le=10000)
+    height: float | None = Field(default=None, gt=0, le=10000)
+    size_unit: str | None = None
+    bleed_mm: float | None = Field(default=None, ge=0, le=50)
+    pages: float | None = Field(default=None, gt=0, le=500)
 
 
-AUDITED = ("product", "price_type", "price_gbp", "unit", "specs", "aliases", "notes", "valid_until", "section", "title_id", "archived")
+AUDITED = ("product", "price_type", "price_gbp", "unit", "specs", "aliases", "notes", "valid_until", "section", "title_id", "archived",
+           "width", "height", "size_unit", "bleed_mm", "pages")
 
 
 def _clean_aliases(a: list[str]) -> list[str]:
     return list(dict.fromkeys(x.strip() for x in a if x and x.strip()))[:12]
 
 
-def _validate(section: str, price_type: str, price: float | None, unit: str) -> None:
-    if section not in B.SECTION_KEYS:
+def _validate(section: str, price_type: str, price: float | None, unit: str, sections: list[str] | None = None) -> None:
+    if section not in (sections or B.SECTION_KEYS):
         raise HTTPException(422, "Choose a section.")
     if price_type not in PRICE_TYPES:
         raise HTTPException(422, "Choose how the price is quoted.")
@@ -260,6 +318,15 @@ def _validate(section: str, price_type: str, price: float | None, unit: str) -> 
         raise HTTPException(422, "Choose what the price is for.")
     if price_type != "poa" and price is None:
         raise HTTPException(422, "Type the price, or choose “Price on request”.")
+
+
+def _validate_size(width, height, unit, bleed) -> None:
+    if (width is None) != (height is None):
+        raise HTTPException(422, "Give both the width and the height, or leave both empty.")
+    if unit is not None and unit not in SIZE_UNITS:
+        raise HTTPException(422, "The size is either in millimetres or in pixels.")
+    if bleed and unit == "px":
+        raise HTTPException(422, "Bleed is only for print sizes in millimetres.")
 
 
 def _rate_brand(db: Session, r: SalesRate) -> B.Brand:
@@ -271,7 +338,8 @@ def _rate_brand(db: Session, r: SalesRate) -> B.Brand:
 
 
 def _snapshot(r: SalesRate) -> dict:
-    return {k: (str(getattr(r, k)) if k == "title_id" else getattr(r, k)) for k in AUDITED}
+    return {k: (str(getattr(r, k)) if k == "title_id" else float(getattr(r, k)) if k in ("width", "height", "bleed_mm", "pages") and getattr(r, k) is not None
+                else getattr(r, k)) for k in AUDITED}
 
 
 def _dup_check(db: Session, title_id, year, section, product, exclude: uuid.UUID | None = None) -> None:
@@ -287,9 +355,13 @@ def _dup_check(db: Session, title_id, year, section, product, exclude: uuid.UUID
 def add_item(p: ItemIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> RateItem:
     brand = _brand_or_404(p.brand)
     _require_edit(db, identity, brand)
-    _validate(p.section, p.price_type, p.price_gbp, p.unit)
+    secs = {x.key: x for x in brand_sections(db, brand)}
+    _validate(p.section, p.price_type, p.price_gbp, p.unit, list(secs))
+    unit = (p.size_unit or "mm") if p.width else None
+    _validate_size(p.width, p.height, unit, p.bleed_mm)
     titles = _titles(db, brand)
-    title_id = p.title_id or B.title_id_for_section(db, brand, p.section)
+    by_slug = {t.slug: t.id for t in titles.values()}
+    title_id = p.title_id or by_slug.get(secs[p.section].title_slug) or B.title_id_for_section(db, brand, p.section)
     if title_id not in titles:
         raise HTTPException(422, "That part of the business isn't in this brand.")
     product = p.product.strip()
@@ -297,7 +369,8 @@ def add_item(p: ItemIn, db: Session = Depends(get_db), identity: Identity = Depe
     last = db.scalar(select(func.max(SalesRate.sort_order)).where(SalesRate.title_id.in_(list(titles)), SalesRate.year == p.year, SalesRate.section == p.section)) or 0
     r = SalesRate(id=uuid.uuid4(), title_id=title_id, year=p.year, section=p.section, product=product, price_type=p.price_type,
                   price_gbp=None if p.price_type == "poa" else p.price_gbp, unit=p.unit, specs=(p.specs or "").strip() or None,
-                  aliases=_clean_aliases(p.aliases), notes=(p.notes or "").strip() or None, valid_until=p.valid_until, sort_order=last + 10)
+                  aliases=_clean_aliases(p.aliases), notes=(p.notes or "").strip() or None, valid_until=p.valid_until, sort_order=last + 10,
+                  width=p.width, height=p.height, size_unit=unit, bleed_mm=p.bleed_mm or None if unit == "mm" else None, pages=p.pages)
     db.add(r)
     db.flush()
     record_field_changes(db, entity_type="sales_rate", entity_id=r.id, before={"created": None}, updates={"created": price_label(r)},
@@ -329,7 +402,14 @@ def edit_item(rid: uuid.UUID, p: ItemPatch, db: Session = Depends(get_db), ident
         setattr(r, k, v)
     if r.price_type == "poa":
         r.price_gbp = None
-    _validate(r.section, r.price_type, float(r.price_gbp) if r.price_gbp is not None else None, r.unit)
+    if r.width is None and r.height is None:
+        r.size_unit = r.bleed_mm = None
+    elif not r.size_unit:
+        r.size_unit = "mm"
+    if r.size_unit == "px":
+        r.bleed_mm = None
+    _validate_size(r.width, r.height, r.size_unit, r.bleed_mm)
+    _validate(r.section, r.price_type, float(r.price_gbp) if r.price_gbp is not None else None, r.unit, [x.key for x in brand_sections(db, brand)])
     _dup_check(db, r.title_id, r.year, r.section, r.product, exclude=r.id)
     if "needs_check" not in data and any(k in data for k in ("price_gbp", "price_type", "product")):
         r.needs_check = False  # someone just set it by hand - that counts as checked
@@ -403,6 +483,87 @@ def load_media_pack(key: str, year: int = Query(seed.SEED_YEAR), db: Session = D
     return {"added": n}
 
 
+# ---- the brand's own sections ------------------------------------------------------------
+
+class SectionIn(BaseModel):
+    label: str = Field(min_length=1, max_length=80)
+    hint: str | None = Field(default=None, max_length=300)
+    title_id: uuid.UUID | None = None  # which sales title its prices are booked under
+
+
+def _section_title_slug(db: Session, brand: B.Brand, title_id: uuid.UUID | None) -> str:
+    if not title_id:
+        return brand.title_slugs[0]
+    t = _titles(db, brand).get(title_id)
+    if not t:
+        raise HTTPException(422, "That part of the business isn't in this brand.")
+    return t.slug
+
+
+def _section_key(label: str, taken: set[str]) -> str:
+    import re
+
+    base = "x-" + (re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:14] or "section")
+    key, n = base, 2
+    while key in taken:
+        key, n = f"{base[:16]}-{n}", n + 1
+    return key
+
+
+@router.post("/brands/{key}/sections", response_model=SectionOut, status_code=201)
+def add_section(key: str, p: SectionIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> SectionOut:
+    """A new heading on the brand's rate card, e.g. "Cover wraps & belly bands"."""
+    brand = _brand_or_404(key)
+    _require_edit(db, identity, brand)
+    existing = brand_sections(db, brand)
+    label = p.label.strip()
+    if any(s.label.lower() == label.lower() for s in existing):
+        raise HTTPException(409, f"There's already a section called “{label}”.")
+    last = db.scalar(select(func.max(RateSection.sort_order)).where(RateSection.brand == brand.key)) or 0
+    row = RateSection(id=uuid.uuid4(), brand=brand.key, key=_section_key(label, {s.key for s in existing}), label=label,
+                      hint=(p.hint or "").strip() or None, title_slug=_section_title_slug(db, brand, p.title_id), sort_order=last + 10)
+    db.add(row)
+    db.commit()
+    by_slug = {t.slug: t.id for t in _titles(db, brand).values()}
+    return SectionOut(key=row.key, label=row.label, hint=row.hint or "", default_title_id=by_slug.get(row.title_slug), items=[], custom=True, id=row.id)
+
+
+def _custom_section(db: Session, identity: Identity, sid: uuid.UUID) -> tuple[RateSection, B.Brand]:
+    row = db.get(RateSection, sid)
+    if not row:
+        raise HTTPException(404, "Section not found")
+    brand = _brand_or_404(row.brand)
+    _require_edit(db, identity, brand)
+    return row, brand
+
+
+@router.patch("/sections/{sid}", response_model=SectionOut)
+def edit_section(sid: uuid.UUID, p: SectionIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> SectionOut:
+    row, brand = _custom_section(db, identity, sid)
+    label = p.label.strip()
+    if any(s.label.lower() == label.lower() and s.id != row.id for s in brand_sections(db, brand)):
+        raise HTTPException(409, f"There's already a section called “{label}”.")
+    row.label, row.hint = label, (p.hint or "").strip() or None
+    if p.title_id:
+        row.title_slug = _section_title_slug(db, brand, p.title_id)
+    db.commit()
+    by_slug = {t.slug: t.id for t in _titles(db, brand).values()}
+    return SectionOut(key=row.key, label=row.label, hint=row.hint or "", default_title_id=by_slug.get(row.title_slug), items=[], custom=True, id=row.id)
+
+
+@router.delete("/sections/{sid}", status_code=204, response_model=None)
+def delete_section(sid: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> None:
+    """Only an empty section can go - prices in any year must be moved or removed first."""
+    row, brand = _custom_section(db, identity, sid)
+    ids = list(_titles(db, brand))
+    n = db.scalar(select(func.count()).select_from(SalesRate).where(SalesRate.title_id.in_(ids), SalesRate.section == row.key,
+                                                                    SalesRate.archived.is_(False))) or 0
+    if n:
+        raise HTTPException(409, f"“{row.label}” still has {n} price{'s' if n != 1 else ''} (in this or another year). Move or remove them first.")
+    db.delete(row)
+    db.commit()
+
+
 # ---- offers -----------------------------------------------------------------------------
 
 class OfferIn(BaseModel):
@@ -427,7 +588,7 @@ def _validate_offer(p: OfferIn) -> None:
         raise HTTPException(422, "Each step needs a number of bookings and a price.")
     if p.kind == "early_bird" and not p.valid_until:
         raise HTTPException(422, "Say when the early-bird price ends.")
-    if p.section and p.section not in B.SECTION_KEYS:
+    if p.section and p.section not in B.SECTION_KEYS and not p.section.startswith("x-"):
         raise HTTPException(422, "Choose a section.")
 
 
@@ -517,7 +678,7 @@ def next_year_preview(p: NextYearIn, db: Session = Depends(get_db), identity: Id
     to = p.from_year + 1
     existing = {(r.title_id, r.section, r.product.lower()) for r in _rates(db, brand, to, archived=None)}
     rows, skipped = [], 0
-    order = {k: i for i, k in enumerate(B.SECTION_KEYS)}
+    order = {s.key: i for i, s in enumerate(brand_sections(db, brand))}
     for r in sorted(_rates(db, brand, p.from_year), key=lambda r: (order.get(r.section, 99), r.sort_order, r.product)):
         if (r.title_id, r.section, r.product.lower()) in existing:
             skipped += 1
@@ -542,6 +703,7 @@ def next_year_apply(p: NextYearIn, db: Session = Depends(get_db), identity: Iden
         r = SalesRate(id=uuid.uuid4(), title_id=src.title_id, year=to, section=src.section, product=src.product, price_type=src.price_type,
                       price_gbp=None if src.price_type == "poa" else new, unit=src.unit, specs=src.specs, aliases=list(src.aliases or []),
                       notes=src.notes, valid_until=_shift(src.valid_until), sort_order=src.sort_order, needs_check=False,
+                      width=src.width, height=src.height, size_unit=src.size_unit, bleed_mm=src.bleed_mm, pages=src.pages,
                       source=f"Copied from {p.from_year}" + (f" (+{p.raise_pct:g}%)" if p.raise_pct else ""))
         db.add(r)
         id_map[str(src.id)] = str(r.id)
@@ -672,7 +834,7 @@ def export(year: int, brand: str | None = None, db: Session = Depends(get_db)) -
         ws.append([])
         titles = _titles(db, b)
         rows = _rates(db, b, year)
-        for s in B.SECTIONS:
+        for s in brand_sections(db, b):
             items = [r for r in rows if r.section == s.key]
             if not items:
                 continue
@@ -682,7 +844,8 @@ def export(year: int, brand: str | None = None, db: Session = Depends(get_db)) -
             for c in ws[ws.max_row]:
                 c.font, c.fill = Font(bold=True), PatternFill("solid", fgColor="DDE4F0")
             for r in items:
-                ws.append([r.product, price_label(r), r.specs or "", r.notes or "", titles[r.title_id].name if r.title_id in titles else ""])
+                specs = " · ".join(x for x in (size_label(r), r.specs) if x)
+                ws.append([r.product, price_label(r), specs, r.notes or "", titles[r.title_id].name if r.title_id in titles else ""])
             ws.append([])
         offers = list(db.scalars(select(RateOffer).where(RateOffer.brand == b.key, RateOffer.year == year).order_by(RateOffer.sort_order)))
         if offers:

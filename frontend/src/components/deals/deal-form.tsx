@@ -234,7 +234,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                       <option value="">{titleRates.length ? "Choose a product, or type your own below" : "Nothing on the rate card - type it below"}</option>
                       {[...new Set(titleRates.map((r) => r.year))].sort().map((y) => (
                         <optgroup key={y} label={String(y)}>
-                          {titleRates.filter((r) => r.year === y).map((r) => <option key={r.id} value={r.id}>{r.product}{r.price_gbp != null ? ` - ${fmtGBP(r.price_gbp)}` : ""}</option>)}
+                          {titleRates.filter((r) => r.year === y).map((r) => <option key={r.id} value={r.id}>{r.product}{r.size_label ? ` (${r.size_label})` : ""}{r.price_gbp != null ? ` - ${fmtGBP(r.price_gbp)}` : ""}</option>)}
                         </optgroup>
                       ))}
                     </select>

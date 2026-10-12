@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCheck, Download, Loader2, PackageOpen, Pencil, Plus, Printer, RotateCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCheck, Download, FolderPlus, Loader2, PackageOpen, Pencil, Plus, Printer, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { BrandPage, RateItem, RateSection } from "@/lib/rate-card-types";
 import { archiveRateItem, confirmAllRates, editRateItem, loadMediaPack, reorderRateItems } from "@/lib/rate-card-actions";
@@ -12,6 +12,7 @@ import { InfoHint } from "@/components/sales/info-hint";
 import { SalesHeader, YearSwitch, fmtDate } from "@/components/sales/sales-ui";
 import { brandColor } from "@/components/rate-card/brand-style";
 import { PriceSheet, type PriceSheetTarget } from "@/components/rate-card/price-sheet";
+import { SectionSheet, type SectionSheetTarget } from "@/components/rate-card/section-sheet";
 import { OffersPanel } from "@/components/rate-card/offers-panel";
 import { NextYearDialog } from "@/components/rate-card/next-year-dialog";
 import { HistorySheet } from "@/components/rate-card/history-sheet";
@@ -27,11 +28,13 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
   const { brand, year } = data;
   const canEdit = brand.can_edit;
   const [sheet, setSheet] = useState<PriceSheetTarget>(null);
+  const [secSheet, setSecSheet] = useState<SectionSheetTarget>(null);
   const [pending, start] = useTransition();
   const [showHelp, setShowHelp] = useState(false);
   const refresh = () => router.refresh();
-  const filled = data.sections.filter((s) => s.items.length > 0);
-  const empty = data.sections.filter((s) => s.items.length === 0);
+  // The brand's own sections show even when empty, so they can be filled, renamed or removed.
+  const filled = data.sections.filter((s) => s.items.length > 0 || (s.custom && canEdit));
+  const empty = data.sections.filter((s) => s.items.length === 0 && !s.custom);
   const total = filled.reduce((n, s) => n + s.items.length, 0);
 
   return (
@@ -49,6 +52,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
       {/* toolbar */}
       <div className="flex flex-wrap items-center gap-2 print-hide">
         {canEdit && <Button size="sm" className="gap-1.5" onClick={() => setSheet({ mode: "add", section: filled[0]?.key ?? "print" })}><Plus className="size-3.5" /> Add a price</Button>}
+        {canEdit && <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setSecSheet({ mode: "add" })}><FolderPlus className="size-3.5" /> Add a section</Button>}
         {canEdit && total > 0 && <NextYearDialog brand={brand.key} brandName={brand.name} fromYear={year} hasNextYear={data.has_next_year} />}
         <HistorySheet brand={brand.key} year={year} onChanged={refresh} />
         <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<a href={`/api/files/rate-card/export.xlsx?year=${year}&brand=${brand.key}`} download />}><Download className="size-3.5" /> Excel</Button>
@@ -60,7 +64,8 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
         <section className="rounded-xl border border-border/80 bg-card p-4 text-sm shadow-2xs print-hide" aria-label="How this page works">
           <ol className="grid list-decimal gap-1.5 pl-5 text-muted-foreground">
             <li><strong className="text-foreground">Change a price:</strong> click the price, type the new one and press Enter. It saves straight away.</li>
-            <li><strong className="text-foreground">Change anything else</strong> (name, size, notes, “also called”): click the pencil next to the product.</li>
+            <li><strong className="text-foreground">Change anything else</strong> (name, size, pages, notes, “also called”): click the pencil next to the product.</li>
+            <li><strong className="text-foreground">Something that doesn&apos;t fit the usual headings</strong> (cover wraps, belly bands): “Add a section” gives the rate card its own heading.</li>
             <li><strong className="text-foreground">“Please check”</strong> means the price was read from your media pack. If it&apos;s right, press the tick.</li>
             <li><strong className="text-foreground">Next year:</strong> “Prepare {year + 1} prices” copies this list, can raise everything by a percentage, and lets you check each price first.</li>
             <li><strong className="text-foreground">Made a mistake?</strong> “Changes” lists every change, with “Put back”. Removed products can be restored at the bottom of the page.</li>
@@ -113,7 +118,8 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
         </nav>
       )}
 
-      {filled.map((s) => <SectionCard key={s.key} section={s} canEdit={canEdit} onEdit={(item) => setSheet({ mode: "edit", item })} onAdd={() => setSheet({ mode: "add", section: s.key })} onChanged={refresh} />)}
+      {filled.map((s) => <SectionCard key={s.key} section={s} canEdit={canEdit} onEdit={(item) => setSheet({ mode: "edit", item })} onAdd={() => setSheet({ mode: "add", section: s.key })}
+        onEditSection={() => setSecSheet({ mode: "edit", section: s })} onChanged={refresh} />)}
 
       {canEdit && total > 0 && empty.length > 0 && (
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground print-hide">
@@ -141,12 +147,15 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
         </details>
       )}
 
+      <SectionSheet target={secSheet} brand={brand.key} brandName={brand.name} titles={data.titles} onClose={() => setSecSheet(null)} onSaved={refresh} />
       <PriceSheet target={sheet} brand={brand.key} brandName={brand.name} year={year} sections={data.sections} titles={data.titles} onClose={() => setSheet(null)} onSaved={refresh} />
     </>
   );
 }
 
-function SectionCard({ section, canEdit, onEdit, onAdd, onChanged }: { section: RateSection; canEdit: boolean; onEdit: (i: RateItem) => void; onAdd: () => void; onChanged: () => void }) {
+function SectionCard({ section, canEdit, onEdit, onAdd, onEditSection, onChanged }: {
+  section: RateSection; canEdit: boolean; onEdit: (i: RateItem) => void; onAdd: () => void; onEditSection: () => void; onChanged: () => void;
+}) {
   const [, start] = useTransition();
   function move(i: number, d: -1 | 1) {
     const ids = section.items.map((x) => x.id);
@@ -157,9 +166,15 @@ function SectionCard({ section, canEdit, onEdit, onAdd, onChanged }: { section: 
     <section id={section.key} aria-labelledby={`${section.key}-h`} className="scroll-mt-24 overflow-hidden rounded-xl border border-border/80 bg-card shadow-2xs print-avoid-break">
       <header className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
         <h2 id={`${section.key}-h`} className="text-sm font-bold">{section.label}</h2>
-        <InfoHint>{section.hint}</InfoHint>
+        {section.hint && <InfoHint>{section.hint}</InfoHint>}
+        {canEdit && section.custom && (
+          <Button size="icon-xs" variant="ghost" className="print-hide" aria-label={`Rename or remove ${section.label}`} onClick={onEditSection}><Pencil className="size-3" /></Button>
+        )}
         {canEdit && <Button size="xs" variant="ghost" className="ml-auto gap-1 print-hide" onClick={onAdd}><Plus className="size-3" /> Add</Button>}
       </header>
+      {section.items.length === 0 && (
+        <p className="px-4 py-4 text-sm text-muted-foreground">No prices here yet. Use “Add” to put the first one in.</p>
+      )}
       <table className="w-full text-sm">
         <caption className="sr-only">{section.label} prices</caption>
         <thead className="sr-only"><tr><th scope="col">Product</th><th scope="col">Price</th><th scope="col">Actions</th></tr></thead>
@@ -169,6 +184,7 @@ function SectionCard({ section, canEdit, onEdit, onAdd, onChanged }: { section: 
               <td className="px-4 py-2.5">
                 <p className="font-medium">{r.product}</p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  {r.size_label && <span className="tabular-nums">{r.size_label}</span>}
                   {r.specs && <span>{r.specs}</span>}
                   {r.aliases.length > 0 && <span title="Also called (how the order register writes it)">Also: {r.aliases.join(", ")}</span>}
                   {r.valid_until && <ValidUntil date={r.valid_until} />}

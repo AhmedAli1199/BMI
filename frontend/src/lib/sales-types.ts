@@ -21,6 +21,9 @@ export type SalesRate = {
   product: string;
   price_gbp: number | null;
   notes: string | null;
+  pages?: number | null;
+  /** "210 x 297 mm, 3 mm bleed · 2 pages" */
+  size_label?: string | null;
 };
 
 export type RenewalPassResult = {
@@ -362,6 +365,10 @@ export type CostLine = {
   amount_inc_vat_gbp: number | null;
   section: string | null;
   from_sheet: boolean;
+  category: string | null;
+  budget_gbp: number | null;
+  /** The booking this cost is for, e.g. the printing of one client's cover wrap. */
+  order: Ref | null;
 };
 
 export type EditionCosts = {
@@ -369,6 +376,12 @@ export type EditionCosts = {
   total_costs_gbp: number;
   other_income_gbp: number;
   profit_gbp: number | null;
+  total_budget_gbp: number | null;
+  /** Subtotals per part of the edition (an awards' judging day and ceremony); part null = not in a part. */
+  parts: { part: string | null; costs_gbp: number; budget_gbp: number | null }[];
+  by_category: Record<string, number>;
+  by_booking: { order: Ref; value_gbp: number; costs_gbp: number; profit_gbp: number }[];
+  categories: Record<string, string>;
 };
 
 export type CostLineInput = {
@@ -377,6 +390,37 @@ export type CostLineInput = {
   amount_gbp: number | null;
   amount_inc_vat_gbp?: number | null;
   section?: string | null;
+  category?: string | null;
+  budget_gbp?: number | null;
+  order_id?: string | null;
+};
+
+export type CostReportRow = {
+  edition: Ref;
+  title: SalesTitle;
+  edition_date: string | null;
+  kind: string;
+  booked_gbp: number;
+  costs_gbp: number;
+  budget_gbp: number | null;
+  profit_gbp: number | null;
+  margin: number | null;
+  cost_lines: number;
+  signed_off: boolean;
+  top_category: string | null;
+};
+
+export type CostReport = {
+  year: number;
+  label: string;
+  basis: YearBasis;
+  rows: CostReportRow[];
+  booked_gbp: number;
+  costs_gbp: number;
+  profit_gbp: number;
+  by_category: Record<string, number>;
+  categories: Record<string, string>;
+  without_costs: number;
 };
 
 /** A Xero invoice someone could link a booking to (no booking has it yet). */

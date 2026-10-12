@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { AlertTriangle, Check, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import type { BrandTitle, PriceType, PriceUnit, RateItem, RateSection } from "@/lib/rate-card-types";
+import type { BrandTitle, PriceType, PriceUnit, RateItem, RateSection, SizeUnit } from "@/lib/rate-card-types";
 import { PRICE_TYPE_LABELS, UNIT_LABELS } from "@/lib/rate-card-types";
 import { addRateItem, archiveRateItem, editRateItem } from "@/lib/rate-card-actions";
 import { Button } from "@/components/ui/button";
@@ -16,16 +16,20 @@ import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
-const EXAMPLES: Record<string, { name: string; unit: PriceUnit; specs: string }> = {
-  print: { name: "e.g. Full page, Half page, Inside front cover", unit: "each", specs: "e.g. 210mm x 297mm" },
-  sponsored: { name: "e.g. Sponsored full page, Ask the Expert", unit: "each", specs: "e.g. Double page" },
-  website: { name: "e.g. Leaderboard, Fireplace, Banner", unit: "month", specs: "e.g. 728px x 90px" },
-  newsletter: { name: "e.g. Newsletter banner, Dedicated email", unit: "each", specs: "e.g. 600px x 150px" },
-  events: { name: "e.g. Dinner sponsorship, Connect event place", unit: "event", specs: "" },
-  awards: { name: "e.g. Award entry, Gold sponsorship", unit: "entry", specs: "" },
-  listings: { name: "e.g. Standard listing, Enhanced listing", unit: "year", specs: "" },
-  other: { name: "e.g. Design service, Contract publishing", unit: "each", specs: "" },
+// size: which size box to offer first (print = mm with bleed, online = px, none = only if asked)
+const EXAMPLES: Record<string, { name: string; unit: PriceUnit; specs: string; size: SizeUnit | null; pages: boolean }> = {
+  print: { name: "e.g. Full page, Half page, Inside front cover", unit: "each", specs: "e.g. Supply as a print-ready PDF", size: "mm", pages: false },
+  sponsored: { name: "e.g. Sponsored full page, Ask the Expert", unit: "each", specs: "e.g. 800 words and 3 pictures", size: null, pages: true },
+  website: { name: "e.g. Leaderboard, Fireplace, Banner", unit: "month", specs: "e.g. JPG or GIF, under 200KB", size: "px", pages: false },
+  newsletter: { name: "e.g. Newsletter banner, Dedicated email", unit: "each", specs: "e.g. JPG, under 150KB", size: "px", pages: false },
+  events: { name: "e.g. Dinner sponsorship, Connect event place", unit: "event", specs: "", size: null, pages: false },
+  awards: { name: "e.g. Award entry, Gold sponsorship", unit: "entry", specs: "", size: null, pages: false },
+  listings: { name: "e.g. Standard listing, Enhanced listing", unit: "year", specs: "", size: null, pages: false },
+  other: { name: "e.g. Design service, Contract publishing", unit: "each", specs: "", size: null, pages: false },
+  custom: { name: "e.g. Cover wrap, Belly band, Gatefold", unit: "each", specs: "e.g. Printed by us, artwork from the client", size: "mm", pages: false },
 };
+const exampleFor = (section: string) => EXAMPLES[section] ?? (section.startsWith("x-") ? EXAMPLES.custom : EXAMPLES.other);
+const numText = (v: number | null | undefined) => (v == null ? "" : String(v));
 
 export type PriceSheetTarget = { mode: "add"; section: string } | { mode: "edit"; item: RateItem } | null;
 
@@ -62,7 +66,7 @@ function Form({ target, brand, brandName, year, sections, titles, onClose, onSav
   const item = target.mode === "edit" ? target.item : null;
   const [pending, start] = useTransition();
   const [section, setSection] = useState(item?.section ?? (target.mode === "add" ? target.section : "print"));
-  const ex = EXAMPLES[section] ?? EXAMPLES.other;
+  const ex = exampleFor(section);
   const [product, setProduct] = useState(item?.product ?? "");
   const [priceType, setPriceType] = useState<PriceType>(item?.price_type ?? "fixed");
   const [price, setPrice] = useState(item?.price_gbp != null ? String(item.price_gbp) : "");
@@ -72,13 +76,23 @@ function Form({ target, brand, brandName, year, sections, titles, onClose, onSav
   const [alias, setAlias] = useState("");
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [validUntil, setValidUntil] = useState(item?.valid_until ?? "");
+  const [sizeUnit, setSizeUnit] = useState<SizeUnit>(item?.size_unit ?? ex.size ?? "mm");
+  const [width, setWidth] = useState(numText(item?.width));
+  const [height, setHeight] = useState(numText(item?.height));
+  const [bleed, setBleed] = useState(numText(item?.bleed_mm));
+  const [pages, setPages] = useState(numText(item?.pages));
+  const [showSize, setShowSize] = useState(!!item?.width || !!ex.size);
+  const [showPages, setShowPages] = useState(!!item?.pages || ex.pages);
   const sectionDefault = sections.find((s) => s.key === section)?.default_title_id ?? null;
   const [titleId, setTitleId] = useState<string | null>(item?.title_id ?? null);
   const [showMore, setShowMore] = useState(!!item && (item.title_id !== sectionDefault));
 
   const priceNum = Number(price.replace(/[£,\s]/g, ""));
   const priceOk = priceType === "poa" || (price.trim() !== "" && !Number.isNaN(priceNum) && priceNum >= 0);
-  const ready = product.trim() && priceOk;
+  const toNum = (v: string) => (v.trim() === "" ? null : Number(v.replace(/[,\s]/g, "")));
+  const w = toNum(width), h = toNum(height), bl = toNum(bleed), pg = toNum(pages);
+  const sizeOk = (w === null) === (h === null) && [w, h, bl, pg].every((v) => v === null || (!Number.isNaN(v) && v >= 0));
+  const ready = product.trim() && priceOk && sizeOk;
 
   function addAlias() {
     const a = alias.trim();
@@ -87,11 +101,13 @@ function Form({ target, brand, brandName, year, sections, titles, onClose, onSav
   }
 
   function save(extra: { needs_check?: boolean } = {}) {
+    if (!sizeOk) return toast.error("Give both the width and the height as numbers, or leave both empty.");
     if (!ready) return toast.error(product.trim() ? "Type the price, or choose “Price on request”." : "Give the product a name.");
     const input = {
       section, product: product.trim(), price_type: priceType, price_gbp: priceType === "poa" ? null : priceNum, unit,
       specs: specs.trim() || null, aliases: alias.trim() ? [...aliases, alias.trim()] : aliases, notes: notes.trim() || null,
-      valid_until: validUntil || null, title_id: titleId ?? sectionDefault, ...extra,
+      valid_until: validUntil || null, title_id: titleId ?? sectionDefault,
+      width: w, height: h, size_unit: w !== null ? sizeUnit : null, bleed_mm: w !== null && sizeUnit === "mm" ? bl : null, pages: pg, ...extra,
     };
     start(async () => {
       try {
@@ -142,7 +158,7 @@ function Form({ target, brand, brandName, year, sections, titles, onClose, onSav
         )}
 
         <Field label="Section" htmlFor="ps-section" hint="Where it appears on the rate card - the same headings as your media pack.">
-          <select id="ps-section" className={selectCls} value={section} onChange={(e) => { setSection(e.target.value); if (!item) setUnit((EXAMPLES[e.target.value] ?? EXAMPLES.other).unit); }}>
+          <select id="ps-section" className={selectCls} value={section} onChange={(e) => { setSection(e.target.value); if (!item) { const nx = exampleFor(e.target.value); setUnit(nx.unit); if (nx.size) { setSizeUnit(nx.size); setShowSize(true); } if (nx.pages) setShowPages(true); } }}>
             {sections.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
         </Field>
@@ -176,8 +192,43 @@ function Form({ target, brand, brandName, year, sections, titles, onClose, onSav
           </div>
         )}
 
-        <Field label="Size or specs (optional)" htmlFor="ps-specs">
-          <Input id="ps-specs" value={specs} onChange={(e) => setSpecs(e.target.value)} placeholder={ex.specs || "e.g. 4 pages"} />
+        {showSize ? (
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+              Size (optional)
+              <InfoHint>Print sizes in millimetres (width first), with the bleed the artwork needs. Online sizes in pixels.</InfoHint>
+            </legend>
+            <div className="flex flex-wrap items-end gap-2">
+              <Input aria-label="Width" inputMode="decimal" value={width} onChange={(e) => setWidth(e.target.value)} placeholder={sizeUnit === "mm" ? "210" : "728"} className="w-24 tabular-nums" aria-invalid={!sizeOk} />
+              <span className="pb-2 text-sm text-muted-foreground">x</span>
+              <Input aria-label="Height" inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} placeholder={sizeUnit === "mm" ? "297" : "90"} className="w-24 tabular-nums" aria-invalid={!sizeOk} />
+              <select aria-label="Size in" className={`${selectCls} w-auto`} value={sizeUnit} onChange={(e) => setSizeUnit(e.target.value as SizeUnit)}>
+                <option value="mm">mm (print)</option>
+                <option value="px">pixels (online)</option>
+              </select>
+              {sizeUnit === "mm" && (
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  Bleed
+                  <Input aria-label="Bleed in mm" inputMode="decimal" value={bleed} onChange={(e) => setBleed(e.target.value)} placeholder="3" className="w-16 tabular-nums" />
+                  mm
+                </label>
+              )}
+            </div>
+          </fieldset>
+        ) : (
+          <button type="button" className="w-fit text-xs font-semibold text-primary hover:underline" onClick={() => setShowSize(true)}>+ Add a size</button>
+        )}
+
+        {showPages ? (
+          <Field label="Pages (optional)" htmlFor="ps-pages" hint="How many pages it takes, e.g. 2 for a double-page advertorial. Bookings of it then count these pages.">
+            <Input id="ps-pages" inputMode="decimal" value={pages} onChange={(e) => setPages(e.target.value)} placeholder="e.g. 2" className="w-24 tabular-nums" />
+          </Field>
+        ) : (
+          <button type="button" className="w-fit text-xs font-semibold text-primary hover:underline" onClick={() => setShowPages(true)}>+ Add a page count</button>
+        )}
+
+        <Field label="Other specs (optional)" htmlFor="ps-specs">
+          <Input id="ps-specs" value={specs} onChange={(e) => setSpecs(e.target.value)} placeholder={ex.specs || "e.g. Supply as a print-ready PDF"} />
         </Field>
 
         <Field label="Also called (optional)" hint="The shorthand used on the order register for the same thing - e.g. FP for Full page, 1/2 for Half page. It's how a booking finds this price for renewal emails.">

@@ -135,3 +135,45 @@ def test_confirm_all_and_export(client, world):
     x = client.get(f"/api/rate-card/export.xlsx?year={Y}&brand=stm", headers=h)
     ws = openpyxl.load_workbook(io.BytesIO(x.content)).active
     assert "Selling Travel" in ws["A1"].value and any(c.value == "Full page" for c in ws["A"])
+
+
+def test_sizes_pages_and_own_sections(client, world):
+    """Sizes in mm or px with bleed, page counts, and a brand's own section (cover wraps, belly bands)."""
+    h = world["admin"]
+    sec = client.post("/api/rate-card/brands/obh/sections", json={"label": "Cover wraps & belly bands", "hint": "Special formats"}, headers=h)
+    assert sec.status_code == 201 and sec.json()["key"].startswith("x-") and sec.json()["custom"]
+    key = sec.json()["key"]
+    assert client.post("/api/rate-card/brands/obh/sections", json={"label": "cover wraps & belly bands"}, headers=h).status_code == 409
+    item = client.post("/api/rate-card/items", json={"brand": "obh", "year": Y, "section": key, "product": "Belly band", "price_gbp": 4500,
+                                                     "width": 420, "height": 80, "bleed_mm": 3}, headers=h)
+    assert item.status_code == 201, item.text
+    it = item.json()
+    assert it["size_unit"] == "mm" and it["size_label"] == "420 x 80 mm, 3 mm bleed" and it["title_name"] == "OnBoard Hospitality (OBH)"
+    adv = client.post("/api/rate-card/items", json={"brand": "obh", "year": Y, "section": "sponsored", "product": "Advertorial",
+                                                    "price_gbp": 3990, "pages": 2}, headers=h).json()
+    assert adv["size_label"] == "2 pages"
+    web = client.post("/api/rate-card/items", json={"brand": "obh", "year": Y, "section": "website", "product": "MPU", "price_gbp": 500,
+                                                    "unit": "month", "width": 300, "height": 250, "size_unit": "px"}, headers=h).json()
+    assert web["size_label"] == "300 x 250 px"
+    bad = {"brand": "obh", "year": Y, "section": "print", "product": "Odd", "price_gbp": 1}
+    assert client.post("/api/rate-card/items", json={**bad, "width": 100}, headers=h).status_code == 422  # height missing
+    assert client.post("/api/rate-card/items", json={**bad, "width": 1, "height": 1, "size_unit": "px", "bleed_mm": 3}, headers=h).status_code == 422
+    assert client.post("/api/rate-card/items", json={**bad, "section": "x-nope"}, headers=h).status_code == 422
+    # clearing the size
+    cleared = client.patch(f"/api/rate-card/items/{it['id']}", json={"width": None, "height": None}, headers=h).json()
+    assert cleared["size_label"] is None and cleared["size_unit"] is None
+    page = client.get(f"/api/rate-card/brands/obh?year={Y}", headers=h).json()
+    own = next(s for s in page["sections"] if s["key"] == key)
+    assert own["label"] == "Cover wraps & belly bands" and [i["product"] for i in own["items"]] == ["Belly band"]
+    assert key in page["brand"]["sections"]
+    # a section with prices can't be removed; rename works
+    assert client.delete(f"/api/rate-card/sections/{own['id']}", headers=h).status_code == 409
+    assert client.patch(f"/api/rate-card/sections/{own['id']}", json={"label": "Special formats"}, headers=h).json()["label"] == "Special formats"
+    assert client.delete(f"/api/rate-card/sections/{own['id']}", headers=world["kirsty"]).status_code == 403
+    # next year keeps sizes and pages
+    client.post("/api/rate-card/next-year", json={"brand": "obh", "from_year": Y, "raise_pct": 0}, headers=h)
+    nxt = client.get(f"/api/rate-card/brands/obh?year={Y + 1}", headers=h).json()
+    assert next(i for s in nxt["sections"] for i in s["items"] if i["product"] == "Advertorial")["pages"] == 2
+    assert next(i for s in nxt["sections"] for i in s["items"] if i["product"] == "MPU")["size_label"] == "300 x 250 px"
+    rates = client.get(f"/api/sales/rates?year={Y}", headers=h).json()
+    assert next(r for r in rates if r["product"] == "Advertorial")["pages"] == 2

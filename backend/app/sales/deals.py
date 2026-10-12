@@ -21,7 +21,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import (DealSettings, SalesDeal, SalesEdition, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle)
+from app.models import (DealSettings, SalesDeal, SalesEdition, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle)
 
 ITEM_STATUS = {"pencilled": "pencilled", "confirmed": "booked", "cancelled": "cancelled"}
 
@@ -229,7 +229,9 @@ def sync_items(db: Session, deal: SalesDeal, priced: Priced, user_id: uuid.UUID 
                 o.status = status
             o.status_reason = deal.cancelled_reason if status == "cancelled" else None
             t = titles.get(ed.title_id)
-            o.pages = parse_pages(size, t.product_line) if t else None
+            rate = db.get(SalesRate, uuid.UUID(str(ln["rate_id"]))) if ln.get("rate_id") else None
+            # A rate-card product that says how many pages it takes wins over reading the size text.
+            o.pages = float(rate.pages) if rate and rate.pages else (parse_pages(size, t.product_line) if t else None)
             o.updated_at = datetime.now(timezone.utc)
             db.flush()
             _credits(db, deal, o)

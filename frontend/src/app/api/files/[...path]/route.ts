@@ -12,6 +12,7 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
 const ALLOWED: RegExp[] = [
   /^contacts\/export$/,
   /^sales\/orders\/export$/,
+  /^sales\/costs-report\/export\.xlsx$/,
   /^groups\/[0-9a-f-]{36}\/export$/,
   /^rate-card\/export\.xlsx$/,
   /^commission\/statement\.xlsx$/,

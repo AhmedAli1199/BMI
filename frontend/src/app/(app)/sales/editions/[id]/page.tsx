@@ -218,8 +218,17 @@ export default async function EditionPage({
 
       <EditionCommissionPanel editionId={ed.id} reps={meta.reps} />
 
-      {(ed.costs?.lines.length || ["events", "awards"].includes(ed.title.product_line)) && ed.costs && (
-        <EditionCostsPanel editionId={ed.id} booked={ed.booked_gbp} costs={ed.costs} />
+      {ed.costs && (
+        <EditionCostsPanel
+          editionId={ed.id}
+          booked={ed.booked_gbp}
+          costs={ed.costs}
+          // Events and awards open with the costs showing; an issue shows a one-line prompt until it has costs.
+          startOpen={["events", "awards"].includes(ed.title.product_line)}
+          bookings={ed.orders_list
+            .filter((o) => o.status === "booked")
+            .map((o) => ({ id: o.id, label: `${o.client_name}${o.size ? ` - ${o.size}` : ""}` }))}
+        />
       )}
 
       <EditionNotes editionId={ed.id} notes={ed.notes} />

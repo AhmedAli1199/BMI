@@ -88,6 +88,27 @@ class SalesRate(Base, UUIDPk, TimestampMixin):
     needs_check: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     source: Mapped[str | None] = mapped_column(String(120))
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    # Size: width x height in mm (print) or px (online), plus bleed for print artwork.
+    width: Mapped[float | None] = mapped_column(Numeric(8, 2))
+    height: Mapped[float | None] = mapped_column(Numeric(8, 2))
+    size_unit: Mapped[str | None] = mapped_column(String(4))  # mm | px
+    bleed_mm: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    # How many pages it takes (sponsored content: 1, 2, 4...). Bookings of it count these pages.
+    pages: Mapped[float | None] = mapped_column(Numeric(6, 2))
+
+
+class RateSection(Base, UUIDPk, TimestampMixin):
+    """A brand's own rate-card section, beside the standard ones - "Cover wraps & belly bands",
+    "Special formats". Its key starts with "x-"; title_slug says which sales title its prices are booked under."""
+    __tablename__ = "rate_sections"
+    __table_args__ = (UniqueConstraint("brand", "key", name="uq_rate_sections_brand_key"),)
+
+    brand: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(20), nullable=False)
+    label: Mapped[str] = mapped_column(String(80), nullable=False)
+    hint: Mapped[str | None] = mapped_column(String(300))
+    title_slug: Mapped[str | None] = mapped_column(String(60))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class RateOffer(Base, UUIDPk, TimestampMixin):
@@ -335,3 +356,7 @@ class SalesEditionCost(Base, UUIDPk, TimestampMixin):
     section: Mapped[str | None] = mapped_column(String(300))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_row: Mapped[int | None] = mapped_column(Integer)  # null = added in the app
+    # What it was spent on (venue, print, freelance...), what was planned, and the booking it was for (a cover wrap's printing).
+    category: Mapped[str | None] = mapped_column(String(30))
+    budget_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    order_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_orders.id", ondelete="SET NULL"), index=True)
