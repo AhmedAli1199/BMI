@@ -30,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RichEmailEditor, type RichEmailEditorHandle } from "@/components/mail-merge/rich-email-editor";
+import { htmlToText } from "@/lib/rich-text";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -123,6 +125,7 @@ export function MailMergeWizard({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("Dear {{salutation|colleague}},\n\n\n\nKind regards,\n{{my_name}}");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const richRef = useRef<RichEmailEditorHandle>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
   const [lastFocus, setLastFocus] = useState<"subject" | "body">("body");
   const [previewIdx, setPreviewIdx] = useState(0);
@@ -244,6 +247,7 @@ export function MailMergeWizard({
 
   function insertField(key: string) {
     const token = `{{${key}}}`;
+    if (lastFocus === "body" && output === "email") return richRef.current?.insertText(token);
     const el = lastFocus === "subject" ? subjectRef.current : bodyRef.current;
     const value = lastFocus === "subject" ? subject : body;
     const set = lastFocus === "subject" ? setSubject : setBody;
@@ -843,17 +847,21 @@ export function MailMergeWizard({
                     )}
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="mm-body">{output === "email" ? "Message" : "Letter"}</Label>
-                      <Textarea
-                        id="mm-body"
-                        ref={bodyRef}
-                        rows={14}
-                        value={body}
-                        onFocus={() => setLastFocus("body")}
-                        onChange={(e) => setBody(e.target.value)}
-                        className="font-[inherit] text-sm leading-relaxed"
-                      />
+                      {output === "email" ? (
+                        <RichEmailEditor ref={richRef} id="mm-body" value={body} onChange={setBody} onFocus={() => setLastFocus("body")} ariaLabel="Message" />
+                      ) : (
+                        <Textarea
+                          id="mm-body"
+                          ref={bodyRef}
+                          rows={14}
+                          value={htmlToText(body)}
+                          onFocus={() => setLastFocus("body")}
+                          onChange={(e) => setBody(e.target.value)}
+                          className="font-[inherit] text-sm leading-relaxed"
+                        />
+                      )}
                       <p className="text-[11px] text-muted-foreground">
-                        Plain text keeps your line breaks. Pasting HTML (e.g. from an email designer) sends it as-is.
+                        {output === "email" ? "Select words and use the buttons above to make them bold, underlined, highlighted or coloured." : "Letters are plain text: formatting from a template isn't carried over."}
                       </p>
                     </div>
                     <div className="flex flex-col gap-1.5">

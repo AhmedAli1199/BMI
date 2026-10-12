@@ -11,7 +11,8 @@ import { composeFromTemplate, listCompanyContacts, listTemplates, sendComposed }
 import { searchContacts } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RichEmailEditor } from "@/components/mail-merge/rich-email-editor";
+import { htmlToText } from "@/lib/rich-text";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
@@ -151,7 +152,7 @@ export function EmailFromTemplate({ open, onOpenChange, templates: given, initia
               <label className={labelCls}>Copy to (optional)<Input value={cc} onChange={(e) => setCc(e.target.value)} className="h-8 text-sm" /></label>
             </div>
             <label className={labelCls}>Subject<Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-8 text-sm" /></label>
-            <label className={labelCls}>Message<Textarea rows={12} value={body} onChange={(e) => setBody(e.target.value)} className="text-sm" /></label>
+            <div className={labelCls}>Message<RichEmailEditor value={body} onChange={setBody} minHeight="14rem" ariaLabel="Message" /></div>
             {left && <p className="text-xs" style={{ color: "var(--warn)" }}>Something in {"{{curly brackets}}"} is still to fill in.</p>}
           </div>
         )}
@@ -159,7 +160,7 @@ export function EmailFromTemplate({ open, onOpenChange, templates: given, initia
           {draft && !draft.outlook_connected && <span className="mr-auto text-xs text-muted-foreground">Connect Outlook in <Link href="/settings" className="font-semibold text-primary hover:underline">Settings</Link> to send from here.</span>}
           <DialogClose render={<Button variant="ghost" />}>Close</DialogClose>
           <Button variant="outline" className="gap-1.5" disabled={!draft} onClick={() => {
-            navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => toast.error("Couldn't copy it - select the text and copy it yourself"));
+            navigator.clipboard.writeText(`Subject: ${subject}\n\n${htmlToText(body)}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => toast.error("Couldn't copy it - select the text and copy it yourself"));
           }}>{copied ? <Check className="size-3.5" /> : <ClipboardCopy className="size-3.5" />} Copy</Button>
           <Button className="gap-1.5" disabled={pending || !draft?.outlook_connected || !to.trim() || left} onClick={send}>
             {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Send from Outlook

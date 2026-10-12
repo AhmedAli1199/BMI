@@ -170,22 +170,41 @@ def unknown_fields(*templates: str | None) -> list[str]:
 
 
 def is_html(body: str) -> bool:
-    return bool(re.search(r"<(p|div|br|table|span|a|b|strong|em|ul|ol|h\d)(\s[^>]*)?/?>", body or "", re.I))
+    return bool(re.search(r"<(p|div|br|table|span|a|b|strong|em|i|u|mark|font|ul|ol|li|h\d)(\s[^>]*)?/?>", body or "", re.I))
+
+
+def _inline(s: str) -> str:
+    """**bold** and *italic* marks in plain-text templates."""
+    s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+    return re.sub(r"(?<![*\w])\*([^*\s][^*]*?)\*(?![*\w])", r"<em>\1</em>", s)
 
 
 def to_html(body: str) -> str:
     """Rendered body -> email HTML. Plain text keeps its line breaks; a
     body that's already HTML is used as-is."""
     if is_html(body):
-        return body
-    esc = html.escape(body).replace("\n", "<br>")
+        return body if re.match(r"\s*<(html|div style)", body, re.I) else f"<div style=\"font-family:Calibri,Arial,sans-serif;font-size:11pt\">{body}</div>"
+    lines, out, bullets = html.escape(body).split("\n"), [], []
+    for ln in lines:
+        m = re.match(r"\s*[-•]\s+(.*)$", ln)
+        if m:
+            bullets.append(f"<li>{_inline(m.group(1))}</li>")
+            continue
+        if bullets:
+            out.append(f"<ul>{''.join(bullets)}</ul>")
+            bullets = []
+        out.append(_inline(ln) + "<br>")
+    if bullets:
+        out.append(f"<ul>{''.join(bullets)}</ul>")
+    esc = "".join(out).removesuffix("<br>")
     return f"<div style=\"font-family:Calibri,Arial,sans-serif;font-size:11pt\">{esc}</div>"
 
 
 def to_text(body: str) -> str:
     if not is_html(body):
-        return body
-    t = re.sub(r"<br\s*/?>|</p>|</div>", "\n", body, flags=re.I)
+        return re.sub(r"\*\*(.+?)\*\*", r"\1", body or "")
+    t = re.sub(r"<li[^>]*>", "- ", body, flags=re.I)
+    t = re.sub(r"<br\s*/?>|</p>|</div>|</li>", "\n", t, flags=re.I)
     return html.unescape(re.sub(r"<[^>]+>", "", t)).strip()
 
 

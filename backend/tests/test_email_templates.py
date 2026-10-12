@@ -83,3 +83,11 @@ def test_mail_merge_needs_the_issue_when_the_email_uses_it(client, db_session):
     p = client.post("/api/mail-merge/preview", headers=h, json={"subject": body["subject"], "body": body["body"], "contact_id": str(amy.id),
                                                                "edition_id": str(e.id)}).json()
     assert p["body"] == "Hi Amy, out Thursday 1 July 2027"
+
+
+def test_plain_text_marks_become_formatting():
+    from app.services import mail_merge as mm
+    out = mm.to_html("Hi **Bob**,\n- one\n- two")
+    assert "<strong>Bob</strong>" in out and "<ul><li>one</li><li>two</li></ul>" in out
+    assert mm.to_text("Hi **Bob**") == "Hi Bob"
+    assert mm.to_text("<div>Hi <b>Bob</b></div><ul><li>one</li></ul>").splitlines() == ["Hi Bob", "- one"]

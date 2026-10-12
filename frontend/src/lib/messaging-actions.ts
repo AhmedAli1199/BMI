@@ -107,12 +107,6 @@ export async function previewRecipients(source: RecipientSource) {
   return backendFetch<RecipientsResult>("/api/mail-merge/recipients", json(source));
 }
 
-export async function loadActTemplates() {
-  const r = await backendFetch<{ added: number }>("/api/mail/templates/load-act", { method: "POST" });
-  revalidatePath("/mail-merge/templates");
-  return r;
-}
-
 export async function composeFromTemplate(input: { contact_id?: string | null; template_id?: string | null; subject?: string | null; body?: string | null;
   brand?: string | null; edition_id?: string | null; feature?: string | null }) {
   return backendFetch<ComposeResult>("/api/mail/compose", json(input));
