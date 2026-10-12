@@ -101,7 +101,7 @@ function RenewalsBody({ rows, data, editions, reps }: { rows: Row[]; data: Renew
                 </option>
               ))}
             </select>
-            <InfoHint>&ldquo;Book&rdquo; opens a new booking in this edition, pre-filled with the advertiser, their CRM company, salesperson and last year&apos;s size - adjust anything before saving.</InfoHint>
+            <InfoHint>&ldquo;New booking&rdquo; opens the booking form for this advertiser, filled in from their last booking and set to this edition - adjust anything before saving. Advertisers not linked to a CRM company get a single item instead.</InfoHint>
           </label>
         )}
       </div>
@@ -169,6 +169,18 @@ function RenewalsBody({ rows, data, editions, reps }: { rows: Row[]; data: Renew
                 </td>
                 <td className="px-3 py-2.5 text-xs">{r.rep ? r.rep.name : <span className="text-muted-foreground">—</span>}</td>
                 <td className="px-4 py-2.5 text-right">
+                  {r.company ? (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      className="gap-1"
+                      nativeButton={false}
+                      aria-label={`New booking for ${r.client_name}${chosen ? ` in ${chosen.label}` : ""}`}
+                      render={<Link href={`/sales/deals/new?company=${r.company.id}${chosen ? `&edition=${chosen.id}` : ""}`} />}
+                    >
+                      <Plus className="size-3" aria-hidden="true" /> New booking
+                    </Button>
+                  ) : (
                   <Button
                     size="xs"
                     variant="outline"
@@ -193,8 +205,9 @@ function RenewalsBody({ rows, data, editions, reps }: { rows: Row[]; data: Renew
                       })
                     }
                   >
-                    <Plus className="size-3" aria-hidden="true" /> Book
+                    <Plus className="size-3" aria-hidden="true" /> New booking
                   </Button>
+                  )}
                 </td>
               </tr>
             ))}

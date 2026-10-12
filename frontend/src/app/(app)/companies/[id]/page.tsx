@@ -138,7 +138,7 @@ export default async function CompanyDetailPage({
               render={<Link href={`/sales/deals/new?company=${company.id}`} />}
             >
               <ClipboardList className="size-3.5" />
-              New order
+              New booking
             </Button>
           </div>
         </div>

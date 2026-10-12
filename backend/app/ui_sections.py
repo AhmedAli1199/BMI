@@ -42,7 +42,7 @@ SECTIONS: list[SectionDef] = [
     SectionDef("bookings", "All bookings", "Sales", "The full list of bookings."),
     SectionDef("renewals", "Renewals", "Sales", "Last year's advertisers who haven't rebooked."),
     SectionDef("proposals", "Proposals", "Sales", "Writing and sending proposals."),
-    SectionDef("orders", "Orders", "Sales", "Order confirmations and multi-item bookings."),
+    SectionDef("orders", "Bookings", "Sales", "Bookings with one or more items, and their order confirmations."),
     SectionDef("rate_card", "Rate card", "Sales", "Prices for every brand."),
     SectionDef("invoicing", "Invoicing", "Sales", "Bookings waiting for an invoice."),
     SectionDef("commissions", "Commission", "Sales", "Commission statements (people only ever see their own)."),

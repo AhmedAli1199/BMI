@@ -107,7 +107,7 @@ export default async function EditionPage({
               )}
             </div>
             <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false} render={<Link href={`/sales/deals/new?edition=${ed.id}`} />}>
-              <Plus className="size-3.5" aria-hidden="true" /> New order
+              <Plus className="size-3.5" aria-hidden="true" /> New booking
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5 font-semibold" nativeButton={false}
               render={<Link href={`/sales/compare?a=${ed.id}${ed.previous ? `&b=${ed.previous.id}` : ""}`} />}>

@@ -23,9 +23,9 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
-        title="New order"
-        crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Orders", href: "/sales/deals" }]}
-        description={sp.proposal ? `Started from the proposal${_option ? ` (${_option})` : ""}: check the issues and prices, then confirm.` : "Everything the client has agreed, in one place. Each item becomes a booking in its issue, and the confirmation is printed from it."}
+        title="New booking"
+        crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Bookings", href: "/sales/deals" }]}
+        description={sp.proposal ? `Started from the proposal${_option ? ` (${_option})` : ""}: check the issues and prices, then confirm.` : "Everything the client has agreed, in one place. Each item is added to its issue, and the confirmation is printed from it."}
       />
       <DealForm initial={initial} titles={meta.titles} reps={meta.reps} rates={rates} company={company ?? null} contact={contact ?? null} myRepId={meta.my_rep_id ?? (rest.rep_id ?? null)} />
     </div>

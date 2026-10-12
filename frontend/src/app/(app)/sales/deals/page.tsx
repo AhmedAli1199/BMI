@@ -26,11 +26,11 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   ]);
   const year = new Date().getFullYear();
   const defs: FilterDef[] = [
-    { kind: "search", key: "q", label: "Search orders", placeholder: "Client, order no., PO, contact, agency…" },
-    { kind: "multi", key: "status", label: "Status", section: "Order", options: [
+    { kind: "search", key: "q", label: "Search bookings", placeholder: "Client, booking no., PO, contact, agency…" },
+    { kind: "multi", key: "status", label: "Status", section: "Booking", options: [
       { value: "pencilled", label: "Pencilled", hint: "Held for the client, not confirmed yet" }, { value: "confirmed", label: "Confirmed" }, { value: "cancelled", label: "Cancelled" }] },
-    { kind: "single", key: "mine", label: "Whose", section: "Order", options: [{ value: "1", label: "Only my orders" }] },
-    { kind: "multi", key: "rep", label: "Salesperson", section: "Order", options: meta.reps.filter((r) => r.active).map((r) => ({ value: r.id, label: r.name })) },
+    { kind: "single", key: "mine", label: "Whose", section: "Booking", options: [{ value: "1", label: "Only my bookings" }] },
+    { kind: "multi", key: "rep", label: "Salesperson", section: "Booking", options: meta.reps.filter((r) => r.active).map((r) => ({ value: r.id, label: r.name })) },
     { kind: "multi", key: "title", label: "Title", section: "Where it runs", searchable: true, options: meta.titles.map((t) => ({ value: t.id, label: t.name })) },
     { kind: "single", key: "year", label: "Ordered in", section: "When", options: [year + 1, year, year - 1, year - 2].map((y) => ({ value: String(y), label: String(y) })) },
   ];
@@ -52,33 +52,33 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
-        title="Orders"
+        title="Bookings"
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}
-        description="Client orders with everything agreed in one place: items across issues, months and events, package prices, discounts and agency commission. Each one prints as BMI's order confirmation or schedule of works."
+        description="Client bookings with everything agreed in one place: items across issues, months and events, package prices, discounts and agency commission. Each one prints as BMI's order confirmation or schedule of works."
         actions={<div className="flex items-center gap-2">
           {settings && <DealSettingsButton settings={settings} />}
-          <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/deals/new" />}><Plus className="size-3.5" /> New order</Button>
+          <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/deals/new" />}><Plus className="size-3.5" /> New booking</Button>
         </div>}
       />
       <DataView defs={defs} defaultSort={DEFAULT_SORT}>
-        <DataViewLayout sidebar={<FilterSidebar title="Filter orders" />}>
+        <DataViewLayout sidebar={<FilterSidebar title="Filter bookings" />}>
           <div className="flex flex-wrap items-center gap-2"><DataSearch /></div>
           <FilterChips />
           <p className="text-xs text-muted-foreground" aria-live="polite">
-            <span className="font-semibold text-foreground tabular-nums">{data.total.toLocaleString("en-GB")}</span> {data.total === 1 ? "order" : "orders"} ·{" "}
+            <span className="font-semibold text-foreground tabular-nums">{data.total.toLocaleString("en-GB")}</span> {data.total === 1 ? "booking" : "bookings"} ·{" "}
             <span className="font-semibold text-foreground tabular-nums">{fmtGBP(data.total_value_gbp)}</span> not cancelled
           </p>
           {data.items.length === 0 ? (
-            <EmptyState icon={ClipboardList} title="No orders here yet">
-              Start one with New order, or from a client&apos;s page, an issue, or a proposal they&apos;ve agreed to.
+            <EmptyState icon={ClipboardList} title="No bookings here yet">
+              Start one with New booking, or from a client&apos;s page, an issue, or a proposal they&apos;ve agreed to.
             </EmptyState>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
               <table className="w-full min-w-[46rem] text-sm">
-                <caption className="sr-only">Orders</caption>
+                <caption className="sr-only">Bookings</caption>
                 <thead>
                   <tr className="border-b border-border/70 text-xs text-muted-foreground">
-                    <SortableTh sortKey="number" firstDir="desc">Order</SortableTh>
+                    <SortableTh sortKey="number" firstDir="desc">Booking</SortableTh>
                     <SortableTh sortKey="client">Client</SortableTh>
                     <th scope="col" className="px-3 py-2.5 text-left font-semibold">Runs</th>
                     <th scope="col" className="px-3 py-2.5 text-left font-semibold">Salesperson</th>

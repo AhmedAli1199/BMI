@@ -123,13 +123,13 @@ def _can_edit(db: Session, identity: Identity, d: SalesDeal) -> bool:
 def _get(db: Session, deal_id: uuid.UUID) -> SalesDeal:
     d = db.get(SalesDeal, deal_id)
     if not d:
-        raise HTTPException(404, "Order not found")
+        raise HTTPException(404, "We couldn't find that booking.")
     return d
 
 
 def _need_edit(db: Session, identity: Identity, d: SalesDeal) -> None:
     if not _can_edit(db, identity, d):
-        raise HTTPException(403, "Only the salesperson on this order or a manager can change it.")
+        raise HTTPException(403, "Only the salesperson on this booking or a manager can change it.")
 
 
 # ---- shaping -------------------------------------------------------------------------------------
@@ -158,7 +158,7 @@ def _apply(db: Session, d: SalesDeal, p: DealIn) -> None:
     d.split = [{"rep_id": str(s.rep_id), "pct": s.pct} for s in p.split]
     d.booked_on = p.booked_on or d.booked_on or date.today()
     if not p.lines:
-        raise HTTPException(422, "Add at least one item to the order.")
+        raise HTTPException(422, "Add at least one item to the booking.")
 
 
 def _lines_in(p: DealIn) -> list[dict]:
@@ -410,7 +410,7 @@ def save_settings(p: SettingsIn, db: Session = Depends(get_db), identity: Identi
     st = dl.settings(db)
     highest = db.scalar(select(func.max(SalesDeal.number))) or 0
     if p.next_number <= highest:
-        raise HTTPException(422, f"Order {highest} already exists, so the next number has to be higher.")
+        raise HTTPException(422, f"Booking {highest} already exists, so the next number has to be higher.")
     for k, v in p.model_dump().items():
         setattr(st, k, v)
     st.updated_at = datetime.now(timezone.utc)
@@ -486,7 +486,7 @@ def update_deal(deal_id: uuid.UUID, p: DealIn, db: Session = Depends(get_db), id
     d = _get(db, deal_id)
     _need_edit(db, identity, d)
     if d.status == "cancelled":
-        raise HTTPException(409, "This order is cancelled. Reopen it first to change it.")
+        raise HTTPException(409, "This booking is cancelled. Reopen it first to change it.")
     before = oc.snapshot(d)
     notes = _save(db, d, p, identity)
     oc.request_check(db, d, before)
@@ -511,7 +511,7 @@ def set_status(deal_id: uuid.UUID, p: StatusIn, db: Session = Depends(get_db), i
     kept = 0
     if p.status == "cancelled":
         if not (p.reason or "").strip():
-            raise HTTPException(422, "Say briefly why the order is cancelled - it's kept on the bookings.")
+            raise HTTPException(422, "Say briefly why the booking is cancelled - it stays on record.")
         d.status, d.cancelled_reason = "cancelled", p.reason.strip()
         for o in items:
             ran = (o.item_date or eds[o.edition_id].edition_date or today) <= today
@@ -545,7 +545,7 @@ def delete_deal(deal_id: uuid.UUID, db: Session = Depends(get_db), identity: Ide
     _need_edit(db, identity, d)
     items = db.scalars(select(SalesOrder).where(SalesOrder.deal_id == d.id)).all()
     if d.status != "pencilled" or any(o.invoice_number or o.xero_invoice_id for o in items):
-        raise HTTPException(409, "Only a pencilled order with nothing invoiced can be deleted. Cancel it instead, so it stays on record.")
+        raise HTTPException(409, "Only a pencilled booking with nothing invoiced can be deleted. Cancel it instead, so it stays on record.")
     for o in items:
         db.delete(o)
     db.delete(d)
@@ -643,7 +643,7 @@ def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity:
     d = _get(db, deal_id)
     _need_edit(db, identity, d)
     if d.status == "cancelled":
-        raise HTTPException(409, "This order is cancelled, so there's nothing to confirm.")
+        raise HTTPException(409, "This booking is cancelled, so there's nothing to confirm.")
     if why := oc.blocks_sending(db, d):
         raise HTTPException(409, why)
     acct = db.scalar(select(MailAccount).where(MailAccount.user_id == identity.user_uuid)) if identity.user_uuid else None

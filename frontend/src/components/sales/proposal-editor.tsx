@@ -252,7 +252,7 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
                 <ClipboardList className="size-4" /> They chose {t.option}: make the order
               </Button>
             ))
-            : <Button variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}`} />}><ClipboardList className="size-4" /> They said yes: make the order</Button>)}
+            : <Button variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}`} />}><ClipboardList className="size-4" /> They said yes: make the booking</Button>)}
           {!sent && <Button variant="outline" onClick={openMail} disabled={pending} className="gap-1.5"><Mail className="size-4" /> Email it from Outlook</Button>}
           {!sent && <Button onClick={() => setSendOpen(true)} disabled={pending} className="gap-1.5"><CheckCircle2 className="size-4" /> I&apos;ve sent it myself</Button>}
         </div>

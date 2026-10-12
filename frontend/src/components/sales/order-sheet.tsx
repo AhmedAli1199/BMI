@@ -251,7 +251,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
     });
   }
 
-  const title = existing ? existing.client_name : "Add a booking";
+  const title = existing ? existing.client_name : "Add an item";
   const subtitle = existing ? existing.edition_label : (target as { editionLabel: string }).editionLabel;
 
   return (
@@ -577,7 +577,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             Cancel
           </Button>
           <Button type="button" size="sm" onClick={submit} disabled={pending || !client.trim()}>
-            {pending ? "Saving…" : existing ? "Save changes" : "Add booking"}
+            {pending ? "Saving…" : existing ? "Save changes" : "Add item"}
           </Button>
         </div>
       </SheetFooter>

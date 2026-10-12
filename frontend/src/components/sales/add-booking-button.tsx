@@ -6,7 +6,7 @@ import type { SalesRep } from "@/lib/sales-types";
 import { Button } from "@/components/ui/button";
 import { OrderSheet, type OrderSheetTarget } from "@/components/sales/order-sheet";
 
-/** "Add booking" for one edition - opens the booking sheet empty. */
+/** "Add item" for one edition - opens the booking sheet empty. */
 export function AddBookingButton({
   edition,
   reps,
@@ -18,7 +18,7 @@ export function AddBookingButton({
   return (
     <>
       <Button size="sm" className="h-9 gap-1.5" onClick={() => setTarget({ mode: "create", ...edition })}>
-        <Plus className="size-3.5" aria-hidden="true" /> Add booking
+        <Plus className="size-3.5" aria-hidden="true" /> Add item
       </Button>
       <OrderSheet target={target} reps={reps} canDelete={false} onClose={() => setTarget(null)} />
     </>

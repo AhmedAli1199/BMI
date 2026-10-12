@@ -23,9 +23,9 @@ export default async function DealPrintPage({ params }: { params: Promise<{ id: 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 sm:p-6">
       <div className="print-hide flex items-center justify-between gap-2">
-        <Link href={`/sales/deals/${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"><ChevronLeft className="size-4" /> Back to order {doc.number}</Link>
+        <Link href={`/sales/deals/${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"><ChevronLeft className="size-4" /> Back to booking {doc.number}</Link>
         <div className="flex items-center gap-2">
-          {doc.status === "pencilled" && <span className="text-xs" style={{ color: "var(--warn)" }}>This order is still pencilled - confirm it before sending.</span>}
+          {doc.status === "pencilled" && <span className="text-xs" style={{ color: "var(--warn)" }}>This booking is still pencilled - confirm it before sending.</span>}
           <PrintButton />
         </div>
       </div>

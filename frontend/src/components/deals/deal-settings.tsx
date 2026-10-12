@@ -14,7 +14,7 @@ import { friendlyError } from "@/lib/errors";
 
 const labelCls = "flex flex-col gap-1 text-xs font-semibold text-muted-foreground";
 
-/** What every confirmation carries: BMI's address, footer, terms, artwork specification - and the next order number. */
+/** What every confirmation carries: BMI's address, footer, terms, artwork specification - and the next booking number. */
 export function DealSettingsButton({ settings }: { settings: DealSettings }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -31,10 +31,10 @@ export function DealSettingsButton({ settings }: { settings: DealSettings }) {
             <SheetDescription>{settings.can_edit ? "What every order confirmation and schedule of works carries." : "Only administrators can change these."}</SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-4 p-4">
-            <label className={labelCls}>Next order number<Input type="number" value={s.next_number} onChange={set("next_number")} disabled={!s.can_edit} className="h-8 w-32 text-sm" /></label>
+            <label className={labelCls}>Next booking number<Input type="number" value={s.next_number} onChange={set("next_number")} disabled={!s.can_edit} className="h-8 w-32 text-sm" /></label>
             <label className={labelCls}>BMI&apos;s name and address (top right)<Textarea rows={6} value={s.company_block} onChange={set("company_block")} disabled={!s.can_edit} className="text-sm" /></label>
             <label className={labelCls}>Terms line<Textarea rows={2} value={s.terms} onChange={set("terms")} disabled={!s.can_edit} className="text-sm" /></label>
-            <label className={labelCls}>Artwork specification (printed when the order asks for it)<Textarea rows={6} value={s.artwork_specs} onChange={set("artwork_specs")} disabled={!s.can_edit} className="text-xs" /></label>
+            <label className={labelCls}>Artwork specification (printed when the booking asks for it)<Textarea rows={6} value={s.artwork_specs} onChange={set("artwork_specs")} disabled={!s.can_edit} className="text-xs" /></label>
             <label className={labelCls}>Footer<Textarea rows={3} value={s.footer} onChange={set("footer")} disabled={!s.can_edit} className="text-sm" /></label>
           </div>
           {s.can_edit && (

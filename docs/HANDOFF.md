@@ -199,6 +199,8 @@ Sidebar > **Editorial plan** (`/editorial`): year planner (lanes per title, toda
 
 ---
 
+- **Wording follows Matt (12 Oct):** on screen, a "booking" is the whole multi-item thing (code: `SalesDeal`, `/sales/deals`) and each line in an issue is an "item" (code: `SalesOrder`, `/sales/orders/[id]`, list at `/sales/bookings` titled "All items"). Code names are unchanged. "Order confirmation", "Order no." on the printed confirmation and the "Sales Orders" section keep their names. Renewals' button is now "New booking", opening the booking form for the company (prefilled from their last booking, set to the chosen edition); unlinked advertisers still get the single-item sheet. Easy to switch back if BMI prefer other words.
+
 ## 4. Business rules and data logic (order register / SOR)
 
 ### 4.1 Data model (mirrors their sheets)

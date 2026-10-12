@@ -214,7 +214,7 @@ def test_accounts_check_holds_the_confirmation_until_it_looks_right(w, client):
     assert d["check"]["state"] == "waiting" and d["check"]["blocks_sending"]
     item = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
     labels = {x["label"]: x for x in item.payload["details"]}
-    assert labels["Order"]["href"] == f"/sales/deals/{d['id']}" and "Travel Wisconsin" in labels["Client on the order"]["value"]
+    assert labels["Booking"]["href"] == f"/sales/deals/{d['id']}" and "Travel Wisconsin" in labels["Client on the booking"]["value"]
     assert "Sponsored feature" in labels["Items"]["value"] and item.payload["facets"]["salesperson"] == "Sally Parker"
     r = client.post(f"/api/sales/deals/{d['id']}/mark-sent", json={}, headers=w["h"])
     assert r.status_code == 409 and "waiting for the accounts check" in r.json()["detail"]

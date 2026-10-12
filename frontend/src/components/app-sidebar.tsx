@@ -310,7 +310,7 @@ export function AppSidebar({
                         {show("bookings") && (
                           <HubSubItem
                             href="/sales/bookings"
-                            label="All bookings"
+                            label="All items"
                             active={pathname === "/sales/bookings"}
                           />
                         )}
@@ -331,7 +331,7 @@ export function AppSidebar({
                         {show("orders") && (
                           <HubSubItem
                             href="/sales/deals"
-                            label="Orders"
+                            label="Bookings"
                             active={pathname.startsWith("/sales/deals")}
                           />
                         )}

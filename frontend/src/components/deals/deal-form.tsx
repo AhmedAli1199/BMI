@@ -68,7 +68,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
     return () => { live = false; };
   }, [wanted, issues]);
 
-  // Live totals: the same sums the order is saved with, worked out on the server.
+  // Live totals: the same sums the booking is saved with, worked out on the server.
   const priceKey = JSON.stringify([f.pricing, f.package_price_gbp, f.package_split, f.discount_pct, f.agency_pct, lines.map((l) => [l.qty, l.unit_price, l.list_price, l.discount_pct, l.added_value, l.share_gbp, l.placements.length])]);
   useEffect(() => {
     let live = true;
@@ -145,9 +145,9 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
       try {
         const d = dealId ? await updateDeal(dealId, input) : await createDeal(input);
         d.notes?.forEach((n) => toast.info(n));
-        toast.success(dealId ? "Order saved" : `Order ${d.number} created`);
+        toast.success(dealId ? "Booking saved" : `Booking ${d.number} created`);
         router.push(`/sales/deals/${d.id}`);
-      } catch (e) { toast.error(friendlyError(e, "Couldn't save the order")); }
+      } catch (e) { toast.error(friendlyError(e, "Couldn't save the booking")); }
     });
   }
 
@@ -165,7 +165,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
               value={company} onChange={pickCompany} viewHref={(id) => `/companies/${id}`} />
             <EntityPicker label="Their contact" placeholder="Search for the contact…" search={async (q) => (await searchContacts(q)).map((c) => ({ id: c.id, label: c.full_name ?? "Unnamed", sublabel: c.company_name }))}
               value={contact} onChange={pickContact} viewHref={(id) => `/contacts/${id}`} />
-            <label className={labelCls}><span className="flex items-center gap-1">Client name as booked <InfoHint>How it appears on the bookings and the confirmation. Usually the company name, but can differ (&quot;Brunswick - Delice de France&quot;).</InfoHint></span>
+            <label className={labelCls}><span className="flex items-center gap-1">Client name as booked <InfoHint>How it appears on the items and the confirmation. Usually the company name, but can differ (&quot;Brunswick - Delice de France&quot;).</InfoHint></span>
               <Input value={f.client_name} onChange={(e) => set("client_name", e.target.value)} className="h-8 text-sm" /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className={labelCls}>Contact name<Input value={f.contact_name ?? ""} onChange={(e) => set("contact_name", e.target.value)} className="h-8 text-sm" /></label>
@@ -178,10 +178,10 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                 <option value="house">House account (no commission)</option>
               </select>
             </label>
-            <label className={labelCls}><span className="flex items-center gap-1">Order date <InfoHint>The day the client agreed. Items added to the order later are dated the day they&apos;re added, so only what was on the first deal counts as new business.</InfoHint></span>
+            <label className={labelCls}><span className="flex items-center gap-1">Booking date <InfoHint>The day the client agreed. Items added to the booking later are dated the day they&apos;re added, so only what was on the first deal counts as new business.</InfoHint></span>
               <Input type="date" value={f.booked_on ?? ""} onChange={(e) => set("booked_on", e.target.value || null)} className="h-8 text-sm" /></label>
           </div>
-          {lastOrder && <p className="mt-2 text-xs text-muted-foreground">Invoice details filled in from their last order, <a href={`/sales/deals/${lastOrder.id}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">order {lastOrder.number}</a>. Check they still apply.</p>}
+          {lastOrder && <p className="mt-2 text-xs text-muted-foreground">Invoice details filled in from their last booking, <a href={`/sales/deals/${lastOrder.id}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">booking {lastOrder.number}</a>. Check they still apply.</p>}
           <div className="mt-3">
             {!shareOpen ? (
               <button type="button" className="text-xs font-semibold text-primary hover:underline" onClick={() => { setShareOpen(true); if (f.rep_id) set("split", [{ rep_id: f.rep_id, pct: 0.5 }]); }}>Shared with another salesperson?</button>
@@ -211,7 +211,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
         {/* ---- items ---- */}
         <section className="flex flex-col gap-3" aria-labelledby="df-items">
           <div className="flex items-center justify-between">
-            <h2 id="df-items" className="flex items-center gap-1 text-sm font-bold">What they&apos;ve booked <InfoHint>One line per product. Put a line in every issue, month or event it runs in: each one becomes its own booking, counts in that issue&apos;s figures and earns commission when it runs.</InfoHint></h2>
+            <h2 id="df-items" className="flex items-center gap-1 text-sm font-bold">What they&apos;ve booked <InfoHint>One line per product. Put a line in every issue, month or event it runs in: each one becomes its own item, counts in that issue&apos;s figures and earns commission when it runs.</InfoHint></h2>
             <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => setLines((ls) => [...ls, blankLine(ls[ls.length - 1]?.title_id ?? f.title_id)])}><Plus className="size-3.5" /> Add an item</Button>
           </div>
           {lines.map((l, li) => {
@@ -343,7 +343,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className={labelCls}>% off the whole order<Input inputMode="decimal" value={pct(f.discount_pct)} onChange={(e) => set("discount_pct", fromPct(e.target.value))} placeholder="0" className="h-8 text-sm" /></label>
+            <label className={labelCls}>% off the whole booking<Input inputMode="decimal" value={pct(f.discount_pct)} onChange={(e) => set("discount_pct", fromPct(e.target.value))} placeholder="0" className="h-8 text-sm" /></label>
             <label className={labelCls}><span className="flex items-center gap-1">Booked through an agency <InfoHint>The agency is invoiced and keeps its commission. It comes off what&apos;s invoiced and off the salesperson&apos;s commissionable revenue.</InfoHint></span>
               <Input value={f.agency_name ?? ""} onChange={(e) => set("agency_name", e.target.value || null)} placeholder="Agency name (optional)" className="h-8 text-sm" /></label>
             <label className={labelCls}>Agency commission (%)<Input inputMode="decimal" value={pct(f.agency_pct)} onChange={(e) => set("agency_pct", fromPct(e.target.value))} placeholder="e.g. 10" className="h-8 text-sm" /></label>
@@ -372,7 +372,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             </label>
             <label className={labelCls}>Client&apos;s order or PO number<Input value={f.po_number ?? ""} onChange={(e) => set("po_number", e.target.value || null)} className="h-8 text-sm" /></label>
             <label className={labelCls}>Email the invoice to<Input type="email" value={f.invoice_email ?? ""} onChange={(e) => set("invoice_email", e.target.value || null)} placeholder="if not the contact" className="h-8 text-sm" /></label>
-            <label className={labelCls}><span className="flex items-center gap-1">When to invoice <InfoHint>Shown on the order page as &quot;ready to invoice&quot;, so accounts know what to raise.</InfoHint></span>
+            <label className={labelCls}><span className="flex items-center gap-1">When to invoice <InfoHint>Shown on the booking page as &quot;ready to invoice&quot;, so accounts know what to raise.</InfoHint></span>
               <select className={selectCls} value={f.invoice_plan} onChange={(e) => set("invoice_plan", e.target.value as DealInput["invoice_plan"])}>
                 <option value="on_publication">Each item as it runs</option>
                 <option value="upfront">All of it now</option>
@@ -392,7 +392,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
       {/* ---- totals ---- */}
       <aside className="lg:sticky lg:top-4 lg:self-start">
         <div className={cardCls}>
-          <h2 className="mb-2 text-sm font-bold">Order total</h2>
+          <h2 className="mb-2 text-sm font-bold">Booking total</h2>
           {!totals ? <p className="text-xs text-muted-foreground">Add an item to see the total.</p> : (
             <dl className="flex flex-col gap-1.5 text-sm">
               {totals.rate_card_gbp ? <Row label="At rate card" value={fmtGBP(totals.rate_card_gbp)} muted /> : null}
@@ -412,9 +412,9 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             {dealId ? (
               <Button disabled={pending} onClick={() => submit()}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save changes</Button>
             ) : <>
-              <Button disabled={pending} onClick={() => submit("confirmed")}>{pending && <Loader2 className="size-3.5 animate-spin" />} Confirm the order</Button>
+              <Button disabled={pending} onClick={() => submit("confirmed")}>{pending && <Loader2 className="size-3.5 animate-spin" />} Confirm the booking</Button>
               <Button variant="outline" disabled={pending} onClick={() => submit("pencilled")}>Pencil it in</Button>
-              <p className="text-[11px] text-muted-foreground">Pencilled orders hold the space but don&apos;t count in sales figures or commission until they&apos;re confirmed.</p>
+              <p className="text-[11px] text-muted-foreground">Pencilled bookings hold the space but don&apos;t count in sales figures or commission until they&apos;re confirmed.</p>
             </>}
             <Button variant="ghost" disabled={pending} onClick={() => router.back()}>Cancel</Button>
           </div>

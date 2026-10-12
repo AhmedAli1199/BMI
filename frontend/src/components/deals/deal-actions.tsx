@@ -50,7 +50,7 @@ export function DealActions({ d }: { d: Deal }) {
         const r = await rebookDeal(d.id);
         r.notes.forEach((n) => toast.info(n));
         if (!r.id) { toast.info(`Next year's issues aren't all in the editorial plan yet. Plan ${"year" in r ? r.year : "next year"} there first, then try again.`); return; }
-        toast.success(`Order ${(r as Deal).number} pencilled in for next year`);
+        toast.success(`Booking ${(r as Deal).number} pencilled in for next year`);
         router.push(`/sales/deals/${r.id}`);
       } catch (e) { toast.error(friendlyError(e, "Couldn't rebook it")); }
     });
@@ -62,7 +62,7 @@ export function DealActions({ d }: { d: Deal }) {
         <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/${d.id}/edit`} />}><Pencil className="size-3.5" /> Change</Button>
       )}
       {d.can_edit && d.status === "pencilled" && (
-        <Button size="sm" className="gap-1.5" disabled={pending} onClick={() => run(() => setDealStatus(d.id, "confirmed"), "Order confirmed", "Couldn't confirm it")}><CheckCircle2 className="size-3.5" /> Confirm</Button>
+        <Button size="sm" className="gap-1.5" disabled={pending} onClick={() => run(() => setDealStatus(d.id, "confirmed"), "Booking confirmed", "Couldn't confirm it")}><CheckCircle2 className="size-3.5" /> Confirm</Button>
       )}
       {d.status !== "cancelled" && (
         <Button size="sm" variant={d.status === "confirmed" && !d.sent_at && !d.check?.blocks_sending ? "default" : "outline"} className="gap-1.5"
@@ -75,7 +75,7 @@ export function DealActions({ d }: { d: Deal }) {
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button size="sm" variant="ghost" aria-label="More" disabled={pending}>{pending ? <Loader2 className="size-3.5 animate-spin" /> : <MoreHorizontal className="size-4" />}</Button>} />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => downloadFile(`/api/files/sales/deals/${d.id}/document.docx`, `Order ${d.number}.docx`).catch((e) => toast.error(friendlyError(e, "Couldn't download it")))}>
+          <DropdownMenuItem onClick={() => downloadFile(`/api/files/sales/deals/${d.id}/document.docx`, `Booking ${d.number}.docx`).catch((e) => toast.error(friendlyError(e, "Couldn't download it")))}>
             <Download className="size-3.5" /> Download as Word
           </DropdownMenuItem>
           {d.can_edit && d.status !== "cancelled" && !d.check?.blocks_sending && (
@@ -90,11 +90,11 @@ export function DealActions({ d }: { d: Deal }) {
           )}
           {d.can_edit && d.status !== "cancelled" && <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { setReason(""); setKeepRun(true); setCancelOpen(true); }}><Ban className="size-3.5" /> Cancel the order</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setReason(""); setKeepRun(true); setCancelOpen(true); }}><Ban className="size-3.5" /> Cancel the booking</DropdownMenuItem>
           </>}
           {d.can_edit && d.status === "pencilled" && !anyInvoiced && (
             <DropdownMenuItem onClick={() => {
-              if (!window.confirm(`Delete order ${d.number}? Its pencilled bookings go too.`)) return;
+              if (!window.confirm(`Delete booking ${d.number}? Its pencilled items go too.`)) return;
               start(async () => { try { await deleteDeal(d.id); toast.success("Deleted"); router.push("/sales/deals"); } catch (e) { toast.error(friendlyError(e, "Couldn't delete it")); } });
             }}><Trash2 className="size-3.5" /> Delete</DropdownMenuItem>
           )}
@@ -104,8 +104,8 @@ export function DealActions({ d }: { d: Deal }) {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel order {d.number}?</DialogTitle>
-            <DialogDescription>The bookings stay on record as cancelled, with your reason, so the issue figures and commission are right.</DialogDescription>
+            <DialogTitle>Cancel booking {d.number}?</DialogTitle>
+            <DialogDescription>The items stay on record as cancelled, with your reason, so the issue figures and commission are right.</DialogDescription>
           </DialogHeader>
           <label className={labelCls}>Why<Input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Budget cut, moved to next year" className="h-8 text-sm" /></label>
           <label className="flex items-start gap-2 text-sm">
@@ -113,14 +113,14 @@ export function DealActions({ d }: { d: Deal }) {
             <span>Keep items that have already run or been invoiced <span className="block text-xs text-muted-foreground">Usually right: they were delivered, so they stay booked.</span></span>
           </label>
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost" />}>Keep the order</DialogClose>
+            <DialogClose render={<Button variant="ghost" />}>Keep the booking</DialogClose>
             <Button variant="destructive" disabled={pending || !reason.trim()} onClick={() => start(async () => {
               try {
                 const r = await setDealStatus(d.id, "cancelled", reason.trim(), keepRun);
                 r.notes?.forEach((n) => toast.info(n));
-                toast.success("Order cancelled"); setCancelOpen(false); router.refresh();
+                toast.success("Booking cancelled"); setCancelOpen(false); router.refresh();
               } catch (e) { toast.error(friendlyError(e, "Couldn't cancel it")); }
-            })}>Cancel the order</Button>
+            })}>Cancel the booking</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -131,7 +131,7 @@ export function DealActions({ d }: { d: Deal }) {
             <DialogTitle>Email the {kind}</DialogTitle>
             <DialogDescription>
               {send?.outlook_connected
-                ? <>Sent from your Outlook ({send.outlook_email}) with the {kind} attached as a Word file, and noted on the client.{d.status === "pencilled" ? " Sending it confirms the order." : ""}</>
+                ? <>Sent from your Outlook ({send.outlook_email}) with the {kind} attached as a Word file, and noted on the client.{d.status === "pencilled" ? " Sending it confirms the booking." : ""}</>
                 : <>Connect your Outlook in Settings &gt; Email to send from here. Until then, download it as Word or print to PDF and attach it yourself, then use &quot;I sent it another way&quot;.</>}
             </DialogDescription>
           </DialogHeader>

@@ -18,9 +18,9 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
-        title={`Change order ${d.number}`}
-        crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Orders", href: "/sales/deals" }, { label: `Order ${d.number}`, href: `/sales/deals/${d.id}` }]}
-        description="Changes go straight to the bookings. An item that's already invoiced and is taken off is marked cancelled, not deleted."
+        title={`Change booking ${d.number}`}
+        crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Bookings", href: "/sales/deals" }, { label: `Booking ${d.number}`, href: `/sales/deals/${d.id}` }]}
+        description="Changes go straight to the items. An item that's already invoiced and is taken off is marked cancelled, not deleted."
       />
       <DealForm dealId={d.id} initial={initial} titles={meta.titles} reps={meta.reps} rates={rates}
         company={d.company_id ? { id: d.company_id, label: d.client_name } : null}

@@ -53,8 +53,8 @@ def blocks_sending(db: Session, d: SalesDeal) -> str | None:
     if not (enabled(db) and runtime_settings.get_bool(db, "orders_check_before_sending")) or d.checked_at:
         return None
     if d.check_note:
-        return f"Accounts asked for a fix before this goes out: “{d.check_note}”. Change the order and save it - it goes back for checking."
-    return "This order is waiting for the accounts check. The confirmation can go out as soon as it's marked as looking right."
+        return f"Accounts asked for a fix before this goes out: “{d.check_note}”. Change the booking and save it - it goes back for checking."
+    return "This booking is waiting for the accounts check. The confirmation can go out as soon as it's marked as looking right."
 
 
 def _money(v) -> str:
@@ -79,8 +79,8 @@ def _payload(db: Session, d: SalesDeal) -> dict:
         items.append(f"{ln.get('description') or ln.get('size') or 'Item'} - {where} - {_money(ln.get('total_gbp'))}")
     name_differs = company and company.name.strip().lower() != (d.client_name or "").strip().lower()
     details = [
-        {"label": "Order", "value": f"{d.number} ({d.status})", "href": f"/sales/deals/{d.id}"},
-        {"label": "Client on the order", "value": d.client_name},
+        {"label": "Booking", "value": f"{d.number} ({d.status})", "href": f"/sales/deals/{d.id}"},
+        {"label": "Client on the booking", "value": d.client_name},
         {"label": "CRM company", "value": company.name if company else "Not linked - check it's a new client",
          **({"href": f"/companies/{company.id}"} if company else {})},
         {"label": "Contact", "value": " · ".join(x for x in (d.contact_name, d.contact_email) if x) or "None given",
@@ -98,7 +98,7 @@ def _payload(db: Session, d: SalesDeal) -> dict:
     if name_differs:
         details.insert(1, {"label": "Worth a look", "value": f"The client is typed as “{d.client_name}” but linked to “{company.name}”."})
     return {
-        "summary": f"Check order {d.number} for {d.client_name} ({_money(d.total_gbp)}) before the confirmation goes out",
+        "summary": f"Check booking {d.number} for {d.client_name} ({_money(d.total_gbp)}) before the confirmation goes out",
         "details": details,
         "deal_id": str(d.id),
         "related_entities": [{"type": "company", "id": str(company.id), "label": company.name}] if company else [],
@@ -148,7 +148,7 @@ def withdraw(db: Session, d: SalesDeal, why: str) -> None:
 def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
     d = db.get(SalesDeal, uuid.UUID(item.payload["deal_id"]))
     if not d:
-        raise ValueError("This order no longer exists.")
+        raise ValueError("This booking no longer exists.")
     actor = input_data.get("_actor_user_id")
     if action_id == "approve":
         d.checked_at, d.checked_by_user_id, d.check_note = datetime.now(timezone.utc), uuid.UUID(actor) if actor else None, None
@@ -164,7 +164,7 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
             who.add(rep.user_id)
         checker = db.get(User, uuid.UUID(actor)) if actor else None
         for uid in who:
-            create_notification(db, uid, "order_check", f"Order {d.number} needs a fix before it goes out",
+            create_notification(db, uid, "order_check", f"Booking {d.number} needs a fix before it goes out",
                                 f"{checker.name if checker else 'Accounts'}: {note}", link=f"/sales/deals/{d.id}")
         return
     raise ValueError(f"Unknown action {action_id!r} for {KIND}")
@@ -172,8 +172,8 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
 
 register(ReviewKind(
     kind=KIND,
-    label="Order check",
-    description="A new or changed order, for accounts to check the client, CRM company, addresses and items before the confirmation goes out.",
+    label="Booking check",
+    description="A new or changed booking, for accounts to check the client, CRM company, addresses and items before the confirmation goes out.",
     actions=[
         ReviewAction(id="approve", label="Looks right", style="primary", outcome="approved"),
         ReviewAction(id="fix", label="Needs a fix", style="secondary", outcome="rejected", requires_note=True),
@@ -181,5 +181,5 @@ register(ReviewKind(
     handler=_handle,
     audience="admin",
     facets=(("salesperson", "Salesperson"), ("title", "Title"), ("client", "CRM company")),
-    date_sort_label="order date",
+    date_sort_label="booking date",
 ))

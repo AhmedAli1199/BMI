@@ -51,8 +51,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
       <SalesHeader
-        title={`Order ${d.number}: ${d.client_name}`}
-        crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Orders", href: "/sales/deals" }]}
+        title={`Booking ${d.number}: ${d.client_name}`}
+        crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Bookings", href: "/sales/deals" }]}
         description={[d.insertions, d.rep ? `Sold by ${d.split_names.length ? d.split_names.map((s) => `${s.name} (${Math.round(s.pct * 100)}%)`).join(" and ") : d.rep.name}` : null, `ordered ${fmtDate(d.booked_on)}`].filter(Boolean).join(" · ")}
         actions={<DealActions d={d} />}
       />
@@ -64,7 +64,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         {d.sent_at
           ? <span className="text-muted-foreground">· {d.document === "schedule" ? "Schedule" : "Confirmation"} sent {fmtDate(d.sent_at.slice(0, 10))}{d.sent_to ? ` to ${d.sent_to}` : ""}</span>
           : d.status === "confirmed" && <span style={{ color: "var(--warn)" }}>· The {d.document === "schedule" ? "schedule of works" : "confirmation"} hasn&apos;t been sent yet</span>}
-        {d.rebooked_from_id && <Link href={`/sales/deals/${d.rebooked_from_id}`} className="text-primary hover:underline">· Rebooked from order {d.rebooked_from_number}</Link>}
+        {d.rebooked_from_id && <Link href={`/sales/deals/${d.rebooked_from_id}`} className="text-primary hover:underline">· Rebooked from booking {d.rebooked_from_number}</Link>}
         {d.proposal_id && <Link href={`/sales/proposals/${d.proposal_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">· From a proposal <ExternalLink className="size-3" aria-hidden="true" /></Link>}
       </div>
 
@@ -100,7 +100,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             )}
             {d.check.state === "fix" && (
               <>
-                <span className="font-semibold">Accounts asked for a fix:</span> &ldquo;{d.check.note}&rdquo;. Change the order and save it - it goes
+                <span className="font-semibold">Accounts asked for a fix:</span> &ldquo;{d.check.note}&rdquo;. Change the booking and save it - it goes
                 back to them to check.
               </>
             )}
@@ -115,17 +115,17 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       )}
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" aria-label="Totals">
-        <Tile label="Order total" value={fmtGBP(t.total_gbp)} strong hint="What was agreed, before VAT." />
+        <Tile label="Booking total" value={fmtGBP(t.total_gbp)} strong hint="What was agreed, before VAT." />
         <Tile label="Agency commission" value={fmtGBP(t.agency_gbp)} />
         <Tile label="To invoice in all" value={fmtGBP(t.payable_gbp)} hint="The total less any agency's commission, before VAT." />
         <Tile label="Invoiced so far" value={fmtGBP(t.invoiced_gbp)} />
-        <Tile label="Ready to invoice" value={fmtGBP(t.to_invoice_gbp)} hint={d.invoice_plan === "upfront" ? "Everything not invoiced yet - this order is invoiced up front." : "Items that have run and aren't invoiced yet."} />
+        <Tile label="Ready to invoice" value={fmtGBP(t.to_invoice_gbp)} hint={d.invoice_plan === "upfront" ? "Everything not invoiced yet - this booking is invoiced up front." : "Items that have run and aren't invoiced yet."} />
         <Tile label="Below rate card" value={t.off_rate_card_pct != null ? `${t.off_rate_card_pct}%` : "—"} hint={`Rate card value ${fmtGBP(t.rate_card_gbp)}${t.added_value_gbp ? `, of which ${fmtGBP(t.added_value_gbp)} given free` : ""}.`} />
       </section>
 
       <section className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs" aria-labelledby="sched-h">
         <h2 id="sched-h" className="flex items-center gap-1 border-b border-border/70 px-4 py-3 text-sm font-bold">
-          Schedule <InfoHint>Every item is a booking in its own issue, month or event. Each earns commission and counts in that issue&apos;s figures when it runs.</InfoHint>
+          Schedule <InfoHint>Every item sits in its own issue, month or event. Each earns commission and counts in that issue&apos;s figures when it runs.</InfoHint>
           {ready.length > 0 && <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ color: "var(--warn)", background: "color-mix(in oklab, var(--warn) 12%, transparent)" }}>{ready.length} ready to invoice</span>}
         </h2>
         <table className="w-full min-w-[56rem] text-sm">
@@ -144,7 +144,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               <tr key={r.order_id ?? i} className={`border-b border-border/60 last:border-0 ${r.status === "cancelled" ? "text-muted-foreground line-through" : ""}`}>
                 <td className="whitespace-nowrap px-4 py-2 tabular-nums">{fmtDate(r.runs_on)}{r.published && r.status !== "cancelled" && <span className="ml-1 text-[11px] text-muted-foreground no-underline">ran</span>}</td>
                 <td className="px-2 py-2">
-                  {r.order_id ? <Link href={`/sales/orders/${r.order_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium hover:underline">{r.description || "Item"} <ExternalLink className="size-3 text-muted-foreground" aria-label="Open the booking" /></Link> : r.description}
+                  {r.order_id ? <Link href={`/sales/orders/${r.order_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium hover:underline">{r.description || "Item"} <ExternalLink className="size-3 text-muted-foreground" aria-label="Open the item" /></Link> : r.description}
                   {r.added_value && <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Free</span>}
                   {r.status === "cancelled" && <span className="ml-1.5 text-[11px]">cancelled</span>}
                 </td>
