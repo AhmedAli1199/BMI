@@ -9,7 +9,7 @@ import logging
 
 import httpx
 
-from notetaker import states
+from notetaker import engine, states
 from notetaker.bots.base import BotRequest, BotResult, BotUpdate, Utterance
 from notetaker.config import settings
 
@@ -51,9 +51,27 @@ class AttendeeBot:
     def __init__(self, base_url: str | None = None, api_key: str | None = None, webhook_secret: str | None = None,
                  http: httpx.Client | None = None):
         self.base = (base_url or settings.attendee_url).rstrip("/")
-        self.secret = webhook_secret if webhook_secret is not None else settings.attendee_webhook_secret
-        self.http = http or httpx.Client(timeout=30, headers={"Authorization": f"Token {api_key or settings.attendee_api_key}",
-                                                              "Content-Type": "application/json"})
+        self._secret, self._key = webhook_secret, api_key
+        self.http = http or httpx.Client(timeout=30, headers={"Content-Type": "application/json"},
+                                         event_hooks={"request": [self._auth]})
+
+    @property
+    def secret(self) -> str:
+        return self._secret if self._secret is not None else engine.webhook_secret()
+
+    def _auth(self, request: httpx.Request) -> None:
+        # read on every call, so new credentials from the bootstrap are picked up without a restart
+        request.headers["Authorization"] = f"Token {self._key or engine.api_key()}"
+
+    def check(self) -> tuple[bool, str]:
+        """Is the bot engine reachable and accepting our key? For the console's set-up checklist."""
+        try:
+            r = self.http.get(f"{self.base}/api/v1/bots", params={"page_size": 1})
+        except httpx.HTTPError:
+            return False, "The meeting bot isn't reachable yet. If you've just deployed, give it a minute."
+        if r.status_code in (401, 403):
+            return False, "The meeting bot refused our key. Redeploy so the set-up step runs again."
+        return (r.status_code < 400), ("Connected" if r.status_code < 400 else "The meeting bot answered with an error.")
 
     def _transcription(self) -> dict:
         if settings.transcription_mode == "gemini":

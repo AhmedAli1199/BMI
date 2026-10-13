@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from notetaker.db import Base
@@ -30,7 +30,19 @@ class Client(Base):
     chat_message: Mapped[str | None] = mapped_column(Text)        # what the bot posts in the meeting chat when it joins
     summary_instructions: Mapped[str | None] = mapped_column(Text)  # extra guidance for this client's summaries
     retention_days: Mapped[int] = mapped_column(Integer, default=30)
+    notes_style: Mapped[str] = mapped_column(String(20), default="general")   # see notetaker/styles.py
+    key_hint: Mapped[str | None] = mapped_column(String(20))                   # first characters of the key, to recognise it
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ServiceState(Base):
+    """Small key/value facts about the service itself, e.g. when the worker last ran."""
+    __tablename__ = "service_state"
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
 
 class Meeting(Base):

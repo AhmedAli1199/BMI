@@ -20,7 +20,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from notetaker import service, states
-from notetaker.clients import create_client
 from notetaker.config import settings
 from notetaker.db import SessionLocal, init_db
 from notetaker.models import Client, Meeting
@@ -55,12 +54,11 @@ def current_client(authorization: str = Header(default=""), db: Session = Depend
     c = db.scalar(select(Client).where(Client.api_key_hash == hash_key(key))) if key else None
     if not c:
         raise HTTPException(401, "That API key isn't valid.")
+    if c.is_active is False:
+        raise HTTPException(403, "This app has been switched off in the notetaker console.")
+    from notetaker.models import now as _now
+    c.last_used_at = _now()
     return c
-
-
-def require_admin(x_admin_token: str = Header(default="")) -> None:
-    if not same(x_admin_token, settings.admin_token):
-        raise HTTPException(401, "Admin access only.")
 
 
 @app.exception_handler(service.InputError)
@@ -165,32 +163,6 @@ async def transcribe(audio: UploadFile = File(...), x_internal_token: str = Head
     return {"status": "done", "result": {"transcription": {"full_transcript": text, "utterances": []}}}
 
 
-# ---- Admin ---------------------------------------------------------------------------------------
-
-class ClientIn(BaseModel):
-    name: str
-    webhook_url: HttpUrl | None = None
-    bot_name: str | None = None
-    chat_message: str | None = None
-    summary_instructions: str | None = None
-    retention_days: int = 30
-
-
-@app.post("/admin/clients", dependencies=[Depends(require_admin)], status_code=201)
-def admin_create_client(body: ClientIn, db: Session = Depends(get_db)):
-    c, key = create_client(db, body.name, str(body.webhook_url) if body.webhook_url else None, bot_name=body.bot_name,
-                           chat_message=body.chat_message, summary_instructions=body.summary_instructions,
-                           retention_days=body.retention_days)
-    return {"id": c.id, "name": c.name, "api_key": key, "webhook_secret": c.webhook_secret,
-            "note": "Save the API key now - it isn't shown again."}
-
-
-@app.get("/admin/clients", dependencies=[Depends(require_admin)])
-def admin_clients(db: Session = Depends(get_db)):
-    return [{"id": c.id, "name": c.name, "webhook_url": c.webhook_url, "bot_name": c.bot_name, "created_at": c.created_at}
-            for c in db.scalars(select(Client).order_by(Client.created_at))]
-
-
 # ---- Health and dashboard ------------------------------------------------------------------------
 
 @app.get("/health")
@@ -200,8 +172,18 @@ def health(db: Session = Depends(get_db)):
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard():
-    return (Path(__file__).parent / "dashboard.html").read_text()
+def console_page():
+    return (Path(__file__).parent / "console.html").read_text()
+
+
+@app.get("/guide", response_class=HTMLResponse)
+def guide_page():
+    return (Path(__file__).parent / "guide.html").read_text().replace("{{PUBLIC_URL}}", settings.public_url)
+
+
+from notetaker.api.console import router as console_router  # noqa: E402
+
+app.include_router(console_router)
 
 
 def _json(v):

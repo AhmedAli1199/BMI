@@ -21,6 +21,8 @@ class Settings:
     attendee_url: str = field(default_factory=lambda: _env("ATTENDEE_URL", "http://attendee-app:8000").rstrip("/"))
     attendee_api_key: str = field(default_factory=lambda: _env("ATTENDEE_API_KEY"))
     attendee_webhook_secret: str = field(default_factory=lambda: _env("ATTENDEE_WEBHOOK_SECRET"))
+    attendee_credentials_file: str = field(default_factory=lambda: _env("ATTENDEE_CREDENTIALS_FILE", "/shared/attendee.json"))
+    attendee_public_url: str = field(default_factory=lambda: _env("ATTENDEE_PUBLIC_URL").rstrip("/"))   # only for the "open the bot's own admin" link
     # How the bot transcribes: "captions" (the meeting's own live captions, free, real names)
     # or "gemini" (Attendee sends each speaker's audio to /internal/transcribe).
     transcription_mode: str = field(default_factory=lambda: _env("TRANSCRIPTION_MODE", "captions"))

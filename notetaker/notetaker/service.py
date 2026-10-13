@@ -146,7 +146,8 @@ def finalise(db: Session, m: Meeting) -> None:
         m.summary = None
         set_status(db, m, states.COMPLETED, "Nobody spoke, so there are no notes.")
         return
-    notes = get_ai().summarise(transcript_text(m), m.participants, m.client.summary_instructions)
+    from notetaker.styles import instructions
+    notes = get_ai().summarise(transcript_text(m), m.participants, instructions(m.client.notes_style, m.client.summary_instructions))
     m.summary = notes.model_dump()
     if not m.title:
         m.title = notes.title

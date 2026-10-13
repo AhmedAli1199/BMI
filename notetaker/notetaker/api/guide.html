@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notetaker Guide</title>
+<style>
+  :root { --bg:#f6f6f3; --card:#fff; --fg:#1c1c1a; --muted:#6b6a64; --line:#e4e3dd; --accent:#1f5247; --soft:#eef3f1; --code:#f1f0ec; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --card:#1d1d1b; --fg:#ecebe5; --muted:#a2a19a; --line:#33332f; --accent:#7cc4b3; --soft:#1f2a27; --code:#262623; } }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif }
+  .wrap { max-width:820px; margin:0 auto; padding:32px 16px 80px } a { color:var(--accent) }
+  h1 { font-size:28px; margin:0 0 6px } h2 { font-size:19px; margin:36px 0 8px } h3 { font-size:15px; margin:20px 0 6px }
+  .lead { color:var(--muted); margin:0 0 20px; font-size:16px }
+  .steps { counter-reset:s; list-style:none; padding:0; margin:0 } .steps > li { counter-increment:s; position:relative; padding:14px 16px 14px 56px; background:var(--card); border:1px solid var(--line); border-radius:12px; margin-bottom:10px }
+  .steps > li::before { content:counter(s); position:absolute; left:16px; top:14px; width:26px; height:26px; border-radius:50%; background:var(--accent); color:var(--card); display:grid; place-items:center; font-weight:800; font-size:13px }
+  pre { background:var(--code); border-radius:8px; padding:12px 14px; overflow:auto; font-size:13px; line-height:1.5 } code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.92em }
+  p code, li code, td code { background:var(--code); padding:1px 5px; border-radius:4px }
+  .tabs { display:flex; gap:4px; margin-top:8px } .tabs button { font:inherit; font-size:13px; font-weight:600; border:1px solid var(--line); background:transparent; color:var(--muted); padding:4px 12px; border-radius:8px 8px 0 0; cursor:pointer }
+  .tabs button.on { background:var(--code); color:var(--fg); border-bottom-color:var(--code) } .tab { display:none } .tab.on { display:block } .tab pre { margin-top:0; border-top-left-radius:0 }
+  table { width:100%; border-collapse:collapse; font-size:14px; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden } th, td { text-align:left; padding:8px 10px; border-top:1px solid var(--line); vertical-align:top } th { background:var(--soft); border-top:0 }
+  .note { background:var(--soft); border-radius:12px; padding:12px 16px; margin:12px 0 }
+  .tablewrap { overflow-x:auto }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Connect your app to the Notetaker</h1>
+  <p class="lead">Your app sends a meeting link; the Notetaker joins the call, records it, and sends back the transcript and written-up notes. About 10 minutes to connect.</p>
+
+  <ol class="steps">
+    <li><b>Create your app in the console.</b> Open <a href="/">the console</a> → <b>Apps</b> → <b>New app</b>. Give it a name, the address results should go to (step 3), the bot's name, and the notes style. You get three lines - copy them.</li>
+    <li><b>Put the three lines in your app's server settings</b> (its <code>.env</code>, or Dokploy → Environment):
+<pre><code>NOTETAKER_URL={{PUBLIC_URL}}
+NOTETAKER_API_KEY=nt_...
+NOTETAKER_WEBHOOK_SECRET=whsec_...</code></pre></li>
+    <li><b>Send the bot into a call</b> - one request with the meeting link (code below).</li>
+    <li><b>Receive the notes</b> - one route in your app that checks the signature and saves the result (code below). Then press <b>Send a test webhook</b> in the console to check it works.</li>
+  </ol>
+
+  <h2>Step 3 - send the bot</h2>
+  <p>Send the meeting link. Add <code>join_at</code> to book it for later, <code>external_id</code> (e.g. your calendar event id) so sending twice never sends two bots, and <code>metadata</code> for anything you want back with the results.</p>
+  <div data-tabs>
+    <div class="tabs"><button class="on">Python</button><button>Node / Next.js</button><button>curl</button></div>
+<div class="tab on"><pre><code>import os, httpx
+
+def send_notetaker(meeting_url, title=None, join_at=None, external_id=None, metadata=None):
+    r = httpx.post(f"{os.environ['NOTETAKER_URL']}/v1/meetings",
+                   headers={"Authorization": f"Bearer {os.environ['NOTETAKER_API_KEY']}"},
+                   json={"meeting_url": meeting_url, "title": title, "external_id": external_id,
+                         "join_at": join_at.isoformat() if join_at else None, "metadata": metadata or {}},
+                   timeout=20)
+    if r.status_code == 422:              # a plain-language problem, e.g. "That doesn't look like a Meet or Teams link."
+        raise ValueError(r.json()["detail"])
+    r.raise_for_status()
+    return r.json()                       # {"id": ..., "status": "scheduled", ...}</code></pre></div>
+<div class="tab"><pre><code>export async function sendNotetaker({ meetingUrl, title, joinAt, externalId, metadata = {} }) {
+  const r = await fetch(`${process.env.NOTETAKER_URL}/v1/meetings`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.NOTETAKER_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ meeting_url: meetingUrl, title, join_at: joinAt?.toISOString(), external_id: externalId, metadata }),
+  });
+  const body = await r.json();
+  if (!r.ok) throw new Error(r.status === 422 ? body.detail : "The notetaker couldn't be sent");
+  return body; // { id, status: "scheduled", ... }
+}</code></pre></div>
+<div class="tab"><pre><code>curl -X POST {{PUBLIC_URL}}/v1/meetings \
+  -H "Authorization: Bearer $NOTETAKER_API_KEY" -H "Content-Type: application/json" \
+  -d '{"meeting_url":"https://meet.google.com/abc-defg-hij","title":"Call with Sarah","metadata":{"contact_id":"123"}}'</code></pre></div>
+  </div>
+
+  <h2>Step 4 - receive the notes</h2>
+  <p>Add a route at the address you gave the console. Check the signature (so nobody else can post fake notes), save the result, and answer <code>200</code>. Anything else is retried for a few hours.</p>
+  <div data-tabs>
+    <div class="tabs"><button class="on">Python (FastAPI)</button><button>Next.js</button><button>Express</button></div>
+<div class="tab on"><pre><code>import hashlib, hmac, json, os, time
+from fastapi import APIRouter, HTTPException, Request
+
+router = APIRouter()
+
+def notetaker_signed(body: bytes, ts: str, sig: str) -> bool:
+    if not ts or abs(time.time() - int(ts)) > 600:
+        return False
+    expected = "sha256=" + hmac.new(os.environ["NOTETAKER_WEBHOOK_SECRET"].encode(), ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, sig or "")
+
+@router.post("/api/notetaker/webhook")
+async def notetaker_webhook(request: Request):
+    body = await request.body()
+    if not notetaker_signed(body, request.headers.get("x-notetaker-timestamp", ""), request.headers.get("x-notetaker-signature", "")):
+        raise HTTPException(401)
+    msg = json.loads(body)
+    meeting = msg["data"]
+    if msg["event"] == "meeting.completed":
+        save_notes(meeting["metadata"], meeting["notes"], meeting["transcript"])   # your code
+    return {"ok": True}</code></pre></div>
+<div class="tab"><pre><code>// app/api/notetaker/webhook/route.ts
+import crypto from "node:crypto";
+
+export async function POST(req: Request) {
+  const body = await req.text();
+  const ts = req.headers.get("x-notetaker-timestamp") ?? "";
+  const sig = req.headers.get("x-notetaker-signature") ?? "";
+  const expected = "sha256=" + crypto.createHmac("sha256", process.env.NOTETAKER_WEBHOOK_SECRET!).update(`${ts}.${body}`).digest("hex");
+  const fresh = Math.abs(Date.now() / 1000 - Number(ts)) < 600;
+  if (!fresh || sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected)))
+    return new Response("Not allowed", { status: 401 });
+  const msg = JSON.parse(body);
+  if (msg.event === "meeting.completed") await saveNotes(msg.data); // your code
+  return Response.json({ ok: true });
+}</code></pre></div>
+<div class="tab"><pre><code>import crypto from "node:crypto";
+import express from "express";
+const app = express();
+
+app.post("/api/notetaker/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+  const body = req.body.toString("utf8"), ts = req.get("x-notetaker-timestamp") ?? "", sig = req.get("x-notetaker-signature") ?? "";
+  const expected = "sha256=" + crypto.createHmac("sha256", process.env.NOTETAKER_WEBHOOK_SECRET).update(`${ts}.${body}`).digest("hex");
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 600 || sig !== expected) return res.sendStatus(401);
+  const msg = JSON.parse(body);
+  if (msg.event === "meeting.completed") await saveNotes(msg.data); // your code
+  res.json({ ok: true });
+});</code></pre></div>
+  </div>
+  <div class="note">The same delivery can arrive twice (that's how retries work). Use <code>msg.id</code> - or the meeting's <code>id</code> - to ignore ones you've already saved.</div>
+
+  <h2>What you get back</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Event</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>meeting.status_changed</code></td><td>Each step: scheduled → joining → waiting to be let in → recording → writing up the notes.</td></tr>
+      <tr><td><code>meeting.completed</code></td><td>The call ended and the notes are ready. Has the transcript and notes.</td></tr>
+      <tr><td><code>meeting.failed</code></td><td>It couldn't record, e.g. nobody let it in. <code>status_detail</code> says why, in plain words you can show people.</td></tr>
+      <tr><td><code>test.ping</code></td><td>Sent by "Send a test webhook" in the console.</td></tr>
+    </tbody>
+  </table></div>
+  <h3>A finished meeting looks like this</h3>
+<pre><code>{
+  "id": "d41c…", "event": "meeting.completed",
+  "data": {
+    "id": "8f2a…", "title": "Call with Sarah", "platform": "google_meet", "status": "completed",
+    "participants": ["Sarah Jones", "Matt Lee"],
+    "metadata": { "contact_id": "123" },
+    "transcript": [ { "speaker": "Sarah Jones", "start_ms": 0, "end_ms": 6000, "text": "Thanks for making time…" } ],
+    "notes": {
+      "title": "Spring campaign", "summary": "Sarah wants a double page spread…",
+      "key_points": ["…"], "decisions": ["…"],
+      "action_items": [ { "task": "Send the proposal", "owner": "Matt Lee", "due": "today" } ],
+      "money_mentioned": ["£5,000 for the spread and newsletter"], "dates_mentioned": ["Copy deadline 14 March"],
+      "next_step": "Send the proposal", "sentiment": "positive"
+    }
+  }
+}</code></pre>
+
+  <h2>Other things you can do</h2>
+<pre><code>GET    /v1/meetings              your recent meetings (add ?status=completed)
+GET    /v1/meetings/{id}         one meeting, with transcript, notes and timeline
+DELETE /v1/meetings/{id}         stop the bot, or cancel one that hasn't joined yet</code></pre>
+  <p>Full reference, with a "try it" button for every call: <a href="/docs">{{PUBLIC_URL}}/docs</a>.</p>
+
+  <h2>Good to know</h2>
+  <ul>
+    <li><b>Someone has to let the bot in</b> from the waiting room, unless the meeting lets guests straight in.</li>
+    <li><b>Google Meet and Microsoft Teams</b> work today. Zoom needs Zoom to approve the app first.</li>
+    <li><b>The "may not be who they say" warning</b> in Meet shows because the bot joins as a guest. A signed-in Google account for the bot removes it - ask the Notetaker admin.</li>
+    <li><b>How many calls at once:</b> shown on the console's Overview. Extra calls are refused with a plain message until one finishes.</li>
+    <li><b>Lost your key?</b> Console → Apps → <b>New key</b> (the old one stops working straight away).</li>
+    <li><b>Results not arriving?</b> Console → Apps → <b>Webhook deliveries</b> shows each try and the problem; <b>Resend</b> sends it again.</li>
+  </ul>
+</div>
+<script>
+document.querySelectorAll("[data-tabs]").forEach((box) => {
+  const btns = [...box.querySelectorAll(".tabs button")], tabs = [...box.querySelectorAll(".tab")];
+  btns.forEach((b, i) => b.onclick = () => { btns.forEach((x, j) => x.classList.toggle("on", i === j)); tabs.forEach((t, j) => t.classList.toggle("on", i === j)); });
+});
+</script>
+</body>
+</html>

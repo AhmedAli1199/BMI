@@ -28,6 +28,11 @@ def tick() -> None:
                     service.set_status(db, m, states.FAILED, "The call was recorded but the notes couldn't be written.")
     with session_scope() as db:
         outbox.deliver_due(db)
+        from notetaker.models import ServiceState
+        hb = db.get(ServiceState, "worker_heartbeat") or ServiceState(key="worker_heartbeat")
+        from notetaker.models import now as _now
+        hb.value = _now().isoformat()
+        db.merge(hb)
 
 
 def main() -> None:

@@ -1,7 +1,6 @@
 # The whole notetaker stack, for one Dokploy "Compose" service.
-# Public addresses (set in Dokploy → Domains):
-#   notetaker-api  :8080  ->  e.g. https://notetaker.rabtaai.com   (client apps, Attendee webhooks, the dashboard)
-#   attendee-app   :8000  ->  e.g. https://attendee.rabtaai.com    (Attendee's own admin screen - only needed for set-up)
+# One public address (Dokploy → Domains):  notetaker-api, port 8080, e.g. https://notetaker.rabtaai.com
+# attendee-bootstrap sets the meeting bot up by itself on every deploy - nobody signs up or copies keys.
 # Memory is capped on every container so a busy day can't slow the other apps on the server.
 
 x-attendee: &attendee
@@ -24,8 +23,13 @@ x-attendee: &attendee
     AWS_DEFAULT_REGION: us-east-1
     CUSTOM_ASYNC_TRANSCRIPTION_URL: http://notetaker-api:8080/internal/transcribe
     DISABLE_EMAIL: "true"
+    DISABLE_SIGNUP: "true"
     ENABLE_CHROME_SANDBOX: "false"
-  depends_on: [postgres, redis, storage]
+  depends_on:
+    postgres: {condition: service_started}
+    redis: {condition: service_started}
+    storage: {condition: service_started}
+    attendee-bootstrap: {condition: service_completed_successfully}
 
 services:
   notetaker-api:
@@ -35,6 +39,8 @@ services:
     environment: &nt-env
       DATABASE_URL: postgresql://notetaker:${POSTGRES_PASSWORD}@postgres:5432/notetaker
       ATTENDEE_URL: http://attendee-app:8000
+      ATTENDEE_CREDENTIALS_FILE: /shared/attendee.json
+    volumes: ["shared:/shared:ro"]
     depends_on: [postgres]
     mem_limit: 512m
 
@@ -43,13 +49,23 @@ services:
     restart: unless-stopped
     env_file: .env
     environment: *nt-env
+    volumes: ["shared:/shared:ro"]
     command: ["python", "-m", "notetaker.worker"]
     depends_on: [postgres]
     mem_limit: 512m
 
+  # Runs once per deploy: database updates, then creates the bot's project, API key and webhook secret.
+  attendee-bootstrap:
+    <<: *attendee
+    restart: "no"
+    command: ["bash", "-c", "python manage.py migrate --noinput && python manage.py shell < /bootstrap/attendee_bootstrap.py"]
+    volumes: ["./deploy:/bootstrap:ro", "shared:/shared"]
+    depends_on: [postgres, redis, storage]
+    mem_limit: 1g
+
   attendee-app:
     <<: *attendee
-    command: ["bash", "-c", "python manage.py migrate --noinput && gunicorn attendee.wsgi --bind 0.0.0.0:8000 --workers 2 --timeout 120"]
+    command: ["gunicorn", "attendee.wsgi", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120"]
     mem_limit: 1g
 
   attendee-scheduler:
@@ -117,3 +133,4 @@ services:
 volumes:
   pgdata:
   storagedata:
+  shared:

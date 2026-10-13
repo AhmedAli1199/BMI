@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notetaker Console</title>
+<style>
+  :root { --bg:#f6f6f3; --card:#fff; --fg:#1c1c1a; --muted:#6b6a64; --line:#e4e3dd; --accent:#1f5247; --accent-fg:#fff; --soft:#eef3f1;
+          --ok:#2c6e3c; --warn:#9a5b00; --bad:#a3262a; --code:#f1f0ec; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141413; --card:#1d1d1b; --fg:#ecebe5; --muted:#a2a19a; --line:#33332f; --accent:#7cc4b3;
+          --accent-fg:#10201c; --soft:#1f2a27; --ok:#86c98f; --warn:#e2a54b; --bad:#ef7a7d; --code:#262623; } }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif }
+  a { color:var(--accent) } .wrap { max-width:1120px; margin:0 auto; padding:24px 16px 64px }
+  header.top { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; margin-bottom:20px }
+  header.top h1 { font-size:20px; margin:0 } nav { display:flex; gap:4px; flex-wrap:wrap } nav button { background:transparent; color:var(--muted); border:0; padding:6px 10px; border-radius:8px; font-weight:600; cursor:pointer }
+  nav button.on { background:var(--card); color:var(--fg); box-shadow:0 0 0 1px var(--line) } .spacer { flex:1 }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px }
+  h2 { font-size:16px; margin:0 0 4px } h3 { font-size:12px; margin:16px 0 6px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted) }
+  p.sub { margin:0 0 14px; color:var(--muted) } .muted { color:var(--muted) } .small { font-size:12px }
+  label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--muted) }
+  input, select, textarea { font:inherit; color:var(--fg); background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px 10px; width:100% }
+  textarea { min-height:70px; resize:vertical }
+  button.b { font:inherit; font-weight:600; border:0; border-radius:8px; padding:8px 14px; background:var(--accent); color:var(--accent-fg); cursor:pointer; white-space:nowrap }
+  button.g { background:transparent; color:var(--fg); border:1px solid var(--line) } button.d { background:transparent; color:var(--bad); border:1px solid var(--line) }
+  button.sm { padding:4px 10px; font-size:12px } button:disabled { opacity:.5; cursor:default }
+  .grid2 { display:grid; gap:12px; grid-template-columns:1fr 1fr } .grid4 { display:grid; gap:12px; grid-template-columns:repeat(4,1fr) }
+  @media (max-width:760px) { .grid2, .grid4 { grid-template-columns:1fr 1fr } } @media (max-width:480px) { .grid2 { grid-template-columns:1fr } }
+  .span2 { grid-column:1/-1 } .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center }
+  .stat { background:var(--soft); border-radius:10px; padding:12px } .stat b { display:block; font-size:22px }
+  ul.checks { list-style:none; margin:0; padding:0 } ul.checks li { display:flex; gap:10px; padding:8px 0; border-top:1px solid var(--line) } ul.checks li:first-child { border-top:0 }
+  .dot { width:20px; height:20px; border-radius:50%; display:inline-grid; place-items:center; font-size:12px; font-weight:800; flex:none; color:var(--card) }
+  .dot.ok { background:var(--ok) } .dot.no { background:var(--warn) }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:1px 8px; border-radius:99px; border:1px solid currentColor }
+  .s-completed, .s-delivered, .s-on { color:var(--ok) } .s-failed, .s-not_admitted, .s-dead, .s-off { color:var(--bad) }
+  .s-recording, .s-waiting_room, .s-joining, .s-processing, .s-pending { color:var(--warn) } .s-scheduled, .s-cancelled { color:var(--muted) }
+  pre { background:var(--code); border-radius:8px; padding:12px; overflow:auto; font-size:12.5px; margin:0 } code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace }
+  table { width:100%; border-collapse:collapse; font-size:13px } th, td { text-align:left; padding:7px 8px; border-top:1px solid var(--line); vertical-align:top } th { color:var(--muted); font-size:12px; border-top:0 }
+  .tablewrap { overflow-x:auto } .err { color:var(--bad); font-size:13px; margin-top:8px; min-height:1em }
+  .banner { border:1px solid var(--accent); background:var(--soft); border-radius:12px; padding:16px; margin-bottom:16px }
+  .split { display:grid; gap:16px; grid-template-columns:340px 1fr } @media (max-width:860px) { .split { grid-template-columns:1fr } }
+  ul.list { list-style:none; margin:0; padding:0 } ul.list li { padding:10px; border-radius:8px; cursor:pointer; border:1px solid transparent } ul.list li:hover, ul.list li.on { border-color:var(--line); background:var(--bg) }
+  .tr { max-height:380px; overflow:auto; border-top:1px solid var(--line); margin-top:8px; padding-top:8px } .tr div { padding:2px 0 } .tr b { color:var(--accent) }
+  .login { max-width:380px; margin:12vh auto } .hidden { display:none }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--fg); color:var(--bg); padding:8px 14px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .2s; pointer-events:none }
+  .toast.show { opacity:1 }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="loginView" class="login hidden">
+    <div class="card">
+      <h2>Notetaker console</h2>
+      <p class="sub">Sign in with the console password (the <code>ADMIN_TOKEN</code> server setting).</p>
+      <form id="loginForm"><label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
+        <div class="row" style="margin-top:12px"><button class="b" type="submit">Sign in</button></div><div class="err" id="loginErr"></div></form>
+    </div>
+  </section>
+
+  <div id="app" class="hidden">
+    <header class="top">
+      <h1>Notetaker</h1>
+      <nav aria-label="Console">
+        <button data-tab="overview" class="on">Overview</button><button data-tab="apps">Apps</button><button data-tab="calls">Calls</button>
+        <button onclick="window.open('/guide','_blank')">Guide ↗</button>
+      </nav>
+      <span class="spacer"></span>
+      <button class="b g sm" id="logout">Sign out</button>
+    </header>
+
+    <section data-view="overview">
+      <div class="card"><h2>Is everything working?</h2><p class="sub">These check themselves every time you open this page.</p><ul class="checks" id="checks"></ul></div>
+      <div class="grid4" id="stats"></div>
+      <div class="card" style="margin-top:16px"><h2>Next step</h2><p class="sub" id="nextStep"></p></div>
+      <details class="card"><summary><b>Meeting bot's own admin login</b> <span class="muted small">(only needed for debugging)</span></summary><div id="engine" class="small" style="margin-top:10px"></div></details>
+    </section>
+
+    <section data-view="apps" class="hidden">
+      <div id="newKeys"></div>
+      <div class="card" id="appForm" style="display:none">
+        <h2 id="formTitle">New app</h2><p class="sub">An app is any project that sends the notetaker into calls - BMI Brain, a hiring tool, a support desk. Each gets its own key.</p>
+        <form id="appEdit" class="grid2">
+          <label class="span2">App name<input name="name" required placeholder="e.g. BMI Brain"></label>
+          <label class="span2">Where to send results (webhook address)<input name="webhook_url" placeholder="https://yourapp.com/api/notetaker/webhook"></label>
+          <label>Bot's name in the call<input name="bot_name" placeholder="e.g. BMI Notetaker"></label>
+          <label>Keep recordings for (days)<input name="retention_days" type="number" min="1" max="365" value="30"></label>
+          <label class="span2">Message the bot posts in the call chat<input name="chat_message" placeholder="Hi - I'm taking notes for BMI. This call is recorded for notes only."></label>
+          <label>Notes style<select name="notes_style" id="styleSel"></select><span class="muted small" id="styleHint" style="font-weight:400"></span></label>
+          <label>Anything else the notes should focus on (optional)<textarea name="summary_instructions" placeholder="e.g. Always note which magazine issue was discussed."></textarea></label>
+          <div class="span2 row"><button class="b" type="submit" id="saveApp">Create app</button><button class="b g" type="button" id="cancelApp">Cancel</button></div>
+          <div class="err span2" id="appErr"></div>
+        </form>
+      </div>
+      <div class="row" style="margin-bottom:12px"><button class="b" id="newApp">New app</button><span class="muted small">Takes a minute: name it, paste where results go, copy the three lines into your app.</span></div>
+      <div id="apps"></div>
+    </section>
+
+    <section data-view="calls" class="hidden">
+      <div class="card">
+        <h2>Try it</h2><p class="sub">Send the bot into a call as one of your apps. Start a Google Meet, paste the link, and let the bot in when it asks.</p>
+        <form id="tryForm" class="grid2">
+          <label>As app<select id="tryApp"></select></label><label>Title (optional)<input id="tryTitle" placeholder="Test call"></label>
+          <label class="span2">Meeting link<input id="tryUrl" required placeholder="https://meet.google.com/abc-defg-hij or a Teams link"></label>
+          <div class="span2 row"><button class="b" type="submit">Send the bot</button></div><div class="err span2" id="tryErr"></div>
+        </form>
+      </div>
+      <div class="split"><div class="card"><h2>Recent calls</h2><ul class="list" id="calls"></ul></div><div class="card" id="callDetail"><p class="muted">Pick a call to see its notes.</p></div></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const when = (s) => s ? new Date(s).toLocaleString() : "never";
+let styles = [], apps = [], tab = "overview", selectedCall = null, editing = null, openDeliveries = new Set();
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 2200); }
+async function api(path, opts = {}) {
+  const r = await fetch(path, { credentials: "same-origin", ...opts, headers: { "Content-Type": "application/json", ...(opts.headers || {}) } });
+  if (r.status === 401 && !path.startsWith("/console/login")) { show(false); throw new Error("Please sign in again."); }
+  const body = r.status === 204 ? {} : await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Something went wrong. Please try again.");
+  return body;
+}
+function copyBtn(text, label = "Copy") { const id = "c" + Math.random().toString(36).slice(2); setTimeout(() => { const b = document.getElementById(id); if (b) b.onclick = () => navigator.clipboard.writeText(text).then(() => toast("Copied")); }); return `<button class="b g sm" id="${id}" type="button">${label}</button>`; }
+function show(signedIn) { $("#loginView").classList.toggle("hidden", signedIn); $("#app").classList.toggle("hidden", !signedIn); }
+$("#loginForm").onsubmit = async (e) => { e.preventDefault(); $("#loginErr").textContent = "";
+  try { await api("/console/login", { method: "POST", body: JSON.stringify({ password: $("#pw").value }) }); $("#pw").value = ""; show(true); load(); }
+  catch (err) { $("#loginErr").textContent = err.message; } };
+$("#logout").onclick = async () => { await api("/console/logout", { method: "POST" }).catch(() => {}); show(false); };
+$$("nav button[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; $$("nav button[data-tab]").forEach((x) => x.classList.toggle("on", x === b));
+  $$("section[data-view]").forEach((s) => s.classList.toggle("hidden", s.dataset.view !== tab)); load(); });
+
+async function load() {
+  try {
+    const o = await api("/admin/overview"); styles = o.styles; show(true);
+    if (tab === "overview") renderOverview(o);
+    if (tab === "apps" || tab === "calls") { apps = await api("/admin/apps"); }
+    if (tab === "apps") renderApps();
+    if (tab === "calls") await renderCalls();
+  } catch (e) { if (!$("#app").classList.contains("hidden")) toast(e.message); }
+}
+
+function renderOverview(o) {
+  $("#checks").innerHTML = o.checks.map((c) => `<li><span class="dot ${c.ok ? "ok" : "no"}" aria-hidden="true">${c.ok ? "✓" : "!"}</span><div><b>${esc(c.name)}</b><div class="muted small">${esc(c.detail)}</div></div></li>`).join("");
+  const s = o.stats;
+  $("#stats").innerHTML = [["Apps", s.apps], ["Calls right now", `${s.live_calls} / ${s.max_calls}`], ["Calls in 30 days", s.calls_30d], ["Webhooks that gave up", s.failed_webhooks]]
+    .map(([k, v]) => `<div class="stat"><span class="muted small">${k}</span><b>${esc(v)}</b></div>`).join("");
+  $("#nextStep").innerHTML = !o.ready ? "Fix the items marked ! above - most clear on their own a minute after a deploy."
+    : s.apps === 0 ? `Everything's ready. Go to <a href="#" onclick="$('nav [data-tab=apps]').click();return false">Apps</a> and create your first app.`
+    : `All good. To connect another project, create an app and follow the <a href="/guide" target="_blank">guide</a>.`;
+  const l = o.engine_login;
+  $("#engine").innerHTML = l && l.email ? `${o.engine_url ? `Address: <a href="${esc(o.engine_url)}" target="_blank">${esc(o.engine_url)}</a><br>` : `Not on a public address. To open it, add a domain for <code>attendee-app</code> (port 8000) and set <code>ATTENDEE_PUBLIC_URL</code>.<br>`}
+    Email: <code>${esc(l.email)}</code> ${copyBtn(l.email)}<br>Password: <code>${esc(l.password || "(set before this console existed)")}</code> ${l.password ? copyBtn(l.password) : ""}`
+    : "The set-up step hasn't run yet.";
+}
+
+function styleOptions(sel) { $("#styleSel").innerHTML = styles.map((s) => `<option value="${s.value}" ${s.value === sel ? "selected" : ""}>${esc(s.label)}</option>`).join(""); hint(); }
+function hint() { const s = styles.find((x) => x.value === $("#styleSel").value); $("#styleHint").textContent = s ? s.hint : ""; }
+$("#styleSel").onchange = hint;
+function openForm(app) {
+  editing = app; const f = $("#appEdit"); f.reset(); $("#appErr").textContent = "";
+  $("#formTitle").textContent = app ? `Edit ${app.name}` : "New app"; $("#saveApp").textContent = app ? "Save" : "Create app";
+  if (app) for (const k of ["name", "webhook_url", "bot_name", "chat_message", "summary_instructions", "retention_days"]) f.elements[k].value = app[k] ?? "";
+  styleOptions(app ? app.notes_style : "general"); $("#appForm").style.display = "block"; f.elements.name.focus();
+}
+$("#newApp").onclick = () => openForm(null);
+$("#cancelApp").onclick = () => { $("#appForm").style.display = "none"; };
+$("#appEdit").onsubmit = async (e) => {
+  e.preventDefault(); const f = e.target, body = Object.fromEntries(new FormData(f)); body.retention_days = Number(body.retention_days || 30);
+  for (const k of ["webhook_url", "bot_name", "chat_message", "summary_instructions"]) if (!body[k]) body[k] = null;
+  if (editing) body.is_active = editing.is_active;
+  try {
+    const r = await api(editing ? `/admin/apps/${editing.id}` : "/admin/apps", { method: editing ? "PATCH" : "POST", body: JSON.stringify(body) });
+    $("#appForm").style.display = "none";
+    if (!editing) showKeys(r, true); else toast("Saved");
+    load();
+  } catch (err) { $("#appErr").textContent = err.message; }
+};
+function showKeys(r, isNew) {
+  const name = r.app.name;
+  $("#newKeys").innerHTML = `<div class="banner"><h2>${isNew ? `${esc(name)} is ready - connect it` : `New details for ${esc(name)}`}</h2>
+    <p class="sub">Put these lines in ${esc(name)}'s server settings. <b>They're shown only once</b> - copy them now. Then follow the <a href="/guide" target="_blank">guide</a> (about 10 minutes).</p>
+    <pre><code>${esc(r.env)}</code></pre><div class="row" style="margin-top:10px">${copyBtn(r.env, "Copy all")}<button class="b g sm" onclick="$('#newKeys').innerHTML=''">I've saved them</button></div></div>`;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderApps() {
+  $("#apps").innerHTML = apps.length ? apps.map((a) => `<div class="card">
+    <div class="row"><h2 style="margin:0">${esc(a.name)}</h2><span class="pill ${a.is_active ? "s-on" : "s-off"}">${a.is_active ? "On" : "Switched off"}</span><span class="spacer"></span>
+      <button class="b g sm" data-act="edit" data-id="${a.id}">Edit</button><button class="b g sm" data-act="test" data-id="${a.id}">Send a test webhook</button>
+      <button class="b g sm" data-act="key" data-id="${a.id}">New key</button><button class="b g sm" data-act="secret" data-id="${a.id}">New webhook secret</button>
+      <button class="b g sm" data-act="toggle" data-id="${a.id}">${a.is_active ? "Switch off" : "Switch on"}</button><button class="b d sm" data-act="delete" data-id="${a.id}">Delete</button></div>
+    <div class="muted small" style="margin-top:6px">Key starts <code>${esc(a.key_hint || "nt_…")}</code> · ${esc(styles.find((s) => s.value === a.notes_style)?.label || "General")} notes · ${a.calls_30d} calls in 30 days · last used ${when(a.last_used_at)}</div>
+    <div class="muted small">Results go to ${a.webhook_url ? `<code>${esc(a.webhook_url)}</code>` : "<b>nowhere yet - add a webhook address</b>"}${a.failed_webhooks ? ` · <span style="color:var(--bad)">${a.failed_webhooks} webhook${a.failed_webhooks > 1 ? "s" : ""} gave up</span>` : ""}</div>
+    <details data-deliveries="${a.id}" ${openDeliveries.has(a.id) ? "open" : ""} style="margin-top:8px"><summary class="small"><b>Webhook deliveries</b></summary><div class="tablewrap" id="d-${a.id}"><p class="muted small">Loading…</p></div></details>
+  </div>`).join("") : `<div class="card"><p class="muted">No apps yet. Press <b>New app</b> to connect your first project.</p></div>`;
+  $$("#apps [data-act]").forEach((b) => b.onclick = () => act(b.dataset.act, apps.find((a) => a.id === b.dataset.id)));
+  $$("#apps details[data-deliveries]").forEach((d) => { d.ontoggle = () => { if (d.open) { openDeliveries.add(d.dataset.deliveries); loadDeliveries(d.dataset.deliveries); } else openDeliveries.delete(d.dataset.deliveries); }; if (d.open) loadDeliveries(d.dataset.deliveries); });
+}
+async function loadDeliveries(id) {
+  const rows = await api(`/admin/apps/${id}/deliveries`).catch(() => []);
+  $(`#d-${id}`).innerHTML = rows.length ? `<table><thead><tr><th>Event</th><th>Status</th><th>Tries</th><th>Problem</th><th>When</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr>
+    <td><code>${esc(r.event)}</code></td><td><span class="pill s-${r.status}">${r.status === "dead" ? "gave up" : esc(r.status)}</span></td><td>${r.attempts}</td>
+    <td class="muted">${esc(r.last_error || "")}</td><td class="muted">${when(r.created_at)}</td>
+    <td>${r.status !== "pending" ? `<button class="b g sm" onclick="resend('${r.id}','${id}')">Resend</button>` : ""}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="muted small">Nothing sent yet.</p>`;
+}
+async function resend(id, appId) { try { await api(`/admin/deliveries/${id}/resend`, { method: "POST" }); toast("Queued - it goes out within a few seconds"); setTimeout(() => loadDeliveries(appId), 4000); } catch (e) { toast(e.message); } }
+async function act(what, a) {
+  try {
+    if (what === "edit") return openForm(a);
+    if (what === "test") { await api(`/admin/apps/${a.id}/test-webhook`, { method: "POST" }); toast("Test sent - check the deliveries in a few seconds"); openDeliveries.add(a.id); setTimeout(load, 4000); return; }
+    if (what === "key" && confirm(`Make a new key for ${a.name}? The old one stops working straight away.`)) return showKeys(await api(`/admin/apps/${a.id}/rotate-key`, { method: "POST" }), false);
+    if (what === "secret" && confirm(`Make a new webhook secret for ${a.name}? Update the app's setting straight after, or it will reject results.`)) return showKeys(await api(`/admin/apps/${a.id}/rotate-secret`, { method: "POST" }), false);
+    if (what === "toggle") { await api(`/admin/apps/${a.id}`, { method: "PATCH", body: JSON.stringify({ ...a, is_active: !a.is_active }) }); toast(a.is_active ? "Switched off" : "Switched on"); return load(); }
+    if (what === "delete" && confirm(`Delete ${a.name} and all its calls? This can't be undone.`)) { await api(`/admin/apps/${a.id}`, { method: "DELETE" }); toast("Deleted"); return load(); }
+  } catch (e) { toast(e.message); }
+}
+
+async function renderCalls() {
+  $("#tryApp").innerHTML = apps.filter((a) => a.is_active).map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("") || `<option value="">Create an app first</option>`;
+  const rows = await api("/admin/meetings");
+  $("#calls").innerHTML = rows.length ? rows.map((m) => `<li data-id="${m.id}" class="${m.id === selectedCall ? "on" : ""}"><b>${esc(m.title || m.meeting_url)}</b>
+    <div class="muted small"><span class="pill s-${m.status}">${esc(m.status_label)}</span> · ${esc(m.app)} · ${when(m.created_at)}</div></li>`).join("") : `<li class="muted">No calls yet.</li>`;
+  $$("#calls li[data-id]").forEach((li) => li.onclick = () => { selectedCall = li.dataset.id; renderCalls(); });
+  if (selectedCall) callDetail(await api(`/admin/meetings/${selectedCall}`));
+}
+const list = (t, xs) => xs && xs.length ? `<h3>${t}</h3><ul>${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+function callDetail(m) {
+  const n = m.notes, live = ["scheduled", "joining", "waiting_room", "recording"].includes(m.status);
+  $("#callDetail").innerHTML = `<h2>${esc(m.title || "Call")}</h2><div class="muted small"><span class="pill s-${m.status}">${esc(m.status_label)}</span> ${m.status_detail ? "· " + esc(m.status_detail) : ""} · ${esc(m.app)}</div>
+    <div class="muted small">${esc(m.meeting_url)}${m.participants.length ? " · " + esc(m.participants.join(", ")) : ""}</div>
+    ${live ? `<p><button class="b g sm" id="stopCall">Stop the bot</button></p>` : ""}
+    ${n ? `<h3>Summary</h3><p>${esc(n.summary)}</p>${n.next_step ? `<p><b>Next step:</b> ${esc(n.next_step)}</p>` : ""}${list("Key points", n.key_points)}${list("Decisions", n.decisions)}
+      ${list("Action items", (n.action_items || []).map((a) => a.task + (a.owner ? " — " + a.owner : "") + (a.due ? " (" + a.due + ")" : "")))}` : ""}
+    ${m.transcript.length ? `<h3>Transcript</h3><div class="tr">${m.transcript.map((u) => `<div><b>${esc(u.speaker)}:</b> ${esc(u.text)}</div>`).join("")}</div>` : ""}
+    <h3>Timeline</h3><ol class="small muted">${m.timeline.map((e) => `<li>${esc(e.label)}${e.detail ? " — " + esc(e.detail) : ""} · ${when(e.at)}</li>`).join("")}</ol>`;
+  const s = $("#stopCall"); if (s) s.onclick = async () => { await api(`/admin/meetings/${m.id}`, { method: "DELETE" }).catch((e) => toast(e.message)); renderCalls(); };
+}
+$("#tryForm").onsubmit = async (e) => { e.preventDefault(); $("#tryErr").textContent = "";
+  try { const m = await api("/admin/meetings", { method: "POST", body: JSON.stringify({ app_id: $("#tryApp").value, meeting_url: $("#tryUrl").value.trim(), title: $("#tryTitle").value.trim() || null }) });
+    selectedCall = m.id; $("#tryUrl").value = ""; toast("The bot is on its way - let it in when it asks"); renderCalls(); }
+  catch (err) { $("#tryErr").textContent = err.message; } };
+
+load().catch(() => show(false));
+fetch("/admin/overview", { credentials: "same-origin" }).then((r) => show(r.ok));
+setInterval(() => { if (!$("#app").classList.contains("hidden") && tab !== "apps") load(); }, 6000);
+</script>
+</body>
+</html>
