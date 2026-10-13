@@ -34,6 +34,6 @@ def api():
 
 @pytest.fixture
 def client_key(api):
-    r = api.post("/admin/clients", json={"name": "BMI Brain", "webhook_url": "https://bmi.example.com/hook"}, headers={"X-Admin-Token": "admin-t"})
+    r = api.post("/admin/clients", json={"name": "BMI Brain", "webhook_url": "https://bmi.example.com/hook", "gemini_api_key": "bmi-own-key"}, headers={"X-Admin-Token": "admin-t"})
     assert r.status_code == 201, r.text
     return r.json()

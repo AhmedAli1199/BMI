@@ -15,7 +15,7 @@ def test_console_needs_sign_in_and_cookie_works(api):
     assert api.post("/console/login", json={"password": "wrong"}).status_code == 401
     assert api.post("/console/login", json={"password": "admin-t"}).status_code == 200
     o = api.get("/admin/overview").json()          # the cookie now signs us in
-    assert {c["name"] for c in o["checks"]} >= {"Meeting bot", "Notes writer (Gemini)", "Public address", "Background worker"}
+    assert {c["name"] for c in o["checks"]} >= {"Meeting bot", "Every app has its own Gemini key", "Public address", "Background worker"}
     assert any(s["value"] == "sales" for s in o["styles"])
     api.post("/console/logout")
     api.cookies.clear()

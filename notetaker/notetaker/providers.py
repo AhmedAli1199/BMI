@@ -15,10 +15,19 @@ def get_bot():
     return AttendeeBot()
 
 
-@lru_cache
-def get_ai():
+@lru_cache(maxsize=64)
+def get_ai(api_key: str):
+    """The notes writer for one app's own Gemini key (apps never share the server's)."""
     if settings.ai_provider == "fake":
         from notetaker.transcribe.fake import FakeAI
-        return FakeAI()
+        return FakeAI(api_key)
     from notetaker.transcribe.gemini import GeminiAI
-    return GeminiAI()
+    return GeminiAI(api_key)
+
+
+def app_ai(client):
+    """None when the app hasn't added a Gemini key yet."""
+    from notetaker.security import decrypt
+    if not client.gemini_key_enc:
+        return None
+    return get_ai(decrypt(client.gemini_key_enc))

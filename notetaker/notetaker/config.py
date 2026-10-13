@@ -31,9 +31,13 @@ class Settings:
 
     # AI (summaries, and transcription in "gemini" mode)
     ai_provider: str = field(default_factory=lambda: _env("AI_PROVIDER", "gemini"))   # gemini | fake
+    # Not used for apps' notes (each app brings its own key) - only kept so old settings files still load.
     gemini_api_key: str = field(default_factory=lambda: _env("GEMINI_API_KEY"))
     gemini_model: str = field(default_factory=lambda: _env("GEMINI_MODEL", "gemini-3.6-flash"))
     internal_token: str = field(default_factory=lambda: _env("INTERNAL_TOKEN"))
+    # Encrypts each app's Gemini key at rest. Falls back to a key derived from INTERNAL_TOKEN.
+    encryption_key: str = field(default_factory=lambda: _env("ENCRYPTION_KEY"))
+    default_call_minutes: int = field(default_factory=lambda: int(_env("DEFAULT_CALL_MINUTES", "60")))
 
     # Outgoing webhooks to client apps
     webhook_max_attempts: int = field(default_factory=lambda: int(_env("WEBHOOK_MAX_ATTEMPTS", "12")))

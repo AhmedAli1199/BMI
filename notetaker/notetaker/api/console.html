@@ -84,6 +84,11 @@
           <label>Bot's name in the call<input name="bot_name" placeholder="e.g. BMI Notetaker"></label>
           <label>Keep recordings for (days)<input name="retention_days" type="number" min="1" max="365" value="30"></label>
           <label class="span2">Message the bot posts in the call chat<input name="chat_message" placeholder="Hi - I'm taking notes for BMI. This call is recorded for notes only."></label>
+          <label class="span2">This app's Gemini API key <span class="muted small" style="font-weight:400" id="keyNote">Each app uses its own key, so its AI costs go to its own Google project. Without one, the app gets transcripts but no written notes.</span>
+            <input name="gemini_api_key" type="password" autocomplete="off" placeholder="AIza…"></label>
+          <label class="span2 row" id="removeKeyRow" style="flex-direction:row;font-weight:400;display:none"><input type="checkbox" name="remove_key" style="width:auto"> Remove the saved key</label>
+          <label>Most calls at once for this app (optional)<input name="max_concurrent" type="number" min="1" placeholder="No limit of its own"></label>
+          <span></span>
           <label>Notes style<select name="notes_style" id="styleSel"></select><span class="muted small" id="styleHint" style="font-weight:400"></span></label>
           <label>Anything else the notes should focus on (optional)<textarea name="summary_instructions" placeholder="e.g. Always note which magazine issue was discussed."></textarea></label>
           <div class="span2 row"><button class="b" type="submit" id="saveApp">Create app</button><button class="b g" type="button" id="cancelApp">Cancel</button></div>
@@ -103,6 +108,7 @@
           <div class="span2 row"><button class="b" type="submit">Send the bot</button></div><div class="err span2" id="tryErr"></div>
         </form>
       </div>
+      <div class="card"><h2>Booked and running</h2><p class="sub">Every app shares the same bots; each booking holds a bot from its start to its end.</p><div class="tablewrap" id="sched"></div></div>
       <div class="split"><div class="card"><h2>Recent calls</h2><ul class="list" id="calls"></ul></div><div class="card" id="callDetail"><p class="muted">Pick a call to see its notes.</p></div></div>
     </section>
   </div>
@@ -143,7 +149,7 @@ async function load() {
 function renderOverview(o) {
   $("#checks").innerHTML = o.checks.map((c) => `<li><span class="dot ${c.ok ? "ok" : "no"}" aria-hidden="true">${c.ok ? "✓" : "!"}</span><div><b>${esc(c.name)}</b><div class="muted small">${esc(c.detail)}</div></div></li>`).join("");
   const s = o.stats;
-  $("#stats").innerHTML = [["Apps", s.apps], ["Calls right now", `${s.live_calls} / ${s.max_calls}`], ["Calls in 30 days", s.calls_30d], ["Webhooks that gave up", s.failed_webhooks]]
+  $("#stats").innerHTML = [["Apps", s.apps], ["Calls right now", `${s.live_calls} / ${s.max_calls}`], ["Hours recorded this month", s.hours_month], ["Webhooks that gave up", s.failed_webhooks]]
     .map(([k, v]) => `<div class="stat"><span class="muted small">${k}</span><b>${esc(v)}</b></div>`).join("");
   $("#nextStep").innerHTML = !o.ready ? "Fix the items marked ! above - most clear on their own a minute after a deploy."
     : s.apps === 0 ? `Everything's ready. Go to <a href="#" onclick="$('nav [data-tab=apps]').click();return false">Apps</a> and create your first app.`
@@ -160,13 +166,17 @@ $("#styleSel").onchange = hint;
 function openForm(app) {
   editing = app; const f = $("#appEdit"); f.reset(); $("#appErr").textContent = "";
   $("#formTitle").textContent = app ? `Edit ${app.name}` : "New app"; $("#saveApp").textContent = app ? "Save" : "Create app";
-  if (app) for (const k of ["name", "webhook_url", "bot_name", "chat_message", "summary_instructions", "retention_days"]) f.elements[k].value = app[k] ?? "";
+  if (app) for (const k of ["name", "webhook_url", "bot_name", "chat_message", "summary_instructions", "retention_days", "max_concurrent"]) f.elements[k].value = app[k] ?? "";
+  f.elements.gemini_api_key.placeholder = app && app.has_gemini_key ? `Saved (${app.gemini_key_hint}) - leave blank to keep it` : "AIza…";
+  $("#removeKeyRow").style.display = app && app.has_gemini_key ? "flex" : "none";
   styleOptions(app ? app.notes_style : "general"); $("#appForm").style.display = "block"; f.elements.name.focus();
 }
 $("#newApp").onclick = () => openForm(null);
 $("#cancelApp").onclick = () => { $("#appForm").style.display = "none"; };
 $("#appEdit").onsubmit = async (e) => {
   e.preventDefault(); const f = e.target, body = Object.fromEntries(new FormData(f)); body.retention_days = Number(body.retention_days || 30);
+  body.max_concurrent = body.max_concurrent ? Number(body.max_concurrent) : null;
+  body.gemini_api_key = body.remove_key ? "" : (body.gemini_api_key || null); delete body.remove_key;
   for (const k of ["webhook_url", "bot_name", "chat_message", "summary_instructions"]) if (!body[k]) body[k] = null;
   if (editing) body.is_active = editing.is_active;
   try {
@@ -191,6 +201,8 @@ function renderApps() {
       <button class="b g sm" data-act="key" data-id="${a.id}">New key</button><button class="b g sm" data-act="secret" data-id="${a.id}">New webhook secret</button>
       <button class="b g sm" data-act="toggle" data-id="${a.id}">${a.is_active ? "Switch off" : "Switch on"}</button><button class="b d sm" data-act="delete" data-id="${a.id}">Delete</button></div>
     <div class="muted small" style="margin-top:6px">Key starts <code>${esc(a.key_hint || "nt_…")}</code> · ${esc(styles.find((s) => s.value === a.notes_style)?.label || "General")} notes · ${a.calls_30d} calls in 30 days · last used ${when(a.last_used_at)}</div>
+    <div class="muted small">Gemini key: ${a.has_gemini_key ? `<code>${esc(a.gemini_key_hint)}</code>` : `<b style="color:var(--warn)">not added - transcripts only, no written notes</b>`} · ${a.max_concurrent ? `at most ${a.max_concurrent} call${a.max_concurrent > 1 ? "s" : ""} at once` : "no limit of its own"}
+      · this month: ${a.usage_month.calls} calls, ${a.usage_month.hours} h recorded, ${(a.usage_month.ai_input_tokens + a.usage_month.ai_output_tokens).toLocaleString()} AI tokens</div>
     <div class="muted small">Results go to ${a.webhook_url ? `<code>${esc(a.webhook_url)}</code>` : "<b>nowhere yet - add a webhook address</b>"}${a.failed_webhooks ? ` · <span style="color:var(--bad)">${a.failed_webhooks} webhook${a.failed_webhooks > 1 ? "s" : ""} gave up</span>` : ""}</div>
     <details data-deliveries="${a.id}" ${openDeliveries.has(a.id) ? "open" : ""} style="margin-top:8px"><summary class="small"><b>Webhook deliveries</b></summary><div class="tablewrap" id="d-${a.id}"><p class="muted small">Loading…</p></div></details>
   </div>`).join("") : `<div class="card"><p class="muted">No apps yet. Press <b>New app</b> to connect your first project.</p></div>`;
@@ -212,13 +224,17 @@ async function act(what, a) {
     if (what === "test") { await api(`/admin/apps/${a.id}/test-webhook`, { method: "POST" }); toast("Test sent - check the deliveries in a few seconds"); openDeliveries.add(a.id); setTimeout(load, 4000); return; }
     if (what === "key" && confirm(`Make a new key for ${a.name}? The old one stops working straight away.`)) return showKeys(await api(`/admin/apps/${a.id}/rotate-key`, { method: "POST" }), false);
     if (what === "secret" && confirm(`Make a new webhook secret for ${a.name}? Update the app's setting straight after, or it will reject results.`)) return showKeys(await api(`/admin/apps/${a.id}/rotate-secret`, { method: "POST" }), false);
-    if (what === "toggle") { await api(`/admin/apps/${a.id}`, { method: "PATCH", body: JSON.stringify({ ...a, is_active: !a.is_active }) }); toast(a.is_active ? "Switched off" : "Switched on"); return load(); }
+    if (what === "toggle") { await api(`/admin/apps/${a.id}`, { method: "PATCH", body: JSON.stringify({ ...a, gemini_api_key: null, is_active: !a.is_active }) }); toast(a.is_active ? "Switched off" : "Switched on"); return load(); }
     if (what === "delete" && confirm(`Delete ${a.name} and all its calls? This can't be undone.`)) { await api(`/admin/apps/${a.id}`, { method: "DELETE" }); toast("Deleted"); return load(); }
   } catch (e) { toast(e.message); }
 }
 
 async function renderCalls() {
   $("#tryApp").innerHTML = apps.filter((a) => a.is_active).map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("") || `<option value="">Create an app first</option>`;
+  const sched = await api("/admin/schedule");
+  $("#sched").innerHTML = sched.length ? `<table><thead><tr><th>App</th><th>Call</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>${sched.map((r) => `<tr>
+    <td>${esc(r.app)}</td><td>${esc(r.title || "Untitled")}</td><td>${when(r.start)}</td><td>${when(r.end)}</td><td><span class="pill s-${r.status}">${esc(r.status_label)}</span></td></tr>`).join("")}</tbody></table>`
+    : `<p class="muted small">Nothing booked.</p>`;
   const rows = await api("/admin/meetings");
   $("#calls").innerHTML = rows.length ? rows.map((m) => `<li data-id="${m.id}" class="${m.id === selectedCall ? "on" : ""}"><b>${esc(m.title || m.meeting_url)}</b>
     <div class="muted small"><span class="pill s-${m.status}">${esc(m.status_label)}</span> · ${esc(m.app)} · ${when(m.created_at)}</div></li>`).join("") : `<li class="muted">No calls yet.</li>`;

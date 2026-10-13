@@ -32,6 +32,12 @@ UPGRADES = [
     ("clients", "key_hint", "VARCHAR(20)"),
     ("clients", "is_active", "BOOLEAN DEFAULT TRUE"),
     ("clients", "last_used_at", "TIMESTAMP WITH TIME ZONE"),
+    ("clients", "gemini_key_enc", "TEXT"),
+    ("clients", "gemini_key_hint", "VARCHAR(12)"),
+    ("clients", "max_concurrent", "INTEGER"),
+    ("meetings", "ends_at", "TIMESTAMP WITH TIME ZONE"),
+    ("meetings", "ai_input_tokens", "INTEGER DEFAULT 0"),
+    ("meetings", "ai_output_tokens", "INTEGER DEFAULT 0"),
 ]
 
 

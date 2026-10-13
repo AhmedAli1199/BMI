@@ -19,8 +19,8 @@ There's **one Notetaker for the whole company**. Each project connects to it wit
    ```
    python3 deploy/generate_env.py notetaker.yourcompany.com
    ```
-   It prints a complete settings file with every secret generated. Fill in `GEMINI_API_KEY`; use a key on a project with
-   billing turned on, so call content isn't used to train Google's models. Keep `ADMIN_TOKEN` handy: it's the console password.
+   It prints a complete settings file with every secret generated, so there's nothing to fill in. Keep `ADMIN_TOKEN` handy:
+   it's the console password. There's no Gemini key here, because each app adds its own in the console.
 2. **Create the service in Dokploy.** Create Service → **Compose**, choose this repository and branch, compose path `./docker-compose.yml`.
    Paste the settings into **Environment**.
 3. **Add one domain.** Under Domains, choose service `notetaker-api`, port `8080`, your host name, and HTTPS on.
@@ -30,6 +30,14 @@ There's **one Notetaker for the whole company**. Each project connects to it wit
 
 That's all. The bot's own setup (its account, API key and webhook secret) happens by itself on every deploy, in the
 `attendee-bootstrap` container. You never sign up anywhere or copy keys between services.
+
+**Sharing between apps.** Every app uses this one service. Each has its own key, settings, calls and Gemini key, so
+its AI costs go to its own Google project. The bot workers are shared, first come first served:
+- Each booking holds a bot from its `join_at` to its `end_at` (an hour by default).
+- A booking that would go over the overall limit, or the app's own limit (set in the console), is refused straight away
+  with a plain reason. So nobody finds out at meeting time.
+- The console's **Calls → Booked and running** shows who has the bots and when.
+- **Apps** shows each app's calls, hours and AI tokens this month.
 
 **Server size.** When no calls are running, the stack uses about 2 GB of memory and almost no CPU. Each call in progress
 uses roughly 1–2 CPU cores and up to 3 GB while it lasts. Two calls can run at once by default; to allow more, raise
@@ -61,6 +69,10 @@ uses roughly 1–2 CPU cores and up to 3 GB while it lasts. Two calls can run at
 | `notetaker/engine.py` | Reads the bot credentials that the bootstrap writes |
 | `deploy/attendee_bootstrap.py` | Sets the bot up by itself on every deploy |
 
+**Each app's Gemini key** is stored encrypted, with `ENCRYPTION_KEY`, and checked with Google when it's saved. It's used for
+that app's notes, and for its transcripts in `gemini` mode. The server's own `GEMINI_API_KEY`, if one is still set, is never
+used for any app.
+
 **Transcription (`TRANSCRIPTION_MODE`):**
 - `captions` (default): uses the meeting's own live captions. Free, and Meet or Teams provide the speaker names.
 - `gemini`: Gemini transcribes each speaker's audio, at about 10–15 cents per hour.
@@ -76,6 +88,8 @@ uses roughly 1–2 CPU cores and up to 3 GB while it lasts. Two calls can run at
   for `attendee-app` (port 8000) and set `ATTENDEE_PUBLIC_URL`. Its login is shown in the console under Overview.
 - **Moving from the first manual setup:** remove `ATTENDEE_API_KEY` and `ATTENDEE_WEBHOOK_SECRET` from Environment and
   redeploy. The bootstrap takes over. If those values are set, they win.
+- **Upgrading to keys for each app:** add `ENCRYPTION_KEY` (generate one with `generate_env.py`). Then in the console,
+  Apps → Edit each app and paste its Gemini key. Until you do, that app's calls come back as transcripts only.
 
 ## Developing
 

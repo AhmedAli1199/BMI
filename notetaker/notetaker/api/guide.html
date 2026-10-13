@@ -28,7 +28,7 @@
   <p class="lead">Your app sends a meeting link; the Notetaker joins the call, records it, and sends back the transcript and written-up notes. About 10 minutes to connect.</p>
 
   <ol class="steps">
-    <li><b>Create your app in the console.</b> Open <a href="/">the console</a> → <b>Apps</b> → <b>New app</b>. Give it a name, the address results should go to (step 3), the bot's name, and the notes style. You get three lines - copy them.</li>
+    <li><b>Create your app in the console.</b> Open <a href="/">the console</a> → <b>Apps</b> → <b>New app</b>. Give it a name, the address results should go to (step 4), the bot's name, the notes style, and <b>your project's own Gemini API key</b> (from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>, on a project with billing on - the notes are written with it, so the cost lands on your project). You get three lines - copy them.</li>
     <li><b>Put the three lines in your app's server settings</b> (its <code>.env</code>, or Dokploy → Environment):
 <pre><code>NOTETAKER_URL={{PUBLIC_URL}}
 NOTETAKER_API_KEY=nt_...
@@ -38,26 +38,27 @@ NOTETAKER_WEBHOOK_SECRET=whsec_...</code></pre></li>
   </ol>
 
   <h2>Step 3 - send the bot</h2>
-  <p>Send the meeting link. Add <code>join_at</code> to book it for later, <code>external_id</code> (e.g. your calendar event id) so sending twice never sends two bots, and <code>metadata</code> for anything you want back with the results.</p>
+  <p>Send the meeting link. Add <code>join_at</code> and <code>end_at</code> to book it for later (the bot is held for you between them - an hour if you leave out the end), <code>external_id</code> (e.g. your calendar event id) so sending twice never sends two bots, and <code>metadata</code> for anything you want back with the results.</p>
   <div data-tabs>
     <div class="tabs"><button class="on">Python</button><button>Node / Next.js</button><button>curl</button></div>
 <div class="tab on"><pre><code>import os, httpx
 
-def send_notetaker(meeting_url, title=None, join_at=None, external_id=None, metadata=None):
+def send_notetaker(meeting_url, title=None, join_at=None, end_at=None, external_id=None, metadata=None):
     r = httpx.post(f"{os.environ['NOTETAKER_URL']}/v1/meetings",
                    headers={"Authorization": f"Bearer {os.environ['NOTETAKER_API_KEY']}"},
                    json={"meeting_url": meeting_url, "title": title, "external_id": external_id,
-                         "join_at": join_at.isoformat() if join_at else None, "metadata": metadata or {}},
+                         "join_at": join_at.isoformat() if join_at else None,
+                         "end_at": end_at.isoformat() if end_at else None, "metadata": metadata or {}},
                    timeout=20)
     if r.status_code == 422:              # a plain-language problem, e.g. "That doesn't look like a Meet or Teams link."
         raise ValueError(r.json()["detail"])
     r.raise_for_status()
     return r.json()                       # {"id": ..., "status": "scheduled", ...}</code></pre></div>
-<div class="tab"><pre><code>export async function sendNotetaker({ meetingUrl, title, joinAt, externalId, metadata = {} }) {
+<div class="tab"><pre><code>export async function sendNotetaker({ meetingUrl, title, joinAt, endAt, externalId, metadata = {} }) {
   const r = await fetch(`${process.env.NOTETAKER_URL}/v1/meetings`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.NOTETAKER_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ meeting_url: meetingUrl, title, join_at: joinAt?.toISOString(), external_id: externalId, metadata }),
+    body: JSON.stringify({ meeting_url: meetingUrl, title, join_at: joinAt?.toISOString(), end_at: endAt?.toISOString(), external_id: externalId, metadata }),
   });
   const body = await r.json();
   if (!r.ok) throw new Error(r.status === 422 ? body.detail : "The notetaker couldn't be sent");
@@ -67,6 +68,8 @@ def send_notetaker(meeting_url, title=None, join_at=None, external_id=None, meta
   -H "Authorization: Bearer $NOTETAKER_API_KEY" -H "Content-Type: application/json" \
   -d '{"meeting_url":"https://meet.google.com/abc-defg-hij","title":"Call with Sarah","metadata":{"contact_id":"123"}}'</code></pre></div>
   </div>
+
+  <div class="note"><b>When it's busy.</b> All apps share the same bots. If none is free for your time - or your app has reached its own limit - the request is refused straight away with a plain message you can show (status <code>422</code>), e.g. "The notetaker is already booked for 2 calls at 14:00…". To check first: <code>GET /v1/capacity?start=…&amp;end=…</code> answers <code>{"free": 1, …}</code>.</div>
 
   <h2>Step 4 - receive the notes</h2>
   <p>Add a route at the address you gave the console. Check the signature (so nobody else can post fake notes), save the result, and answer <code>200</code>. Anything else is retried for a few hours.</p>
@@ -128,7 +131,7 @@ app.post("/api/notetaker/webhook", express.raw({ type: "application/json" }), as
     <thead><tr><th>Event</th><th>When</th></tr></thead>
     <tbody>
       <tr><td><code>meeting.status_changed</code></td><td>Each step: scheduled → joining → waiting to be let in → recording → writing up the notes.</td></tr>
-      <tr><td><code>meeting.completed</code></td><td>The call ended and the notes are ready. Has the transcript and notes.</td></tr>
+      <tr><td><code>meeting.completed</code></td><td>The call ended and the notes are ready. Has the transcript and notes. (If your app has no Gemini key yet, <code>notes</code> is empty and <code>status_detail</code> says so.)</td></tr>
       <tr><td><code>meeting.failed</code></td><td>It couldn't record, e.g. nobody let it in. <code>status_detail</code> says why, in plain words you can show people.</td></tr>
       <tr><td><code>test.ping</code></td><td>Sent by "Send a test webhook" in the console.</td></tr>
     </tbody>
@@ -152,7 +155,8 @@ app.post("/api/notetaker/webhook", express.raw({ type: "application/json" }), as
 }</code></pre>
 
   <h2>Other things you can do</h2>
-<pre><code>GET    /v1/meetings              your recent meetings (add ?status=completed)
+<pre><code>GET    /v1/capacity              how many more calls you could book for a time (?start=…&end=…)
+GET    /v1/meetings              your recent meetings (add ?status=completed)
 GET    /v1/meetings/{id}         one meeting, with transcript, notes and timeline
 DELETE /v1/meetings/{id}         stop the bot, or cancel one that hasn't joined yet</code></pre>
   <p>Full reference, with a "try it" button for every call: <a href="/docs">{{PUBLIC_URL}}/docs</a>.</p>
@@ -162,7 +166,8 @@ DELETE /v1/meetings/{id}         stop the bot, or cancel one that hasn't joined 
     <li><b>Someone has to let the bot in</b> from the waiting room, unless the meeting lets guests straight in.</li>
     <li><b>Google Meet and Microsoft Teams</b> work today. Zoom needs Zoom to approve the app first.</li>
     <li><b>The "may not be who they say" warning</b> in Meet shows because the bot joins as a guest. A signed-in Google account for the bot removes it - ask the Notetaker admin.</li>
-    <li><b>How many calls at once:</b> shown on the console's Overview. Extra calls are refused with a plain message until one finishes.</li>
+    <li><b>How many calls at once:</b> the bots are shared by every app (shown on the console's Overview), and an app can also have its own limit. Bookings over either are refused when you make them, not when the meeting starts.</li>
+    <li><b>AI costs:</b> each app's notes are written with its own Gemini key, so they're billed to its own Google project. The console shows each app's calls, hours and AI tokens this month.</li>
     <li><b>Lost your key?</b> Console → Apps → <b>New key</b> (the old one stops working straight away).</li>
     <li><b>Results not arriving?</b> Console → Apps → <b>Webhook deliveries</b> shows each try and the problem; <b>Resend</b> sends it again.</li>
   </ul>

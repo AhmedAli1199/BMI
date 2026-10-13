@@ -82,8 +82,9 @@ def overview(db: Session = Depends(_get_db)):
                        "detail": "Ready" if engine.webhook_secret() else "Waiting for the set-up step to finish"})
     else:
         checks.append({"name": "Meeting bot", "ok": True, "detail": "Demo mode (pretend bot)"})
-    ai_ok = settings.ai_provider != "gemini" or bool(settings.gemini_api_key)
-    checks.append({"name": "Notes writer (Gemini)", "ok": ai_ok, "detail": "Ready" if ai_ok else "Add GEMINI_API_KEY to the server settings"})
+    keyless = [c.name for c in db.scalars(select(Client).where(Client.gemini_key_enc.is_(None)))]
+    checks.append({"name": "Every app has its own Gemini key", "ok": not keyless,
+                   "detail": "Yes" if not keyless else f"Missing for: {', '.join(keyless)} - they get transcripts but no written notes. Add it under Apps → Edit."})
     https = settings.public_url.startswith("https://")
     checks.append({"name": "Public address", "ok": https, "detail": settings.public_url if https else "PUBLIC_URL must start with https://"})
     hb = db.get(ServiceState, "worker_heartbeat")
@@ -96,6 +97,7 @@ def overview(db: Session = Depends(_get_db)):
         "live_calls": service.active_bots(db), "max_calls": settings.max_concurrent_bots,
         "calls_30d": db.scalar(select(func.count()).select_from(Meeting).where(Meeting.created_at >= since)) or 0,
         "failed_webhooks": db.scalar(select(func.count()).select_from(OutboxMessage).where(OutboxMessage.status == "dead")) or 0,
+        "hours_month": usage(db)["hours"],
     }
     return {"checks": checks, "ready": all(c["ok"] for c in checks), "stats": stats, "public_url": settings.public_url,
             "styles": [{"value": k, "label": v[0], "hint": v[1]} for k, v in STYLES.items()],
@@ -104,9 +106,30 @@ def overview(db: Session = Depends(_get_db)):
 
 # ---- Apps -------------------------------------------------------------------------------------------
 
+def month_start() -> datetime:
+    t = now()
+    return t.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def usage(db: Session, client_id: str | None = None) -> dict:
+    q = select(Meeting).where(Meeting.created_at >= month_start())
+    if client_id:
+        q = q.where(Meeting.client_id == client_id)
+    calls = seconds = tin = tout = 0
+    for m in db.scalars(q):
+        calls += 1
+        if m.started_at and m.ended_at:
+            seconds += max(0, (service._aware(m.ended_at) - service._aware(m.started_at)).total_seconds())
+        tin += m.ai_input_tokens or 0
+        tout += m.ai_output_tokens or 0
+    return {"calls": calls, "hours": round(seconds / 3600, 1), "ai_input_tokens": tin, "ai_output_tokens": tout}
+
+
 def _app_view(db: Session, c: Client) -> dict:
     since = now() - timedelta(days=30)
     return jsonable_encoder({
+        "gemini_key_hint": c.gemini_key_hint, "has_gemini_key": bool(c.gemini_key_enc), "max_concurrent": c.max_concurrent,
+        "usage_month": usage(db, c.id),
         "id": c.id, "name": c.name, "webhook_url": c.webhook_url, "bot_name": c.bot_name, "chat_message": c.chat_message,
         "notes_style": c.notes_style or "general", "summary_instructions": c.summary_instructions, "retention_days": c.retention_days,
         "is_active": c.is_active is not False, "key_hint": c.key_hint, "created_at": c.created_at, "last_used_at": c.last_used_at,
@@ -130,8 +153,10 @@ class AppIn(BaseModel):
     notes_style: str = "general"
     summary_instructions: str | None = None
     retention_days: int = 30
-    # the old /admin/clients field, kept so scripts written against it still work
     is_active: bool = True
+    max_concurrent: int | None = None
+    # Leave out (or null) to keep the current key; "" removes it.
+    gemini_api_key: str | None = None
 
 
 def _clean(body: AppIn) -> dict:
@@ -139,10 +164,28 @@ def _clean(body: AppIn) -> dict:
         raise HTTPException(422, "Pick one of the notes styles.")
     if not body.name.strip():
         raise HTTPException(422, "Give the app a name.")
-    return {"name": body.name.strip(), "webhook_url": str(body.webhook_url) if body.webhook_url else None,
+    if body.max_concurrent is not None and not 1 <= body.max_concurrent <= settings.max_concurrent_bots:
+        raise HTTPException(422, f"The app's limit has to be between 1 and {settings.max_concurrent_bots} (the most the notetaker can do at once).")
+    return {"name": body.name.strip(), "webhook_url": str(body.webhook_url) if body.webhook_url else None, "max_concurrent": body.max_concurrent,
             "bot_name": (body.bot_name or "").strip() or None, "chat_message": (body.chat_message or "").strip() or None,
             "notes_style": body.notes_style, "summary_instructions": (body.summary_instructions or "").strip() or None,
             "retention_days": max(1, min(body.retention_days, 365)), "is_active": body.is_active}
+
+
+def _set_gemini_key(c: Client, key: str | None) -> None:
+    from notetaker.providers import get_ai
+    from notetaker.security import encrypt
+    if key is None:
+        return
+    key = key.strip()
+    if not key:
+        c.gemini_key_enc = c.gemini_key_hint = None
+        return
+    try:
+        get_ai(key).check()
+    except Exception:
+        raise HTTPException(422, "Google didn't accept that Gemini key. Check it's copied in full and the Gemini API is turned on for its project.")
+    c.gemini_key_enc, c.gemini_key_hint = encrypt(key), "…" + key[-4:]
 
 
 def _integration(c: Client, key: str | None, secret: str | None) -> dict:
@@ -161,6 +204,7 @@ def list_apps(db: Session = Depends(_get_db)):
 def create_app(body: AppIn, db: Session = Depends(_get_db)):
     data = _clean(body)
     c, key = create_client(db, data.pop("name"), data.pop("webhook_url"), **data)
+    _set_gemini_key(c, body.gemini_api_key)
     return {"app": _app_view(db, c), **_integration(c, key, c.webhook_secret)}
 
 
@@ -175,6 +219,7 @@ def update_app(app_id: str, body: AppIn, db: Session = Depends(_get_db)):
     c = _one(db, app_id)
     for k, v in _clean(body).items():
         setattr(c, k, v)
+    _set_gemini_key(c, body.gemini_api_key)
     return _app_view(db, c)
 
 
@@ -249,6 +294,18 @@ def meeting(meeting_id: str, db: Session = Depends(_get_db)):
     v["timeline"] = [{"label": states.LABELS.get(e.status, e.status), "detail": e.detail, "at": e.created_at} for e in m.events]
     v["app"] = m.client.name
     return jsonable_encoder(v)
+
+
+@router.get("/admin/schedule", dependencies=[Depends(require_admin)])
+def schedule_view(db: Session = Depends(_get_db)):
+    """Booked and running calls from every app, with their slots - to see who's using the bots when."""
+    names = {c.id: c.name for c in db.scalars(select(Client))}
+    rows = []
+    for m in db.scalars(select(Meeting).where(Meeting.status.in_(service.HOLDING))):
+        s, e = service.slot(m)
+        rows.append({"id": m.id, "app": names.get(m.client_id), "title": m.title, "status": m.status,
+                     "status_label": states.LABELS.get(m.status, m.status), "start": s, "end": e})
+    return jsonable_encoder(sorted(rows, key=lambda r: r["start"]))
 
 
 class TryIn(BaseModel):

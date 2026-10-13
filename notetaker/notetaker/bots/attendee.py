@@ -73,10 +73,10 @@ class AttendeeBot:
             return False, "The meeting bot refused our key. Redeploy so the set-up step runs again."
         return (r.status_code < 400), ("Connected" if r.status_code < 400 else "The meeting bot answered with an error.")
 
-    def _transcription(self) -> dict:
+    def _transcription(self, meeting_id: str) -> dict:
         if settings.transcription_mode == "gemini":
-            # Attendee posts each speaker's audio to us; we transcribe it with Gemini (see api/app.py).
-            return {"custom_async_v2": {"headers": {"X-Internal-Token": settings.internal_token}, "form_data": {}}}
+            # Attendee posts each speaker's audio to us; we transcribe it with that app's own Gemini key (api/app.py).
+            return {"custom_async_v2": {"headers": {"X-Internal-Token": settings.internal_token}, "form_data": {"meeting_id": meeting_id}}}
         return {"meeting_closed_captions": {"google_meet_language": "en-US", "teams_language": "en-gb"}}
 
     def create(self, req: BotRequest) -> str:
@@ -84,7 +84,7 @@ class AttendeeBot:
             "meeting_url": req.meeting_url,
             "bot_name": req.bot_name,
             "metadata": {"notetaker_meeting_id": req.meeting_id},
-            "transcription_settings": self._transcription(),
+            "transcription_settings": self._transcription(req.meeting_id),
             "recording_settings": {"format": "mp3"},
             "webhooks": [{"url": f"{settings.public_url}/hooks/attendee",
                           "triggers": ["bot.state_change", "participant_events.join_leave"]}],

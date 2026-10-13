@@ -5,6 +5,14 @@ from notetaker.transcribe.base import ActionItem, MeetingNotes
 
 class FakeAI:
     """Deterministic stand-in for tests and offline demos."""
+    last_usage = (1200, 300)
+
+    def __init__(self, api_key: str | None = None):
+        self.api_key = api_key
+
+    def check(self) -> None:
+        if self.api_key == "bad-key":
+            raise ValueError("bad key")
 
     def transcribe(self, audio: bytes, mime: str) -> str:
         return "hello from the fake transcriber"

@@ -81,7 +81,7 @@ def test_concurrency_limit(api, client_key):
         for x in ids:
             db.get(Meeting, x["id"]).status = states.RECORDING
     r = api.post("/v1/meetings", json={"meeting_url": MEET}, headers=auth(client_key))
-    assert r.status_code == 422 and "already in 2 calls" in r.json()["detail"]
+    assert r.status_code == 422 and "already booked for 2 calls right now" in r.json()["detail"]
 
 
 def test_clients_only_see_their_own(api, client_key):
@@ -100,11 +100,15 @@ def test_webhook_retries_then_gives_up(api, client_key):
         assert msg.status == "pending" and msg.attempts == 1 and msg.last_error == "HTTP 500"
 
 
-def test_internal_transcribe_needs_token(api):
+def test_internal_transcribe_uses_the_apps_key(api, client_key):
     files = {"audio": ("a.mp3", b"123", "audio/mpeg")}
     assert api.post("/internal/transcribe", files=files).status_code == 401
-    r = api.post("/internal/transcribe", files=files, headers={"X-Internal-Token": "int-t"})
+    m = api.post("/v1/meetings", json={"meeting_url": MEET}, headers=auth(client_key)).json()
+    r = api.post("/internal/transcribe", files=files, data={"meeting_id": m["id"]}, headers={"X-Internal-Token": "int-t"})
     assert r.json()["status"] == "done" and r.json()["result"]["transcription"]["full_transcript"]
+    # an unknown meeting (so no app, so no key) is refused rather than using anyone else's key
+    r = api.post("/internal/transcribe", files=files, data={"meeting_id": "nope"}, headers={"X-Internal-Token": "int-t"})
+    assert r.json()["status"] == "error"
 
 
 def test_attendee_webhook_parsing():

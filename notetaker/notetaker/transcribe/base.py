@@ -25,5 +25,8 @@ class MeetingNotes(BaseModel):
 
 
 class AI(Protocol):
+    last_usage: tuple[int, int]   # (input tokens, output tokens) of the latest call
+
     def transcribe(self, audio: bytes, mime: str) -> str: ...
     def summarise(self, transcript: str, participants: list[str], instructions: str | None) -> MeetingNotes: ...
+    def check(self) -> None: ...   # raises if the key doesn't work

@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field, HttpUrl
 from sqlalchemy import select
@@ -23,7 +23,7 @@ from notetaker import service, states
 from notetaker.config import settings
 from notetaker.db import SessionLocal, init_db
 from notetaker.models import Client, Meeting
-from notetaker.providers import get_ai, get_bot
+from notetaker.providers import get_bot
 from notetaker.security import hash_key, same
 
 log = logging.getLogger(__name__)
@@ -71,6 +71,7 @@ def _input_error(_: Request, e: service.InputError):
 class MeetingIn(BaseModel):
     meeting_url: HttpUrl
     join_at: datetime | None = Field(None, description="When to join (ISO 8601). Leave out to join now.")
+    end_at: datetime | None = Field(None, description="When the meeting should end - holds the bot's slot until then (default: an hour).")
     title: str | None = None
     external_id: str | None = Field(None, description="Your own id for this meeting (e.g. the calendar event). Sending it twice won't send two bots.")
     bot_name: str | None = None
@@ -80,17 +81,31 @@ class MeetingIn(BaseModel):
 @app.post("/v1/meetings", status_code=201)
 def create_meeting(body: MeetingIn, client: Client = Depends(current_client), db: Session = Depends(get_db)):
     join_at = body.join_at
-    if join_at and join_at.tzinfo is None:
-        raise HTTPException(422, "Give join_at with a time zone, e.g. 2026-10-14T09:00:00Z.")
+    if (join_at and join_at.tzinfo is None) or (body.end_at and body.end_at.tzinfo is None):
+        raise HTTPException(422, "Give times with a time zone, e.g. 2026-10-14T09:00:00Z.")
     try:
         m, created = service.schedule(db, client, meeting_url=str(body.meeting_url), join_at=join_at, title=body.title,
-                                      external_id=body.external_id, bot_name=body.bot_name, metadata=body.metadata)
+                                      external_id=body.external_id, bot_name=body.bot_name, metadata=body.metadata,
+                                      ends_at=body.end_at)
     except service.InputError:
         raise
     except Exception:
         log.exception("Scheduling a bot failed")
         raise HTTPException(502, "The notetaker couldn't be sent just now. Please try again in a minute.")
     return JSONResponse(status_code=201 if created else 200, content=_json(service.meeting_view(m)))
+
+
+@app.get("/v1/capacity")
+def get_capacity(start: datetime | None = None, end: datetime | None = None, client: Client = Depends(current_client),
+                 db: Session = Depends(get_db)):
+    """How many more calls this app could book for that time (default: now, for an hour)."""
+    from datetime import timedelta
+    from notetaker.models import now as _now
+    start = start or _now()
+    end = end or start + timedelta(minutes=settings.default_call_minutes)
+    if start.tzinfo is None or end.tzinfo is None:
+        raise HTTPException(422, "Give times with a time zone, e.g. 2026-10-14T09:00:00Z.")
+    return _json(service.capacity(db, client, start, end))
 
 
 @app.get("/v1/meetings")
@@ -151,12 +166,20 @@ async def fake_hook(request: Request, db: Session = Depends(get_db)):
 # ---- Transcription for Attendee (TRANSCRIPTION_MODE=gemini) --------------------------------------
 
 @app.post("/internal/transcribe")
-async def transcribe(audio: UploadFile = File(...), x_internal_token: str = Header(default="")):
+async def transcribe(audio: UploadFile = File(...), meeting_id: str = Form(default=""), x_internal_token: str = Header(default=""),
+                     db: Session = Depends(get_db)):
     if not same(x_internal_token, settings.internal_token):
         raise HTTPException(401, "Not allowed.")
+    from notetaker.providers import app_ai
+    m = db.get(Meeting, meeting_id) if meeting_id else None
+    ai = app_ai(m.client) if m else None
+    if ai is None:   # transcribed with the app's own key only - no key, no Gemini transcript
+        return {"status": "error", "error_code": "no_gemini_key"}
     data = await audio.read()
     try:
-        text = get_ai().transcribe(data, audio.content_type or "audio/mpeg")
+        text = ai.transcribe(data, audio.content_type or "audio/mpeg")
+        m.ai_input_tokens = (m.ai_input_tokens or 0) + ai.last_usage[0]
+        m.ai_output_tokens = (m.ai_output_tokens or 0) + ai.last_usage[1]
     except Exception:
         log.exception("Transcription failed")
         return {"status": "error", "error_code": "transcription_failed"}

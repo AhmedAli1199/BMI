@@ -13,7 +13,7 @@ from notetaker import outbox, states
 from notetaker.bots.base import BotRequest, BotUpdate
 from notetaker.config import settings
 from notetaker.models import Client, Meeting, MeetingEvent, ProcessedHook, now
-from notetaker.providers import get_ai, get_bot
+from notetaker.providers import get_bot
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def detect_platform(url: str) -> str:
 def meeting_view(m: Meeting) -> dict:
     return {
         "id": m.id, "external_id": m.external_id, "meeting_url": m.meeting_url, "platform": m.platform, "title": m.title,
-        "join_at": m.join_at, "bot_name": m.bot_name, "metadata": m.meta or {}, "status": m.status,
+        "join_at": m.join_at, "ends_at": m.ends_at, "bot_name": m.bot_name, "metadata": m.meta or {}, "status": m.status,
         "status_label": states.LABELS.get(m.status, m.status), "status_detail": m.status_detail,
         "started_at": m.started_at, "ended_at": m.ended_at, "participants": m.participants or [],
         "transcript": m.transcript or [], "notes": m.summary, "created_at": m.created_at, "updated_at": m.updated_at,
@@ -71,8 +71,69 @@ def active_bots(db: Session) -> int:
     return db.scalar(select(func.count()).select_from(Meeting).where(Meeting.status.in_(states.ACTIVE))) or 0
 
 
+# ---- Capacity --------------------------------------------------------------------------------------
+# Every booking holds a slot from its start to its expected end (or DEFAULT_CALL_MINUTES). A new booking is
+# refused up front if, at its busiest moment, it would go over the overall limit (one call per bot worker)
+# or the app's own limit - so an app hears "busy at 2pm" when it books, not after the meeting started.
+
+HOLDING = (states.SCHEDULED, *states.ACTIVE)
+
+
+def _aware(dt: datetime | None) -> datetime | None:
+    from datetime import timezone as _tz
+    return dt.replace(tzinfo=_tz.utc) if dt and dt.tzinfo is None else dt
+
+
+def slot(m: Meeting) -> tuple[datetime, datetime]:
+    start = _aware(m.join_at) or _aware(m.created_at) or now()
+    end = _aware(m.ends_at) or start + timedelta(minutes=settings.default_call_minutes)
+    if m.status in states.ACTIVE:          # a call that's running long keeps its bot until it actually ends
+        end = max(end, now() + timedelta(minutes=5))
+    return start, end
+
+
+def peak(db: Session, start: datetime, end: datetime, client_id: str | None = None, exclude: str | None = None) -> int:
+    """The most bookings running at the same moment within [start, end)."""
+    q = select(Meeting).where(Meeting.status.in_(HOLDING))
+    if client_id:
+        q = q.where(Meeting.client_id == client_id)
+    edges = []
+    for m in db.scalars(q):
+        if m.id == exclude:
+            continue
+        s, e = slot(m)
+        s, e = max(s, start), min(e, end)
+        if s < e:
+            edges += [(s, 1), (e, -1)]
+    best = cur = 0
+    for _, d in sorted(edges, key=lambda x: (x[0], x[1])):
+        cur += d
+        best = max(best, cur)
+    return best
+
+
+def capacity(db: Session, client: Client, start: datetime, end: datetime) -> dict:
+    overall = settings.max_concurrent_bots
+    used = peak(db, start, end)
+    free = max(0, overall - used)
+    if client.max_concurrent:
+        free = min(free, max(0, client.max_concurrent - peak(db, start, end, client.id)))
+    return {"start": start, "end": end, "free": free, "overall_limit": overall, "app_limit": client.max_concurrent}
+
+
+def _check_capacity(db: Session, client: Client, start: datetime, end: datetime) -> None:
+    when = "right now" if start <= now() + timedelta(minutes=1) else f"at {start:%H:%M} UTC on {start:%d %b}"
+    if peak(db, start, end) >= settings.max_concurrent_bots:
+        raise InputError(f"The notetaker is already booked for {settings.max_concurrent_bots} calls {when} - the most it can join at once. "
+                         "Try another time, or ask the notetaker admin to add capacity.")
+    if client.max_concurrent and peak(db, start, end, client.id) >= client.max_concurrent:
+        raise InputError(f"This app already has {client.max_concurrent} call{'s' if client.max_concurrent > 1 else ''} booked {when}, "
+                         "which is its limit. The notetaker admin can raise it in the console.")
+
+
 def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime | None = None, title: str | None = None,
-             external_id: str | None = None, bot_name: str | None = None, metadata: dict | None = None) -> tuple[Meeting, bool]:
+             external_id: str | None = None, bot_name: str | None = None, metadata: dict | None = None,
+             ends_at: datetime | None = None) -> tuple[Meeting, bool]:
     """Send a bot. Returns (meeting, created). The same client + external_id twice gives back the first meeting."""
     if external_id:
         existing = db.scalar(select(Meeting).where(Meeting.client_id == client.id, Meeting.external_id == external_id))
@@ -84,11 +145,13 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
     platform = detect_platform(meeting_url)
     if platform == "zoom":
         raise InputError("Zoom calls aren't supported yet - Zoom has to approve our app first.")
-    starts_now = join_at is None or join_at <= now() + timedelta(minutes=1)
-    if starts_now and active_bots(db) >= settings.max_concurrent_bots:
-        raise InputError(f"The notetaker is already in {settings.max_concurrent_bots} calls. Try again when one finishes.")
+    start = join_at or now()
+    end = ends_at or start + timedelta(minutes=settings.default_call_minutes)
+    if end <= start:
+        raise InputError("The end time has to be after the start.")
+    _check_capacity(db, client, start, end)
     m = Meeting(client_id=client.id, external_id=external_id, meeting_url=meeting_url.strip(), platform=platform, title=title,
-                join_at=join_at, bot_name=bot_name or client.bot_name or settings.default_bot_name, meta=metadata or {},
+                join_at=join_at, ends_at=ends_at, bot_name=bot_name or client.bot_name or settings.default_bot_name, meta=metadata or {},
                 bot_provider=get_bot().name, status=states.SCHEDULED)
     m.client = client
     db.add(m)
@@ -146,8 +209,16 @@ def finalise(db: Session, m: Meeting) -> None:
         m.summary = None
         set_status(db, m, states.COMPLETED, "Nobody spoke, so there are no notes.")
         return
+    from notetaker.providers import app_ai
     from notetaker.styles import instructions
-    notes = get_ai().summarise(transcript_text(m), m.participants, instructions(m.client.notes_style, m.client.summary_instructions))
+    ai = app_ai(m.client)
+    if ai is None:   # each app brings its own Gemini key - without one, the transcript still goes back
+        m.summary = None
+        set_status(db, m, states.COMPLETED, "Transcript only - add this app's Gemini key in the notetaker console to get written notes.")
+        return
+    notes = ai.summarise(transcript_text(m), m.participants, instructions(m.client.notes_style, m.client.summary_instructions))
+    m.ai_input_tokens = (m.ai_input_tokens or 0) + ai.last_usage[0]
+    m.ai_output_tokens = (m.ai_output_tokens or 0) + ai.last_usage[1]
     m.summary = notes.model_dump()
     if not m.title:
         m.title = notes.title

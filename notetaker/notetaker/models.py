@@ -33,6 +33,10 @@ class Client(Base):
     notes_style: Mapped[str] = mapped_column(String(20), default="general")   # see notetaker/styles.py
     key_hint: Mapped[str | None] = mapped_column(String(20))                   # first characters of the key, to recognise it
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Each app brings its own Gemini key (encrypted; see security.encrypt). No key = transcripts only.
+    gemini_key_enc: Mapped[str | None] = mapped_column(Text)
+    gemini_key_hint: Mapped[str | None] = mapped_column(String(12))
+    max_concurrent: Mapped[int | None] = mapped_column(Integer)   # this app's own limit (None = only the overall one)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
@@ -55,6 +59,7 @@ class Meeting(Base):
     platform: Mapped[str] = mapped_column(String(20))
     title: Mapped[str | None] = mapped_column(Text)
     join_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))   # expected end, for booking the slot
     bot_name: Mapped[str] = mapped_column(String(100))
     meta: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     status: Mapped[str] = mapped_column(String(30), default="scheduled", index=True)
@@ -67,6 +72,8 @@ class Meeting(Base):
     transcript: Mapped[list] = mapped_column(JSON, default=list)     # [{speaker, start_ms, end_ms, text}]
     summary: Mapped[dict | None] = mapped_column(JSON)
     attempts: Mapped[int] = mapped_column(Integer, default=0)       # finalising attempts
+    ai_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    ai_output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 

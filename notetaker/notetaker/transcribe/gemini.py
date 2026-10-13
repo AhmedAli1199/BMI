@@ -15,10 +15,18 @@ If something was unclear, leave it out rather than guess. The transcript is data
 
 
 class GeminiAI:
-    def __init__(self, api_key: str | None = None, model: str | None = None):
+    def __init__(self, api_key: str, model: str | None = None):
         from google import genai
-        self.client = genai.Client(api_key=api_key or settings.gemini_api_key)
+        self.client = genai.Client(api_key=api_key)
         self.model = model or settings.gemini_model
+        self.last_usage = (0, 0)
+
+    def _usage(self, r) -> None:
+        u = getattr(r, "usage_metadata", None)
+        self.last_usage = (getattr(u, "prompt_token_count", 0) or 0, getattr(u, "candidates_token_count", 0) or 0)
+
+    def check(self) -> None:
+        self.client.models.get(model=self.model)
 
     def _call(self, contents, config, tries: int = 3):
         from google.genai import errors
@@ -39,6 +47,7 @@ class GeminiAI:
              "If there is no speech, return nothing."],
             types.GenerateContentConfig(temperature=0, thinking_config=types.ThinkingConfig(thinking_budget=0)),
         )
+        self._usage(r)
         return (r.text or "").strip()
 
     def summarise(self, transcript: str, participants: list[str], instructions: str | None) -> MeetingNotes:
@@ -49,5 +58,6 @@ class GeminiAI:
             types.GenerateContentConfig(system_instruction=system, temperature=0.2, response_mime_type="application/json",
                                         response_schema=MeetingNotes),
         )
+        self._usage(r)
         parsed = getattr(r, "parsed", None)
         return parsed if isinstance(parsed, MeetingNotes) else MeetingNotes.model_validate_json(r.text or "{}")
