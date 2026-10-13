@@ -17,7 +17,7 @@ x-attendee: &attendee
     REDIS_URL: redis://redis:6379/5
     DJANGO_SSL_REQUIRE: "false"
     STORAGE_PROTOCOL: s3
-    AWS_ENDPOINT_URL: http://minio:9000
+    AWS_ENDPOINT_URL: http://storage:8333
     AWS_ACCESS_KEY_ID: ${MINIO_USER}
     AWS_SECRET_ACCESS_KEY: ${MINIO_PASSWORD}
     AWS_RECORDING_STORAGE_BUCKET_NAME: recordings
@@ -25,7 +25,7 @@ x-attendee: &attendee
     CUSTOM_ASYNC_TRANSCRIPTION_URL: http://notetaker-api:8080/internal/transcribe
     DISABLE_EMAIL: "true"
     ENABLE_CHROME_SANDBOX: "false"
-  depends_on: [postgres, redis, minio]
+  depends_on: [postgres, redis, storage]
 
 services:
   notetaker-api:
@@ -87,25 +87,33 @@ services:
     restart: unless-stopped
     mem_limit: 128m
 
-  minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+  # S3-compatible storage for Attendee's recordings (SeaweedFS - MinIO no longer publishes free images).
+  storage:
+    image: chrislusf/seaweedfs:3.80
     restart: unless-stopped
-    command: ["server", "/data"]
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        cat > /tmp/s3.json <<JSON
+        {"identities":[{"name":"notetaker","credentials":[{"accessKey":"$${S3_USER}","secretKey":"$${S3_PASSWORD}"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
+        JSON
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -volume.max=0
     environment:
-      MINIO_ROOT_USER: ${MINIO_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
-    volumes: [miniodata:/data]
+      S3_USER: ${MINIO_USER}
+      S3_PASSWORD: ${MINIO_PASSWORD}
+    volumes: [storagedata:/data]
     mem_limit: 512m
 
-  minio-setup:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
-    depends_on: [minio]
+  storage-setup:
+    image: amazon/aws-cli:2.17.0
+    depends_on: [storage]
     restart: "no"
-    entrypoint: ["sh", "-c", "sleep 5 && mc alias set local http://minio:9000 $${MINIO_USER} $${MINIO_PASSWORD} && mc mb -p local/recordings && mc ilm rule add --expire-days 30 local/recordings || true"]
+    entrypoint: ["sh", "-c", "for i in 1 2 3 4 5 6 7 8 9 10; do aws --endpoint-url http://storage:8333 s3 mb s3://recordings && exit 0; aws --endpoint-url http://storage:8333 s3 ls s3://recordings && exit 0; sleep 5; done; exit 1"]
     environment:
-      MINIO_USER: ${MINIO_USER}
-      MINIO_PASSWORD: ${MINIO_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${MINIO_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
 
 volumes:
   pgdata:
-  miniodata:
+  storagedata:
