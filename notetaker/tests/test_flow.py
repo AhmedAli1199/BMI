@@ -145,3 +145,26 @@ def test_attendee_create_and_transcript():
     assert seen["body"]["webhooks"][0]["url"].endswith("/hooks/attendee")
     res = bot.fetch_result("bot_9")
     assert [u.text for u in res.transcript] == ["first", "second"] and res.participants == ["A", "B"]
+
+
+def test_lost_webhook_is_caught_by_polling(api, client_key):
+    from notetaker.bots.base import BotUpdate
+    from notetaker.providers import get_bot
+    m = api.post("/v1/meetings", json={"meeting_url": MEET}, headers=auth(client_key)).json()
+    with session_scope() as db:
+        bot_id = db.get(Meeting, m["id"]).bot_id
+    api.post("/hooks/fake", json={"bot_id": bot_id, "status": states.RECORDING})
+    # the call ends but Attendee's webhooks never arrive; the next check finds it ended
+    get_bot().states[bot_id] = BotUpdate(bot_id=bot_id, status=states.PROCESSING, ready=True)
+    tick()
+    tick()
+    got = api.get(f"/v1/meetings/{m['id']}", headers=auth(client_key)).json()
+    assert got["status"] == "completed" and got["notes"]
+
+
+def test_attendee_poll_maps_state():
+    def handler(req: httpx.Request):
+        return httpx.Response(200, json={"id": "b1", "state": "ended", "events": [{"type": "post_processing_completed", "sub_type": None}]})
+    bot = AttendeeBot(base_url="http://att", api_key="k", webhook_secret="", http=httpx.Client(transport=httpx.MockTransport(handler)))
+    u = bot.poll("b1")
+    assert u.status == states.PROCESSING and u.ready

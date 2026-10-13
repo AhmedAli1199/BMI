@@ -159,3 +159,41 @@ def finalise(db: Session, m: Meeting) -> None:
 def due_for_finalising(db: Session) -> list[Meeting]:
     rows = db.scalars(select(Meeting).where(Meeting.status == states.PROCESSING, Meeting.attempts < 5)).all()
     return [m for m in rows if (m.meta or {}).get("_ready")]
+
+
+POLL_EVERY_SECONDS = 60
+
+
+def reconcile(db: Session) -> int:
+    """Check unfinished meetings with the bot provider directly, at most once a minute each, so a lost
+    webhook can't leave a call stuck on "Recording". Returns how many were checked."""
+    from datetime import timezone as _tz
+    rows = db.scalars(select(Meeting).where(Meeting.status.in_([*states.ACTIVE, states.PROCESSING, states.SCHEDULED]))).all()
+    checked = 0
+    for m in rows:
+        meta = dict(m.meta or {})
+        if not m.bot_id or meta.get("_ready"):
+            continue
+        if m.status == states.SCHEDULED and m.join_at and m.join_at.replace(tzinfo=m.join_at.tzinfo or _tz.utc) > now():
+            continue
+        last = meta.get("_polled_at")
+        if last and (now() - datetime.fromisoformat(last)).total_seconds() < POLL_EVERY_SECONDS:
+            continue
+        meta["_polled_at"] = now().isoformat()
+        m.meta = meta
+        try:
+            u = get_bot().poll(m.bot_id)
+        except Exception:
+            log.warning("Couldn't check bot %s", m.bot_id)
+            continue
+        checked += 1
+        if not u:
+            continue
+        # walk forward through the steps we missed, so the timeline stays readable
+        if u.status and u.status != m.status:
+            if u.status == states.PROCESSING and m.status in (states.SCHEDULED, states.JOINING, states.WAITING_ROOM):
+                set_status(db, m, states.RECORDING)
+            set_status(db, m, u.status, u.detail)
+        if u.ready and m.status == states.PROCESSING:
+            m.meta = {**(m.meta or {}), "_ready": True}
+    return checked

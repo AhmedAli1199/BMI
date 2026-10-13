@@ -23,6 +23,7 @@ class FakeBot:
     def __init__(self):
         self.created: list[BotRequest] = []
         self.cancelled: list[str] = []
+        self.states: dict[str, BotUpdate] = {}   # what poll() reports, set by tests
 
     def create(self, req: BotRequest) -> str:
         self.created.append(req)
@@ -35,6 +36,9 @@ class FakeBot:
         p = json.loads(body)
         return BotUpdate(bot_id=p["bot_id"], status=p.get("status"), detail=p.get("detail"),
                          ready=p.get("status") == states.PROCESSING and p.get("ready", True), dedupe_key=p.get("key"))
+
+    def poll(self, bot_id: str) -> BotUpdate | None:
+        return self.states.get(bot_id)
 
     def fetch_result(self, bot_id: str) -> BotResult:
         t, out = 0, []

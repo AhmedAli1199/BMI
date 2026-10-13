@@ -14,6 +14,8 @@ log = logging.getLogger("notetaker.worker")
 
 def tick() -> None:
     with session_scope() as db:
+        service.reconcile(db)
+    with session_scope() as db:
         for m in service.due_for_finalising(db):
             m.attempts += 1
             db.flush()

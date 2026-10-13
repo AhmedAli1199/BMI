@@ -112,6 +112,21 @@ class AttendeeBot:
         ready = new_state == "ended" and data.get("event_type") == "post_processing_completed"
         return BotUpdate(bot_id=bot_id, status=status, detail=detail, ready=ready, dedupe_key=key)
 
+    def poll(self, bot_id: str) -> BotUpdate | None:
+        """Ask Attendee where the bot is now - the safety net if one of its webhooks never arrived."""
+        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}")
+        if r.status_code != 200:
+            return None
+        bot = r.json()
+        state = bot.get("state")
+        last = (bot.get("events") or [{}])[-1] if bot.get("events") else {}
+        sub = last.get("sub_type")
+        status = STATE_MAP.get(state)
+        if state == "fatal_error" or last.get("type") == "could_not_join_meeting":
+            status = states.NOT_ADMITTED if sub in NOT_ADMITTED_SUBTYPES else states.FAILED
+        detail = FRIENDLY.get(sub or "") or ("The notetaker ran into a problem in the call." if status == states.FAILED else None)
+        return BotUpdate(bot_id=bot_id, status=status, detail=detail, ready=state == "ended")
+
     def fetch_result(self, bot_id: str) -> BotResult:
         r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}/transcript")
         r.raise_for_status()
