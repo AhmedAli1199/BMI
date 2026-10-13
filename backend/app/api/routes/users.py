@@ -43,7 +43,8 @@ def _user_out(db: Session, user: User) -> UserOut:
     ]
     rep = db.scalars(select(SalesRep).where(SalesRep.user_id == user.id)).first()
     return UserOut(id=user.id, email=user.email, name=user.name, role=user.role, is_active=user.is_active, access=access,
-                   sales_rep_id=rep.id if rep else None, sales_rep_code=rep.code if rep else None)
+                   sales_rep_id=rep.id if rep else None, sales_rep_code=rep.code if rep else None,
+                   can_approve_bookings=bool(user.can_approve_bookings))
 
 
 def _set_sales_rep(db: Session, user: User, rep_id: uuid.UUID | None) -> None:
@@ -88,6 +89,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
         name=payload.name.strip(),
         hashed_password=hash_password(payload.password),
         role=payload.role,
+        can_approve_bookings=payload.can_approve_bookings,
     )
     db.add(user)
     db.flush()
@@ -122,6 +124,8 @@ def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(g
             db.add(UserAccess(id=uuid.uuid4(), user_id=user.id, source_db=a.source_db, group_id=a.group_id))
     if "sales_rep_id" in payload.model_fields_set:
         _set_sales_rep(db, user, payload.sales_rep_id)
+    if payload.can_approve_bookings is not None:
+        user.can_approve_bookings = payload.can_approve_bookings
 
     db.commit()
     return _user_out(db, user)

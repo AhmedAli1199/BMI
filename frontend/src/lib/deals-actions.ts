@@ -25,6 +25,13 @@ export async function updateDeal(id: string, input: DealInput): Promise<Deal & {
   return d;
 }
 
+/** For a booking accounts has checked: ask them to make a change, or cancel it. Nothing changes until they approve. */
+export async function requestDealChange(id: string, input: { reason: string; booking?: DealInput; cancel?: boolean; cancel_reason?: string; keep_run?: boolean }): Promise<Deal> {
+  const d = await backendFetch<Deal>(`/api/sales/deals/${id}/change-request`, { method: "POST", headers: json, body: JSON.stringify(input) });
+  refresh(d);
+  return d;
+}
+
 export async function setDealStatus(id: string, status: "pencilled" | "confirmed" | "cancelled", reason?: string, keepRun = true): Promise<Deal & { notes: string[] }> {
   const d = await backendFetch<Deal & { notes: string[] }>(`/api/sales/deals/${id}/status`, {
     method: "POST", headers: json, body: JSON.stringify({ status, reason: reason ?? null, keep_run: keepRun }),

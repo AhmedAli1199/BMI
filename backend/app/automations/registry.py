@@ -138,6 +138,9 @@ class ReviewKind:
     # When set, the screen offers "latest first / oldest first" sorting on
     # payload["sort_date"] (an ISO date), named like "booking" or "invoice".
     date_sort_label: str | None = None
+    # "accounts": only people with the Accounts permission see and act on these (see app/sales/accounts.py) -
+    # whatever their role. Until someone has that permission, administrators/data managers do.
+    approver: Literal["accounts"] | None = None
 
 
 _REGISTRY: dict[str, ReviewKind] = {}

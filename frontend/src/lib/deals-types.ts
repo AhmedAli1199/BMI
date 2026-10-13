@@ -94,6 +94,11 @@ export type Deal = Omit<DealInput, "status"> & {
   can_edit: boolean;
   /** Where the order is with the accounts check; null when the check is switched off. */
   check: { state: "waiting" | "fix" | "checked"; checked_at: string | null; checked_by: string | null; note: string | null; blocks_sending: boolean } | null;
+  /** Checked by accounts: only accounts can change it; everyone else requests the change. */
+  locked?: boolean;
+  /** This person has the Accounts permission (or nobody does and they're a manager). */
+  can_approve?: boolean;
+  pending_change?: { id: string; cancel: boolean; reason: string | null; requested_by: string | null; requested_at: string | null; details: { label: string; value: string; href?: string }[] } | null;
   notes_after_save?: string[];
 };
 
@@ -129,8 +134,9 @@ export type DealDocument = {
   special_instructions: string | null; copy_instructions: string | null; copy_dates: { date: string; item: string; dates: string }[]; production_contact: string | null;
 };
 
-export type DealEmailDraft = { to: string[]; cc: string[]; subject: string; body: string; outlook_connected: boolean; outlook_email: string | null };
+export type DealEmailDraft = { to: string[]; cc: string[]; always_copied?: string[]; subject: string; body: string; outlook_connected: boolean; outlook_email: string | null };
 
-export type DealSettings = { next_number: number; company_block: string; footer: string; terms: string; artwork_specs: string; can_edit: boolean };
+export type DealSettings = { next_number: number; company_block: string; footer: string; terms: string; artwork_specs: string;
+  production_emails: string; accounts_emails: string; can_edit: boolean };
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = { pencilled: "Pencilled", confirmed: "Confirmed", cancelled: "Cancelled" };

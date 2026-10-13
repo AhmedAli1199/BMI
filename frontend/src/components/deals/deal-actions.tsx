@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Ban, CheckCircle2, Download, FileText, Loader2, Mail, MoreHorizontal, Pencil, Printer, Repeat, Send, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Deal, DealEmailDraft } from "@/lib/deals-types";
-import { deleteDeal, getDealEmailDraft, markDealSent, rebookDeal, sendDeal, setDealStatus } from "@/lib/deals-actions";
+import { deleteDeal, getDealEmailDraft, markDealSent, rebookDeal, requestDealChange, sendDeal, setDealStatus } from "@/lib/deals-actions";
 import { downloadFile } from "@/lib/download";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,9 @@ export function DealActions({ d }: { d: Deal }) {
   const [body, setBody] = useState("");
   const kind = d.document === "schedule" ? "schedule of works" : "confirmation";
   const anyInvoiced = d.schedule.some((s) => s.invoice_number);
+  // Checked by accounts: only accounts change it; everyone else asks them.
+  const mustAsk = !!d.locked && !d.can_approve;
+  const canChange = d.can_edit && !mustAsk;
 
   const run = (fn: () => Promise<unknown>, ok: string, fail: string) => start(async () => {
     try { await fn(); toast.success(ok); router.refresh(); } catch (e) { toast.error(friendlyError(e, fail)); }
@@ -39,7 +42,7 @@ export function DealActions({ d }: { d: Deal }) {
     start(async () => {
       try {
         const dr = await getDealEmailDraft(d.id);
-        setSend(dr); setTo(dr.to.join(", ")); setCc(""); setSubject(dr.subject); setBody(dr.body);
+        setSend(dr); setTo(dr.to.join(", ")); setCc(dr.cc.join(", ")); setSubject(dr.subject); setBody(dr.body);
       } catch (e) { toast.error(friendlyError(e, "Couldn't start the email")); }
     });
   }
@@ -59,9 +62,11 @@ export function DealActions({ d }: { d: Deal }) {
   return (
     <div className="print-hide flex flex-wrap items-center gap-2">
       {d.can_edit && d.status !== "cancelled" && (
-        <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/${d.id}/edit`} />}><Pencil className="size-3.5" /> Change</Button>
+        <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/${d.id}/edit`} />}>
+          <Pencil className="size-3.5" /> {mustAsk ? "Request a change" : "Change"}
+        </Button>
       )}
-      {d.can_edit && d.status === "pencilled" && (
+      {canChange && d.status === "pencilled" && (
         <Button size="sm" className="gap-1.5" disabled={pending} onClick={() => run(() => setDealStatus(d.id, "confirmed"), "Booking confirmed", "Couldn't confirm it")}><CheckCircle2 className="size-3.5" /> Confirm</Button>
       )}
       {d.status !== "cancelled" && (
@@ -82,17 +87,17 @@ export function DealActions({ d }: { d: Deal }) {
             <DropdownMenuItem onClick={() => run(() => markDealSent(d.id, d.contact_email), "Noted as sent", "Couldn't save that")}><FileText className="size-3.5" /> I sent it another way</DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={rebook}><Repeat className="size-3.5" /> Rebook for next year</DropdownMenuItem>
-          {d.can_edit && d.status === "confirmed" && !anyInvoiced && (
+          {canChange && d.status === "confirmed" && !anyInvoiced && (
             <DropdownMenuItem onClick={() => run(() => setDealStatus(d.id, "pencilled"), "Back to pencilled", "Couldn't change it")}><Undo2 className="size-3.5" /> Back to pencilled</DropdownMenuItem>
           )}
-          {d.can_edit && d.status === "cancelled" && (
+          {canChange && d.status === "cancelled" && (
             <DropdownMenuItem onClick={() => run(() => setDealStatus(d.id, "pencilled"), "Reopened as pencilled", "Couldn't reopen it")}><Undo2 className="size-3.5" /> Reopen</DropdownMenuItem>
           )}
           {d.can_edit && d.status !== "cancelled" && <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { setReason(""); setKeepRun(true); setCancelOpen(true); }}><Ban className="size-3.5" /> Cancel the booking</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setReason(""); setKeepRun(true); setCancelOpen(true); }}><Ban className="size-3.5" /> {mustAsk ? "Ask accounts to cancel it" : "Cancel the booking"}</DropdownMenuItem>
           </>}
-          {d.can_edit && d.status === "pencilled" && !anyInvoiced && (
+          {canChange && d.status === "pencilled" && !anyInvoiced && (
             <DropdownMenuItem onClick={() => {
               if (!window.confirm(`Delete booking ${d.number}? Its pencilled items go too.`)) return;
               start(async () => { try { await deleteDeal(d.id); toast.success("Deleted"); router.push("/sales/deals"); } catch (e) { toast.error(friendlyError(e, "Couldn't delete it")); } });
@@ -104,8 +109,10 @@ export function DealActions({ d }: { d: Deal }) {
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel booking {d.number}?</DialogTitle>
-            <DialogDescription>The items stay on record as cancelled, with your reason, so the issue figures and commission are right.</DialogDescription>
+            <DialogTitle>{mustAsk ? `Ask accounts to cancel booking ${d.number}?` : `Cancel booking ${d.number}?`}</DialogTitle>
+            <DialogDescription>{mustAsk
+              ? "Accounts has checked this booking, so they cancel it. They'll see your reason, and the booking stays as it is until they approve."
+              : "The items stay on record as cancelled, with your reason, so the issue figures and commission are right."}</DialogDescription>
           </DialogHeader>
           <label className={labelCls}>Why<Input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Budget cut, moved to next year" className="h-8 text-sm" /></label>
           <label className="flex items-start gap-2 text-sm">
@@ -116,11 +123,16 @@ export function DealActions({ d }: { d: Deal }) {
             <DialogClose render={<Button variant="ghost" />}>Keep the booking</DialogClose>
             <Button variant="destructive" disabled={pending || !reason.trim()} onClick={() => start(async () => {
               try {
+                if (mustAsk) {
+                  await requestDealChange(d.id, { reason: reason.trim(), cancel: true, cancel_reason: reason.trim(), keep_run: keepRun });
+                  toast.success("Sent to accounts - it's cancelled once they approve"); setCancelOpen(false); router.refresh();
+                  return;
+                }
                 const r = await setDealStatus(d.id, "cancelled", reason.trim(), keepRun);
                 r.notes?.forEach((n) => toast.info(n));
                 toast.success("Booking cancelled"); setCancelOpen(false); router.refresh();
               } catch (e) { toast.error(friendlyError(e, "Couldn't cancel it")); }
-            })}>Cancel the booking</Button>
+            })}>{mustAsk ? "Send to accounts" : "Cancel the booking"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -137,7 +149,8 @@ export function DealActions({ d }: { d: Deal }) {
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <label className={labelCls}>To<Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@company.com, another@company.com" className="h-8 text-sm" /></label>
-            <label className={labelCls}>Copy to (optional)<Input value={cc} onChange={(e) => setCc(e.target.value)} placeholder={d.invoice_email ?? ""} className="h-8 text-sm" /></label>
+            <label className={labelCls}>Copy to (optional)<Input value={cc} onChange={(e) => setCc(e.target.value)} placeholder={d.invoice_email ?? ""} className="h-8 text-sm" />
+              {send?.always_copied && send.always_copied.length > 0 && <span className="font-normal text-[11px]">Production and accounts always get a copy ({send.always_copied.join(", ")}) - set in Bookings settings.</span>}</label>
             <label className={labelCls}>Subject<Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-8 text-sm" /></label>
             <label className={labelCls}>Message<Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} className="text-sm" /></label>
           </div>

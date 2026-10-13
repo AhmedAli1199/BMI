@@ -94,4 +94,7 @@ class DealSettings(Base):
     footer: Mapped[str] = mapped_column(Text, nullable=False, default="")
     terms: Mapped[str] = mapped_column(Text, nullable=False, default="")
     artwork_specs: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Always copied on every confirmation that's sent (comma-separated addresses)
+    production_emails: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    accounts_emails: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

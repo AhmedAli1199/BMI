@@ -33,15 +33,26 @@ from app.models import Company, Contact, Email, Phone, ReviewQueueItem, User
 router = APIRouter(prefix="/review-queue", tags=["review-queue"])
 
 
-def _visible_kinds(identity: Identity) -> set[str] | None:
+def _visible_kinds(identity: Identity, db: Session | None = None) -> set[str] | None:
     """None = every registered kind (admin/data_manager, or no identity
     forwarded - see identity.py's fail-open note). A sales identity only
     ever sees audience="sales" kinds - CRM-hygiene kinds (merges,
     departures, bounce/OOO triage) stay admin/data_manager regardless of
     which database they're in."""
-    if not identity.is_known or identity.role != "sales":
-        return None
-    return {k.kind for k in all_kinds() if k.audience == "sales"}
+    base = None if (not identity.is_known or identity.role != "sales") else {k.kind for k in all_kinds() if k.audience == "sales"}
+    accounts_kinds = {k.kind for k in all_kinds() if k.approver == "accounts"}
+    if not accounts_kinds or not identity.is_known:
+        return base
+    from app.sales.accounts import can_approve
+    if db is not None:
+        approves = can_approve(db, identity.user_uuid, identity.role)
+    else:
+        from app.db.session import SessionLocal
+        with SessionLocal() as own:
+            approves = can_approve(own, identity.user_uuid, identity.role)
+    if approves:   # Samantha sees booking checks and change requests whatever her role
+        return None if base is None else base | accounts_kinds
+    return ({k.kind for k in all_kinds()} if base is None else base) - accounts_kinds
 
 
 def _apply_scope(stmt, identity: Identity, db: Session | None = None):
@@ -49,7 +60,7 @@ def _apply_scope(stmt, identity: Identity, db: Session | None = None):
     A NULL source_db row (e.g. bounce_unmatched - no contact matched yet,
     nothing to scope by) is always let through the database filter; the
     kind filter above already keeps such kinds admin/data_manager-only."""
-    visible_kinds = _visible_kinds(identity)
+    visible_kinds = _visible_kinds(identity, db)
     if visible_kinds is not None:
         stmt = stmt.where(ReviewQueueItem.kind.in_(visible_kinds))
         # A renewal is the job of the rep who sold it last time: a salesperson sees only their own.
@@ -205,8 +216,8 @@ def _serialize_items(db: Session, items: list[ReviewQueueItem]) -> list[ReviewQu
     return out
 
 
-def _is_visible(item: ReviewQueueItem, identity: Identity) -> bool:
-    visible_kinds = _visible_kinds(identity)
+def _is_visible(item: ReviewQueueItem, identity: Identity, db: Session | None = None) -> bool:
+    visible_kinds = _visible_kinds(identity, db)
     if visible_kinds is not None and item.kind not in visible_kinds:
         return False
     allowed_dbs = identity.allowed_source_dbs()
@@ -216,7 +227,7 @@ def _is_visible(item: ReviewQueueItem, identity: Identity) -> bool:
 
 
 @router.get("/kinds", response_model=list[ReviewKindOut])
-def list_kinds(identity: Identity = Depends(get_identity)) -> list[ReviewKindOut]:
+def list_kinds(identity: Identity = Depends(get_identity), db: Session = Depends(get_db)) -> list[ReviewKindOut]:
     """Every registered automation kind this caller may see, and its
     available actions - the frontend's generic review screen renders
     entirely from this, so a new automation shows up with zero frontend
@@ -225,7 +236,7 @@ def list_kinds(identity: Identity = Depends(get_identity)) -> list[ReviewKindOut
     gets sales-facing kinds back, so its filter-chip row never shows a
     hygiene kind it has no action on anyway.
     """
-    visible_kinds = _visible_kinds(identity)
+    visible_kinds = _visible_kinds(identity, db)
     return [
         ReviewKindOut(
             kind=k.kind,
@@ -273,7 +284,7 @@ def list_counts(db: Session = Depends(get_db), identity: Identity = Depends(get_
     by_kind: dict[str, dict[str, int]] = {}
     for kind, status, count in rows:
         by_kind.setdefault(kind, {})[status] = count
-    visible_kinds = _visible_kinds(identity)
+    visible_kinds = _visible_kinds(identity, db)
     return [
         ReviewQueueCounts(
             kind=k.kind,
@@ -336,7 +347,7 @@ def list_facets(
     counted with every OTHER filter already applied (so picking a salesperson
     updates the counts beside the titles, as in the bookings filters)."""
     kind_def = get_kind(kind)
-    visible = _visible_kinds(identity)
+    visible = _visible_kinds(identity, db)
     if not kind_def or (visible is not None and kind not in visible):
         return []
     chosen = _parse_facets(facet)
@@ -371,7 +382,7 @@ def get_review_insights(
     one, so adding a kind here is the only step needed to turn it on
     there too."""
     bucket_defs = _INSIGHT_BUCKETS.get(kind, [])
-    visible_kinds = _visible_kinds(identity)
+    visible_kinds = _visible_kinds(identity, db)
     if visible_kinds is not None and kind not in visible_kinds:
         return ReviewQueueInsights(kind=kind, buckets=[])
 
@@ -439,7 +450,7 @@ def get_review_item(
     # Out-of-scope reads as "not found", not "forbidden" - doesn't confirm
     # to a caller outside their access that some other database's item
     # exists at this id at all.
-    if not item or not _is_visible(item, identity):
+    if not item or not _is_visible(item, identity, db):
         raise HTTPException(status_code=404, detail="Review item not found")
     return _serialize_items(db, [item])[0]
 
@@ -450,7 +461,7 @@ def resolve_review_item(
     db: Session = Depends(get_db), identity: Identity = Depends(get_identity),
 ) -> ReviewQueueItemOut:
     item = db.get(ReviewQueueItem, item_id)
-    if not item or not _is_visible(item, identity):
+    if not item or not _is_visible(item, identity, db):
         raise HTTPException(status_code=404, detail="Review item not found")
     if item.status != "pending":
         raise HTTPException(
@@ -522,7 +533,7 @@ def redraft_review_item(
     explicit POST .../actions/{action_id} does that.
     """
     item = db.get(ReviewQueueItem, item_id)
-    if not item or not _is_visible(item, identity):
+    if not item or not _is_visible(item, identity, db):
         raise HTTPException(status_code=404, detail="Review item not found")
     if item.status != "pending":
         raise HTTPException(status_code=409, detail="Already resolved - can't redraft a closed item.")
@@ -581,7 +592,7 @@ def bulk_resolve_review_items(
     kind_def = get_kind(kind)
     if not kind_def:
         raise HTTPException(status_code=404, detail=f"No automation is registered for kind {kind!r}")
-    visible_kinds = _visible_kinds(identity)
+    visible_kinds = _visible_kinds(identity, db)
     if visible_kinds is not None and kind not in visible_kinds:
         raise HTTPException(status_code=404, detail=f"No automation is registered for kind {kind!r}")
     action = get_action(kind, action_id)
@@ -638,7 +649,7 @@ def reopen_review_item(
     dedupe.py's "not_duplicate": pass), so putting it back to pending is
     completely safe - nothing to undo, nothing that could double-apply."""
     item = db.get(ReviewQueueItem, item_id)
-    if not item or not _is_visible(item, identity):
+    if not item or not _is_visible(item, identity, db):
         raise HTTPException(status_code=404, detail="Review item not found")
     if item.status != "rejected":
         raise HTTPException(

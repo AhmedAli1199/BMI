@@ -150,6 +150,9 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
     if not d:
         raise ValueError("This booking no longer exists.")
     actor = input_data.get("_actor_user_id")
+    from app.sales.accounts import can_approve
+    if not can_approve(db, uuid.UUID(actor) if actor else None):
+        raise ValueError("Only accounts can check bookings.")
     if action_id == "approve":
         d.checked_at, d.checked_by_user_id, d.check_note = datetime.now(timezone.utc), uuid.UUID(actor) if actor else None, None
         return
@@ -180,6 +183,7 @@ register(ReviewKind(
     ],
     handler=_handle,
     audience="admin",
+    approver="accounts",
     facets=(("salesperson", "Salesperson"), ("title", "Title"), ("client", "CRM company")),
     date_sort_label="booking date",
 ))

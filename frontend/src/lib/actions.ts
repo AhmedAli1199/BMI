@@ -767,6 +767,7 @@ export type TeamUserFormInput = {
   access: UserAccessEntry[];
   /** null unlinks; undefined leaves it alone. */
   sales_rep_id?: string | null;
+  can_approve_bookings?: boolean;
 };
 
 /** The order register's salespeople, for linking a login to its initials. */
@@ -786,6 +787,7 @@ export async function createTeamUser(input: TeamUserFormInput) {
       role: input.role,
       access: input.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id })),
       sales_rep_id: input.sales_rep_id || null,
+      can_approve_bookings: !!input.can_approve_bookings,
     }),
   });
   revalidatePath("/settings/users");
@@ -802,6 +804,7 @@ export async function updateTeamUser(
   if (input.is_active !== undefined) body.is_active = input.is_active;
   if (input.password) body.password = input.password;
   if (input.sales_rep_id !== undefined) body.sales_rep_id = input.sales_rep_id;
+  if (input.can_approve_bookings !== undefined) body.can_approve_bookings = input.can_approve_bookings;
   if (input.access !== undefined) {
     body.access = input.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id }));
   }

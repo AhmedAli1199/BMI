@@ -66,6 +66,9 @@ export function TeamRoster({
                 {u.id === currentUserId && (
                   <Badge variant="secondary" className="text-[10px]">You</Badge>
                 )}
+                {u.can_approve_bookings && (
+                  <Badge variant="outline" className="text-[10px]" title="Checks bookings and approves changes to checked ones">Accounts</Badge>
+                )}
                 {u.sales_rep_code && (
                   <Badge variant="outline" className="text-[10px]" title="Their initials in the order register">Salesperson {u.sales_rep_code}</Badge>
                 )}

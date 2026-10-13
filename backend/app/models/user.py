@@ -29,4 +29,6 @@ class User(Base):
     # Sparse {preference_key: option_value} - a missing key means "use the
     # registry's default" (see app/preferences.py), so adding a new
     # preference never needs a migration or a backfill.
+    # "Accounts": approves bookings (the accounts check) and any change to a checked booking. Given to Samantha.
+    can_approve_bookings: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     preferences: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

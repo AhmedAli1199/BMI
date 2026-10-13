@@ -568,4 +568,6 @@ export type UserAccount = {
   /** Their initials in the order register, so renewals and bookings land on their Today list. */
   sales_rep_id?: string | null;
   sales_rep_code?: string | null;
+  /** Accounts: checks bookings and approves changes to checked ones (Samantha). */
+  can_approve_bookings?: boolean;
 };

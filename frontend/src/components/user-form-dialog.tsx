@@ -116,6 +116,7 @@ export function UserFormDialog({
     existing?.access.map((a) => ({ source_db: a.source_db, group_id: a.group_id })) ?? []
   );
   const [repId, setRepId] = useState<string>(existing?.sales_rep_id ?? "");
+  const [accounts, setAccounts] = useState<boolean>(!!existing?.can_approve_bookings);
   const [repTouched, setRepTouched] = useState(false);
   const [reps, setReps] = useState<{ id: string; code: string; name: string; active: boolean; has_login: boolean }[] | null>(null);
 
@@ -144,6 +145,7 @@ export function UserFormDialog({
             password: password || undefined,
             access: access as UserAccessEntry[],
             sales_rep_id: chosenRep !== (existing.sales_rep_id ?? "") ? chosenRep || null : undefined,
+            can_approve_bookings: accounts,
           });
           toast.success(`${name} updated`);
         } else {
@@ -151,7 +153,7 @@ export function UserFormDialog({
             toast.error("Set a temporary password");
             return;
           }
-          await createTeamUser({ email, name, password, role, access: access as UserAccessEntry[], sales_rep_id: chosenRep || null });
+          await createTeamUser({ email, name, password, role, access: access as UserAccessEntry[], sales_rep_id: chosenRep || null, can_approve_bookings: accounts });
           toast.success(`${name} added`);
         }
         setOpen(false);
@@ -287,6 +289,16 @@ export function UserFormDialog({
                 Their renewals and booking follow-ups go on their Today list, and only they see them.
               </p>
             </div>
+
+            <label className="flex items-start gap-2 rounded-lg border border-border/70 p-2.5 text-sm">
+              <input type="checkbox" className="mt-0.5" checked={accounts} onChange={(e) => setAccounts(e.target.checked)} />
+              <span>
+                <span className="font-medium">Accounts</span>
+                <span className="block text-[11px] text-muted-foreground">
+                  Checks every new booking before its confirmation goes out, and approves any change to a booking once it&apos;s checked. Once anyone has this, only they can - salespeople request changes instead.
+                </span>
+              </span>
+            </label>
 
             {role === "admin" ? (
               <p className="rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs text-muted-foreground">

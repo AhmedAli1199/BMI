@@ -90,6 +90,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 {[d.check.checked_by, d.check.checked_at ? fmtDate(d.check.checked_at.slice(0, 10)) : null].some(Boolean) &&
                   ` (${[d.check.checked_by, d.check.checked_at ? fmtDate(d.check.checked_at.slice(0, 10)) : null].filter(Boolean).join(", ")})`}
                 . The confirmation can go out.
+                {d.locked && !d.can_approve && " Any change now goes to accounts for approval - use “Request a change”."}
               </>
             )}
             {d.check.state === "waiting" && (
@@ -105,6 +106,21 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               </>
             )}
           </p>
+        </div>
+      )}
+
+      {d.pending_change && (
+        <div role="status" className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }}>
+          <p>
+            <span className="font-semibold">{d.pending_change.cancel ? "Cancellation" : "Change"} waiting for accounts</span>
+            {d.pending_change.requested_by ? ` - asked by ${d.pending_change.requested_by}` : ""}
+            {d.pending_change.reason ? `: “${d.pending_change.reason}”` : ""}. The booking stays as it is until they approve.
+          </p>
+          <ul className="mt-1.5 list-disc pl-5 text-xs text-muted-foreground">
+            {d.pending_change.details.filter((x) => !["Booking", "Asked by"].includes(x.label)).map((x, i) => (
+              <li key={i} className="whitespace-pre-line"><span className="font-medium text-foreground">{x.label}:</span> {x.value}</li>
+            ))}
+          </ul>
         </div>
       )}
 

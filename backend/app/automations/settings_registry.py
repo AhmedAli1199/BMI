@@ -394,6 +394,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
+        key="orders_lock_after_check", label="Only accounts can change checked bookings",
+        description="Once accounts has checked a booking, salespeople can't edit or cancel it themselves - they request the change and someone with the Accounts permission approves it. Has no effect until someone has the Accounts permission (Users).",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
         key="automations_sor_renewal_scan_enabled", label="Renewal outreach active",
         description="Weekdays: drafts a renewal email for last year's advertisers approaching the anniversary of their booking who haven't rebooked (SALES-021).",
         group="Sales Order Register", type="bool",

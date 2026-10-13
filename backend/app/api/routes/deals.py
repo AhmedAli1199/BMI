@@ -24,7 +24,9 @@ from app.models.deal import DEAL_STATUSES
 from app.models.messaging import MailAccount
 from app.models.proposal import Proposal
 from app.roles import CAN_USE_AUTOMATIONS
+from app.automations import booking_changes as bc
 from app.automations import order_checks as oc
+from app.sales import accounts as acc
 from app.sales import deals as dl
 
 router = APIRouter(prefix="/sales/deals", tags=["orders"])
@@ -116,6 +118,8 @@ def _my_rep(db: Session, identity: Identity) -> SalesRep | None:
 def _can_edit(db: Session, identity: Identity, d: SalesDeal) -> bool:
     if _staff(identity) or (identity.user_uuid and d.created_by_user_id == identity.user_uuid):
         return True
+    if identity.user_uuid and acc.accounts_assigned(db) and acc.can_approve(db, identity.user_uuid):
+        return True   # accounts can change any booking
     me = _my_rep(db, identity)
     return bool(me and (d.rep_id == me.id or any(str(s.get("rep_id")) == str(me.id) for s in d.split or [])))
 
@@ -130,6 +134,23 @@ def _get(db: Session, deal_id: uuid.UUID) -> SalesDeal:
 def _need_edit(db: Session, identity: Identity, d: SalesDeal) -> None:
     if not _can_edit(db, identity, d):
         raise HTTPException(403, "Only the salesperson on this booking or a manager can change it.")
+
+
+def _approver(db: Session, identity: Identity) -> bool:
+    return acc.can_approve(db, identity.user_uuid, identity.role if identity.is_known else None)
+
+
+def _need_unlocked(db: Session, identity: Identity, d: SalesDeal) -> None:
+    """A checked booking is changed by accounts only - everyone else requests the change."""
+    if acc.locked(db, d) and not _approver(db, identity):
+        raise HTTPException(409, "Accounts has checked this booking, so changes go to them for approval. Use “Request a change”.")
+
+
+def _keep_checked(db: Session, d: SalesDeal, identity: Identity) -> None:
+    """Accounts changing a booking themselves doesn't need to check their own change."""
+    if acc.accounts_assigned(db) and _approver(db, identity) and identity.user_uuid:
+        d.checked_at, d.checked_by_user_id, d.check_note = datetime.now(timezone.utc), identity.user_uuid, None
+        oc.withdraw(db, d, "Changed by accounts.")
 
 
 # ---- shaping -------------------------------------------------------------------------------------
@@ -243,7 +264,19 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "sent_to": d.sent_to, "cancelled_reason": d.cancelled_reason, "created_at": d.created_at.isoformat() if d.created_at else None,
         "can_edit": _can_edit(db, identity, d),
         "check": _check_out(db, d),
+        "locked": acc.locked(db, d), "can_approve": _approver(db, identity),
+        "pending_change": _pending_out(db, d),
     }
+
+
+def _pending_out(db: Session, d: SalesDeal) -> dict | None:
+    item = bc.pending(db, d)
+    if not item:
+        return None
+    who = db.get(User, uuid.UUID(item.payload["requested_by_user_id"])) if item.payload.get("requested_by_user_id") else None
+    return {"id": str(item.id), "cancel": bool(item.payload.get("cancel")), "reason": item.payload.get("reason"),
+            "requested_by": who.name if who else None, "requested_at": item.created_at.isoformat() if item.created_at else None,
+            "details": item.payload.get("details") or []}
 
 
 def _check_out(db: Session, d: SalesDeal) -> dict | None:
@@ -392,7 +425,8 @@ def get_settings(db: Session = Depends(get_db), identity: Identity = Depends(get
     st = dl.settings(db)
     db.commit()
     return {"next_number": st.next_number, "company_block": st.company_block, "footer": st.footer, "terms": st.terms,
-            "artwork_specs": st.artwork_specs, "can_edit": not identity.is_known or identity.role == "admin"}
+            "artwork_specs": st.artwork_specs, "production_emails": st.production_emails or "", "accounts_emails": st.accounts_emails or "",
+            "can_edit": not identity.is_known or identity.role == "admin"}
 
 
 class SettingsIn(BaseModel):
@@ -401,6 +435,13 @@ class SettingsIn(BaseModel):
     footer: str = Field(default="", max_length=2000)
     terms: str = Field(default="", max_length=3000)
     artwork_specs: str = Field(default="", max_length=5000)
+    production_emails: str = Field(default="", max_length=1000)
+    accounts_emails: str = Field(default="", max_length=1000)
+
+
+def _addresses(text: str | None) -> list[str]:
+    import re
+    return [a.strip() for a in re.split(r"[;,\s]+", text or "") if a.strip()]
 
 
 @router.put("/settings")
@@ -411,6 +452,11 @@ def save_settings(p: SettingsIn, db: Session = Depends(get_db), identity: Identi
     highest = db.scalar(select(func.max(SalesDeal.number))) or 0
     if p.next_number <= highest:
         raise HTTPException(422, f"Booking {highest} already exists, so the next number has to be higher.")
+    for field in ("production_emails", "accounts_emails"):
+        bad = [a for a in _addresses(getattr(p, field)) if "@" not in a]
+        if bad:
+            raise HTTPException(422, f"“{bad[0]}” doesn't look like an email address.")
+        setattr(p, field, ", ".join(_addresses(getattr(p, field))))
     for k, v in p.model_dump().items():
         setattr(st, k, v)
     st.updated_at = datetime.now(timezone.utc)
@@ -485,13 +531,62 @@ def create_deal(p: DealIn, db: Session = Depends(get_db), identity: Identity = D
 def update_deal(deal_id: uuid.UUID, p: DealIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     d = _get(db, deal_id)
     _need_edit(db, identity, d)
+    _need_unlocked(db, identity, d)
     if d.status == "cancelled":
         raise HTTPException(409, "This booking is cancelled. Reopen it first to change it.")
-    before = oc.snapshot(d)
-    notes = _save(db, d, p, identity)
-    oc.request_check(db, d, before)
+    notes = apply_change(db, d, p, identity.user_uuid, identity)
     db.commit()
     return {**_out(db, d, identity), "notes": notes}
+
+
+class _Who:
+    def __init__(self, user_id):
+        self.user_uuid = user_id
+
+
+def apply_change(db: Session, d: SalesDeal, p: DealIn, user_id: uuid.UUID | None, identity: Identity | None = None) -> list[str]:
+    """Saves a booking change (directly, or when accounts approves a change request)."""
+    before = oc.snapshot(d)
+    notes = _save(db, d, p, identity or _Who(user_id))
+    oc.request_check(db, d, before)
+    if identity is not None:
+        _keep_checked(db, d, identity)
+    return notes
+
+
+class ChangeRequestIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)
+    booking: DealIn | None = None          # the booking as it should be
+    cancel: bool = False                   # or: cancel it
+    cancel_reason: str | None = Field(default=None, max_length=300)
+    keep_run: bool = True
+
+
+@router.post("/{deal_id}/change-request", status_code=201)
+def request_change(deal_id: uuid.UUID, p: ChangeRequestIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """For a checked booking: ask accounts to make a change (or cancel it). Nothing changes until they approve."""
+    d = _get(db, deal_id)
+    _need_edit(db, identity, d)
+    if not p.reason.strip():
+        raise HTTPException(422, "Say why the change is needed - accounts will see it.")
+    if not p.cancel and not p.booking:
+        raise HTTPException(422, "Nothing to change.")
+    proposed = None
+    if p.booking:
+        # check it would save cleanly, without changing anything yet
+        tmp = SalesDeal(id=uuid.uuid4(), number=d.number, status=d.status, lines=[], split=[])
+        _apply(db, tmp, p.booking)
+        _price_or_422(tmp, _lines_in(p.booking))
+        db.expunge(tmp) if tmp in db else None
+        proposed = p.booking.model_dump(mode="json")
+    bc.request(db, d, proposed=proposed, cancel=p.cancel, cancel_reason=p.cancel_reason, keep_run=p.keep_run,
+               reason=p.reason.strip(), user_id=identity.user_uuid)
+    for u in acc.accounts_people(db):
+        from app.services.notify import create_notification
+        create_notification(db, u.id, "booking_change", f"Change requested on booking {d.number}", p.reason.strip(),
+                            link="/review-queue?kind=booking_change", email=False)
+    db.commit()
+    return _out(db, d, identity)
 
 
 class StatusIn(BaseModel):
@@ -505,37 +600,46 @@ class StatusIn(BaseModel):
 def set_status(deal_id: uuid.UUID, p: StatusIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     d = _get(db, deal_id)
     _need_edit(db, identity, d)
-    today = date.today()
-    items = db.scalars(select(SalesOrder).where(SalesOrder.deal_id == d.id)).all()
-    eds = {e.id: e for e in db.scalars(select(SalesEdition).where(SalesEdition.id.in_({o.edition_id for o in items})))} if items else {}
-    kept = 0
-    if p.status == "cancelled":
-        if not (p.reason or "").strip():
-            raise HTTPException(422, "Say briefly why the booking is cancelled - it stays on record.")
-        d.status, d.cancelled_reason = "cancelled", p.reason.strip()
-        for o in items:
-            ran = (o.item_date or eds[o.edition_id].edition_date or today) <= today
-            if p.keep_run and (ran or o.invoice_number):
-                kept += 1
-                continue
-            o.status, o.status_reason = "cancelled", f"Order {d.number} cancelled: {d.cancelled_reason}"
-    else:
-        if p.status == "confirmed" and not d.confirmed_at:
-            d.confirmed_at = datetime.now(timezone.utc)
-        d.status, d.cancelled_reason = p.status, None
-        for o in items:
-            o.status, o.status_reason = dl.ITEM_STATUS[p.status], None
-    d.updated_at = datetime.now(timezone.utc)
+    _need_unlocked(db, identity, d)
+    kept = apply_status(db, d, p.status, p.reason, p.keep_run)
     if p.status != "cancelled":
-        # live total again (a cancelled order keeps its total for the record)
-        d.total_gbp = dl.price_deal(d).total_gbp
-        oc.request_check(db, d)
-    else:
-        oc.withdraw(db, d, "The order was cancelled.")
+        _keep_checked(db, d, identity)
     db.commit()
     out = _out(db, d, identity)
     out["notes"] = [f"{kept} item{'s' if kept != 1 else ''} that already ran or were invoiced stay booked."] if kept else []
     return out
+
+
+def apply_status(db: Session, d: SalesDeal, status: str, reason: str | None, keep_run: bool = True) -> int:
+    """Pencil, confirm or cancel a booking. Returns how many items were kept when cancelling."""
+    today = date.today()
+    items = db.scalars(select(SalesOrder).where(SalesOrder.deal_id == d.id)).all()
+    eds = {e.id: e for e in db.scalars(select(SalesEdition).where(SalesEdition.id.in_({o.edition_id for o in items})))} if items else {}
+    kept = 0
+    if status == "cancelled":
+        if not (reason or "").strip():
+            raise HTTPException(422, "Say briefly why the booking is cancelled - it stays on record.")
+        d.status, d.cancelled_reason = "cancelled", reason.strip()
+        for o in items:
+            ran = (o.item_date or eds[o.edition_id].edition_date or today) <= today
+            if keep_run and (ran or o.invoice_number):
+                kept += 1
+                continue
+            o.status, o.status_reason = "cancelled", f"Booking {d.number} cancelled: {d.cancelled_reason}"
+    else:
+        if status == "confirmed" and not d.confirmed_at:
+            d.confirmed_at = datetime.now(timezone.utc)
+        d.status, d.cancelled_reason = status, None
+        for o in items:
+            o.status, o.status_reason = dl.ITEM_STATUS[status], None
+    d.updated_at = datetime.now(timezone.utc)
+    if status != "cancelled":
+        # live total again (a cancelled booking keeps its total for the record)
+        d.total_gbp = dl.price_deal(d).total_gbp
+        oc.request_check(db, d)
+    else:
+        oc.withdraw(db, d, "The booking was cancelled.")
+    return kept
 
 
 @router.delete("/{deal_id}", status_code=204, response_model=None)
@@ -543,6 +647,7 @@ def delete_deal(deal_id: uuid.UUID, db: Session = Depends(get_db), identity: Ide
     """Only a pencilled order with nothing invoiced can be deleted - anything else is cancelled, so it stays on record."""
     d = _get(db, deal_id)
     _need_edit(db, identity, d)
+    _need_unlocked(db, identity, d)
     items = db.scalars(select(SalesOrder).where(SalesOrder.deal_id == d.id)).all()
     if d.status != "pencilled" or any(o.invoice_number or o.xero_invoice_id for o in items):
         raise HTTPException(409, "Only a pencilled booking with nothing invoiced can be deleted. Cancel it instead, so it stays on record.")
@@ -611,7 +716,9 @@ def email_draft(deal_id: uuid.UUID, db: Session = Depends(get_db), identity: Ide
             + ("The invoice will follow.\n\n" if d.document != "schedule" else "")
             + f"Kind regards,\n{(user.name if user else '') or ''}")
     acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id)) if user else None
-    return {"to": [d.contact_email] if d.contact_email else [], "cc": [], "subject": f"{kind.capitalize()}: order {d.number}, {d.client_name}",
+    st = dl.settings(db)
+    copies = list(dict.fromkeys(_addresses(st.production_emails) + _addresses(st.accounts_emails)))
+    return {"to": [d.contact_email] if d.contact_email else [], "cc": copies, "always_copied": copies, "subject": f"{kind.capitalize()}: order {d.number}, {d.client_name}",
             "body": body, "outlook_connected": bool(acct), "outlook_email": acct.email if acct else None}
 
 
@@ -650,6 +757,10 @@ def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity:
     if not acct:
         raise HTTPException(409, "Connect your Outlook first (Settings > Email) - confirmations are sent from your own account.")
     to, cc = [a.strip() for a in p.to if a.strip()], [a.strip() for a in p.cc if a.strip()]
+    st = dl.settings(db)   # production and accounts always get a copy (Bookings settings)
+    for a in _addresses(st.production_emails) + _addresses(st.accounts_emails):
+        if a.lower() not in {x.lower() for x in to + cc}:
+            cc.append(a)
     for a in [*to, *cc]:
         if "@" not in a or " " in a:
             raise HTTPException(422, f"“{a}” doesn't look like an email address.")

@@ -787,6 +787,8 @@ class UserOut(BaseModel):
     # Their initials in the order register ("SW"), so renewals and bookings land on their Today list.
     sales_rep_id: uuid.UUID | None = None
     sales_rep_code: str | None = None
+    # Accounts: approves bookings (the accounts check) and changes to checked bookings
+    can_approve_bookings: bool = False
 
 
 class UserCreate(BaseModel):
@@ -796,6 +798,7 @@ class UserCreate(BaseModel):
     role: str
     access: list[UserAccessIn] = []
     sales_rep_id: uuid.UUID | None = None
+    can_approve_bookings: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -809,3 +812,4 @@ class UserUpdate(BaseModel):
     access: list[UserAccessIn] | None = None
     # Set to link the login to a salesperson in the order register; send null to unlink.
     sales_rep_id: uuid.UUID | None = None
+    can_approve_bookings: bool | None = None

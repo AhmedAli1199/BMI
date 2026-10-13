@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, CalendarPlus, Copy, Gift, Loader2, Plus, Trash2, X 
 import { toast } from "sonner";
 import type { SalesRate, SalesRep, SalesTitle } from "@/lib/sales-types";
 import type { DealInput, DealIssue, DealLine, DealPlacement, DealPreview } from "@/lib/deals-types";
-import { createDeal, getDealIssues, getDealPrefill, previewDeal, updateDeal } from "@/lib/deals-actions";
+import { createDeal, getDealIssues, getDealPrefill, previewDeal, requestDealChange, updateDeal } from "@/lib/deals-actions";
 import { searchCompanies, searchContacts } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,8 +33,10 @@ function blankLine(titleId: string | null): Line {
     discount_pct: 0, added_value: false, share_gbp: null, placements: [{}] };
 }
 
-export function DealForm({ dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId }: {
+export function DealForm({ dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId, requestChange = false }: {
   dealId?: string;
+  /** The booking is checked by accounts: saving sends the change to them for approval instead. */
+  requestChange?: boolean;
   initial: DealInput;
   titles: SalesTitle[];
   reps: SalesRep[];
@@ -45,6 +47,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [changeReason, setChangeReason] = useState("");
   const [f, setF] = useState<DealInput>(() => ({ ...initial, rep_id: initial.rep_id ?? myRepId }));
   const [lines, setLines] = useState<Line[]>(() => (initial.lines.length ? initial.lines : [blankLine(initial.title_id)]).map((l) => ({ ...l, key: l.key ?? newKey() })));
   const [company, setCompany] = useState<Option | null>(initialCompany);
@@ -143,6 +146,13 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
     const input: DealInput = { ...f, client_name: f.client_name.trim(), lines: lines.map((l) => ({ ...l, placements: l.placements.map((p) => ({ ...p })) })), status: status ?? f.status };
     start(async () => {
       try {
+        if (dealId && requestChange) {
+          if (!changeReason.trim()) { toast.error("Say why the change is needed - accounts will see it"); return; }
+          await requestDealChange(dealId, { reason: changeReason.trim(), booking: input });
+          toast.success("Sent to accounts - the booking changes once they approve it");
+          router.push(`/sales/deals/${dealId}`);
+          return;
+        }
         const d = dealId ? await updateDeal(dealId, input) : await createDeal(input);
         d.notes?.forEach((n) => toast.info(n));
         toast.success(dealId ? "Booking saved" : `Booking ${d.number} created`);
@@ -409,7 +419,11 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             </dl>
           )}
           <div className="mt-4 flex flex-col gap-2">
-            {dealId ? (
+            {dealId && requestChange ? <>
+              <label className={labelCls}>Why it needs changing<Textarea rows={3} value={changeReason} onChange={(e) => setChangeReason(e.target.value)} placeholder="e.g. Client wants the half page in June instead" className="text-sm" /></label>
+              <Button disabled={pending || !changeReason.trim()} onClick={() => submit()}>{pending && <Loader2 className="size-3.5 animate-spin" />} Send to accounts</Button>
+              <p className="text-[11px] text-muted-foreground">Accounts has checked this booking, so the change goes to them. Nothing changes until they approve it.</p>
+            </> : dealId ? (
               <Button disabled={pending} onClick={() => submit()}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save changes</Button>
             ) : <>
               <Button disabled={pending} onClick={() => submit("confirmed")}>{pending && <Loader2 className="size-3.5 animate-spin" />} Confirm the booking</Button>

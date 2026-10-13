@@ -251,6 +251,7 @@ class Settings(BaseSettings):
     rate_card_publishers_can_edit: bool = False  # off: only admins and data managers change prices
     orders_accounts_check: bool = True
     orders_check_before_sending: bool = True
+    orders_lock_after_check: bool = True   # once accounts has checked a booking, others request changes instead of editing
     automations_sor_renewal_scan_enabled: bool = False
     sor_renewal_lead_days: int = 60  # start the renewal this many days before the anniversary of last year's booking
     sor_renewal_max_per_run: int = 25
