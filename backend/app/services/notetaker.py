@@ -31,10 +31,12 @@ def _detail(r: httpx.Response, fallback: str) -> str:
         return fallback
 
 
-def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict, join_at=None) -> dict:
+def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict, join_at=None, end_at=None) -> dict:
     body = {"meeting_url": meeting_url, "external_id": external_id, "title": title, "metadata": metadata}
     if join_at:
         body["join_at"] = join_at.isoformat()
+    if end_at:   # holds the notetaker's slot until the meeting ends, so other bookings can't take it
+        body["end_at"] = end_at.isoformat()
     try:
         with _client() as c:
             r = c.post("/v1/meetings", json=body)

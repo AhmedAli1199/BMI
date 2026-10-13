@@ -264,6 +264,7 @@ def plan(db: Session, at: datetime | None = None) -> dict:
             db.flush()
             try:
                 res = notetaker.send_bot(meeting_url=m.join_url, external_id=f"cal:{m.id}", title=m.title, join_at=join_at,
+                                         end_at=max(m.end_at, join_at + timedelta(minutes=15)),
                                          metadata={"bmi_call_id": str(call.id), "bmi_calendar_meeting_id": str(m.id)})
             except notetaker.NotetakerError as e:
                 db.delete(call)
