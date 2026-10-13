@@ -1,0 +1,111 @@
+# The whole notetaker stack, for one Dokploy "Compose" service.
+# Public addresses (set in Dokploy → Domains):
+#   notetaker-api  :8080  ->  e.g. https://notetaker.rabtaai.com   (client apps, Attendee webhooks, the dashboard)
+#   attendee-app   :8000  ->  e.g. https://attendee.rabtaai.com    (Attendee's own admin screen - only needed for set-up)
+# Memory is capped on every container so a busy day can't slow the other apps on the server.
+
+x-attendee: &attendee
+  build:
+    context: https://github.com/attendee-labs/attendee.git#a47e0841f4dbd9c017c33b913f77b02d63b59297
+  image: cybix-attendee:a47e084
+  restart: unless-stopped
+  env_file: .env
+  environment: &attendee-env
+    DJANGO_SETTINGS_MODULE: attendee.settings.production
+    DATABASE_URL: postgresql://notetaker:${POSTGRES_PASSWORD}@postgres:5432/attendee
+    POSTGRES_SSL_REQUIRE: "false"
+    REDIS_URL: redis://redis:6379/5
+    DJANGO_SSL_REQUIRE: "false"
+    STORAGE_PROTOCOL: s3
+    AWS_ENDPOINT_URL: http://minio:9000
+    AWS_ACCESS_KEY_ID: ${MINIO_USER}
+    AWS_SECRET_ACCESS_KEY: ${MINIO_PASSWORD}
+    AWS_RECORDING_STORAGE_BUCKET_NAME: recordings
+    AWS_DEFAULT_REGION: us-east-1
+    CUSTOM_ASYNC_TRANSCRIPTION_URL: http://notetaker-api:8080/internal/transcribe
+    DISABLE_EMAIL: "true"
+    ENABLE_CHROME_SANDBOX: "false"
+  depends_on: [postgres, redis, minio]
+
+services:
+  notetaker-api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment: &nt-env
+      DATABASE_URL: postgresql://notetaker:${POSTGRES_PASSWORD}@postgres:5432/notetaker
+      ATTENDEE_URL: http://attendee-app:8000
+    depends_on: [postgres]
+    mem_limit: 512m
+
+  notetaker-worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment: *nt-env
+    command: ["python", "-m", "notetaker.worker"]
+    depends_on: [postgres]
+    mem_limit: 512m
+
+  attendee-app:
+    <<: *attendee
+    command: ["bash", "-c", "python manage.py migrate --noinput && gunicorn attendee.wsgi --bind 0.0.0.0:8000 --workers 2 --timeout 120"]
+    mem_limit: 1g
+
+  attendee-scheduler:
+    <<: *attendee
+    command: ["python", "manage.py", "run_scheduler"]
+    mem_limit: 512m
+
+  # One meeting per worker container keeps each call's audio separate (Attendee's own advice for
+  # non-Kubernetes set-ups). Two workers = two calls at once; raise MAX_CONCURRENT_BOTS with the replicas.
+  attendee-worker-1:
+    <<: *attendee
+    command: ["celery", "-A", "attendee", "worker", "-l", "INFO", "--concurrency", "1"]
+    shm_size: 1g
+    mem_limit: 3g
+  attendee-worker-2:
+    <<: *attendee
+    command: ["celery", "-A", "attendee", "worker", "-l", "INFO", "--concurrency", "1"]
+    shm_size: 1g
+    mem_limit: 3g
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: notetaker
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: notetaker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    mem_limit: 512m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+    volumes: [miniodata:/data]
+    mem_limit: 512m
+
+  minio-setup:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on: [minio]
+    restart: "no"
+    entrypoint: ["sh", "-c", "sleep 5 && mc alias set local http://minio:9000 $${MINIO_USER} $${MINIO_PASSWORD} && mc mb -p local/recordings && mc ilm rule add --expire-days 30 local/recordings || true"]
+    environment:
+      MINIO_USER: ${MINIO_USER}
+      MINIO_PASSWORD: ${MINIO_PASSWORD}
+
+volumes:
+  pgdata:
+  miniodata:

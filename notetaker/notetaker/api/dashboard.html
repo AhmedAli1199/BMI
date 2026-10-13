@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notetaker</title>
+<style>
+  :root { --bg:#f6f6f4; --card:#fff; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dd; --accent:#1f4f46; --warn:#a15c00; --bad:#a3262a; --good:#2f6b3a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1e1e1c; --fg:#ecebe6; --muted:#a3a29b; --line:#33332f; --accent:#7cc4b3; --warn:#e2a54b; --bad:#ef7a7d; --good:#86c98f; } }
+  * { box-sizing:border-box } body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px }
+  h1 { font-size:22px; margin:0 0 4px } p.sub { margin:0 0 20px; color:var(--muted) }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px }
+  label { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--muted) }
+  input { font:inherit; color:var(--fg); background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px 10px }
+  button { font:inherit; font-weight:600; border:0; border-radius:8px; padding:8px 14px; background:var(--accent); color:var(--card); cursor:pointer }
+  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line) }
+  .row { display:grid; gap:12px; grid-template-columns: 2fr 1fr auto; align-items:end }
+  @media (max-width:700px) { .row { grid-template-columns:1fr } }
+  .grid { display:grid; gap:16px; grid-template-columns: 340px 1fr } @media (max-width:860px) { .grid { grid-template-columns:1fr } }
+  ul.list { list-style:none; margin:0; padding:0 } ul.list li { padding:10px; border-radius:8px; cursor:pointer; border:1px solid transparent }
+  ul.list li:hover, ul.list li.on { border-color:var(--line); background:var(--bg) }
+  .t { font-weight:600 } .m { color:var(--muted); font-size:12px }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; border:1px solid currentColor }
+  .s-completed { color:var(--good) } .s-failed, .s-not_admitted { color:var(--bad) } .s-recording, .s-waiting_room, .s-joining, .s-processing { color:var(--warn) } .s-scheduled, .s-cancelled { color:var(--muted) }
+  .err { color:var(--bad); font-size:13px; margin-top:8px } .muted { color:var(--muted) }
+  h2 { font-size:16px; margin:0 0 8px } h3 { font-size:13px; margin:16px 0 6px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted) }
+  .tr { max-height:420px; overflow:auto; border-top:1px solid var(--line); margin-top:8px; padding-top:8px }
+  .tr div { padding:3px 0 } .tr b { color:var(--accent) }
+  ol.tl { margin:0; padding-left:18px; color:var(--muted); font-size:12px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Notetaker</h1>
+  <p class="sub">Send the notetaker into a Google Meet or Teams call. When the call ends, the transcript and notes appear here and go to your app.</p>
+
+  <div class="card" id="keyCard">
+    <div class="row">
+      <label>Your API key<input id="key" type="password" placeholder="nt_…" autocomplete="off"></label>
+      <span></span>
+      <button id="saveKey">Use this key</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>Meeting link<input id="url" placeholder="https://meet.google.com/abc-defg-hij or a Teams link"></label>
+      <label>Title (optional)<input id="title" placeholder="e.g. Call with Sarah"></label>
+      <button id="send">Send the notetaker</button>
+    </div>
+    <div class="err" id="sendErr"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><h2>Meetings</h2><ul class="list" id="list"><li class="muted">Add your API key to see meetings.</li></ul></div>
+    <div class="card" id="detail"><p class="muted">Pick a meeting to see its notes.</p></div>
+  </div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+let key = ""; try { key = localStorage.getItem("nt_key") || ""; } catch (e) {}
+let selected = null;
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const when = (s) => s ? new Date(s).toLocaleString() : "";
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json", ...(opts.headers || {}) } });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : "Something went wrong. Please try again.");
+  return body;
+}
+$("key").value = key;
+$("saveKey").onclick = () => { key = $("key").value.trim(); try { localStorage.setItem("nt_key", key); } catch (e) {} load(); };
+$("send").onclick = async () => {
+  $("sendErr").textContent = "";
+  try {
+    const m = await api("/v1/meetings", { method: "POST", body: JSON.stringify({ meeting_url: $("url").value.trim(), title: $("title").value.trim() || null }) });
+    $("url").value = ""; $("title").value = ""; selected = m.id; load();
+  } catch (e) { $("sendErr").textContent = e.message; }
+};
+async function load() {
+  if (!key) return;
+  try {
+    const rows = await api("/v1/meetings");
+    $("list").innerHTML = rows.length ? rows.map((m) => `<li data-id="${m.id}" class="${m.id === selected ? "on" : ""}">
+      <div class="t">${esc(m.title || m.meeting_url)}</div>
+      <div class="m"><span class="pill s-${m.status}">${esc(m.status_label)}</span> · ${esc(m.platform.replace("_", " "))} · ${when(m.created_at)}</div></li>`).join("")
+      : `<li class="muted">No meetings yet. Paste a link above.</li>`;
+    document.querySelectorAll("#list li[data-id]").forEach((li) => li.onclick = () => { selected = li.dataset.id; load(); });
+    if (selected) showDetail(await api("/v1/meetings/" + selected));
+  } catch (e) { $("list").innerHTML = `<li class="err">${esc(e.message)}</li>`; }
+}
+function list(title, items) { return items && items.length ? `<h3>${title}</h3><ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""; }
+function showDetail(m) {
+  const n = m.notes;
+  $("detail").innerHTML = `
+    <h2>${esc(m.title || "Meeting")}</h2>
+    <div class="m"><span class="pill s-${m.status}">${esc(m.status_label)}</span> ${m.status_detail ? "· " + esc(m.status_detail) : ""}</div>
+    <div class="m">${esc(m.meeting_url)}${m.participants.length ? " · " + esc(m.participants.join(", ")) : ""}</div>
+    ${["scheduled", "joining", "waiting_room", "recording"].includes(m.status) ? `<p><button class="ghost" id="cancel">Stop the notetaker</button></p>` : ""}
+    ${n ? `<h3>Summary</h3><p>${esc(n.summary)}</p>${n.next_step ? `<p><b>Next step:</b> ${esc(n.next_step)}</p>` : ""}
+      ${list("Key points", n.key_points)}${list("Decisions", n.decisions)}
+      ${list("Action items", (n.action_items || []).map((a) => a.task + (a.owner ? " — " + a.owner : "") + (a.due ? " (" + a.due + ")" : "")))}
+      ${list("Money mentioned", n.money_mentioned)}${list("Dates mentioned", n.dates_mentioned)}` : ""}
+    ${m.transcript.length ? `<h3>Transcript</h3><div class="tr">${m.transcript.map((u) => `<div><b>${esc(u.speaker)}:</b> ${esc(u.text)}</div>`).join("")}</div>` : ""}
+    <h3>Timeline</h3><ol class="tl">${(m.timeline || []).map((e) => `<li>${esc(e.label)}${e.detail ? " — " + esc(e.detail) : ""} · ${when(e.at)}</li>`).join("")}</ol>`;
+  const c = document.getElementById("cancel");
+  if (c) c.onclick = async () => { try { await api("/v1/meetings/" + m.id, { method: "DELETE" }); load(); } catch (e) { alert(e.message); } };
+}
+load(); setInterval(load, 5000);
+</script>
+</body>
+</html>
