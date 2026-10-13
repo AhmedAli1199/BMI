@@ -1,4 +1,6 @@
+import base64
 import json
+import os
 
 import httpx
 
@@ -106,7 +108,7 @@ def test_internal_transcribe_needs_token(api):
 
 
 def test_attendee_webhook_parsing():
-    secret = "c2VjcmV0LWtleS1mb3ItdGVzdHM="
+    secret = base64.b64encode(os.urandom(24)).decode()   # made up for each run, never a real key
     bot = AttendeeBot(base_url="http://x", api_key="k", webhook_secret=secret)
     payload = {"idempotency_key": "i1", "bot_id": "bot_1", "trigger": "bot.state_change",
                "data": {"new_state": "ended", "old_state": "post_processing", "event_type": "post_processing_completed", "event_sub_type": None}}
