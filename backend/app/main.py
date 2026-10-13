@@ -34,6 +34,7 @@ from app.api.routes import (
     rate_card,
     messaging,
     publications,
+    calls,
     review_queue,
     sales,
     settings as settings_routes,
@@ -111,6 +112,7 @@ api_router.include_router(management.router)
 api_router.include_router(proposals.router)
 api_router.include_router(rate_card.router)
 api_router.include_router(editorial.router)
+api_router.include_router(calls.router)
 app.include_router(api_router)
 
 

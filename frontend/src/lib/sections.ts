@@ -7,6 +7,7 @@ export type SectionKey =
   | "groups"
   | "calendar"
   | "reminders"
+  | "calls"
   | "mail_merge"
   | "email_templates"
   | "sales_overview"

@@ -25,7 +25,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         id="sales",
         label="Sales & Follow-ups",
         tagline="Timely follow-ups, commercial signals, and personal touchpoints drafted for your reps.",
-        kinds=("followup_due", "signal_trigger", "personal_touchpoint_due"),
+        kinds=("followup_due", "signal_trigger", "personal_touchpoint_due", "call_notes"),
     ),
     Workstream(
         id="capture",
@@ -72,6 +72,7 @@ KIND_JOB: dict[str, str | None] = {
     "sor_client_match": "sor_client_match_scan",
     "order_check": None,
     "save_the_sale": "save_the_sale_scan",
+    "call_notes": None,
 }
 
 
@@ -99,6 +100,7 @@ KIND_COST_PREFIX: dict[str, str | None] = {
     "sor_client_match": None,
     "order_check": None,
     "save_the_sale": "save_the_sale.",
+    "call_notes": None,
 }
 
 

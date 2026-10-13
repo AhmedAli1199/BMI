@@ -201,6 +201,8 @@ Sidebar > **Editorial plan** (`/editorial`): year planner (lanes per title, toda
 
 - **Wording follows Matt (12 Oct):** on screen, a "booking" is the whole multi-item thing (code: `SalesDeal`, `/sales/deals`) and each line in an issue is an "item" (code: `SalesOrder`, `/sales/orders/[id]`, list at `/sales/bookings` titled "All items"). Code names are unchanged. "Order confirmation", "Order no." on the printed confirmation and the "Sales Orders" section keep their names. Renewals' button is now "New booking", opening the booking form for the company (prefilled from their last booking, set to the chosen edition); unlinked advertisers still get the single-item sheet. Easy to switch back if BMI prefer other words.
 
+- **Call notes / Notetaker (13 Oct):** a separate, reusable service lives in `notetaker/` on the `notetaker` branch (FastAPI + self-hosted Attendee bot + Gemini notes; README there covers the API, webhooks and Dokploy set-up). BMI Brain's side: `/calls` page and `/calls/[id]`, `app/api/routes/calls.py`, model `CallRecording` (migration 0048), review kind `call_notes` ("Save to history" writes a "Meeting Held" history entry plus a reminder per action item). The service posts results to the public frontend route `/api/notetaker/webhook`, which forwards to `/api/calls/webhook`; the backend checks the HMAC signature. Backend settings: `NOTETAKER_URL`, `NOTETAKER_API_KEY`, `NOTETAKER_WEBHOOK_SECRET` (the button is hidden until set). Not done yet: calendar sync / automatic joining (needs `Calendars.Read`), Zoom.
+
 ## 4. Business rules and data logic (order register / SOR)
 
 ### 4.1 Data model (mirrors their sheets)

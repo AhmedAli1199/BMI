@@ -3,6 +3,7 @@ import {
   Link2,
   ShieldCheck,
   LifeBuoy,
+  Mic,
   ReceiptText,
   RefreshCcw,
   CalendarClock,
@@ -173,6 +174,13 @@ Object.assign(STYLES, {
     chipBg: "border-chart-2/30 bg-chart-2/10",
     accent: "bg-chart-2",
     ring: "hover:border-chart-2/60",
+  },
+  call_notes: {
+    icon: Mic,
+    color: "text-chart-3",
+    chipBg: "border-chart-3/30 bg-chart-3/10",
+    accent: "bg-chart-3",
+    ring: "hover:border-chart-3/60",
   },
   order_check: {
     icon: ShieldCheck,

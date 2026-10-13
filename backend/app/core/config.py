@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     # just set GEMINI_VISION_MODEL/GEMINI_TEXT_MODEL directly, no code
     # change needed) then.
     gemini_vision_model: str = "gemini-3.6-flash"
+    # The Notetaker service (separate app, see notetaker/ on its branch): it joins Meet/Teams
+    # calls and sends the notes back to /api/calls/webhook (through the frontend's public
+    # /api/notetaker/webhook). Empty URL = the "Send the notetaker" button is hidden.
+    notetaker_url: str = ""
+    notetaker_api_key: str = ""
+    notetaker_webhook_secret: str = ""
 
     # Reliability: every real Gemini/OpenAI call in app/automations/llm.py
     # retries this many times (with exponential backoff) on a transient/

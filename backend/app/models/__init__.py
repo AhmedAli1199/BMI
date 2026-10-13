@@ -2,6 +2,7 @@ from app.models.activity import Activity
 from app.models.activity_link import ActivityCompany, ActivityContact, ActivityGroup, ActivityInvitee, Attachment
 from app.models.automation_setting import AutomationSetting
 from app.models.automation_state import AutomationState
+from app.models.call_recording import CallRecording
 from app.models.deal import DealSettings, SalesDeal
 from app.models.commission import CommissionAttendance, CommissionMonth, CommissionRule, CommissionSettings, CommissionStatement
 from app.models.company import Company
@@ -28,6 +29,7 @@ from app.models.xero import XeroConnection, XeroInvoice
 from app.models.user_access import UserAccess
 
 __all__ = [
+    "CallRecording",
     "Activity",
     "ActivityCompany",
     "ActivityContact",

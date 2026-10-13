@@ -209,6 +209,18 @@ export function AppSidebar({
                 </SidebarMenuItem>
               )}
 
+              {show("calls") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/calls" />}
+                    isActive={pathname.startsWith("/calls")}
+                    className={NAV_ITEM}
+                  >
+                    Call notes
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
               {show("mail_merge") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
