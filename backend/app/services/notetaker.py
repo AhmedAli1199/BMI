@@ -31,10 +31,13 @@ def _detail(r: httpx.Response, fallback: str) -> str:
         return fallback
 
 
-def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict) -> dict:
+def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict, join_at=None) -> dict:
+    body = {"meeting_url": meeting_url, "external_id": external_id, "title": title, "metadata": metadata}
+    if join_at:
+        body["join_at"] = join_at.isoformat()
     try:
         with _client() as c:
-            r = c.post("/v1/meetings", json={"meeting_url": meeting_url, "external_id": external_id, "title": title, "metadata": metadata})
+            r = c.post("/v1/meetings", json=body)
     except httpx.HTTPError:
         raise NotetakerError("The notetaker can't be reached just now. Please try again in a minute.")
     if r.status_code >= 400:

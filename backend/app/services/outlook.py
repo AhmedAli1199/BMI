@@ -82,9 +82,20 @@ def _sign(payload: str) -> str:
     return hmac.new(settings.api_key.encode(), payload.encode(), hashlib.sha256).hexdigest()[:32]
 
 
-def make_state(user_id: uuid.UUID, return_to: str = "/settings") -> str:
-    payload = base64.urlsafe_b64encode(json.dumps({"u": str(user_id), "t": int(time.time()), "r": return_to}).encode()).decode()
+def make_state(user_id: uuid.UUID, return_to: str = "/settings", purpose: str | None = None) -> str:
+    """purpose: None for mail; "calendar" / "google_calendar" for the calendar sign-ins, which share this signing."""
+    data = {"u": str(user_id), "t": int(time.time()), "r": return_to}
+    if purpose:
+        data["p"] = purpose
+    payload = base64.urlsafe_b64encode(json.dumps(data).encode()).decode()
     return f"{payload}.{_sign(payload)}"
+
+
+def state_purpose(state: str) -> str | None:
+    try:
+        return json.loads(base64.urlsafe_b64decode(state.rsplit(".", 1)[0])).get("p")
+    except Exception:
+        return None
 
 
 def read_state(state: str) -> tuple[uuid.UUID, str]:

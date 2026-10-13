@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     # calls and sends the notes back to /api/calls/webhook (through the frontend's public
     # /api/notetaker/webhook). Empty URL = the "Send the notetaker" button is hidden.
     notetaker_url: str = ""
+    # Google Calendar sign-in (a Google Cloud OAuth client, "Web application" type) - redirect URI
+    # {app_base_url}/api/google/callback. Empty = the "Connect Google Calendar" button is hidden.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    # The shared calendar (runtime-editable in Automations settings, group "Call notes")
+    automations_calendar_sync_enabled: bool = True
+    calendar_include_internal: bool = True     # meetings with only BMI people in them
+    calendar_include_private: bool = False     # meetings someone marked private
+    calendar_join_minutes_before: int = 1
     notetaker_api_key: str = ""
     notetaker_webhook_secret: str = ""
 

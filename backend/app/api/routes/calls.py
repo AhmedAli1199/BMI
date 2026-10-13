@@ -44,9 +44,15 @@ def _view(db: Session, c: CallRecording, full: bool = False) -> dict:
     return v
 
 
+def _attended(db: Session, user: User, c: CallRecording) -> bool:
+    from app.models.calendar import CalendarAttendance
+    return bool(c.calendar_meeting_id and db.scalar(select(CalendarAttendance.id).where(
+        CalendarAttendance.meeting_id == c.calendar_meeting_id, CalendarAttendance.user_id == user.id).limit(1)))
+
+
 def _own(db: Session, user: User, call_id: uuid.UUID) -> CallRecording:
     c = db.get(CallRecording, call_id)
-    if not c or (not _sees_all(user) and c.user_id != user.id):
+    if not c or (not _sees_all(user) and c.user_id != user.id and not _attended(db, user, c)):
         raise HTTPException(404, "We couldn't find that call.")
     return c
 
@@ -61,7 +67,9 @@ def list_calls(contact_id: uuid.UUID | None = None, company_id: uuid.UUID | None
                db: Session = Depends(get_db), user: User = Depends(current_user)):
     q = select(CallRecording).order_by(CallRecording.created_at.desc()).limit(min(limit, 500))
     if not _sees_all(user):
-        q = q.where(CallRecording.user_id == user.id)
+        from app.models.calendar import CalendarAttendance
+        q = q.where(or_(CallRecording.user_id == user.id, CallRecording.calendar_meeting_id.in_(
+            select(CalendarAttendance.meeting_id).where(CalendarAttendance.user_id == user.id))))
     if contact_id:
         q = q.where(CallRecording.contact_id == contact_id)
     if company_id:
@@ -178,9 +186,14 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
         c.notes, c.transcript = data.get("notes"), data.get("transcript") or []
         if c.notes:
             call_notes.queue_for_review(db, c)
-            if c.user_id:
-                from app.services.notify import create_notification
-                create_notification(db, c.user_id, "call_notes", f"Notes ready: {c.title or 'your call'}",
+            from app.services.notify import create_notification
+            to = {c.user_id} if c.user_id else set()
+            if c.calendar_meeting_id:   # everyone from BMI who was in the meeting
+                from app.models.calendar import CalendarAttendance
+                to |= {a.user_id for a in db.scalars(select(CalendarAttendance).where(
+                    CalendarAttendance.meeting_id == c.calendar_meeting_id, CalendarAttendance.response != "declined"))}
+            for uid in to:
+                create_notification(db, uid, "call_notes", f"Notes ready: {c.title or 'your call'}",
                                     (c.notes or {}).get("summary"), link=f"/calls/{c.id}")
     elif msg.get("event") == "meeting.failed" and c.user_id:
         from app.services.notify import create_notification

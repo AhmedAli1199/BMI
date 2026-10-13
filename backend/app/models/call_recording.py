@@ -18,6 +18,7 @@ class CallRecording(Base, UUIDPk):
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
     company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    calendar_meeting_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)   # set when booked from the shared calendar
     meeting_url: Mapped[str] = mapped_column(Text, nullable=False)
     platform: Mapped[str | None] = mapped_column(String(20))
     title: Mapped[str | None] = mapped_column(Text)

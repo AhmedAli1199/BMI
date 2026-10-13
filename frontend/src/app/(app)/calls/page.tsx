@@ -5,6 +5,7 @@ import { LIVE_STATUSES, PLATFORM_LABEL, type Call } from "@/lib/calls-types";
 import { SendNotetaker } from "@/components/calls/send-notetaker";
 import { CallStatus } from "@/components/calls/call-status";
 import { AutoRefresh } from "@/components/calls/auto-refresh";
+import { CallsTabs } from "@/components/calls/calls-tabs";
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -28,6 +29,7 @@ export default async function CallsPage() {
           appear here and in your review queue, ready to save onto the contact.
         </p>
       </div>
+      <CallsTabs active="calls" />
       {status.available ? (
         <SendNotetaker />
       ) : (

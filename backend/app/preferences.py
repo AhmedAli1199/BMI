@@ -63,6 +63,18 @@ PREFERENCE_DEFS: list[PreferenceDef] = [
         ],
         default="on",
     ),
+    PreferenceDef(
+        key="calendar_recording",
+        label="Record my meetings",
+        description="What the notetaker does with meetings on your connected calendar that have a Meet or Teams link.",
+        group="Call notes",
+        options=[
+            PreferenceOption(value="auto", label="Join automatically", description="BMI Notetaker joins and takes notes - you can still skip any meeting."),
+            PreferenceOption(value="remind", label="Just remind me", description="A reminder before each meeting, with a button to send the notetaker."),
+            PreferenceOption(value="off", label="Off", description="Nothing happens unless you send the notetaker yourself."),
+        ],
+        default="auto",
+    ),
 ]
 
 _BY_KEY: dict[str, PreferenceDef] = {p.key: p for p in PREFERENCE_DEFS}

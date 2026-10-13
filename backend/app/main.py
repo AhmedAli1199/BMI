@@ -35,6 +35,7 @@ from app.api.routes import (
     messaging,
     publications,
     calls,
+    calendar,
     review_queue,
     sales,
     settings as settings_routes,
@@ -113,6 +114,7 @@ api_router.include_router(proposals.router)
 api_router.include_router(rate_card.router)
 api_router.include_router(editorial.router)
 api_router.include_router(calls.router)
+api_router.include_router(calendar.router)
 app.include_router(api_router)
 
 

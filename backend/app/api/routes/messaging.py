@@ -244,6 +244,12 @@ class CallbackIn(BaseModel):
 @router.post("/mail/outlook/callback")
 def outlook_callback(payload: CallbackIn, db: Session = Depends(get_db)) -> dict:
     # No current_user here: the signed state carries who started the sign-in.
+    if outlook.state_purpose(payload.state) == "calendar":   # the read-only calendar sign-in shares this callback
+        from app.api.routes.calendar import complete_microsoft
+        try:
+            return complete_microsoft(db, payload.code, payload.state)
+        except outlook.OutlookAuthError as exc:
+            raise HTTPException(400, str(exc))
     try:
         acct, return_to = outlook.complete_sign_in(db, payload.code, payload.state)
     except (outlook.OutlookAuthError, outlook.OutlookNotConfigured) as exc:

@@ -34,3 +34,25 @@ export async function saveCallToHistory(id: string) {
   if (c.contact) revalidatePath(`/contacts/${c.contact.id}`);
   return c;
 }
+
+export async function setMeetingChoice(id: string, choice: "record" | "skip" | null) {
+  const m = await backendFetch(`/api/calendar/meetings/${id}/override`, { method: "POST", headers: json, body: JSON.stringify({ choice }) });
+  revalidatePath("/calls/meetings");
+  return m;
+}
+
+export async function setRecordingPreference(mode: "auto" | "remind" | "off") {
+  await backendFetch(`/api/calendar/preference`, { method: "PUT", headers: json, body: JSON.stringify({ mode }) });
+  revalidatePath("/calls/meetings");
+}
+
+export async function disconnectCalendar(provider: "google" | "microsoft") {
+  await backendFetch(`/api/calendar/connections/${provider}`, { method: "DELETE" });
+  revalidatePath("/calls/meetings");
+}
+
+export async function syncCalendarsNow() {
+  const r = await backendFetch<{ booked: number; called_off: number }>(`/api/calendar/sync`, { method: "POST" });
+  revalidatePath("/calls/meetings");
+  return r;
+}

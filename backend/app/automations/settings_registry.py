@@ -349,6 +349,26 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_calendar_sync_enabled", label="Shared calendar and automatic notetaker",
+        description="Every 3 minutes: reads everyone's connected calendars into the shared calendar and sends BMI Notetaker into meetings that should be recorded.",
+        group="Call notes", type="bool",
+    ),
+    AutomationSettingDef(
+        key="calendar_include_internal", label="Record internal meetings",
+        description="Also record meetings where everyone is from BMI. Off = only meetings with someone from outside.",
+        group="Call notes", type="bool",
+    ),
+    AutomationSettingDef(
+        key="calendar_include_private", label="Record meetings marked private",
+        description="Private meetings are always hidden from other people on the shared calendar; this decides whether the notetaker joins them.",
+        group="Call notes", type="bool",
+    ),
+    AutomationSettingDef(
+        key="calendar_join_minutes_before", label="Join this many minutes early",
+        description="How long before the start the notetaker asks to join.",
+        group="Call notes", type="int", min=0, max=10,
+    ),
+    AutomationSettingDef(
         key="automations_save_the_sale_enabled", label="Save the sale active",
         description="Every 30 minutes: when the email scan finds a client saying no, drafts a reply that acknowledges it, asks why and offers a sensible alternative - for the salesperson to review and send.",
         group="Sales Order Register", type="bool",
