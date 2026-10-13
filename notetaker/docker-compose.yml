@@ -58,7 +58,10 @@ services:
   attendee-bootstrap:
     <<: *attendee
     restart: "no"
-    command: ["bash", "-c", "python manage.py migrate --noinput && python manage.py shell < /bootstrap/attendee_bootstrap.py"]
+    # root, so it can write into the shared folder (the image's own user can't); no audio start-up needed here
+    user: "0:0"
+    entrypoint: []
+    command: ["bash", "-c", "cd /attendee && python manage.py migrate --noinput && python manage.py shell < /bootstrap/attendee_bootstrap.py"]
     volumes: ["./deploy:/bootstrap:ro", "shared:/shared"]
     depends_on: [postgres, redis, storage]
     mem_limit: 1g
