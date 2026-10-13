@@ -106,6 +106,8 @@ export type SalesOrder = {
   item_date?: string | null;
   copy_due?: string | null;
   added_value?: boolean;
+  /** Space given away (or a house ad) to fill a page. */
+  filler?: boolean;
   edition_id: string;
   edition_label: string;
   title_id: string;
@@ -292,6 +294,7 @@ export type OrderInput = {
   status?: OrderStatus;
   moved_to_edition_id?: string | null;
   notes?: string | null;
+  filler?: boolean;
   credits?: { rep_id: string; amount_gbp: number }[];
   clear_warning?: boolean;
 };

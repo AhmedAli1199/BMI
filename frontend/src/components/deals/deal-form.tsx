@@ -122,7 +122,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
     const have = new Set(l.placements.map((p) => p.edition_id));
     const add = list.filter((i) => !have.has(i.id)).map((i) => ({ edition_id: i.id }));
     if (!add.length) return toast.info("Every open issue is already on this line");
-    updLine(l.key, { placements: [...l.placements.filter((p) => p.edition_id), ...add] });
+    updLine(l.key, { placements: [...l.placements.filter((p) => p.edition_id || p.tba), ...add] });
   }
   function move(key: string, d: -1 | 1) {
     setLines((ls) => {
@@ -139,7 +139,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
     if (!f.client_name.trim() && !company) return toast.error("Choose the client first");
     if (!repPick && !f.split.length) return toast.error("Choose the salesperson, so the right person earns the commission");
     if (lines.some((l) => !l.description.trim() && !l.size)) return toast.error("Say what each item is");
-    if (lines.some((l) => l.placements.some((p) => !p.edition_id))) return toast.error("Choose the issue, month or event for every item");
+    if (lines.some((l) => l.placements.some((p) => !p.edition_id && !p.tba))) return toast.error("Choose the issue, month or event for every item, or mark it as to be allocated");
     if (f.pricing === "items" && lines.some((l) => !l.added_value && (l.unit_price == null || Number.isNaN(l.unit_price)))) return toast.error("Give every item a price, or tick it as free");
     if (f.pricing === "package" && !f.package_price_gbp) return toast.error("Enter the package price");
     if (f.split.length && Math.abs(f.split.reduce((s, x) => s + x.pct, 0) - 1) > 0.001) return toast.error("The split between salespeople needs to add up to 100%");
@@ -288,20 +288,24 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                     <span className="flex gap-3">
                       <button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!l.title_id} onClick={() => addEveryIssue(l)}><CalendarPlus className="mr-1 inline size-3" />Every open issue</button>
                       <button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!l.title_id} onClick={() => updLine(l.key, { placements: [...l.placements, {}] })}><Plus className="mr-0.5 inline size-3" />Another</button>
+                      <button type="button" className="text-primary hover:underline disabled:opacity-50" disabled={!l.title_id} title="Sold now, issue decided later (part of a package)"
+                        onClick={() => updLine(l.key, { placements: [...l.placements.filter((p) => p.edition_id || p.tba), { tba: true }] })}><Plus className="mr-0.5 inline size-3" />To be allocated</button>
                     </span>
                   </div>
                   <ul className="divide-y divide-border/60">
                     {l.placements.map((p, pi) => {
                       const iss = opts.find((x) => x.id === p.edition_id);
+                      const tba = !!p.tba && !p.edition_id;
                       return (
                         <li key={pi} className="grid items-center gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1.6fr)_8.5rem_8.5rem_minmax(0,1fr)_auto]">
-                          <select className={selectCls} value={p.edition_id ?? ""} disabled={!l.title_id} aria-label="Issue, month or event"
-                            onChange={(e) => updPlace(l.key, pi, { edition_id: e.target.value || null })}>
+                          <select className={selectCls} value={tba ? "__tba" : p.edition_id ?? ""} disabled={!l.title_id} aria-label="Issue, month or event"
+                            onChange={(e) => updPlace(l.key, pi, e.target.value === "__tba" ? { edition_id: null, tba: true, item_date: null, copy_due: null } : { edition_id: e.target.value || null, tba: false })}>
                             <option value="">{l.title_id ? (opts.length ? "Choose the issue, month or event…" : "Loading…") : "Choose the title first"}</option>
+                            <option value="__tba">To be allocated (issue not decided yet)</option>
                             {opts.map((o) => <option key={o.id} value={o.id}>{o.label}{o.edition_date ? ` · ${fmtDate(o.edition_date)}` : ""}{!o.open ? " · deadline passed" : o.ad_deadline ? ` · book by ${fmtDate(o.ad_deadline)}` : ""}</option>)}
                           </select>
-                          <Input type="date" value={p.item_date ?? ""} onChange={(e) => updPlace(l.key, pi, { item_date: e.target.value || null })} className="h-8 text-xs" aria-label="Exact date it runs (optional)" title="Exact date it runs, if not the issue's date (an email on 13 May)" />
-                          <Input type="date" value={p.copy_due ?? ""} onChange={(e) => updPlace(l.key, pi, { copy_due: e.target.value || null })} className="h-8 text-xs" aria-label="Copy due (optional)"
+                          <Input type="date" value={p.item_date ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { item_date: e.target.value || null })} className="h-8 text-xs" aria-label="Exact date it runs (optional)" title="Exact date it runs, if not the issue's date (an email on 13 May)" />
+                          <Input type="date" value={p.copy_due ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { copy_due: e.target.value || null })} className="h-8 text-xs" aria-label="Copy due (optional)"
                             title={iss?.copy_deadline ? `Copy due - the issue's copy deadline is ${fmtDate(iss.copy_deadline)}` : "Copy or artwork due (optional)"} />
                           <span className="text-right text-xs tabular-nums text-muted-foreground">
                             {l.added_value ? "Free" : pl ? fmtGBP(pl.placements[pi] ?? 0) : ""}
@@ -314,6 +318,16 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                     })}
                   </ul>
                   <p className="px-3 pb-2 text-[11px] text-muted-foreground">Dates are optional: the exact day it runs (if not the issue&apos;s date) and when copy is due.</p>
+                  {l.placements.some((p) => p.tba && !p.edition_id) && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border/70 px-3 py-2 text-xs">
+                      <span className="text-muted-foreground">
+                        {l.placements.filter((p) => p.tba && !p.edition_id).length} still to be allocated. They count in the booking&apos;s total and print as &quot;date to be confirmed&quot;, but go on the order register only once you choose their issues.
+                      </span>
+                      <label className="ml-auto flex items-center gap-1.5 text-muted-foreground">Decide the issues by
+                        <Input type="date" value={l.allocate_by ?? ""} onChange={(e) => updLine(l.key, { allocate_by: e.target.value || null })} className="h-7 w-36 text-xs" aria-label="Decide the issues by" />
+                      </label>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2">

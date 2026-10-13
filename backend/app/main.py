@@ -18,6 +18,7 @@ from app.api.routes import (
     automation_stats,
     automations,
     commission,
+    booking_forms,
     deals,
     companies,
     contact_imports,
@@ -101,6 +102,7 @@ api_router.include_router(automations.router)
 api_router.include_router(automation_stats.router)
 api_router.include_router(sales.router)
 api_router.include_router(commission.router)
+api_router.include_router(booking_forms.router)
 api_router.include_router(deals.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)

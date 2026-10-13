@@ -252,6 +252,11 @@ class Settings(BaseSettings):
     orders_accounts_check: bool = True
     orders_check_before_sending: bool = True
     orders_lock_after_check: bool = True   # once accounts has checked a booking, others request changes instead of editing
+    orders_copy_accounts_on_create: bool = True   # every new booking: a note to accounts, and the confirmation emailed to the Accounts addresses
+    automations_allocation_reminders_enabled: bool = False   # remind salespeople about items still to be allocated
+    orders_allocate_remind_days: int = 14
+    automations_sor_issue_check_enabled: bool = False   # accounts' order-register check once an issue has gone to press
+    sor_issue_check_after_days: int = 2
     automations_sor_renewal_scan_enabled: bool = False
     sor_renewal_lead_days: int = 60  # start the renewal this many days before the anniversary of last year's booking
     sor_renewal_max_per_run: int = 25

@@ -155,6 +155,7 @@ class OrderOut(BaseModel):
     item_date: date | None = None
     copy_due: date | None = None
     added_value: bool = False
+    filler: bool = False
 
 
 class EditionSummary(BaseModel):
@@ -306,6 +307,7 @@ class OrderCreate(BaseModel):
     invoice_note: str | None = None
     status: str = "booked"
     notes: str | None = None
+    filler: bool = False
     credits: list[CreditIn] | None = None
 
 
@@ -329,6 +331,7 @@ class OrderPatch(BaseModel):
     status: str | None = None
     moved_to_edition_id: uuid.UUID | None = None
     notes: str | None = None
+    filler: bool | None = None
     credits: list[CreditIn] | None = None
     clear_warning: bool = False
 
@@ -610,6 +613,7 @@ def _orders_out(db: Session, orders: list[SalesOrder]) -> list[OrderOut]:
             xero=_xero_ref(xero_by_id.get(o.xero_invoice_id) or xero.get(number_key(o.invoice_number) or ""), o.xero_link_source, o.invoice_from_xero),
             deal=Ref(id=o.deal_id, label=f"Order {deals[o.deal_id]}") if o.deal_id in deals else None,
             description=o.description, item_date=o.item_date, copy_due=o.copy_due, added_value=bool(o.added_value),
+            filler=bool(o.filler),
         ))
     return out
 
@@ -1554,6 +1558,7 @@ def order_query(
     invoiced: bool | None = None,
     linked: bool | None = None,
     has_warning: bool | None = None,
+    filler: bool | None = None,
     value_min: float | None = None,
     value_max: float | None = None,
     booked_from: date | None = None,
@@ -1577,7 +1582,7 @@ def order_query(
     return OrderQuery(
         edition_id=edition_id, company_id=company_id, years=year, title_ids=title_id, product_lines=product_line,
         rep_ids=rep_id, statuses=status, invoiced=invoiced, linked=linked,
-        has_warning=True if warnings else has_warning, value_min=value_min, value_max=value_max,
+        has_warning=True if warnings else has_warning, filler=filler, value_min=value_min, value_max=value_max,
         booked_from=booked_from, booked_to=booked_to, edition_from=edition_from, edition_to=edition_to,
         uninvoiced=uninvoiced, overdue=overdue, mismatched=mismatched, part_invoiced=part_invoiced, unlinked=unlinked,
         xero=[x for x in xero if x in XERO_STATES], search=search, sort=sort if sort in ORDER_SORTS else "edition", desc=desc,
@@ -1680,7 +1685,7 @@ def create_order(payload: OrderCreate, db: Session = Depends(get_db), identity: 
 
 _AUDITED = ("client_name", "company_id", "rep_id", "booked_on", "size", "series", "position", "rate_usd", "value_gbp",
             "agency_commission_gbp", "commission_rate", "invoice_number", "invoice_value_gbp", "invoiced_on",
-            "invoice_note", "status", "moved_to_edition_id", "notes")
+            "invoice_note", "status", "moved_to_edition_id", "notes", "filler")
 
 
 # Set by the order an item belongs to (app/sales/deals.py) - changed there, not on the item.
@@ -1692,6 +1697,8 @@ def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends
                  identity: Identity = Depends(get_identity)) -> OrderOut:
     order = _get_order(db, order_id)
     data = payload.model_dump(exclude_unset=True, exclude={"credits", "clear_company", "clear_warning"})
+    if data.get("filler", False) is None:
+        data.pop("filler")
     if payload.clear_company:
         data["company_id"] = None
     if "status" in data:

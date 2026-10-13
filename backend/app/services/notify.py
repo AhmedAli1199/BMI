@@ -53,18 +53,24 @@ def automation_mailbox_ready(db: Session) -> bool:
                 and settings.graph_client_secret)
 
 
-def send_from_automation_mailbox(mailbox: str, to: str, subject: str, html_body: str) -> None:
-    """Raises on failure (caller records the error)."""
+def send_from_automation_mailbox(mailbox: str, to: str | list[str], subject: str, html_body: str,
+                                 attachments: list[tuple[str, str, bytes]] | None = None) -> None:
+    """Raises on failure (caller records the error). `attachments`: (file name, content type, bytes)."""
+    import base64
+
     from app.graph_client import get_app_token
 
     token = get_app_token()
+    msg = {"subject": subject, "body": {"contentType": "HTML", "content": html_body},
+           "toRecipients": [{"emailAddress": {"address": a}} for a in ([to] if isinstance(to, str) else to)]}
+    if attachments:
+        msg["attachments"] = [{"@odata.type": "#microsoft.graph.fileAttachment", "name": n, "contentType": ct,
+                               "contentBytes": base64.b64encode(data).decode()} for n, ct, data in attachments]
     resp = httpx.post(
         f"{GRAPH_BASE}/users/{mailbox}/sendMail",
         headers={"Authorization": f"Bearer {token}"},
-        json={"message": {"subject": subject, "body": {"contentType": "HTML", "content": html_body},
-                          "toRecipients": [{"emailAddress": {"address": to}}]},
-              "saveToSentItems": False},
-        timeout=30,
+        json={"message": msg, "saveToSentItems": False},
+        timeout=60,
     )
     if resp.status_code >= 300:
         raise RuntimeError(f"Graph {resp.status_code}: {resp.text[:300]}")

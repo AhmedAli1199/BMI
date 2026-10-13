@@ -399,6 +399,31 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
+        key="orders_copy_accounts_on_create", label="Tell accounts about every new booking",
+        description="Each new booking shows up on the accounts people's bell, and its confirmation is emailed (Word file attached) to the Accounts addresses in Bookings settings, from the automation mailbox.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="automations_allocation_reminders_enabled", label="Reminders for items still to be allocated",
+        description="Daily: when a booking still has items with no issue chosen, the salesperson gets a Review Queue reminder as their 'decide by' date, or the title's next booking deadline, gets close.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="orders_allocate_remind_days", label="Allocation reminder lead time (days)",
+        description="How many days before the 'decide by' date (or the next issue's booking deadline) the reminder appears.",
+        group="Sales Order Register", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_sor_issue_check_enabled", label="Order register check when an issue goes to press",
+        description="Daily: once an issue's copy deadline has passed, accounts get one Review Queue item listing anything in its order register that needs a look - items with no booking, items that don't match their booking, pencilled items, and packages for that title still to be allocated.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="sor_issue_check_after_days", label="Days after the copy deadline",
+        description="How long after an issue's copy deadline (or its date, if it has no copy deadline) the order register check appears.",
+        group="Sales Order Register", type="int", min=0,
+    ),
+    AutomationSettingDef(
         key="automations_sor_renewal_scan_enabled", label="Renewal outreach active",
         description="Weekdays: drafts a renewal email for last year's advertisers approaching the anniversary of their booking who haven't rebooked (SALES-021).",
         group="Sales Order Register", type="bool",

@@ -201,9 +201,19 @@ def sync_items(db: Session, deal: SalesDeal, priced: Priced, user_id: uuid.UUID 
     for ln in priced.lines:
         ln.setdefault("key", uuid.uuid4().hex[:12])
         for p in ln["placements"]:
+            if p.get("edition_id"):
+                p.pop("tba", None)
+            elif p.get("tba"):
+                # Sold, but the issue isn't decided yet: no order-register item until it's allocated.
+                if not ln.get("title_id"):
+                    raise OrderError(f"Choose the title for “{ln.get('description') or 'a line'}”, so it's clear which magazine "
+                                     "the items still to be allocated are for.")
+                p.pop("order_id", None)
+                continue
             ed = db.get(SalesEdition, uuid.UUID(str(p["edition_id"]))) if p.get("edition_id") else None
             if not ed:
-                raise OrderError(f"Choose the issue, month or event for every item of “{ln.get('description') or 'a line'}”.")
+                raise OrderError(f"Choose the issue, month or event for every item of “{ln.get('description') or 'a line'}”, "
+                                 "or mark it as still to be allocated.")
             oid = uuid.UUID(str(p["order_id"])) if p.get("order_id") else None
             o = existing.get(oid) if oid else None
             if not o:
@@ -247,6 +257,29 @@ def sync_items(db: Session, deal: SalesDeal, priced: Priced, user_id: uuid.UUID 
     return notes
 
 
+def is_unallocated(p: dict) -> bool:
+    return bool(p.get("tba") and not p.get("edition_id"))
+
+
+def allocation(lines: list[dict]) -> tuple[int, float, date | None]:
+    """(items still to be allocated, their value, the earliest date they must be decided by) for priced lines."""
+    count, value, by = 0, 0.0, None
+    for ln in lines:
+        waiting = [p for p in ln.get("placements") or [] if is_unallocated(p)]
+        if not waiting:
+            continue
+        count += len(waiting)
+        value += sum(_f(p.get("value_gbp")) for p in waiting)
+        if ln.get("allocate_by"):
+            d = date.fromisoformat(str(ln["allocate_by"])[:10])
+            by = d if by is None or d < by else by
+    return count, _r(value), by
+
+
+def set_allocation(deal: SalesDeal, lines: list[dict]) -> None:
+    deal.unallocated_count, deal.unallocated_gbp, deal.allocate_by = allocation(lines)
+
+
 def insertions_text(db: Session, deal: SalesDeal) -> str:
     """'April, June, September, November' - the months (or issues) the order runs in, in date order."""
     if deal.insertions_label:
@@ -265,7 +298,12 @@ def insertions_text(db: Session, deal: SalesDeal) -> str:
             out.append(m)
     years = {d.year for d, _ in seen}
     text = ", ".join(out)
-    return f"{text} {min(years)}" if len(years) == 1 and text else text
+    text = f"{text} {min(years)}" if len(years) == 1 and text else text
+    waiting = sum(1 for ln in deal.lines or [] for p in ln.get("placements") or [] if is_unallocated(p))
+    if waiting:
+        more = f"{waiting} {'insertion' if waiting == 1 else 'insertions'} with dates to be confirmed"
+        text = f"{text}, plus {more}" if text else more.capitalize()
+    return text
 
 
 def _day(d: date | None) -> str:
@@ -295,6 +333,8 @@ def document(db: Session, deal: SalesDeal) -> dict:
                 when.append(_day(date.fromisoformat(p["item_date"])))
             elif ed:
                 when.append(issue_label(ed))
+            elif is_unallocated(p):
+                when.append("date to be confirmed")
         n = len(ln["placements"])
         each = _f(ln.get("unit_price")) * ln["qty"] * (1 - _f(ln.get("discount_pct")))
         lst = _f(ln.get("list_price"))
@@ -469,7 +509,7 @@ def rebook_lines(db: Session, deal: SalesDeal, target_year: int, today: date | N
     notes: list[str] = []
     out: list[dict] = []
     for ln in deal.lines or []:
-        new = {k: v for k, v in ln.items() if k not in ("placements", "total_gbp")}
+        new = {k: v for k, v in ln.items() if k not in ("placements", "total_gbp", "allocate_by")}
         new["key"] = uuid.uuid4().hex[:12]
         if ln.get("rate_id"):
             old = db.get(SalesRate, uuid.UUID(str(ln["rate_id"])))
@@ -483,6 +523,9 @@ def rebook_lines(db: Session, deal: SalesDeal, target_year: int, today: date | N
                     new["unit_price"] = _f(nxt.price_gbp)
         places = []
         for p in ln.get("placements") or []:
+            if is_unallocated(p):
+                places.append({"tba": True})
+                continue
             ed = db.get(SalesEdition, uuid.UUID(str(p["edition_id"]))) if p.get("edition_id") else None
             if not ed:
                 continue

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ShieldAlert, ShieldCheck, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarClock, ShieldAlert, ShieldCheck, ExternalLink } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { Deal, DealScheduleRow } from "@/lib/deals-types";
 import { DealActions } from "@/components/deals/deal-actions";
@@ -124,6 +124,22 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
+      {(t.unallocated_count ?? 0) > 0 && d.status !== "cancelled" && (() => {
+        const late = !!d.allocate_by && d.allocate_by < new Date().toISOString().slice(0, 10);
+        return (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-4 py-3 text-sm"
+            style={late ? { borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" } : undefined}>
+            <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="font-semibold">{t.unallocated_count} item{t.unallocated_count === 1 ? "" : "s"} ({fmtGBP(t.unallocated_gbp ?? 0)}) still to be allocated.</span>{" "}
+              They&apos;re in the booking total, but not on the order register or in any issue&apos;s figures until their issues are chosen.
+              {d.allocate_by && <> {late ? "They were due to be decided by" : "Decide by"} <span className="font-semibold">{fmtDate(d.allocate_by)}</span>.</>}
+            </span>
+            {d.can_edit && <Link href={`/sales/deals/${d.id}/edit`} className="ml-auto text-sm font-medium text-primary hover:underline">Choose the issues</Link>}
+          </div>
+        );
+      })()}
+
       {d.warnings.length > 0 && (
         <ul className="flex flex-col gap-1 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }}>
           {d.warnings.map((w) => <li key={w} className="flex gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: "var(--warn)" }} aria-hidden="true" />{w}</li>)}
@@ -165,7 +181,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   {r.status === "cancelled" && <span className="ml-1.5 text-[11px]">cancelled</span>}
                 </td>
                 <td className="px-2 py-2">
-                  {r.edition_id ? <Link href={`/sales/editions/${r.edition_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{r.edition} <ExternalLink className="size-3" aria-hidden="true" /></Link> : "—"}
+                  {r.to_allocate ? <span className="inline-flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">To be allocated</span>{r.title && <span className="text-xs text-muted-foreground">{r.title}{r.allocate_by ? ` · decide by ${fmtDate(r.allocate_by)}` : ""}</span>}</span>
+                    : r.edition_id ? <Link href={`/sales/editions/${r.edition_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{r.edition} <ExternalLink className="size-3" aria-hidden="true" /></Link> : "—"}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2 tabular-nums" style={copySoon(r) ? { color: "var(--warn)", fontWeight: 600 } : undefined}>{fmtDate(r.copy_due)}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{r.added_value ? "—" : fmtGBP(r.value_gbp)}{r.agency_gbp ? <div className="text-[11px] text-muted-foreground">less {fmtGBP(r.agency_gbp)} agency</div> : null}</td>
@@ -173,6 +190,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                   {r.invoice_number ? (
                     <span>{r.invoice_number}{r.xero_state && XERO[r.xero_state] && <span className="ml-1.5 font-semibold" style={{ color: XERO[r.xero_state][1] }}>{XERO[r.xero_state][0]}</span>}</span>
                   ) : r.ready_to_invoice ? <span className="font-semibold" style={{ color: "var(--warn)" }}>Ready to invoice</span>
+                    : r.to_allocate ? <span className="text-muted-foreground">Once it&apos;s allocated</span>
                     : r.added_value || r.status === "cancelled" ? "" : <span className="text-muted-foreground">{d.invoice_plan === "on_publication" ? "When it runs" : "Not yet"}</span>}
                 </td>
               </tr>

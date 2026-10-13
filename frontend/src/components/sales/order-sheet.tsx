@@ -135,6 +135,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
   const [status, setStatus] = useState<OrderStatus>(d.status ?? "booked");
   const [movedTo, setMovedTo] = useState(d.moved_to?.id ?? "");
   const [notes, setNotes] = useState(d.notes ?? "");
+  const [filler, setFiller] = useState(!!d.filler);
   const initialSplit = (existing?.credits.length ?? 0) > 1;
   const [split, setSplit] = useState(initialSplit);
   const [credits, setCredits] = useState<CreditRow[]>(
@@ -195,6 +196,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
       status,
       moved_to_edition_id: status === "moved" ? movedTo || null : null,
       notes: notes.trim() || null,
+      filler,
     };
     if (company) input.company_id = company.id;
     else if (existing?.company) input.clear_company = true;
@@ -518,6 +520,10 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
           <Field label="Notes" htmlFor="os-notes">
             <Textarea id="os-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Field>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5" checked={filler} onChange={(e) => setFiller(e.target.checked)} />
+            <span>Filler ad <span className="block text-xs text-muted-foreground">Space given away, or a house ad, used to fill a page. Kept apart so you can see how much of an issue was filled rather than sold.</span></span>
+          </label>
         </Group>
 
         {existing && (existing.order_ref || Object.keys(existing.extra ?? {}).length > 0) && (

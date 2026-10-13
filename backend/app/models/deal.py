@@ -63,6 +63,11 @@ class SalesDeal(Base, UUIDPk, TimestampMixin):
     #   "added_value", "share_gbp", "placements": [{"order_id", "edition_id", "item_date", "copy_due", "note"}]}]
     lines: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     total_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    # Items sold but not yet given an issue ("to be allocated" - a package split out later). Worked out on every
+    # save from the lines, so lists and reminders don't need to read the lines.
+    unallocated_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0", index=True)
+    unallocated_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
+    allocate_by: Mapped[date | None] = mapped_column(Date)    # the earliest "decide the issues by" date on any line
 
     invoice_plan: Mapped[str] = mapped_column(String(14), nullable=False, default="on_publication")  # upfront | on_publication | custom
     special_instructions: Mapped[str | None] = mapped_column(Text)
@@ -98,3 +103,22 @@ class DealSettings(Base):
     production_emails: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     accounts_emails: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BookingForm(Base, UUIDPk, TimestampMixin):
+    """An online booking form (Jotform, Stova) whose entries arrive as draft bookings for a person to check,
+    instead of being typed into the order register by hand (awards entries, People Awards seats, the Quiz)."""
+    __tablename__ = "booking_forms"
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False, default="jotform")     # jotform | stova | other
+    token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)            # the secret part of its web address
+    title_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_titles.id", ondelete="SET NULL"))
+    edition_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_editions.id", ondelete="SET NULL"))
+    rate_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_rates.id", ondelete="SET NULL"))
+    description: Mapped[str] = mapped_column(String(300), nullable=False, default="")    # what each entry is ("Awards entry")
+    unit_price: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    rep_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_reps.id", ondelete="SET NULL"))
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    received: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -4,7 +4,7 @@ from app.models.automation_setting import AutomationSetting
 from app.models.automation_state import AutomationState
 from app.models.call_recording import CallRecording
 from app.models.calendar import CalendarAttendance, CalendarConnection, CalendarMeeting
-from app.models.deal import DealSettings, SalesDeal
+from app.models.deal import BookingForm, DealSettings, SalesDeal
 from app.models.commission import CommissionAttendance, CommissionMonth, CommissionRule, CommissionSettings, CommissionStatement
 from app.models.company import Company
 from app.models.contact import Contact, ContactCompanyLink
@@ -30,6 +30,7 @@ from app.models.xero import XeroConnection, XeroInvoice
 from app.models.user_access import UserAccess
 
 __all__ = [
+    "BookingForm",
     "CallRecording",
     "CalendarAttendance",
     "CalendarConnection",

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ClipboardList, Plus } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { SalesMeta } from "@/lib/sales-types";
-import type { DealListItem, DealSettings } from "@/lib/deals-types";
+import type { BookingForm, DealListItem, DealSettings } from "@/lib/deals-types";
 import type { FilterDef, SortState } from "@/lib/data-view/schema";
 import { parseFilters, parseSort } from "@/lib/data-view/schema";
 import { DataView, DataViewLayout } from "@/components/data-view/data-view";
@@ -11,18 +11,20 @@ import { DataSearch, FilterChips, Pagination, SortableTh } from "@/components/da
 import { Button } from "@/components/ui/button";
 import { DealStatusPill } from "@/components/deals/deal-ui";
 import { DealSettingsButton } from "@/components/deals/deal-settings";
+import { BookingFormsButton } from "@/components/deals/booking-forms";
 import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 const SIZES = [50, 100, 200];
 const DEFAULT_SORT: SortState = { key: "number", dir: "desc" };
 
-type Page = { items: DealListItem[]; total: number; total_value_gbp: number };
+type Page = { items: DealListItem[]; total: number; total_value_gbp: number; unallocated_gbp?: number; unallocated_bookings?: number };
 
 export default async function DealsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const [meta, settings] = await Promise.all([
+  const [meta, settings, forms] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     backendFetch<DealSettings>("/api/sales/deals/settings").catch(() => null),
+    backendFetch<BookingForm[]>("/api/sales/booking-forms").catch(() => null),   // only managers can set these up
   ]);
   const year = new Date().getFullYear();
   const defs: FilterDef[] = [
@@ -30,6 +32,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     { kind: "multi", key: "status", label: "Status", section: "Booking", options: [
       { value: "pencilled", label: "Pencilled", hint: "Held for the client, not confirmed yet" }, { value: "confirmed", label: "Confirmed" }, { value: "cancelled", label: "Cancelled" }] },
     { kind: "single", key: "mine", label: "Whose", section: "Booking", options: [{ value: "1", label: "Only my bookings" }] },
+    { kind: "single", key: "allocate", label: "Still to allocate", section: "Booking", options: [{ value: "1", label: "Has items with no issue yet", hint: "Packages sold but not yet split by issue" }] },
     { kind: "multi", key: "rep", label: "Salesperson", section: "Booking", options: meta.reps.filter((r) => r.active).map((r) => ({ value: r.id, label: r.name })) },
     { kind: "multi", key: "title", label: "Title", section: "Where it runs", searchable: true, options: meta.titles.map((t) => ({ value: t.id, label: t.name })) },
     { kind: "single", key: "year", label: "Ordered in", section: "When", options: [year + 1, year, year - 1, year - 2].map((y) => ({ value: String(y), label: String(y) })) },
@@ -47,7 +50,8 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   list(values.title).forEach((v) => qs.append("title_id", v));
   if (values.year) qs.set("year", String(values.year));
   if (values.mine) qs.set("mine", "true");
-  const data = await backendFetch<Page>(`/api/sales/deals?${qs}`).catch(() => ({ items: [], total: 0, total_value_gbp: 0 }));
+  if (values.allocate) qs.set("to_allocate", "true");
+  const data = await backendFetch<Page>(`/api/sales/deals?${qs}`).catch((): Page => ({ items: [], total: 0, total_value_gbp: 0 }));
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
@@ -56,6 +60,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}
         description="Client bookings with everything agreed in one place: items across issues, months and events, package prices, discounts and agency commission. Each one prints as BMI's order confirmation or schedule of works."
         actions={<div className="flex items-center gap-2">
+          {forms && <BookingFormsButton forms={forms} titles={meta.titles} reps={meta.reps} />}
           {settings && <DealSettingsButton settings={settings} />}
           <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/deals/new" />}><Plus className="size-3.5" /> New booking</Button>
         </div>}
@@ -67,6 +72,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           <p className="text-xs text-muted-foreground" aria-live="polite">
             <span className="font-semibold text-foreground tabular-nums">{data.total.toLocaleString("en-GB")}</span> {data.total === 1 ? "booking" : "bookings"} ·{" "}
             <span className="font-semibold text-foreground tabular-nums">{fmtGBP(data.total_value_gbp)}</span> not cancelled
+            {(data.unallocated_bookings ?? 0) > 0 && (
+              <> · of which <span className="font-semibold text-foreground tabular-nums">{fmtGBP(data.unallocated_gbp ?? 0)}</span> still to be allocated
+                {!values.allocate && <> (<Link href="/sales/deals?allocate=1" className="text-primary hover:underline">{data.unallocated_bookings} booking{data.unallocated_bookings === 1 ? "" : "s"}</Link>)</>}</>
+            )}
           </p>
           {data.items.length === 0 ? (
             <EmptyState icon={ClipboardList} title="No bookings here yet">
@@ -95,7 +104,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
                         <Link href={`/sales/deals/${d.id}`} className="font-medium hover:underline">{d.client_name}</Link>
                         <div className="text-[11px] text-muted-foreground">{[d.agency_name ? `via ${d.agency_name}` : null, d.po_number ? `PO ${d.po_number}` : null, `ordered ${fmtDate(d.booked_on)}`].filter(Boolean).join(" · ")}</div>
                       </td>
-                      <td className="px-3 py-2 text-xs">{d.items} item{d.items === 1 ? "" : "s"}{d.first && <div className="text-muted-foreground">{fmtDate(d.first)}{d.last && d.last !== d.first ? ` to ${fmtDate(d.last)}` : ""}</div>}</td>
+                      <td className="px-3 py-2 text-xs">{d.items} item{d.items === 1 ? "" : "s"}{d.first && <div className="text-muted-foreground">{fmtDate(d.first)}{d.last && d.last !== d.first ? ` to ${fmtDate(d.last)}` : ""}</div>}
+                        {(d.unallocated_count ?? 0) > 0 && <div className="font-medium" style={d.allocate_by && d.allocate_by < new Date().toISOString().slice(0, 10) ? { color: "var(--warn)" } : undefined}>
+                          + {d.unallocated_count} to allocate{d.allocate_by ? ` by ${fmtDate(d.allocate_by)}` : ""}</div>}
+                      </td>
                       <td className="px-3 py-2 text-xs">{d.rep ?? "—"}</td>
                       <td className="px-3 py-2 text-right font-semibold tabular-nums">{fmtGBP(d.total_gbp)}</td>
                       <td className="px-3 py-2 text-right text-xs tabular-nums">{d.invoiced_gbp ? fmtGBP(d.invoiced_gbp) : "—"}</td>

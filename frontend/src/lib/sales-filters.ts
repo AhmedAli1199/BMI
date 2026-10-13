@@ -31,7 +31,7 @@ export const XERO_OPTIONS = [
 const shortTitle = (name: string) => name.replace(/\s*\(.*\)/, "");
 
 /** Keys of the bookings filters - `hide` drops any that make no sense on a page (e.g. year/title on one edition). */
-export type OrderFilterKey = "q" | "year" | "title" | "line" | "rep" | "status" | "invoiced" | "xero" | "linked" | "check" | "value" | "booked" | "edition";
+export type OrderFilterKey = "q" | "year" | "title" | "line" | "rep" | "status" | "invoiced" | "xero" | "linked" | "check" | "filler" | "value" | "booked" | "edition";
 
 export function orderFilterDefs(meta: SalesMeta, hide: OrderFilterKey[] = []): FilterDef[] {
   const defs: FilterDef[] = [
@@ -64,6 +64,10 @@ export function orderFilterDefs(meta: SalesMeta, hide: OrderFilterKey[] = []): F
       kind: "tristate", key: "check", label: "Import check", section: "State", yes: "Needs a check", no: "No issues",
       hint: "Rows the spreadsheet import flagged - an unreadable amount, a shifted commission column, an unknown salesperson…",
     },
+    {
+      kind: "tristate", key: "filler", label: "Filler ads", section: "State", yes: "Filler ads", no: "Sold space",
+      hint: "Space given away or used for a house ad to fill a page. Mark an item as a filler ad on its page.",
+    },
     { kind: "range", key: "value", label: "Value", section: "Amount & dates", prefix: "£", step: 50 },
     { kind: "dates", key: "booked", label: "Booked on", section: "Amount & dates" },
     { kind: "dates", key: "edition", label: "Edition / event date", section: "Amount & dates" },
@@ -90,6 +94,7 @@ export function orderBackendQuery(values: FilterValues, sort: SortState, extra: 
   one("invoiced", values.invoiced);
   one("linked", values.linked);
   one("has_warning", values.check);
+  one("filler", values.filler);
   one("value_min", values.value_min);
   one("value_max", values.value_max);
   one("booked_from", values.booked_from);
@@ -113,5 +118,6 @@ export function orderFacetsForSidebar(f: Record<string, Record<string, number>>)
     xero: f.xero ?? {},
     linked: f.linked ?? {},
     check: f.has_warning ?? {},
+    filler: f.filler ?? {},
   };
 }

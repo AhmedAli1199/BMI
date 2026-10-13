@@ -315,6 +315,9 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     unit_price_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))
     list_price_gbp: Mapped[float | None] = mapped_column(Numeric(12, 2))   # the rate card price ("usual rate £3,750")
     added_value: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # given free with the order
+    # A filler ad: space given away (or a house ad) to fill a page, so production and accounts can see
+    # how much of an issue was filled rather than sold.
+    filler: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     item_date: Mapped[date | None] = mapped_column(Date, index=True)   # when this item runs, if not the issue's date (an email on 13 May)
     copy_due: Mapped[date | None] = mapped_column(Date)                # copy / artwork deadline for this item
 

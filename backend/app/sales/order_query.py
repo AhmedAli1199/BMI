@@ -39,6 +39,7 @@ class OrderQuery:
     invoiced: bool | None = None
     linked: bool | None = None
     has_warning: bool | None = None
+    filler: bool | None = None          # filler ads (space given to fill a page)
     # Ranges
     value_min: float | None = None
     value_max: float | None = None
@@ -156,6 +157,8 @@ def conditions(q: OrderQuery) -> list:
         c.append(SalesOrder.import_warning.isnot(None))
     elif q.has_warning is False:
         c.append(SalesOrder.import_warning.is_(None))
+    if q.filler is not None:
+        c.append(SalesOrder.filler.is_(q.filler))
     if q.value_min is not None:
         c.append(SalesOrder.value_gbp >= q.value_min)
     if q.value_max is not None:
@@ -247,7 +250,7 @@ def facets(db: Session, q: OrderQuery) -> dict[str, dict[str, int]]:
 
     # Yes/no filters: counted by applying each answer, so a count always
     # equals what ticking it would show.
-    for attr in ("invoiced", "linked", "has_warning"):
+    for attr in ("invoiced", "linked", "has_warning", "filler"):
         out[attr] = {}
         for answer in (True, False):
             sub = base(replace(q, **{attr: answer}), SalesOrder.id).subquery()

@@ -39,7 +39,8 @@ export function DealSettingsButton({ settings }: { settings: DealSettings }) {
               <Input value={s.production_emails} onChange={set("production_emails")} disabled={!s.can_edit} placeholder="production@bmipublishing.co.uk" className="h-8 text-sm" />
               <span className="font-normal text-[11px]">Every confirmation that&apos;s emailed from BMI Brain copies these addresses. Separate several with commas.</span></label>
             <label className={labelCls}>Accounts - always copied on confirmations
-              <Input value={s.accounts_emails} onChange={set("accounts_emails")} disabled={!s.can_edit} placeholder="samantha.elmer@bmipublishing.co.uk" className="h-8 text-sm" /></label>
+              <Input value={s.accounts_emails} onChange={set("accounts_emails")} disabled={!s.can_edit} placeholder="samantha.elmer@bmipublishing.co.uk" className="h-8 text-sm" />
+              <span className="font-normal text-[11px]">These addresses also get each new booking by email as soon as it&apos;s created, with its confirmation attached (sent from the automation mailbox).</span></label>
             <label className={labelCls}>Footer<Textarea rows={3} value={s.footer} onChange={set("footer")} disabled={!s.can_edit} className="text-sm" /></label>
           </div>
           {s.can_edit && (

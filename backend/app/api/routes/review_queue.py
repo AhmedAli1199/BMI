@@ -63,14 +63,14 @@ def _apply_scope(stmt, identity: Identity, db: Session | None = None):
     visible_kinds = _visible_kinds(identity, db)
     if visible_kinds is not None:
         stmt = stmt.where(ReviewQueueItem.kind.in_(visible_kinds))
-        # A renewal is the job of the rep who sold it last time: a salesperson sees only their own.
-        if identity.user_uuid:
+        # A renewal (or an allocation reminder) is the job of the rep who sold it: a salesperson sees only their own.
+        if identity.user_uuid and identity.role == "sales":
             from app.models import SalesOrder, SalesRep
 
             mine = (select(SalesOrder.id).join(SalesRep, SalesOrder.rep_id == SalesRep.id)
                     .where(SalesRep.user_id == identity.user_uuid,
                            cast(SalesOrder.id, String) == ReviewQueueItem.payload["order_id"].astext)).exists()
-            stmt = stmt.where(or_(ReviewQueueItem.kind != "renewal_due", mine,
+            stmt = stmt.where(or_(ReviewQueueItem.kind.notin_(("renewal_due", "allocation_due")), mine,
                                   ReviewQueueItem.payload["owner_user_id"].astext == str(identity.user_uuid)))
 
     if db is not None:

@@ -30,7 +30,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
     ...(o.deal ? [["Order", <Link key="d" href={`/sales/deals/${o.deal.id}`} className="font-semibold text-primary hover:underline">{o.deal.label}</Link>] as [string, React.ReactNode]] : []),
     ...(o.item_date ? [["Runs on", fmtDate(o.item_date)] as [string, React.ReactNode]] : []),
     ...(o.copy_due ? [["Copy due", fmtDate(o.copy_due)] as [string, React.ReactNode]] : []),
-    ["Value", <span key="v" className="font-semibold tabular-nums">{o.added_value ? "Free (added value)" : fmtGBP(o.value_gbp)}</span>],
+    ["Value", <span key="v" className="font-semibold tabular-nums">{o.added_value ? "Free (added value)" : fmtGBP(o.value_gbp)}{o.filler && <span className="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">Filler ad</span>}</span>],
     [
       "Invoice",
       o.invoice_number ? (

@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
@@ -41,6 +41,7 @@ class PlacementIn(BaseModel):
     copy_due: date | None = None
     note: str | None = Field(default=None, max_length=300)
     booked_on: date | None = None
+    tba: bool = False            # sold, but the issue is still to be decided ("to be allocated")
 
 
 class LineIn(BaseModel):
@@ -56,6 +57,7 @@ class LineIn(BaseModel):
     discount_pct: float = Field(default=0, ge=0, le=1)
     added_value: bool = False
     share_gbp: float | None = Field(default=None, ge=0)          # package split "manual": this line's share
+    allocate_by: date | None = None                              # when the items still to be allocated must be decided
     placements: list[PlacementIn] = Field(default_factory=list, max_length=60)
 
 
@@ -187,7 +189,9 @@ def _lines_in(p: DealIn) -> list[dict]:
     for ln in p.lines:
         d = ln.model_dump(mode="json")
         d["key"] = d.get("key") or uuid.uuid4().hex[:12]
-        d["placements"] = [{k: v for k, v in pl.items() if v is not None} for pl in d["placements"]]
+        d["placements"] = [{k: v for k, v in pl.items() if v is not None and not (k == "tba" and not v)} for pl in d["placements"]]
+        if not d.get("allocate_by"):
+            d.pop("allocate_by", None)
         out.append(d)
     return out
 
@@ -220,6 +224,16 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
             o = by_id.get(str(pl.get("order_id")))
             ed = eds.get(o.edition_id) if o else None
             t = titles.get(ed.title_id) if ed else None
+            if dl.is_unallocated(pl):
+                lt = titles.get(uuid.UUID(str(ln["title_id"]))) if ln.get("title_id") else None
+                schedule.append({
+                    "order_id": None, "line": ln["key"], "description": ln.get("description") or ln.get("size") or "",
+                    "edition_id": None, "edition": None, "title": lt.name if lt else None, "runs_on": None, "ad_deadline": None,
+                    "copy_due": None, "value_gbp": pl["value_gbp"], "agency_gbp": pl["agency_gbp"], "added_value": bool(ln.get("added_value")),
+                    "status": None, "invoice_number": None, "xero_state": None, "booked_on": None, "published": False,
+                    "ready_to_invoice": False, "to_allocate": True, "allocate_by": ln.get("allocate_by"),
+                })
+                continue
             runs = (o.item_date if o and o.item_date else (ed.edition_date if ed else None))
             row = {
                 "order_id": str(o.id) if o else None, "line": ln["key"], "description": ln.get("description") or ln.get("size") or "",
@@ -255,7 +269,9 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "totals": {"gross_gbp": pr.gross_gbp, "discount_gbp": pr.discount_gbp, "total_gbp": pr.total_gbp, "agency_gbp": pr.agency_gbp,
                    "payable_gbp": pr.payable_gbp, "rate_card_gbp": pr.rate_card_gbp, "added_value_gbp": pr.added_value_gbp,
                    "off_rate_card_pct": pr.off_rate_card_pct, "invoiced_gbp": round(invoiced, 2),
-                   "to_invoice_gbp": round(sum(r["value_gbp"] for r in schedule if r["ready_to_invoice"]), 2)},
+                   "to_invoice_gbp": round(sum(r["value_gbp"] for r in schedule if r["ready_to_invoice"]), 2),
+                   "unallocated_gbp": float(d.unallocated_gbp or 0), "unallocated_count": int(d.unallocated_count or 0)},
+        "allocate_by": d.allocate_by.isoformat() if d.allocate_by else None,
         "schedule": schedule, "warnings": list(dict.fromkeys(warnings)),
         "insertions": dl.insertions_text(db, d),
         "proposal_id": str(d.proposal_id) if d.proposal_id else None, "rebooked_from_id": str(d.rebooked_from_id) if d.rebooked_from_id else None,
@@ -294,7 +310,7 @@ def _check_out(db: Session, d: SalesDeal) -> dict | None:
 @router.get("")
 def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_id: list[uuid.UUID] = Query(default=[]),
                title_id: list[uuid.UUID] = Query(default=[]), company_id: uuid.UUID | None = None, year: int | None = None,
-               mine: bool = False, sort: str = "number", desc: bool = True, limit: int = Query(default=50, le=200), offset: int = 0,
+               mine: bool = False, to_allocate: bool = False, sort: str = "number", desc: bool = True, limit: int = Query(default=50, le=200), offset: int = 0,
                db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     stmt = select(SalesDeal)
     if q and q.strip():
@@ -315,13 +331,17 @@ def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_
                                            .where(SalesEdition.title_id.in_(title_id))))
     if company_id:
         stmt = stmt.where(SalesDeal.company_id == company_id)
+    if to_allocate:
+        stmt = stmt.where(SalesDeal.unallocated_count > 0, SalesDeal.status != "cancelled")
     if year:
         stmt = stmt.where(func.extract("year", SalesDeal.booked_on) == year)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     live = stmt.where(SalesDeal.status != "cancelled").subquery()
-    value = float(db.scalar(select(func.coalesce(func.sum(live.c.total_gbp), 0))) or 0) if total else 0.0
-    col = {"number": SalesDeal.number, "client": func.lower(SalesDeal.client_name), "value": SalesDeal.total_gbp, "booked": SalesDeal.booked_on}.get(sort, SalesDeal.number)
-    rows = db.scalars(stmt.order_by(col.desc() if desc else col.asc(), SalesDeal.number.desc()).limit(limit).offset(offset)).all()
+    value, unallocated, waiting = db.execute(select(func.coalesce(func.sum(live.c.total_gbp), 0), func.coalesce(func.sum(live.c.unallocated_gbp), 0),
+                                                    func.count().filter(live.c.unallocated_count > 0))).one() if total else (0, 0, 0)
+    col = {"number": SalesDeal.number, "client": func.lower(SalesDeal.client_name), "value": SalesDeal.total_gbp, "booked": SalesDeal.booked_on,
+           "allocate_by": SalesDeal.allocate_by}.get(sort, SalesDeal.number)
+    rows = db.scalars(stmt.order_by(col.desc().nulls_last() if desc else col.asc().nulls_last(), SalesDeal.number.desc()).limit(limit).offset(offset)).all()
     ids = [d.id for d in rows]
     span = {r[0]: r[1:] for r in db.execute(
         select(SalesOrder.deal_id, func.count(), func.min(func.coalesce(SalesOrder.item_date, SalesEdition.edition_date)),
@@ -337,8 +357,11 @@ def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_
                       "booked_on": d.booked_on.isoformat(), "total_gbp": float(d.total_gbp or 0), "items": n,
                       "first": first.isoformat() if first else None, "last": last.isoformat() if last else None,
                       "invoiced_gbp": float(invoiced or 0), "sent_at": d.sent_at.isoformat() if d.sent_at else None,
-                      "po_number": d.po_number, "agency_name": d.agency_name})
-    return {"items": items, "total": total, "total_value_gbp": round(value, 2)}
+                      "po_number": d.po_number, "agency_name": d.agency_name,
+                      "unallocated_count": int(d.unallocated_count or 0), "unallocated_gbp": float(d.unallocated_gbp or 0),
+                      "allocate_by": d.allocate_by.isoformat() if d.allocate_by else None})
+    return {"items": items, "total": total, "total_value_gbp": round(float(value), 2),
+            "unallocated_gbp": round(float(unallocated), 2), "unallocated_bookings": int(waiting)}
 
 
 @router.get("/prefill")
@@ -505,12 +528,15 @@ def _save(db: Session, d: SalesDeal, p: DealIn, identity: Identity) -> list[str]
         raise HTTPException(422, str(exc)) from exc
     d.lines = [{k: v for k, v in ln.items()} for ln in pr.lines]
     d.total_gbp = pr.total_gbp
+    dl.set_allocation(d, pr.lines)
+    from app.automations import allocations
+    allocations.settle(db, d)
     d.updated_at = datetime.now(timezone.utc)
     return notes
 
 
 @router.post("", status_code=201)
-def create_deal(p: DealIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+def create_deal(p: DealIn, background: BackgroundTasks, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     d = SalesDeal(id=uuid.uuid4(), number=dl.next_number(db), status=p.status, created_by_user_id=identity.user_uuid, lines=[], split=[])
     if p.proposal_id and not db.get(Proposal, p.proposal_id):
         raise HTTPException(422, "That proposal no longer exists.")
@@ -523,7 +549,9 @@ def create_deal(p: DealIn, db: Session = Depends(get_db), identity: Identity = D
     db.add(d)
     notes = _save(db, d, p, identity)
     oc.request_check(db, d)
+    acc.tell_accounts_new(db, d, identity.user_uuid)
     db.commit()
+    background.add_task(acc.email_new_booking, d.id)
     return {**_out(db, d, identity), "notes": notes}
 
 
@@ -584,7 +612,7 @@ def request_change(deal_id: uuid.UUID, p: ChangeRequestIn, db: Session = Depends
     for u in acc.accounts_people(db):
         from app.services.notify import create_notification
         create_notification(db, u.id, "booking_change", f"Change requested on booking {d.number}", p.reason.strip(),
-                            link="/review-queue?kind=booking_change", email=False)
+                            link="/automations/review?kind=booking_change", email=False)
     db.commit()
     return _out(db, d, identity)
 
@@ -666,7 +694,7 @@ def rebook(deal_id: uuid.UUID, year: int | None = None, db: Session = Depends(ge
     years = [e.year for e in eds if e]
     target = year or ((max(years) + 1) if years else date.today().year + 1)
     lines, notes = dl.rebook_lines(db, src, target)
-    if any(not p.get("edition_id") for ln in lines for p in ln["placements"]):
+    if any(not p.get("edition_id") and not dl.is_unallocated(p) for ln in lines for p in ln["placements"]):
         return {"id": None, "lines": lines, "notes": notes, "needs_issues": True, "year": target}
     d = SalesDeal(id=uuid.uuid4(), number=dl.next_number(db), status="pencilled", created_by_user_id=identity.user_uuid,
                   rebooked_from_id=src.id, lines=[], split=list(src.split or []))
@@ -679,6 +707,7 @@ def rebook(deal_id: uuid.UUID, year: int | None = None, db: Session = Depends(ge
     pr = dl.price_deal(d, lines)
     dl.sync_items(db, d, pr, identity.user_uuid)
     d.lines, d.total_gbp = pr.lines, pr.total_gbp
+    dl.set_allocation(d, pr.lines)
     oc.request_check(db, d)
     db.commit()
     return {**_out(db, d, identity), "notes": notes}

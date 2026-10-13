@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { Deal, DealEmailDraft, DealInput, DealIssue, DealPreview, DealSettings } from "@/lib/deals-types";
+import type { BookingForm, BookingFormInput, Deal, DealEmailDraft, DealInput, DealIssue, DealPreview, DealSettings } from "@/lib/deals-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -86,4 +86,16 @@ export async function saveDealSettings(input: Omit<DealSettings, "can_edit">): P
   const r = await backendFetch<DealSettings>("/api/sales/deals/settings", { method: "PUT", headers: json, body: JSON.stringify(input) });
   revalidatePath("/sales/deals");
   return r;
+}
+
+export async function saveBookingForm(id: string | null, input: BookingFormInput): Promise<BookingForm> {
+  const f = await backendFetch<BookingForm>(id ? `/api/sales/booking-forms/${id}` : "/api/sales/booking-forms",
+    { method: id ? "PUT" : "POST", headers: json, body: JSON.stringify(input) });
+  revalidatePath("/sales/deals");
+  return f;
+}
+
+export async function deleteBookingForm(id: string): Promise<void> {
+  await backendFetch(`/api/sales/booking-forms/${id}`, { method: "DELETE" });
+  revalidatePath("/sales/deals");
 }

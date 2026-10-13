@@ -7,6 +7,8 @@ export type DealPlacement = {
   copy_due?: string | null;
   note?: string | null;
   booked_on?: string | null;
+  /** Sold, but the issue isn't decided yet ("to be allocated"). */
+  tba?: boolean;
   value_gbp?: number;
   agency_gbp?: number;
 };
@@ -24,6 +26,8 @@ export type DealLine = {
   discount_pct: number;
   added_value: boolean;
   share_gbp?: number | null;
+  /** When the items still to be allocated must be given an issue. */
+  allocate_by?: string | null;
   placements: DealPlacement[];
   total_gbp?: number;
 };
@@ -66,12 +70,14 @@ export type DealInput = {
 export type DealTotals = {
   gross_gbp: number; discount_gbp: number; total_gbp: number; agency_gbp: number; payable_gbp: number;
   rate_card_gbp: number; added_value_gbp: number; off_rate_card_pct: number | null; invoiced_gbp: number; to_invoice_gbp: number;
+  unallocated_gbp?: number; unallocated_count?: number;
 };
 
 export type DealScheduleRow = {
   order_id: string | null; line: string; description: string; edition_id: string | null; edition: string | null; title: string | null;
   runs_on: string | null; ad_deadline: string | null; copy_due: string | null; value_gbp: number; agency_gbp: number; added_value: boolean;
   status: string | null; invoice_number: string | null; xero_state: string | null; booked_on: string | null; published: boolean; ready_to_invoice: boolean;
+  to_allocate?: boolean; allocate_by?: string | null;
 };
 
 export type Deal = Omit<DealInput, "status"> & {
@@ -84,6 +90,7 @@ export type Deal = Omit<DealInput, "status"> & {
   schedule: DealScheduleRow[];
   warnings: string[];
   insertions: string;
+  allocate_by?: string | null;
   rebooked_from_id: string | null;
   rebooked_from_number: number | null;
   confirmed_at: string | null;
@@ -106,6 +113,7 @@ export type DealListItem = {
   id: string; number: number; status: DealStatus; client_name: string; company_id: string | null; rep: string | null; booked_on: string;
   total_gbp: number; items: number; first: string | null; last: string | null; invoiced_gbp: number; sent_at: string | null;
   po_number: string | null; agency_name: string | null;
+  unallocated_count?: number; unallocated_gbp?: number; allocate_by?: string | null;
 };
 
 export type DealPreview = {
@@ -140,3 +148,12 @@ export type DealSettings = { next_number: number; company_block: string; footer:
   production_emails: string; accounts_emails: string; can_edit: boolean };
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = { pencilled: "Pencilled", confirmed: "Confirmed", cancelled: "Cancelled" };
+
+/** An online booking form (Jotform, Stova) whose entries arrive in the Review Queue as draft bookings. */
+export type BookingForm = {
+  id: string; name: string; source: "jotform" | "stova" | "other"; active: boolean;
+  title_id: string | null; edition_id: string | null; rate_id: string | null; rep_id: string | null;
+  description: string; unit_price: number | null; becomes: string; received: number; last_received_at: string | null; address: string;
+};
+
+export type BookingFormInput = Omit<BookingForm, "id" | "becomes" | "received" | "last_received_at" | "address">;
