@@ -21,6 +21,7 @@ from app.models.messaging import MailAccount, MailAttachment, MailMerge, MailMer
 from app.models.note import Note
 from app.models.opportunity import Opportunity
 from app.models.contact_tools import BulkEdit, ContactImport
+from app.models.feedback import Feedback, FeedbackImage
 from app.models.proposal import Proposal, ProposalExample, WritingProfile
 from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
@@ -33,6 +34,8 @@ __all__ = [
     "BookingForm",
     "ProposalExample",
     "WritingProfile",
+    "Feedback",
+    "FeedbackImage",
     "CallRecording",
     "CalendarAttendance",
     "CalendarConnection",

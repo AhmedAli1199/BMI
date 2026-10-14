@@ -325,6 +325,13 @@ class Settings(BaseSettings):
     # base of the Outlook sign-in redirect.
     app_base_url: str = "http://localhost:3000"
 
+    # ---- Feedback -> GitHub issues ---------------------------------------
+    # Each piece of feedback also becomes an issue in this repository ("owner/name"), screenshots included
+    # (saved on their own branch so they show in the issue). Empty repo or token = feedback stays in the app only.
+    github_feedback_repo: str = ""
+    github_feedback_token: str = ""
+    github_feedback_branch: str = "feedback-screenshots"
+
     # ---- Mail merge / "Connect Outlook" (delegated OAuth) ------------------
     # Each user signs in with Microsoft once; mail merge then sends from
     # THEIR mailbox (/me/sendMail), so messages land in their Sent Items

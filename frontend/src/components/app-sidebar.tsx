@@ -247,6 +247,18 @@ export function AppSidebar({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              {session && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/feedback" />}
+                    isActive={pathname.startsWith("/feedback")}
+                    className={NAV_ITEM}
+                  >
+                    Feedback
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

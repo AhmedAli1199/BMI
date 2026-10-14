@@ -1,3 +1,5 @@
+import { recordProblem } from "@/lib/feedback-capture";
+
 /** What a person sees when something fails. Our own API messages are plain sentences written for users
  * and are shown as they are; anything that looks technical (framework errors, status codes, stack traces,
  * database or network wording) is replaced by the plain fallback - users never see internal errors. */
@@ -16,5 +18,7 @@ export function isFriendly(message: string): boolean {
 
 export function friendlyError(e: unknown, fallback: string): string {
   const m = e instanceof Error ? e.message : typeof e === "string" ? e : "";
+  // Kept (with the real reason) for the Feedback button, so a report says what actually went wrong.
+  recordProblem("shown on screen", m && m !== fallback ? `${fallback} (${m})` : fallback);
   return m && isFriendly(m) ? m : fallback;
 }

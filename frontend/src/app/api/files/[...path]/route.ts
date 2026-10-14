@@ -19,6 +19,9 @@ const ALLOWED: RegExp[] = [
   /^sales\/deals\/[0-9a-f-]{36}\/document\.docx$/,
   /^proposals\/transcribe$/,
   /^proposal-style\/samples$/,
+  /^feedback$/,
+  /^feedback\/export$/,
+  /^feedback\/images\/[0-9a-f-]{36}$/,
   /^contact-imports$/,
   /^contact-imports\/template\.xlsx$/,
   /^contact-imports\/[0-9a-f-]{36}\/report\.xlsx$/,
@@ -49,6 +52,8 @@ async function forward(request: Request, params: Promise<{ path: string[] }>) {
   };
   const disposition = res.headers.get("Content-Disposition");
   if (disposition) outHeaders["Content-Disposition"] = disposition;
+  const cache = res.headers.get("Cache-Control");
+  if (cache) outHeaders["Cache-Control"] = cache;
   return new Response(res.body, { status: res.status, headers: outHeaders });
 }
 
