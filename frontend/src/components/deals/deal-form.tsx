@@ -71,6 +71,18 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
     return () => { live = false; };
   }, [wanted, issues]);
 
+  // A new booking's publication heading follows the titles on it, until someone types their own.
+  const autoLabel = useRef<string | null>(dealId ? null : initial.publication_label ?? null);
+  const titleNames = wanted.map((t) => titles.find((x) => x.id === t)?.name).filter(Boolean).join(" and ");
+  useEffect(() => {
+    if (dealId || !titleNames) return;
+    setF((x) => {
+      if (x.publication_label && x.publication_label !== autoLabel.current) return x;
+      autoLabel.current = titleNames;
+      return { ...x, publication_label: titleNames };
+    });
+  }, [dealId, titleNames]);
+
   // Live totals: the same sums the booking is saved with, worked out on the server.
   const priceKey = JSON.stringify([f.pricing, f.package_price_gbp, f.package_split, f.discount_pct, f.agency_pct, lines.map((l) => [l.qty, l.unit_price, l.list_price, l.discount_pct, l.added_value, l.share_gbp, l.placements.length])]);
   useEffect(() => {

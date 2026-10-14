@@ -118,3 +118,17 @@ def test_confirmations_copy_production_and_accounts(w, client):
     d = client.post("/api/sales/deals", json=_wisconsin(w), headers=h).json()
     draft = client.get(f"/api/sales/deals/{d['id']}/email-draft", headers=h).json()
     assert draft["cc"] == ["production@bmi.example", "ads@bmi.example", "samantha@bmi.example"]
+
+
+def test_new_bookings_start_with_the_standard_confirmation_wording(w, client):
+    h = w["h"]
+    cur = client.get("/api/sales/deals/settings", headers=h).json()
+    client.put("/api/sales/deals/settings", json={**cur, "production_emails": "production@bmi.example",
+                                                   "default_copy_instructions": "All insertions proofed before publication"}, headers=h)
+    pre = client.get("/api/sales/deals/prefill", headers=h).json()
+    assert pre["production_contact"] == "Production - production@bmi.example"   # nothing typed: the production address
+    assert pre["copy_instructions"] == "All insertions proofed before publication"
+    assert "special_instructions" not in pre
+    cur = client.get("/api/sales/deals/settings", headers=h).json()
+    client.put("/api/sales/deals/settings", json={**cur, "default_production_contact": "Steve Hunter - production@bmi.example"}, headers=h)
+    assert client.get("/api/sales/deals/prefill", headers=h).json()["production_contact"] == "Steve Hunter - production@bmi.example"

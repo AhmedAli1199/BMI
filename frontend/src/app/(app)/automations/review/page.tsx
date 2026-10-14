@@ -387,7 +387,7 @@ export default async function ReviewQueuePage({
           name="q"
           defaultValue={activeQuery}
           placeholder="Search by contact or company..."
-          className="w-full max-w-xs rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+          className="w-full max-w-xs rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
         />
         {activeQuery && (
           <Link

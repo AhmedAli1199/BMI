@@ -102,6 +102,10 @@ class DealSettings(Base):
     # Always copied on every confirmation that's sent (comma-separated addresses)
     production_emails: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     accounts_emails: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    # What every new booking starts with (changeable on each booking)
+    default_production_contact: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    default_copy_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    default_special_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

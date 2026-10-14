@@ -145,7 +145,8 @@ export type DealDocument = {
 export type DealEmailDraft = { to: string[]; cc: string[]; always_copied?: string[]; subject: string; body: string; outlook_connected: boolean; outlook_email: string | null };
 
 export type DealSettings = { next_number: number; company_block: string; footer: string; terms: string; artwork_specs: string;
-  production_emails: string; accounts_emails: string; can_edit: boolean };
+  production_emails: string; accounts_emails: string;
+  default_production_contact: string; default_copy_instructions: string; default_special_instructions: string; can_edit: boolean };
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = { pencilled: "Pencilled", confirmed: "Confirmed", cancelled: "Cancelled" };
 

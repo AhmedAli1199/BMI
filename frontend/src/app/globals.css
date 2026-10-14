@@ -212,6 +212,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Fields sit inside bold labels: what's typed (and the hint text) stays normal weight. */
+  input, textarea, select, input::placeholder, textarea::placeholder {
+    font-weight: 400;
+  }
   body {
     @apply bg-background text-foreground;
   }
@@ -365,3 +369,15 @@
 .rich-email th, .rich-email td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; vertical-align: top; text-align: left; }
 .rich-email th { font-weight: 700; background: var(--muted); }
 .rich-email img { max-width: 100%; height: auto; }
+
+/* The proposal as one page: headings start sections, shaded boxes are ready-made parts. */
+.proposal-page h2 { font-size: 1.05rem; margin: 1.4rem 0 0.4rem; }
+.proposal-page h2:first-child { margin-top: 0; }
+.proposal-page p { margin: 0 0 0.6rem; }
+.proposal-page .pblock { margin: 0.4rem 0 0.9rem; padding: 0.6rem 0.75rem; border: 1px dashed var(--border); border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--muted) 45%, transparent); cursor: pointer; user-select: none; }
+.proposal-page .pblock:hover { border-color: var(--primary); }
+.proposal-page .pblock-auto { cursor: default; }
+.proposal-page .pblock-auto:hover { border-color: var(--border); }
+.proposal-page .pblock-tag { margin-bottom: 0.35rem; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em; color: var(--muted-foreground); }
+.proposal-page .pblock-wait { color: var(--muted-foreground); font-size: 0.75rem; }

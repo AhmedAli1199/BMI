@@ -9,7 +9,7 @@ import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type Proposal
 import type { SalesRate, SalesTitle } from "@/lib/sales-types";
 import { ProposalLines, type EditLine } from "@/components/sales/proposal-lines";
 import { deleteProposal, finishProposal, getProposalEmailDraft, previewProposal, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
-import { ProposalSections } from "@/components/sales/proposal-sections";
+import { ProposalDocument } from "@/components/sales/proposal-document";
 import { EmailBodyView } from "@/components/mail-merge/rich-email-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,7 +205,7 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
               <EmailBodyView body={shown.html} dataImages />
             </article>
           ) : (
-            <ProposalSections proposalId={proposal.id} sections={sections} onChange={touch(setSections)} titleId={proposal.title_id} titles={titles}
+            <ProposalDocument proposalId={proposal.id} sections={sections} onChange={touch(setSections)} titleId={proposal.title_id} titles={titles}
               rates={rates} brand={proposal.brand} disabled={sent} refreshKey={`${proposal.total_gbp}-${proposal.lines.length}-${proposal.edition_id}-${proposal.discount_pct}`} />
           )}
         </section>

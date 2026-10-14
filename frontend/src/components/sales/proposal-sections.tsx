@@ -15,13 +15,13 @@ import { InfoHint } from "@/components/sales/info-hint";
 const blockLabel = (k: BlockKind) => BLOCK_OPTIONS.find((b) => b.kind === k)?.label ?? k;
 
 /** A ready-made block: shows exactly what it will say (filled from the Brain's data) and its few settings. */
-function BlockCard({ proposalId, block, onChange, titleId, rates, titles, brand, refreshKey, disabled }: {
+export function BlockCard({ proposalId, block, onChange, titleId, rates, titles, brand, refreshKey, disabled, startOpen = false }: {
   proposalId: string; block: ProposalBlock; onChange: (b: ProposalBlock) => void; titleId: string | null; rates: SalesRate[]; titles: SalesTitle[];
-  brand: string | null; refreshKey: string; disabled: boolean;
+  brand: string | null; refreshKey: string; disabled: boolean; startOpen?: boolean;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [lib, setLib] = useState<ExampleLibrary | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const cfg = JSON.stringify(block);
 
   useEffect(() => {

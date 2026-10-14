@@ -41,6 +41,15 @@ export function DealSettingsButton({ settings }: { settings: DealSettings }) {
             <label className={labelCls}>Accounts - always copied on confirmations
               <Input value={s.accounts_emails} onChange={set("accounts_emails")} disabled={!s.can_edit} placeholder="samantha.elmer@bmipublishing.co.uk" className="h-8 text-sm" />
               <span className="font-normal text-[11px]">These addresses also get each new booking by email as soon as it&apos;s created, with its confirmation attached (sent from the automation mailbox).</span></label>
+            <div className="flex flex-col gap-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs font-semibold">Filled in on every new booking</p>
+              <p className="-mt-2 text-[11px] text-muted-foreground">The salesperson can still change these on each booking.</p>
+              <label className={labelCls}>Production contact
+                <Input value={s.default_production_contact} onChange={set("default_production_contact")} disabled={!s.can_edit} placeholder="e.g. Steve Hunter - production@bmipublishing.co.uk" className="h-8 text-sm" />
+                <span className="font-normal text-[11px]">Left empty: the first production address above is used.</span></label>
+              <label className={labelCls}>Copy and artwork<Textarea rows={2} value={s.default_copy_instructions} onChange={set("default_copy_instructions")} disabled={!s.can_edit} placeholder="e.g. All insertions proofed and signed off before publication" className="text-sm" /></label>
+              <label className={labelCls}>Special instructions<Textarea rows={2} value={s.default_special_instructions} onChange={set("default_special_instructions")} disabled={!s.can_edit} className="text-sm" /></label>
+            </div>
             <label className={labelCls}>Footer<Textarea rows={3} value={s.footer} onChange={set("footer")} disabled={!s.can_edit} className="text-sm" /></label>
           </div>
           {s.can_edit && (

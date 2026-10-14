@@ -424,6 +424,17 @@ def prefill(company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = 
         out["contact_name"] = out["contact"]["label"]
         em = db.scalars(select(Email.address).where(Email.contact_id == ct.id).order_by(Email.is_primary.desc())).first()
         out["contact_email"] = em
+    # The standard confirmation wording from Confirmation details, so nobody types it each time.
+    st = dl.settings(db)
+    prod = (st.default_production_contact or "").strip() or next((f"Production - {a}" for a in _addresses(st.production_emails)), "")
+    for k, v in (("production_contact", prod), ("copy_instructions", st.default_copy_instructions),
+                 ("special_instructions", st.default_special_instructions)):
+        if (v or "").strip():
+            out[k] = v.strip()
+    tid = out.get("title_id")
+    t = db.get(SalesTitle, uuid.UUID(tid)) if tid else None
+    if t:
+        out["publication_label"] = t.name
     return out
 
 
@@ -449,6 +460,8 @@ def get_settings(db: Session = Depends(get_db), identity: Identity = Depends(get
     db.commit()
     return {"next_number": st.next_number, "company_block": st.company_block, "footer": st.footer, "terms": st.terms,
             "artwork_specs": st.artwork_specs, "production_emails": st.production_emails or "", "accounts_emails": st.accounts_emails or "",
+            "default_production_contact": st.default_production_contact or "", "default_copy_instructions": st.default_copy_instructions or "",
+            "default_special_instructions": st.default_special_instructions or "",
             "can_edit": not identity.is_known or identity.role == "admin"}
 
 
@@ -460,6 +473,9 @@ class SettingsIn(BaseModel):
     artwork_specs: str = Field(default="", max_length=5000)
     production_emails: str = Field(default="", max_length=1000)
     accounts_emails: str = Field(default="", max_length=1000)
+    default_production_contact: str = Field(default="", max_length=300)
+    default_copy_instructions: str = Field(default="", max_length=2000)
+    default_special_instructions: str = Field(default="", max_length=2000)
 
 
 def _addresses(text: str | None) -> list[str]:
