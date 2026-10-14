@@ -158,7 +158,7 @@ app.post("/api/notetaker/webhook", express.raw({ type: "application/json" }), as
 <pre><code>GET    /v1/capacity              how many more calls you could book for a time (?start=…&end=…)
 GET    /v1/meetings              your recent meetings (add ?status=completed)
 GET    /v1/meetings/{id}         one meeting, with transcript, notes and timeline
-DELETE /v1/meetings/{id}         stop the bot, or cancel one that hasn't joined yet</code></pre>
+DELETE /v1/meetings/{id}         stop: a bot in the call leaves and the notes cover the call so far; one that hasn't joined is called off</code></pre>
   <p>Full reference, with a "try it" button for every call: <a href="/docs">{{PUBLIC_URL}}/docs</a>.</p>
 
   <h2>Good to know</h2>

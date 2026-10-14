@@ -326,5 +326,8 @@ def stop_meeting(meeting_id: str, db: Session = Depends(_get_db)):
     m = db.get(Meeting, meeting_id)
     if not m:
         raise HTTPException(404, "We couldn't find that meeting.")
-    service.cancel(db, m)
+    try:
+        service.stop(db, m)
+    except Exception:
+        raise HTTPException(502, "The bot couldn't be asked to leave just now. Please try again in a minute.")
     return {"ok": True}

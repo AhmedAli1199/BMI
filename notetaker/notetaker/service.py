@@ -139,8 +139,8 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
         existing = db.scalar(select(Meeting).where(Meeting.client_id == client.id, Meeting.external_id == external_id))
         if existing and existing.status != states.CANCELLED:
             return existing, False
-        if existing:   # re-scheduling a cancelled one: start it again
-            db.delete(existing)
+        if existing:   # re-scheduling a cancelled one: keep its history, free the id for the new booking
+            existing.external_id = f"{external_id}~cancelled~{existing.id[:8]}"[:200]
             db.flush()
     platform = detect_platform(meeting_url)
     if platform == "zoom":
@@ -161,10 +161,26 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
         db.rollback()
         raise InputError("That meeting is already scheduled.")
     m.bot_id = get_bot().create(BotRequest(meeting_id=m.id, meeting_url=m.meeting_url, bot_name=m.bot_name, join_at=join_at,
-                                           chat_message=client.chat_message, dedupe_key=f"{client.id}:{external_id}" if external_id else None))
+                                           chat_message=client.chat_message, dedupe_key=f"{client.id}:{m.id}"))
     db.add(MeetingEvent(meeting_id=m.id, status=states.SCHEDULED, detail=None))
     outbox.enqueue(db, client, "meeting.status_changed", _event_payload(m, full=False), meeting_id=m.id)
     return m, True
+
+
+def stop(db: Session, m: Meeting) -> None:
+    """"Stop" from an app or the console. A bot that's already in the call leaves, and what it recorded so far
+    is still written up as usual (the meeting goes on to processing and completed). A bot that hasn't joined
+    yet is called off."""
+    if m.status in states.ACTIVE and m.bot_id:
+        try:
+            get_bot().cancel(m.bot_id)   # for a bot in the call this asks it to leave
+        except Exception:
+            log.exception("Asking bot %s to leave failed", m.bot_id)
+            raise
+        m.meta = {**(m.meta or {}), "_stopped": True}
+        db.add(MeetingEvent(meeting_id=m.id, status=m.status, detail="Asked to leave. The notes cover the call up to now."))
+        return
+    cancel(db, m)
 
 
 def cancel(db: Session, m: Meeting) -> None:

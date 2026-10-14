@@ -172,3 +172,25 @@ def test_attendee_poll_maps_state():
     bot = AttendeeBot(base_url="http://att", api_key="k", webhook_secret="", http=httpx.Client(transport=httpx.MockTransport(handler)))
     u = bot.poll("b1")
     assert u.status == states.PROCESSING and u.ready
+
+
+def test_stopping_a_bot_in_the_call_keeps_the_notes(api, client_key):
+    m = api.post("/v1/meetings", json={"meeting_url": MEET, "external_id": "evt-stop"}, headers=auth(client_key)).json()
+    with session_scope() as db:
+        bot_id = db.get(Meeting, m["id"]).bot_id
+    api.post("/hooks/fake", json={"bot_id": bot_id, "status": states.RECORDING, "key": "s1"})
+    r = api.delete(f"/v1/meetings/{m['id']}", headers=auth(client_key))
+    assert r.status_code == 200 and r.json()["status"] == "recording"      # not cancelled: it leaves and carries on
+    api.post("/hooks/fake", json={"bot_id": bot_id, "status": states.PROCESSING, "key": "s2"})
+    tick()
+    assert api.get(f"/v1/meetings/{m['id']}", headers=auth(client_key)).json()["status"] == "completed"
+
+
+def test_a_called_off_booking_can_be_booked_again(api, client_key):
+    first = api.post("/v1/meetings", json={"meeting_url": MEET, "external_id": "evt-again"}, headers=auth(client_key)).json()
+    assert api.delete(f"/v1/meetings/{first['id']}", headers=auth(client_key)).json()["status"] == "cancelled"
+    again = api.post("/v1/meetings", json={"meeting_url": MEET, "external_id": "evt-again"}, headers=auth(client_key))
+    assert again.status_code == 201, again.text
+    assert again.json()["id"] != first["id"] and again.json()["status"] == "scheduled"
+    # the old one keeps its history
+    assert api.get(f"/v1/meetings/{first['id']}", headers=auth(client_key)).json()["status"] == "cancelled"

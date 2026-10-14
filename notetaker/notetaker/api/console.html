@@ -246,12 +246,12 @@ function callDetail(m) {
   const n = m.notes, live = ["scheduled", "joining", "waiting_room", "recording"].includes(m.status);
   $("#callDetail").innerHTML = `<h2>${esc(m.title || "Call")}</h2><div class="muted small"><span class="pill s-${m.status}">${esc(m.status_label)}</span> ${m.status_detail ? "· " + esc(m.status_detail) : ""} · ${esc(m.app)}</div>
     <div class="muted small">${esc(m.meeting_url)}${m.participants.length ? " · " + esc(m.participants.join(", ")) : ""}</div>
-    ${live ? `<p><button class="b g sm" id="stopCall">Stop the bot</button></p>` : ""}
+    ${live ? `<p><button class="b g sm" id="stopCall">${m.status === "scheduled" ? "Call off the bot" : "Stop recording"}</button> <span class="muted small">${m.status === "scheduled" ? "It won't join." : "The bot leaves and the notes cover the call up to now."}</span></p>` : ""}
     ${n ? `<h3>Summary</h3><p>${esc(n.summary)}</p>${n.next_step ? `<p><b>Next step:</b> ${esc(n.next_step)}</p>` : ""}${list("Key points", n.key_points)}${list("Decisions", n.decisions)}
       ${list("Action items", (n.action_items || []).map((a) => a.task + (a.owner ? " — " + a.owner : "") + (a.due ? " (" + a.due + ")" : "")))}` : ""}
     ${m.transcript.length ? `<h3>Transcript</h3><div class="tr">${m.transcript.map((u) => `<div><b>${esc(u.speaker)}:</b> ${esc(u.text)}</div>`).join("")}</div>` : ""}
     <h3>Timeline</h3><ol class="small muted">${m.timeline.map((e) => `<li>${esc(e.label)}${e.detail ? " — " + esc(e.detail) : ""} · ${when(e.at)}</li>`).join("")}</ol>`;
-  const s = $("#stopCall"); if (s) s.onclick = async () => { await api(`/admin/meetings/${m.id}`, { method: "DELETE" }).catch((e) => toast(e.message)); renderCalls(); };
+  const s = $("#stopCall"); if (s) s.onclick = async () => { await api(`/admin/meetings/${m.id}`, { method: "DELETE" }).then(() => toast(m.status === "scheduled" ? "Called off" : "Leaving the call - the notes follow in a few minutes")).catch((e) => toast(e.message)); renderCalls(); };
 }
 $("#tryForm").onsubmit = async (e) => { e.preventDefault(); $("#tryErr").textContent = "";
   try { const m = await api("/admin/meetings", { method: "POST", body: JSON.stringify({ app_id: $("#tryApp").value, meeting_url: $("#tryUrl").value.trim(), title: $("#tryTitle").value.trim() || null }) });

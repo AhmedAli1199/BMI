@@ -135,7 +135,10 @@ def get_meeting(meeting_id: str, client: Client = Depends(current_client), db: S
 @app.delete("/v1/meetings/{meeting_id}")
 def cancel_meeting(meeting_id: str, client: Client = Depends(current_client), db: Session = Depends(get_db)):
     m = _own(db, client, meeting_id)
-    service.cancel(db, m)
+    try:
+        service.stop(db, m)
+    except Exception:
+        raise HTTPException(502, "The bot couldn't be asked to leave just now. Please try again in a minute.")
     return service.meeting_view(m)
 
 
