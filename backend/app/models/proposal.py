@@ -78,3 +78,23 @@ class ProposalExample(Base, UUIDPk, TimestampMixin):
     link_ok: Mapped[bool | None] = mapped_column(Boolean)       # None = not checked yet
     checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     use_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class WritingProfile(Base, UUIDPk, TimestampMixin):
+    """How one salesperson writes proposals and replies ("Teach the Brain how you write"): built by the AI from their
+    past proposals and a note in their own words, then corrected by them. Used to draft their enquiry replies and new
+    proposals; what they keep changing in drafts is learned and shown back to them (app/proposals/style.py)."""
+    __tablename__ = "writing_profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    # [{"id", "name", "source": upload|paste|sent, "text", "added_at"}] - the past proposals it learns from
+    samples: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    notes: Mapped[str | None] = mapped_column(Text)          # "I never put prices in the first email..."
+    profile: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="draft")   # draft | ready
+    built_by: Mapped[str | None] = mapped_column(String(10))   # ai | standard
+    built_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # What the Brain noticed from their edits: [{"key", "text", "at", "active"}]
+    learned: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # The last few drafts compared with what was actually sent: [{"at", "kind", "situation", "removed", "sign_off"}]
+    edits: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)

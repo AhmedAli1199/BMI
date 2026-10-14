@@ -123,3 +123,27 @@ export type ProposalEmailDraft = {
   contact_name: string | null;
   output?: "word" | "email";
 };
+
+export type StyleItem = "free_options" | "stats" | "prices" | "issues" | "examples" | "events" | "media_pack" | "call_offer";
+export type StyleSituation = { include: StyleItem[]; opening: string; closing: string };
+/** How one salesperson writes - learned from their proposals, corrected by them. */
+export type WritingProfileData = {
+  summary: string; tone: string; length: "short" | "medium" | "long"; greeting: string; sign_off: string;
+  output: "email" | "word"; uses_tables: boolean; always: string[]; never: string[];
+  prices: { agency: string; direct_discount_pct: number; round_to: number };
+  situations: Record<string, StyleSituation>;
+};
+export type WritingProfileState = {
+  status: "draft" | "ready"; profile: WritingProfileData; built_by: "ai" | "standard" | null; built_at: string | null; notes: string;
+  samples: { id: string; name: string; source: "upload" | "paste" | "sent"; chars: number; preview: string; added_at: string | null }[];
+  learned: { key: string; text: string; at: string; active: boolean; value?: string }[]; edits: number;
+  items: Record<StyleItem, string>; situations: Record<string, string>; ai_on: boolean; mailbox: string; found?: number;
+};
+export type ProposalReportRow = {
+  user_id: string | null; name: string; received: number; replied: number; not_requests: number; waiting: number; proposals: number;
+  bookings: number; booked_gbp: number; median_hours: number | null;
+};
+export type ProposalReport = {
+  days: number; rows: ProposalReportRow[]; total: Omit<ProposalReportRow, "user_id" | "name">; by_type: Record<string, number>;
+  by_magazine: Record<string, number>; staff: boolean; people: { id: string; name: string }[];
+};

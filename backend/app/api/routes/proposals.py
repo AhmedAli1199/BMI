@@ -224,6 +224,11 @@ def _draft(db: Session, p: Proposal, *, use_ai: bool) -> None:
     if (p.context or {}).get("issue_auto") and edition:
         ctx["issue_auto"] = True
         flags.insert(0, f"We picked {ctx['issue']['label']}, the next one still open for bookings - change it if the client wants a different one.")
+    from app.proposals import style
+    prof = style.effective(db, p.created_by_user_id)
+    if prof.get("_personal"):
+        ctx["style"] = f"{prof['summary']} Tone: {prof['tone']}. Length: {prof['length']}." + (f" Never: {'; '.join(prof['never'])}." if prof["never"] else "") \
+            + (f" Always: {'; '.join(prof['always'])}." if prof["always"] else "")
     wording, by = drafting.draft_sections(ctx, p.lines, p.campaign_name, use_ai=use_ai)
     if not p.lines:
         flags.append("No products added yet - add some from the rate card so the Investment section has prices.")
@@ -255,9 +260,44 @@ def create_proposal(payload: ProposalCreate, db: Session = Depends(get_db), user
                  created_by_user_id=user.id, kind=payload.kind, discount_pct=payload.discount_pct)
     _set_lines(db, p, payload.lines, year)
     _draft(db, p, use_ai=payload.use_ai)
+    _apply_style(db, p, user)
     db.add(p)
     db.commit()
     return _out(db, p)
+
+
+_BLOCK_FOR_ITEM = {"stats": "stats", "prices": "prices", "examples": "examples", "issues": "issues", "events": "events"}
+
+
+def _apply_style(db: Session, p: Proposal, user: User, *, standard: bool = False) -> None:
+    """Shapes a new proposal the way its writer works (app/proposals/style.py): email or Word, and the ready-made
+    blocks they use, in their order, after the drafted wording. Remembers which blocks it started with, so what
+    they take out can be learned."""
+    from app.proposals import style
+    prof = style.effective(db, user.id)
+    if not prof.get("_personal") and not standard:
+        return   # no profile yet: proposals look as they always have
+    sit = style.situation(prof, "full_proposal")
+    p.output = prof["output"]
+    blocks_now = []
+    for item in sit["include"]:
+        kind = _BLOCK_FOR_ITEM.get(item)
+        if kind:
+            blocks_now.append({"id": str(uuid.uuid4()), "kind": f"block_{kind}", "heading": blocks.BLOCKS[kind] if kind != "stats" else "Key statistics",
+                               "body": "", "block": {"kind": kind, "config": {}}})
+    if blocks_now:
+        secs = list(p.sections or [])
+        at = next((i for i, x in enumerate(secs) if x.get("kind") == "next_steps"), len(secs))
+        p.sections = secs[:at] + blocks_now + secs[at:]
+    p.context = {**(p.context or {}), "initial_blocks": [b["block"]["kind"] for b in blocks_now]}
+
+
+def _learn_from(db: Session, p: Proposal, user: User) -> None:
+    from app.proposals import style
+    start = set((p.context or {}).get("initial_blocks") or [])
+    now = {(s.get("block") or {}).get("kind") for s in p.sections or [] if s.get("block")}
+    gone = [item for item, kind in _BLOCK_FOR_ITEM.items() if kind in start and kind not in now]
+    style.record_edit(db, user.id, kind="proposal", situation="full_proposal", removed=gone)
 
 
 @router.get("", response_model=list[ProposalOut])
@@ -451,6 +491,7 @@ def finish(pid: uuid.UUID, payload: FinishIn, db: Session = Depends(get_db), use
     if payload.via not in ("downloaded", "other"):
         raise HTTPException(422, "Unknown way of sending")
     _log_sent(db, p, user, payload.via, payload.follow_up_days)
+    _learn_from(db, p, user)
     db.commit()
     return _out(db, p)
 
@@ -516,6 +557,7 @@ def send_from_outlook(pid: uuid.UUID, payload: SendIn, db: Session = Depends(get
     except Exception as exc:
         raise HTTPException(502, "Outlook didn't accept the email, so nothing was sent or logged. Please try again.")
     _log_sent(db, p, user, "outlook", payload.follow_up_days, sent_to=[a.strip() for a in payload.to])
+    _learn_from(db, p, user)
     db.commit()
     return _out(db, p)
 

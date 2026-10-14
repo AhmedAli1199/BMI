@@ -149,6 +149,8 @@ def draft_sections(ctx: dict, lines: list[dict], campaign_name: str, *, use_ai: 
             f"Issue it's for (from the editorial plan - mention its date, theme and relevant features if given): {ctx.get('issue')}\n"
             f"Kind of proposal: {ctx.get('kind_label') or 'A single issue'}\nAll issues it runs in: {ctx.get('issues') or 'just the one above'}\n"
             f"Titles: {ctx.get('titles')}\nOptions and totals (if more than one, the client chooses one): {ctx.get('totals')}\n\nFACTS (the only figures you may use): {facts}")
+    if ctx.get("style"):
+        user += f"\n\nWRITE IN THIS SALESPERSON'S OWN STYLE: {ctx['style']}"
     out = llm.extract_json(SYSTEM, user, max_tokens=700, purpose="proposal_draft")
     if not isinstance(out, dict):
         return fallback, "template"

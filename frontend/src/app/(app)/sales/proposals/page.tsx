@@ -1,12 +1,15 @@
 import Link from "next/link";
-import { FileText, Library, Plus } from "lucide-react";
+import { BarChart3, FileText, Library, PenLine, Plus } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { Proposal } from "@/lib/proposals-types";
+import type { Proposal, WritingProfileState } from "@/lib/proposals-types";
 import { Button } from "@/components/ui/button";
 import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 export default async function ProposalsPage() {
-  const proposals = await backendFetch<Proposal[]>("/api/proposals").catch(() => [] as Proposal[]);
+  const [proposals, style] = await Promise.all([
+    backendFetch<Proposal[]>("/api/proposals").catch(() => [] as Proposal[]),
+    backendFetch<WritingProfileState>("/api/proposal-style").catch(() => null),
+  ]);
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
@@ -15,6 +18,12 @@ export default async function ProposalsPage() {
         description="Proposals sent as an email or as a Word document in BMI's templates. Sent ones stay here and on the client's record, with what was offered and the follow-up date."
         actions={
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href="/sales/proposals/report" />}>
+              <BarChart3 className="size-3.5" /> Report
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href="/sales/proposals/style" />}>
+              <PenLine className="size-3.5" /> How you write
+            </Button>
             <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href="/sales/proposals/examples" />}>
               <Library className="size-3.5" /> Examples library
             </Button>
@@ -24,6 +33,13 @@ export default async function ProposalsPage() {
           </div>
         }
       />
+      {style && style.status !== "ready" && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3 text-sm shadow-2xs">
+          <PenLine className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="min-w-0 flex-1">Teach the Brain how you write: show it a few of your past proposals and your drafts come out in your own style. About 10 minutes.</span>
+          <Link href="/sales/proposals/style" className="text-sm font-medium text-primary hover:underline">Start</Link>
+        </div>
+      )}
       {proposals.length === 0 ? (
         <EmptyState icon={FileText} title="No proposals yet">
           Start one from here, or from the Build a proposal button on any client&apos;s page.

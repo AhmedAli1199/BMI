@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { ExampleLibrary, Proposal, ProposalBlock, ProposalEmailDraft, ProposalExample, ProposalLine, ProposalSection, UpcomingIssue } from "@/lib/proposals-types";
+import type { ExampleLibrary, Proposal, WritingProfileData, WritingProfileState, ProposalBlock, ProposalEmailDraft, ProposalExample, ProposalLine, ProposalSection, UpcomingIssue } from "@/lib/proposals-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -112,4 +112,52 @@ export async function saveExample(id: string | null, input: Omit<ProposalExample
 
 export async function checkExampleLinks(brand: string): Promise<void> {
   await backendFetch(`/api/proposal-examples/check?brand=${encodeURIComponent(brand)}`, { method: "POST" });
+}
+
+// ---- your writing profile ------------------------------------------------------------------------------
+
+const styleRefresh = () => revalidatePath("/sales/proposals/style");
+
+export async function pasteStyleSample(name: string, text: string): Promise<WritingProfileState> {
+  const r = await backendFetch<WritingProfileState>("/api/proposal-style/samples/paste", { method: "POST", headers: json, body: JSON.stringify({ name, text }) });
+  styleRefresh();
+  return r;
+}
+
+export async function deleteStyleSample(id: string): Promise<WritingProfileState> {
+  const r = await backendFetch<WritingProfileState>(`/api/proposal-style/samples/${id}`, { method: "DELETE" });
+  styleRefresh();
+  return r;
+}
+
+export async function findStyleSamplesInSent(): Promise<WritingProfileState> {
+  const r = await backendFetch<WritingProfileState>("/api/proposal-style/find-sent", { method: "POST" });
+  styleRefresh();
+  return r;
+}
+
+export async function saveStyleNotes(notes: string): Promise<WritingProfileState> {
+  return backendFetch<WritingProfileState>("/api/proposal-style/notes", { method: "PUT", headers: json, body: JSON.stringify({ notes }) });
+}
+
+export async function buildStyleProfile(): Promise<WritingProfileState> {
+  return backendFetch<WritingProfileState>("/api/proposal-style/build", { method: "POST" });
+}
+
+export async function saveStyleProfile(profile: WritingProfileData): Promise<WritingProfileState> {
+  const r = await backendFetch<WritingProfileState>("/api/proposal-style", { method: "PUT", headers: json, body: JSON.stringify({ profile }) });
+  styleRefresh();
+  return r;
+}
+
+export async function resetStyleProfile(): Promise<WritingProfileState> {
+  const r = await backendFetch<WritingProfileState>("/api/proposal-style/reset", { method: "POST" });
+  styleRefresh();
+  return r;
+}
+
+export async function setLearned(key: string, active: boolean): Promise<WritingProfileState> {
+  const r = await backendFetch<WritingProfileState>(`/api/proposal-style/learned/${encodeURIComponent(key)}`, { method: "PUT", headers: json, body: JSON.stringify({ active }) });
+  styleRefresh();
+  return r;
 }

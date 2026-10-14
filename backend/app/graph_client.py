@@ -270,3 +270,12 @@ def list_messages_since(mailbox: str, since_iso: str, *, top: int = 50, max_page
         url, params = next_link, None  # nextLink already carries the query string
 
     return messages
+
+
+def list_sent_messages(mailbox: str, search: str, *, top: int = 25) -> list[dict]:
+    """Up to `top` messages from `mailbox`'s Sent Items matching a search ("proposal OR rates"), plain-text bodies.
+    Used to find someone's past proposals to learn their writing style. Raises GraphRequestError on failure."""
+    url = f"{GRAPH_BASE}/users/{mailbox}/mailFolders/sentitems/messages"
+    params = {"$search": f'"{search}"', "$select": "id,subject,toRecipients,sentDateTime,body", "$top": str(top)}
+    resp = _graph_get(url, params, extra_headers={"Prefer": _TEXT_BODY_PREFERENCE, "ConsistencyLevel": "eventual"})
+    return resp.json().get("value", [])

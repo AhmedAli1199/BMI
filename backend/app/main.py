@@ -33,6 +33,7 @@ from app.api.routes import (
     management,
     proposals,
     proposal_examples,
+    proposal_style,
     rate_card,
     messaging,
     publications,
@@ -115,6 +116,8 @@ api_router.include_router(integrations.router)
 api_router.include_router(management.router)
 api_router.include_router(proposals.router)
 api_router.include_router(proposal_examples.router)
+api_router.include_router(proposal_style.router)
+api_router.include_router(proposal_style.report_router)
 api_router.include_router(rate_card.router)
 api_router.include_router(editorial.router)
 api_router.include_router(calls.router)

@@ -51,20 +51,6 @@ _STRONG = re.compile(r"\b(rates?|rate ?card|media (pack|kit|info\w*)|pric(e|es|i
                      r"advertorial|sponsored content|costs?|costings?|packages?|opportunit(y|ies)|brief|budget)\b", re.I)
 _FORWARDED = re.compile(r"(-{2,}\s*forwarded message|^from:\s.+$|passed (this|it) on|forwarding (this|on))", re.I | re.M)
 
-OPENINGS = {
-    "agency_brief": "Thank you for the brief{for_client}. Below are the options that fit what you're looking for, with prices.",
-    "pr_pitch": "Thank you for getting in touch{for_client}. Pieces like this run with us as sponsored content, so here are the options and prices.",
-    "general": "Thank you for your email - it would be great to work with you{for_client}. Here's an overview of what we offer, with prices.",
-    "referral": "Lovely to be introduced. Here's a quick overview of how we could work together{for_client}, and then perhaps a Teams call "
-                "to talk through your objectives.",
-    "follow_up": "Great to speak with you. As promised, here's an overview of the options{for_client}.",
-    "existing_client": "Thank you for coming back to us. Here are the current options and prices{for_client}.",
-}
-CLOSING = ("If you let me know your budget and timings, I'll put together a package that fits. "
-           "Would a quick Teams call help to talk it through?")
-CLOSING_KNOWN = ("I'll happily shape these into a package that fits your budget and timings. "
-                 "Would a quick Teams call help to talk it through?")
-
 # What they asked for -> which rate card sections to quote
 WANTS = [
     (re.compile(r"sponsor\w* content|advertorial|interview|q ?& ?a|profile|feature|article|editorial|spotlight", re.I), ("sponsored",)),
@@ -194,47 +180,87 @@ def _first_name(name: str | None) -> str:
 
 def compose(db: Session, info: dict, title: SalesTitle | None, owner: User | None, msg_text: str, rates: list[SalesRate],
             subject: str, extra: str = "") -> tuple[str, bool]:
-    """(draft, ai_used) - plain text with **bold** and "- " bullets, the format the Review Queue edits and sends."""
+    """(draft, ai_used) - plain text with **bold** and "- " bullets, the format the Review Queue edits and sends.
+    What goes in, in what order and in whose voice comes from the owner's writing profile (app/proposals/style.py);
+    every figure comes from the rate card, editorial plan and brand facts."""
     from app.automations.llm import draft_text, is_configured
-    from app.proposals.blocks import brand_of, price_text
+    from app.proposals import examples as ex
+    from app.proposals import style
+    from app.proposals.blocks import brand_of, money, price_text
     from app.proposals.drafting import numbers_in
     from app.sales.editorial import fmt_day, issue_label
     from app.services.mail_merge import shared_context
 
+    prof = style.effective(db, owner.id if owner else None)
     kind = info.get("request_type") or "general"
+    sit = style.situation(prof, kind)
+    include = sit["include"]
     client = info.get("client_company")
-    opening = OPENINGS.get(kind, OPENINGS["general"]).format(for_client=f" on behalf of {client}" if client and info.get("agency") else "")
+    for_client = f" on behalf of {client}" if client and info.get("agency") else ""
+    opening = (sit.get("opening") or style.DEFAULT_PROFILE["situations"]["general"]["opening"]).replace("{for_client}", for_client)
     ai = False
     if is_configured():
-        got = draft_text(_OPENING_PROMPT, f"{extra}\n\nTHEIR EMAIL:\n{msg_text[:4000]}" if extra else f"THEIR EMAIL:\n{msg_text[:4000]}",
+        guide = f"Their style: {prof['tone']} {prof['summary']}" + (f" They never: {'; '.join(prof['never'])}." if prof["never"] else "")
+        got = draft_text(_OPENING_PROMPT + " " + guide, f"{extra}\n\nTHEIR EMAIL:\n{msg_text[:4000]}" if extra else f"THEIR EMAIL:\n{msg_text[:4000]}",
                          max_tokens=160, purpose="proposal_requests.opening")
         if got and not numbers_in(got) and len(got) < 600:
             opening, ai = got.strip(), True
+    b = brand_of(db, title.id) if title else None
+    facts = shared_context(db, b.key) if b else {}
     plain_subject = re.sub(r"^((re|fw|fwd):\s*)+", "", subject or "", flags=re.I)
-    parts = [f"Subject: RE: {plain_subject}".strip(), "", f"Hi {_first_name(info.get('contact_name'))},", "", opening]
-    if rates:
-        heading = f"{short_name(title)} prices" if title else "Prices"
-        parts += ["", f"**{heading} (before VAT)**"]
-        parts += [f"- {r.product}{f' ({r.specs})' if r.specs else ''}: {price_text(r)}" for r in rates]
-    if title:
-        from sqlalchemy import or_
-        from app.models import SalesEdition
-        today = date.today()
-        eds = list(db.scalars(select(SalesEdition).where(SalesEdition.title_id == title.id, SalesEdition.kind.in_(("issue", "guide")),
-                                                         SalesEdition.edition_date.isnot(None),
-                                                         or_(SalesEdition.ad_deadline >= today, SalesEdition.ad_deadline.is_(None) & (SalesEdition.edition_date >= today)))
-                              .order_by(SalesEdition.edition_date).limit(3)))
-        if eds:
-            parts += ["", "**Coming issues**"]
-            for e in eds:
-                bits = [f"out {fmt_day(e.edition_date)}" if e.edition_date else None, e.theme, f"book by {fmt_day(e.ad_deadline)}" if e.ad_deadline else None]
-                parts.append(f"- {issue_label(e)}: " + ", ".join(b for b in bits if b))
-        b = brand_of(db, title.id)
-        facts = shared_context(db, b.key) if b else {}
-        if facts.get("media_pack"):
+    greeting = prof["greeting"].replace("{first_name}", _first_name(info.get("contact_name")))
+    parts = [f"Subject: RE: {plain_subject}".strip(), "", greeting, "", opening]
+    for item in include:
+        if item == "prices" and rates:
+            direct = not info.get("agency") and prof["prices"].get("direct_discount_pct")
+            heading = f"{short_name(title)} prices" if title else "Prices"
+            parts += ["", f"**{heading} (before VAT{', our introductory rates' if direct else ''})**"]
+            for r in rates:
+                price = price_text(r)
+                if direct and r.price_gbp is not None and r.price_type != "poa":
+                    price = price.replace(money(float(r.price_gbp)), money(style.direct_price(prof, float(r.price_gbp))))
+                parts.append(f"- {r.product}{f' ({r.specs})' if r.specs else ''}: {price}")
+        elif item == "issues" and title:
+            from sqlalchemy import or_
+            from app.models import SalesEdition
+            today = date.today()
+            eds = list(db.scalars(select(SalesEdition).where(SalesEdition.title_id == title.id, SalesEdition.kind.in_(("issue", "guide")),
+                                                             SalesEdition.edition_date.isnot(None),
+                                                             or_(SalesEdition.ad_deadline >= today, SalesEdition.ad_deadline.is_(None) & (SalesEdition.edition_date >= today)))
+                                  .order_by(SalesEdition.edition_date).limit(3)))
+            if eds:
+                parts += ["", f"**{style.HEADINGS['issues']}**"]
+                for e in eds:
+                    bits = [f"out {fmt_day(e.edition_date)}" if e.edition_date else None, e.theme, f"book by {fmt_day(e.ad_deadline)}" if e.ad_deadline else None]
+                    parts.append(f"- {issue_label(e)}: " + ", ".join(x for x in bits if x))
+        elif item == "stats" and b:
+            from app.services.mail_merge import BRAND_FIELDS
+            rows = [f"- {label}: {facts[k]}" for k, (label, _x) in BRAND_FIELDS.items()
+                    if k not in ("brand", "media_pack", "video", "latest_issue") and facts.get(k)]
+            if rows:
+                parts += ["", f"**{style.HEADINGS['stats']}**", *rows]
+        elif item == "examples" and b:
+            ex.ensure_seed(db, b.key)
+            picks = ex.suggest(db, b.key, info.get("sector"), limit=5)
+            if picks:
+                parts += ["", f"**{style.HEADINGS['examples']}**", *[f"- {x.label}: {x.url}" for x in picks]]
+        elif item == "events" and b:
+            from app.models import SalesEdition
+            tids = [t.id for t in db.scalars(select(SalesTitle).where(SalesTitle.slug.in_(b.title_slugs)))]
+            evs = list(db.scalars(select(SalesEdition).where(SalesEdition.title_id.in_(tids), SalesEdition.kind.in_(("event", "awards")),
+                                                             SalesEdition.edition_date >= date.today()).order_by(SalesEdition.edition_date).limit(4)))
+            if evs:
+                parts += ["", f"**{style.HEADINGS['events']}**", *[f"- {e.name}, {fmt_day(e.edition_date)}" for e in evs]]
+        elif item == "free_options":
+            parts += ["", f"**{style.HEADINGS['free_options']}**",
+                      "- Send us your news (new partnerships, people joining) for the weekly newsletter - it's free.",
+                      "- Comment in our features: if one in the features list fits, let me know and I'll put you in touch with the writer."]
+        elif item == "media_pack" and facts.get("media_pack"):
             parts += ["", f"Everything is in our media pack: {facts['media_pack']}"]
-    sign = ((owner.name if owner else "") or "").split(" ")[0]
-    parts += ["", CLOSING_KNOWN if (info.get("budget") or info.get("timing")) else CLOSING, "", "Kind regards,", sign]
+    closing = sit.get("closing") if "call_offer" in include else ""
+    if closing:
+        parts += ["", closing]
+    parts += ["", style.sign_off(prof, owner)]
     return "\n".join(parts).strip(), ai
 
 
@@ -428,6 +454,9 @@ def _send(db: Session, item: ReviewQueueItem, input_data: dict) -> None:
         raise ValueError("Outlook is asking us to slow down - try again in a minute.") from exc
     except RuntimeError as exc:
         raise ValueError("Outlook didn't accept the email, so nothing was sent. Please try again.") from exc
+    from app.proposals import style
+    style.record_edit(db, uuid.UUID(actor), kind="reply", situation=(p.get("request") or {}).get("request_type"),
+                      drafted=p.get("original_text"), sent=draft)
     contact, company = _crm_records(db, item)
     target = ("contact", contact.id) if contact else ("company", company.id) if company else (None, None)
     if target[0]:
@@ -459,12 +488,15 @@ def make_proposal(db: Session, item: ReviewQueueItem, input_data: dict) -> uuid.
     except Exception as exc:   # an HTTPException from the builder carries a plain reason
         raise ValueError(getattr(exc, "detail", None) or "The proposal couldn't be started. Try again from Proposals.") from exc
     prop = db.get(Proposal, out.id)
+    if not any(s.get("block") for s in prop.sections or []):
+        from app.api.routes.proposals import _apply_style
+        _apply_style(db, prop, user, standard=True)   # from a request: the standard blocks even without a profile
     sector = (p.get("request") or {}).get("sector")
-    extra = [{"id": str(uuid.uuid4()), "kind": "block_issues", "heading": "Coming issues", "body": "", "block": {"kind": "issues", "config": {}}},
-             {"id": str(uuid.uuid4()), "kind": "block_examples", "heading": "Examples of our work", "body": "",
-              "block": {"kind": "examples", "config": {"sector": sector} if sector else {}}}]
-    prop.sections = [*(prop.sections or []), *extra]
-    prop.output, prop.request_item_id = "email", item.id
+    # The writer's own blocks are already in (their profile); point the examples at the client's sector.
+    if sector:
+        prop.sections = [{**s, "block": {**s["block"], "config": {**(s["block"].get("config") or {}), "sector": sector}}}
+                         if (s.get("block") or {}).get("kind") == "examples" else s for s in prop.sections or []]
+    prop.request_item_id = item.id
     item.payload = {**p, "proposal_id": str(prop.id), "open_href": f"/sales/proposals/{prop.id}",
                     "details": [{"label": "Proposal draft", "value": prop.campaign_name, "href": f"/sales/proposals/{prop.id}"}, *p["details"]]}
     return prop.id
