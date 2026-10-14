@@ -36,6 +36,9 @@ export type MailStatus = {
   last_error: string | null;
   automation_mailbox: string | null;
   automation_mailbox_ready: boolean;
+  automation_mailbox_state?: "not_set" | "not_connected" | "reconnect" | "ready";
+  /** This person's own Outlook connection is the automation mailbox. */
+  this_is_automation_mailbox?: boolean;
   per_minute: number;
 };
 

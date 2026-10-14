@@ -44,12 +44,12 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="automations_notification_email_enabled", label="Email notifications",
-        description="Emails notifications from the automation mailbox (needs the mailbox below and Mail.Send on the app registration).",
+        description="Emails notifications from the automation mailbox (needs the mailbox below, connected in Settings > Email).",
         group="Reminders & Notifications", type="bool",
     ),
     AutomationSettingDef(
         key="automation_mailbox", label="Automation mailbox",
-        description="The shared mailbox notification emails are sent from, e.g. automation@bmipublishing.co.uk. Empty = in-app only.",
+        description="The mailbox automatic emails are sent from, e.g. automation@bmipublishing.co.uk. Sign in to Settings > Email as this mailbox (best from its own BMI Brain login) to connect it. Empty = in-app only.",
         group="Reminders & Notifications", type="text",
     ),
     AutomationSettingDef(

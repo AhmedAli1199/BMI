@@ -109,14 +109,21 @@ export function OutlookConnectionCard({ status }: { status: MailStatus | null })
             the page - it keeps sending.
           </p>
           <p className="mt-1.5">
-            <strong className="text-foreground">Notification emails</strong> (reminders and alerts) come from{" "}
-            {status.automation_mailbox_ready ? (
+            <strong className="text-foreground">Automatic emails</strong> (reminders, alerts, new bookings to accounts) come from{" "}
+            {status.automation_mailbox_state === "ready" ? (
               <span className="font-mono">{status.automation_mailbox}</span>
+            ) : status.automation_mailbox_state === "reconnect" ? (
+              <><span className="font-mono">{status.automation_mailbox}</span>, but its connection has expired. Sign in to BMI Brain as that mailbox and reconnect it here. Until then they appear under the bell only</>
+            ) : status.automation_mailbox_state === "not_connected" ? (
+              <><span className="font-mono">{status.automation_mailbox}</span> once it&apos;s connected: sign in to BMI Brain with that mailbox&apos;s own login and connect Outlook here. Until then they appear under the bell only</>
             ) : (
-              <>the automation mailbox once it&apos;s set up - until then they appear under the bell only</>
+              <>the automation mailbox once it&apos;s set up. Until then they appear under the bell only</>
             )}
             .
           </p>
+          {status.this_is_automation_mailbox && (
+            <p className="mt-1.5 font-medium text-foreground">This is the automation mailbox: BMI Brain sends its automatic emails through this connection.</p>
+          )}
         </div>
       </CardContent>
     </Card>

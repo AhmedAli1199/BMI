@@ -55,9 +55,7 @@ a record of what was decided and why.
       redirect URI `{APP_BASE_URL}/api/outlook/callback`, delegated Mail.Send,
       User.Read and offline_access, and grant admin consent. Blocks sending
       mail merges and renewal emails from reps' own mailboxes.
-- [ ] **Automation mailbox (e.g. automation@) + Mail.Send restricted to it** by
-      an Exchange Application Access Policy. Blocks emailed reminders, the
-      weekly management summary and alerts by email.
+- [x] **Automation mailbox:** automation@bmipublishing.co.uk set up; it connects through its own login and the delegated Mail.Send already granted, so no extra IT permission is needed.
 - [ ] **Xero API access and which organisation(s).** (SALES-026 dashboard,
       spec §6 item 6.) Without it the dashboard shows booked value only, not
       invoiced/paid.

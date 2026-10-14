@@ -73,7 +73,7 @@ def email_new_booking(deal_id: uuid.UUID) -> None:
     from app.core.config import settings as app_settings
     from app.db.session import SessionLocal
     from app.sales import deals as dl
-    from app.services.notify import automation_mailbox, automation_mailbox_ready, send_from_automation_mailbox
+    from app.services.notify import automation_mailbox_ready, send_automation_email
 
     db = SessionLocal()
     try:
@@ -94,7 +94,7 @@ def email_new_booking(deal_id: uuid.UUID) -> None:
                 f"£{float(d.total_gbp or 0):,.2f} before VAT ({html.escape(d.status)}).</p><ul>{rows}</ul>{waiting}"
                 f"<p><a href=\"{link}\">Open the booking</a>. The {kind.lower()} is attached.</p>")
         data = dl.build_docx(doc)
-        send_from_automation_mailbox(automation_mailbox(db), to, f"New booking {d.number}: {d.client_name}", body,
+        send_automation_email(db, to, f"New booking {d.number}: {d.client_name}", body,
                                      attachments=[(f"{kind} {d.number}.docx",
                                                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)])
     except Exception:

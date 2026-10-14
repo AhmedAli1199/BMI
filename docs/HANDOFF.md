@@ -394,7 +394,7 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 
 ## 7. Waiting on BMI (keep `docs/bmi-open-questions.md` in sync)
 1. **IT – Outlook sending:** on the existing app registration add redirect `https://<domain>/api/outlook/callback`, delegated `Mail.Send`, `User.Read`, `offline_access`, grant admin consent.
-2. **IT – automation@ shared mailbox** + app-only Mail.Send restricted by an Application Access Policy to that mailbox.
+2. **Automation mailbox (done differently, 14 Oct):** no application permission needed. automation@bmipublishing.co.uk has its own BMI Brain login (`scripts/seed_team.py`); sign in as it, Settings → Email → Connect Outlook, and set Automations → Settings → "Automation mailbox". `app/services/notify.py` `send_automation_email` finds the Outlook connection whose address matches and sends with the normal delegated Mail.Send. If the connection ever expires, Settings → Email says so; reconnect it the same way.
 3. **Teams incoming webhook** (summaries/alerts).
 4. **Xero app** registered at developer.xero.com (client id/secret).
 5. **Rate card:** media packs received and loaded for all three brands (§3.8); BMI to confirm the items marked "please check" and whether prices are before VAT.

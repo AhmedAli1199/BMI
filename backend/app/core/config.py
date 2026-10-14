@@ -314,6 +314,7 @@ class Settings(BaseSettings):
     # the Mail.Send application permission - restrict it to this one mailbox
     # with an Exchange Application Access Policy. Empty = in-app only.
     automation_mailbox: str = ""
+    automation_mailbox_app_only: bool = False   # only if IT grants application Mail.Send; normally it sends through its connected Outlook
     # Public URL of the frontend - used for links inside emails and as the
     # base of the Outlook sign-in redirect.
     app_base_url: str = "http://localhost:3000"

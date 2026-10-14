@@ -108,12 +108,18 @@ def test_reminder_fires_once_and_emails(client, db_session, people, monkeypatch)
     note = db_session.query(Notification).filter_by(user_id=me.id).one()
     note.email_status = "pending"
     db_session.flush()
+    # With the automation mailbox connected (someone signed in to Settings > Email as it), it sends through that connection.
+    from app.models import MailAccount
+    from app.services import outlook
+    bot = make_user(db_session)
+    db_session.add(MailAccount(user_id=bot.id, email="Automation@bmi.test", refresh_token_enc="x"))
+    db_session.flush()
     sent = []
-    monkeypatch.setattr(notify, "automation_mailbox_ready", lambda db: True)
     monkeypatch.setattr(notify, "automation_mailbox", lambda db: "automation@bmi.test")
-    monkeypatch.setattr(notify, "send_from_automation_mailbox", lambda mb, to, subj, body: sent.append((mb, to, subj)))
+    monkeypatch.setattr(outlook, "send_mail", lambda db, acct, *, to, subject, html_body, attachments=None, **kw: sent.append((acct.email, to, subject)))
+    assert notify.automation_mailbox_ready(db_session)
     assert notify.send_pending_emails(db_session) == (1, 0, 0)
-    assert sent == [("automation@bmi.test", me.email, "Reminder: Amy Zed")]
+    assert sent == [("Automation@bmi.test", [me.email], "Reminder: Amy Zed")]
 
     client.post("/api/notifications/read-all", headers=h)
     assert client.get("/api/notifications/unread-count", headers=h).json() == {"unread": 0}

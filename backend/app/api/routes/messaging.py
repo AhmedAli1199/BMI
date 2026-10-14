@@ -211,6 +211,9 @@ class MailStatus(BaseModel):
     last_error: str | None = None
     automation_mailbox: str | None = None
     automation_mailbox_ready: bool = False
+    # not_set | not_connected | reconnect | ready - and whether this person's own connection is that mailbox
+    automation_mailbox_state: str = "not_set"
+    this_is_automation_mailbox: bool = False
     per_minute: int = 25
 
 
@@ -218,12 +221,17 @@ class MailStatus(BaseModel):
 def mail_status(db: Session = Depends(get_db), user: User = Depends(current_user)):
     from app.automations.runtime_settings import get_int
 
+    from app.services.notify import automation_account
+
     acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id))
+    box, auto = automation_mailbox(db), automation_account(db)
+    state = "not_set" if not box else "reconnect" if auto and auto.last_error else "ready" if automation_mailbox_ready(db) else "not_connected"
     return MailStatus(
         configured=outlook.is_configured(), connected=bool(acct), email=acct.email if acct else None,
         display_name=acct.display_name if acct else None, connected_at=acct.connected_at if acct else None,
         needs_reconnect=bool(acct and acct.last_error), last_error=acct.last_error if acct else None,
-        automation_mailbox=automation_mailbox(db) or None, automation_mailbox_ready=automation_mailbox_ready(db),
+        automation_mailbox=box or None, automation_mailbox_ready=automation_mailbox_ready(db),
+        automation_mailbox_state=state, this_is_automation_mailbox=bool(acct and box and acct.email.lower() == box.lower()),
         per_minute=get_int(db, "mail_merge_per_minute"),
     )
 

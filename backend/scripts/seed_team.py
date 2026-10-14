@@ -8,7 +8,9 @@ this script deliberately never re-prints or logs a password for someone
 who already exists.
 
 Usage (run against whichever DATABASE_URL is currently set):
-    python -m scripts.seed_team
+    python -m scripts.seed_team                      # everyone in the roster
+    python -m scripts.seed_team samantha.elmer@bmipublishing.co.uk automation@bmipublishing.co.uk
+                                                     # only these people - leaves everyone else as they are
 """
 import os
 import secrets
@@ -47,7 +49,16 @@ ROSTER = [
     ("Sue Williams", "sue.williams@onboardhospitality.com", "sales",
      [("onboard", None)]),
     ("Clare Hunter", "clare.hunter@bmipublishing.co.uk", "admin", []),  # admin needs no access rows
+    # Accounts (Matt, 14 Oct): checks every booking and approves changes - see ACCOUNTS below.
+    ("Samantha Elmer", "samantha.elmer@bmipublishing.co.uk", "data_manager",
+     [("onboard", None), ("prospects", None), ("sellingtravel", None)]),
+    # Not a person: its own login only so someone can connect its Outlook (Settings > Email), which is
+    # how BMI Brain sends automatic emails. No data access.
+    ("BMI Automation", "automation@bmipublishing.co.uk", "sales", []),
 ]
+
+# People with the Accounts permission (users.can_approve_bookings).
+ACCOUNTS = {"samantha.elmer@bmipublishing.co.uk"}
 
 
 def resolve_group_id(db, source_db: str, group_name: str):
@@ -61,16 +72,24 @@ def main() -> None:
     db = SessionLocal()
     created: list[tuple[str, str, str]] = []  # (name, email, password)
     try:
+        only = {a.lower() for a in sys.argv[1:]}
+        unknown = only - {e.lower() for _, e, _, _ in ROSTER}
+        if unknown:
+            raise SystemExit(f"Not in the roster: {', '.join(sorted(unknown))}")
         for name, email, role, access in ROSTER:
             email = email.lower()
+            if only and email not in only:
+                continue
             user = db.scalar(select(User).where(User.email == email))
             if user:
                 user.name = name
                 user.role = role
+                user.can_approve_bookings = email in ACCOUNTS
                 print(f"Updated {email} (role={role}) - password left unchanged")
             else:
                 password = secrets.token_urlsafe(12)
-                user = User(email=email, name=name, hashed_password=hash_password(password), role=role)
+                user = User(email=email, name=name, hashed_password=hash_password(password), role=role,
+                            can_approve_bookings=email in ACCOUNTS)
                 db.add(user)
                 db.flush()
                 created.append((name, email, password))

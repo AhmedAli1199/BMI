@@ -6,11 +6,12 @@ marks it email_status="pending" when an email is wanted; a separate job
 outage never loses a notification, failures are retried, and a request
 never waits on Graph.
 
-The automation mailbox (settings.automation_mailbox, e.g.
-automation@bmipublishing.co.uk) sends via the app registration's
-application Mail.Send permission: POST /users/{mailbox}/sendMail. IT
-should scope that permission to this single mailbox with an Exchange
-Application Access Policy, so the app cannot send as anyone else.
+The automation mailbox (setting automation_mailbox, e.g.
+automation@bmipublishing.co.uk) sends through its own Outlook connection:
+someone signs in to Settings > Email as that mailbox, using the same
+delegated Mail.Send permission everyone's Outlook uses, so IT doesn't need
+to grant anything extra. (Application Mail.Send still works if it's ever
+granted - set AUTOMATION_MAILBOX_APP_ONLY=true - but isn't needed.)
 """
 from __future__ import annotations
 
@@ -48,21 +49,57 @@ def automation_mailbox(db: Session) -> str:
     return (get_str(db, "automation_mailbox") or "").strip()
 
 
+def automation_account(db: Session):
+    """The automation mailbox's Outlook connection: someone signed in to Settings > Email as that mailbox
+    (ideally from its own BMI Brain login). Delegated Mail.Send, the same permission everyone's Outlook uses."""
+    from sqlalchemy import func
+
+    from app.models import MailAccount
+
+    box = automation_mailbox(db).lower()
+    if not box:
+        return None
+    return db.scalars(select(MailAccount).where(func.lower(MailAccount.email) == box)).first()
+
+
+def _app_only_ready() -> bool:
+    return bool(settings.graph_tenant_id and settings.graph_client_id and settings.graph_client_secret
+                and settings.automation_mailbox_app_only)
+
+
 def automation_mailbox_ready(db: Session) -> bool:
-    return bool(automation_mailbox(db) and settings.graph_tenant_id and settings.graph_client_id
-                and settings.graph_client_secret)
+    if not automation_mailbox(db):
+        return False
+    acct = automation_account(db)
+    return bool(acct and not acct.last_error) or _app_only_ready()
 
 
-def send_from_automation_mailbox(mailbox: str, to: str | list[str], subject: str, html_body: str,
-                                 attachments: list[tuple[str, str, bytes]] | None = None) -> None:
-    """Raises on failure (caller records the error). `attachments`: (file name, content type, bytes)."""
+def send_automation_email(db: Session, to: str | list[str], subject: str, html_body: str,
+                          attachments: list[tuple[str, str, bytes]] | None = None) -> None:
+    """Sends from the automation mailbox. Raises on failure (the caller records the error).
+    `attachments`: (file name, content type, bytes)."""
+    recipients = [to] if isinstance(to, str) else list(to)
+    acct = automation_account(db)
+    if acct:
+        from app.services import outlook
+
+        outlook.send_mail(db, acct, to=recipients, subject=subject, html_body=html_body, attachments=attachments)
+        return
+    if not _app_only_ready():
+        raise RuntimeError("The automation mailbox isn't connected. Sign in to Settings > Email as that mailbox.")
+    _send_app_only(automation_mailbox(db), recipients, subject, html_body, attachments)
+
+
+def _send_app_only(mailbox: str, to: list[str], subject: str, html_body: str,
+                   attachments: list[tuple[str, str, bytes]] | None = None) -> None:
+    """Only if IT ever grants application Mail.Send (AUTOMATION_MAILBOX_APP_ONLY=true); not needed otherwise."""
     import base64
 
     from app.graph_client import get_app_token
 
     token = get_app_token()
     msg = {"subject": subject, "body": {"contentType": "HTML", "content": html_body},
-           "toRecipients": [{"emailAddress": {"address": a}} for a in ([to] if isinstance(to, str) else to)]}
+           "toRecipients": [{"emailAddress": {"address": a}} for a in to]}
     if attachments:
         msg["attachments"] = [{"@odata.type": "#microsoft.graph.fileAttachment", "name": n, "contentType": ct,
                                "contentBytes": base64.b64encode(data).decode()} for n, ct, data in attachments]
@@ -107,7 +144,7 @@ def send_pending_emails(db: Session, limit: int = 50) -> tuple[int, int, int]:
             skipped += 1
         else:
             try:
-                send_from_automation_mailbox(automation_mailbox(db), user.email, n.title, notification_email_html(n))
+                send_automation_email(db, user.email, n.title, notification_email_html(n))
                 n.email_status, n.email_error = "sent", None
                 sent += 1
             except Exception as exc:  # retried next run until too old
