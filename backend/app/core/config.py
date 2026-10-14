@@ -168,6 +168,12 @@ class Settings(BaseSettings):
     # business-role decision, not just "whatever IT gave Graph access to".
     automations_email_summary_scan_enabled: bool = False
     graph_email_summary_mailboxes: str = ""
+    # Proposal requests (app/automations/proposal_requests.py): enquiries for prices or a proposal, with a drafted reply.
+    automations_proposal_requests_enabled: bool = False
+    proposal_request_mailboxes: str = ""          # e.g. kirsty.hicks@bmipublishing.co.uk - start with one person
+    proposal_request_lookback_minutes: int = 1440
+    proposal_request_llm_max_per_run: int = 30
+    automations_proposal_example_check_enabled: bool = True   # weekly check that the examples library's links still work
     email_summary_max_recipients: int = 3  # drop anything with more people on the thread - group mail, not 1:1 sales talk
     email_summary_min_body_chars: int = 40  # drop pure one-line acks ("Thanks!") - nothing there to extract
     email_summary_initial_lookback_minutes: int = 1440

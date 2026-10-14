@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { Proposal, ProposalEmailDraft, ProposalLine, ProposalSection, UpcomingIssue } from "@/lib/proposals-types";
+import type { ExampleLibrary, Proposal, ProposalBlock, ProposalEmailDraft, ProposalExample, ProposalLine, ProposalSection, UpcomingIssue } from "@/lib/proposals-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -31,7 +31,7 @@ export async function createProposal(input: {
 
 export async function saveProposal(
   id: string,
-  patch: { campaign_name?: string; template?: string; edition_id?: string | null; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null; kind?: string; discount_pct?: number }
+  patch: { campaign_name?: string; template?: string; edition_id?: string | null; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null; kind?: string; discount_pct?: number; output?: "word" | "email" }
 ): Promise<Proposal> {
   const p = await backendFetch<Proposal>(`/api/proposals/${id}`, { method: "PATCH", headers: json, body: JSON.stringify(patch) });
   refresh(p);
@@ -65,7 +65,7 @@ export async function getProposalEmailDraft(id: string): Promise<ProposalEmailDr
 
 export async function sendProposal(
   id: string,
-  input: { to: string[]; cc: string[]; subject: string; body: string; follow_up_days: number }
+  input: { to: string[]; cc: string[]; subject: string; body: string; follow_up_days: number; as_body?: boolean; attach_word?: boolean }
 ): Promise<Proposal> {
   const p = await backendFetch<Proposal>(`/api/proposals/${id}/send`, { method: "POST", headers: json, body: JSON.stringify(input) });
   refresh(p);
@@ -86,4 +86,30 @@ export async function reviseProposal(id: string, instruction: string, sections: 
   });
   refresh(r.proposal);
   return r;
+}
+
+/** The proposal exactly as it goes out (blocks filled in), and anything that may not show well in an email. */
+export async function previewProposal(id: string): Promise<{ html: string; warnings: string[] }> {
+  return backendFetch(`/api/proposals/${id}/preview`);
+}
+
+export async function previewBlock(id: string, block: ProposalBlock): Promise<string> {
+  const r = await backendFetch<{ html: string }>(`/api/proposals/${id}/block-preview`, { method: "POST", headers: json, body: JSON.stringify(block) });
+  return r.html;
+}
+
+export async function getExampleLibrary(brand: string, includeArchived = false): Promise<ExampleLibrary> {
+  return backendFetch<ExampleLibrary>(`/api/proposal-examples?brand=${encodeURIComponent(brand)}${includeArchived ? "&include_archived=true" : ""}`);
+}
+
+export async function saveExample(id: string | null, input: Omit<ProposalExample, "id" | "link_ok" | "checked_at" | "use_count">): Promise<ProposalExample> {
+  const r = await backendFetch<ProposalExample>(id ? `/api/proposal-examples/${id}` : "/api/proposal-examples", {
+    method: id ? "PUT" : "POST", headers: json, body: JSON.stringify(input),
+  });
+  revalidatePath("/sales/proposals/examples");
+  return r;
+}
+
+export async function checkExampleLinks(brand: string): Promise<void> {
+  await backendFetch(`/api/proposal-examples/check?brand=${encodeURIComponent(brand)}`, { method: "POST" });
 }

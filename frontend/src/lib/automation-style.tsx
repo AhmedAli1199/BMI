@@ -4,6 +4,7 @@ import {
   ShieldCheck,
   GitPullRequestArrow,
   CalendarRange,
+  MailPlus,
   ClipboardCheck,
   FileInput,
   LifeBuoy,
@@ -185,6 +186,13 @@ Object.assign(STYLES, {
     chipBg: "border-chart-3/30 bg-chart-3/10",
     accent: "bg-chart-3",
     ring: "hover:border-chart-3/60",
+  },
+  proposal_request: {
+    icon: MailPlus,
+    color: "text-chart-1",
+    chipBg: "border-chart-1/30 bg-chart-1/10",
+    accent: "bg-chart-1",
+    ring: "hover:border-chart-1/60",
   },
   allocation_due: {
     icon: CalendarRange,

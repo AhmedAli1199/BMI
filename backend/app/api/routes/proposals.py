@@ -28,7 +28,8 @@ from app.services import outlook
 from app.models.messaging import Reminder
 from app.models.proposal import PROPOSAL_TEMPLATES, Proposal
 from app.proposals import context as ctx_mod
-from app.proposals import drafting
+from app.proposals import blocks, drafting
+from app.proposals import render as rnd
 from app.proposals import pricing
 from app.proposals.docx_builder import TEMPLATE_LABELS, build_docx, template_for_slug
 from app.roles import CAN_USE_AUTOMATIONS
@@ -51,11 +52,18 @@ class LineIn(BaseModel):
     option: str | None = Field(default=None, max_length=80)   # "Option A: one issue" - lines without one are in every option
 
 
+class BlockIn(BaseModel):
+    kind: str = Field(pattern="^(package|prices|stats|issues|events|examples)$")
+    config: dict = Field(default_factory=dict)
+
+
 class SectionIn(BaseModel):
     id: str | None = None
     kind: str = "custom"
     heading: str = Field(max_length=200)
     body: str = ""
+    html: str | None = Field(default=None, max_length=6_000_000)   # rich text from the editor (pictures included)
+    block: BlockIn | None = None                                    # a ready-made block instead of text
 
 
 class ProposalCreate(BaseModel):
@@ -82,6 +90,7 @@ class ProposalPatch(BaseModel):
     notes: str | None = None
     kind: str | None = Field(default=None, pattern="^(issue|multi|annual|digital|sponsorship|mixed)$")
     discount_pct: float | None = Field(default=None, ge=0, le=1)
+    output: str | None = Field(default=None, pattern="^(word|email)$")
 
 
 class RedraftIn(BaseModel):
@@ -99,6 +108,8 @@ class SendIn(BaseModel):
     subject: str = Field(min_length=1, max_length=300)
     body: str = Field(min_length=1)
     follow_up_days: int = Field(default=14, ge=0, le=365)
+    as_body: bool = False      # the proposal itself is the email (body = a short opening line above it)
+    attach_word: bool = True   # also attach the Word document
 
 
 class EmailDraft(BaseModel):
@@ -108,6 +119,7 @@ class EmailDraft(BaseModel):
     outlook_connected: bool
     outlook_email: str | None
     contact_name: str | None
+    output: str = "word"
 
 
 class ProposalOut(BaseModel):
@@ -141,6 +153,9 @@ class ProposalOut(BaseModel):
     totals: list[dict] = []          # one per option (or a single one)
     titles: list[str] = []           # every title the lines are for
     kinds: dict[str, str] = {}
+    output: str = "word"
+    brand: str | None = None
+    request_item_id: uuid.UUID | None = None
 
 
 def _is_staff(identity: Identity) -> bool:
@@ -162,6 +177,7 @@ def _out(db: Session, p: Proposal) -> ProposalOut:
         sent_via=p.sent_via, follow_up_due=rem.due_at if rem and rem.status == "open" else None, notes=p.notes,
         kind=p.kind or "issue", kind_label=pricing.KINDS.get(p.kind or "issue", ""), discount_pct=float(p.discount_pct or 0),
         totals=pricing.totals(p.lines or [], float(p.discount_pct or 0)), titles=pricing.title_names(db, p.lines or []), kinds=pricing.KINDS,
+        output=p.output or "word", brand=(b.key if (b := blocks.brand_of(db, p.title_id)) else None), request_item_id=p.request_item_id,
     )
 
 
@@ -287,13 +303,47 @@ def update_proposal(pid: uuid.UUID, payload: ProposalPatch, db: Session = Depend
     if payload.lines is not None:
         _set_lines(db, p, payload.lines, (p.context or {}).get("year") or date.today().year)
     p.total_gbp = pricing.headline_total(p.lines or [], float(p.discount_pct or 0))
+    if payload.output is not None:
+        p.output = payload.output
     if payload.sections is not None:
-        p.sections = [{"id": s.id or str(uuid.uuid4()), "kind": s.kind, "heading": s.heading.strip(), "body": s.body}
-                      for s in payload.sections]
+        p.sections = [_section(s) for s in payload.sections]
     if "notes" in payload.model_fields_set:
         p.notes = payload.notes
     db.commit()
     return _out(db, p)
+
+
+def _section(s: SectionIn) -> dict:
+    out = {"id": s.id or str(uuid.uuid4()), "kind": s.kind, "heading": s.heading.strip(), "body": s.body}
+    if s.block:
+        out["block"] = s.block.model_dump()
+        out["kind"] = f"block_{s.block.kind}"
+    elif s.html is not None:
+        out["html"] = rnd.clean_html(s.html)
+        out["body"] = mm.to_text(out["html"]).strip()   # kept for the AI's instructions and older screens
+    return out
+
+
+class PreviewOut(BaseModel):
+    html: str
+    warnings: list[str] = []
+
+
+@router.get("/{pid}/preview", response_model=PreviewOut)
+def preview(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user),
+            identity: Identity = Depends(get_identity)) -> PreviewOut:
+    """The proposal exactly as it goes out (blocks filled in), and anything that may not show well in an email."""
+    p = _get(db, pid, user, identity)
+    body = rnd.email_html(db, p)
+    return PreviewOut(html=body, warnings=rnd.email_warnings(body) if (p.output or "word") == "email" else [])
+
+
+@router.post("/{pid}/block-preview", response_model=PreviewOut)
+def block_preview(pid: uuid.UUID, payload: BlockIn, db: Session = Depends(get_db), user: User = Depends(current_user),
+                  identity: Identity = Depends(get_identity)) -> PreviewOut:
+    p = _get(db, pid, user, identity)
+    return PreviewOut(html=blocks.render(db, payload.kind, payload.config, title_id=p.title_id, lines=p.lines or [],
+                                         discount_pct=float(p.discount_pct or 0)))
 
 
 @router.post("/{pid}/redraft", response_model=ProposalOut)
@@ -325,13 +375,17 @@ def revise(pid: uuid.UUID, payload: ReviseIn, db: Session = Depends(get_db), use
     p = _get(db, pid, user, identity)
     if p.status == "sent":
         raise HTTPException(409, "This proposal has been sent, so it can't be changed.")
-    current = ([{"id": s.id or str(uuid.uuid4()), "kind": s.kind, "heading": s.heading, "body": s.body} for s in payload.sections]
-               if payload.sections is not None else list(p.sections))
+    current = [_section(s) for s in payload.sections] if payload.sections is not None else list(p.sections)
+    text = [s for s in current if not s.get("block")]
     try:
-        new, summary = drafting.revise_sections(p.context or {}, p.lines, p.campaign_name, current, payload.instruction.strip())
+        new, summary = drafting.revise_sections(p.context or {}, p.lines, p.campaign_name, text, payload.instruction.strip())
     except drafting.RevisionRefused as exc:
         raise HTTPException(422, str(exc)) from exc
-    p.sections, p.drafted_by = new, "ai"
+    # Ready-made blocks keep their place; the AI only rewrites the wording around them.
+    merged, it = [], iter(new)
+    for s in current:
+        merged.append(s if s.get("block") else next(it, None))
+    p.sections, p.drafted_by = [x for x in merged if x] + list(it), "ai"
     db.commit()
     return ReviseOut(proposal=_out(db, p), summary=summary, previous_sections=current)
 
@@ -356,11 +410,15 @@ async def transcribe(request: Request, user: User = Depends(current_user)) -> di
 def download(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user),
              identity: Identity = Depends(get_identity)) -> Response:
     p = _get(db, pid, user, identity)
-    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp),
-                      discount_pct=float(p.discount_pct or 0))
+    data = _docx(db, p)
     safe = "".join(c for c in p.campaign_name if c.isalnum() or c in " -_/").replace("/", "-").strip() or "Proposal"
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     headers={"Content-Disposition": f'attachment; filename="{safe} proposal.docx"'})
+
+
+def _docx(db: Session, p: Proposal) -> bytes:
+    return build_docx(template=p.template, campaign_name=p.campaign_name, sections=rnd.output_sections(db, p), lines=p.lines,
+                      total=float(p.total_gbp), discount_pct=float(p.discount_pct or 0))
 
 
 def _log_sent(db: Session, p: Proposal, user: User, via: str, follow_up_days: int, sent_to: list[str] | None = None) -> None:
@@ -410,13 +468,16 @@ def email_draft(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Depe
             to = [addr]
     first = (contact.first_name if contact and contact.first_name else None)
     sign = (user.name or "").strip()
-    body = (f"Hi {first or 'there'},\n\nThank you for your time. I've attached our proposal for {p.campaign_name}, "
-            f"with everything we discussed. Do have a look and let me know if you'd like to change anything - "
-            f"I'm happy to talk it through.\n\nKind regards,\n{sign}")
+    if (p.output or "word") == "email":   # the proposal is the email: just the opening line above it
+        body = f"Hi {first or 'there'},\n\nThank you for your time. Here's what we discussed for {p.campaign_name}."
+    else:
+        body = (f"Hi {first or 'there'},\n\nThank you for your time. I've attached our proposal for {p.campaign_name}, "
+                f"with everything we discussed. Do have a look and let me know if you'd like to change anything - "
+                f"I'm happy to talk it through.\n\nKind regards,\n{sign}")
     acct = db.scalar(select(MailAccount).where(MailAccount.user_id == user.id))
     return EmailDraft(to=to, subject=f"Proposal: {p.campaign_name}", body=body, outlook_connected=bool(acct),
                       outlook_email=acct.email if acct else None,
-                      contact_name=(contact.full_name if contact else None))
+                      contact_name=(contact.full_name if contact else None), output=p.output or "word")
 
 
 @router.post("/{pid}/send", response_model=ProposalOut)
@@ -433,15 +494,21 @@ def send_from_outlook(pid: uuid.UUID, payload: SendIn, db: Session = Depends(get
     for a in [*payload.to, *payload.cc]:
         if "@" not in a or " " in a.strip():
             raise HTTPException(422, f"“{a}” doesn't look like an email address.")
-    data = build_docx(template=p.template, campaign_name=p.campaign_name, sections=p.sections, lines=p.lines, total=float(p.total_gbp),
-                      discount_pct=float(p.discount_pct or 0))
-    if len(data) > 3 * 1024 * 1024:
-        raise HTTPException(413, "The Word file is over 3 MB, which Outlook can't send in one go. Download it and attach it yourself.")
     safe = "".join(c for c in p.campaign_name if c.isalnum() or c in " -_").strip() or "Proposal"
+    files: list[tuple] = []
+    if payload.as_body:
+        html_body, files = rnd.inline_images(rnd.email_html(db, p, intro=payload.body))
+    else:
+        html_body = mm.to_html(payload.body)
+    if payload.attach_word or not payload.as_body:
+        data = _docx(db, p)
+        files.append((f"{safe} proposal.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data))
+    if sum(len(f[2]) for f in files) + len(html_body.encode()) > 3 * 1024 * 1024:
+        raise HTTPException(413, "This is over 3 MB with its pictures, which Outlook can't send in one go. Make the pictures smaller, "
+                                 "or download the Word file and attach it yourself.")
     try:
         outlook.send_mail(db, acct, to=[a.strip() for a in payload.to], cc=[a.strip() for a in payload.cc], subject=payload.subject,
-                          html_body=mm.to_html(payload.body),
-                          attachments=[(f"{safe} proposal.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)])
+                          html_body=html_body, attachments=files)
     except outlook.OutlookAuthError as exc:
         raise HTTPException(409, str(exc))
     except outlook.RateLimited:

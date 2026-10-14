@@ -361,3 +361,7 @@
 .rich-email ol { list-style: decimal; padding-left: 1.5rem; }
 .rich-email a { color: var(--primary); text-decoration: underline; }
 .rich-email h1, .rich-email h2, .rich-email h3 { font-weight: 700; }
+.rich-email table { border-collapse: collapse; margin: 0.5rem 0; max-width: 100%; }
+.rich-email th, .rich-email td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; vertical-align: top; text-align: left; }
+.rich-email th { font-weight: 700; background: var(--muted); }
+.rich-email img { max-width: 100%; height: auto; }

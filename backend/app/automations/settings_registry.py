@@ -130,6 +130,31 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
 
     # ---- SALES-010-lite - email exchange summary ----
     AutomationSettingDef(
+        key="automations_proposal_requests_enabled", label="Spot proposal requests",
+        description="Every 10 minutes: reads the inboxes below for emails asking for prices, a media pack or a proposal, and puts each one in that salesperson's Review Queue with a reply already drafted (prices from the rate card, issues from the editorial plan). Nothing is sent until they press Send.",
+        group="Proposal Requests", type="bool",
+    ),
+    AutomationSettingDef(
+        key="proposal_request_mailboxes", label="Inboxes to read",
+        description="Comma-separated salespeople's email addresses. Each card goes only to the person whose inbox it came from. Start with one person, then add the rest.",
+        group="Proposal Requests", type="csv",
+    ),
+    AutomationSettingDef(
+        key="proposal_request_lookback_minutes", label="First look back (minutes)",
+        description="When an inbox is added, how far back the first read goes. After that it only reads new emails.",
+        group="Proposal Requests", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="proposal_request_llm_max_per_run", label="Most emails checked by AI per run",
+        description="Only emails that mention prices, rates, a media pack, a proposal and so on are checked by the AI; this caps how many in one run. The rest wait for the next run.",
+        group="Proposal Requests", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_proposal_example_check_enabled", label="Weekly check of example links",
+        description="Every Monday: checks the links in the proposal examples library, and flags any that no longer open.",
+        group="Proposal Requests", type="bool",
+    ),
+    AutomationSettingDef(
         key="automations_email_summary_scan_enabled", label="Email exchange logging active",
         description="Enables automatic thread summarization and commercial signal extraction for closed conversations.",
         group="Email Summaries & Commercial Signals", type="bool",

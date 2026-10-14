@@ -44,6 +44,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   personal_touchpoint_due: "draft_touchpoint",
   renewal_due: "send",
   save_the_sale: "send",
+  proposal_request: "send",
 };
 
 /** Kinds whose draft can go straight out from the reviewer's own Outlook:
@@ -52,6 +53,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
 const DRAFT_LOG_ONLY_ACTIONS: Record<string, string> = {
   renewal_due: "approve",
   save_the_sale: "approve",
+  proposal_request: "replied",
 };
 
 const STYLE_CLASSES: Record<ReviewAction["style"], string> = {
@@ -312,13 +314,16 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   function submit(action: ReviewAction) {
     startTransition(async () => {
       try {
-        await resolveReviewItem(item.id, action.id, {
+        const resolved = await resolveReviewItem(item.id, action.id, {
           note: note.trim() || undefined,
           contact_id: contact?.id,
           fields,
           chosen_entity_id: chosenEntityId ?? payload.invoice_match?.candidates[0]?.key ?? undefined,
         });
         toast.success(`${action.label} — done`);
+        // An action that made something to carry on with (a proposal from a request) opens it.
+        const next = (resolved?.payload as { open_href?: string } | undefined)?.open_href;
+        if (next) window.location.assign(next);
         setJustResolvedLabel(action.label);
         setExpandedAction(null);
         setConfirmingDestructive(null);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Library, Plus } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { Proposal } from "@/lib/proposals-types";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,16 @@ export default async function ProposalsPage() {
       <SalesHeader
         title="Proposals"
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}
-        description="Proposals you've drafted in BMI's Word templates. Sent ones stay here and on the client's record, with what was offered and the follow-up date."
+        description="Proposals sent as an email or as a Word document in BMI's templates. Sent ones stay here and on the client's record, with what was offered and the follow-up date."
         actions={
-          <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/proposals/new" />}>
-            <Plus className="size-3.5" /> New proposal
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href="/sales/proposals/examples" />}>
+              <Library className="size-3.5" /> Examples library
+            </Button>
+            <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/proposals/new" />}>
+              <Plus className="size-3.5" /> New proposal
+            </Button>
+          </div>
         }
       />
       {proposals.length === 0 ? (

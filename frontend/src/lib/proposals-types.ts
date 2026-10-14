@@ -1,4 +1,22 @@
-export type ProposalSection = { id: string; kind: string; heading: string; body: string };
+export type BlockKind = "package" | "prices" | "stats" | "issues" | "events" | "examples";
+export type ProposalBlock = { kind: BlockKind; config: { ids?: string[]; rate_ids?: string[]; sector?: string | null; title_id?: string | null; count?: number } };
+/** A section is rich text (html, or older plain text in body) or a ready-made block filled from the Brain's data. */
+export type ProposalSection = { id: string; kind: string; heading: string; body: string; html?: string | null; block?: ProposalBlock | null };
+
+export const BLOCK_OPTIONS: { kind: BlockKind; label: string; heading: string; hint: string }[] = [
+  { kind: "package", label: "Package and prices", heading: "Your package", hint: "The products above, the issues they run in and the total, as a table." },
+  { kind: "prices", label: "Price list", heading: "Prices", hint: "Products and prices from the rate card - pick the ones to show." },
+  { kind: "stats", label: "Audience numbers", heading: "Key statistics", hint: "The brand's numbers from the editorial plan's brand settings." },
+  { kind: "issues", label: "Coming issues", heading: "Coming issues", hint: "The next issues, their themes and booking deadlines." },
+  { kind: "events", label: "Events and awards", heading: "Events", hint: "The brand's coming events and awards." },
+  { kind: "examples", label: "Examples of our work", heading: "Examples", hint: "Links to past pages from the examples library." },
+];
+
+export type ProposalExample = {
+  id: string; brand: string; kind: "example" | "resource"; label: string; url: string; format: string | null; sector: string | null;
+  client: string | null; notes: string | null; archived: boolean; link_ok: boolean | null; checked_at: string | null; use_count: number;
+};
+export type ExampleLibrary = { items: ProposalExample[]; sectors: Record<string, string>; formats: string[]; brands: { key: string; name: string }[] };
 export type ProposalLine = {
   id?: string; product: string; qty: number; unit_price: number | null; source: "rate_card" | "manual" | "offer"; rate_id?: string | null;
   /** A line can be for another title than the proposal's (a newsletter, the awards). */
@@ -75,6 +93,10 @@ export type Proposal = {
   totals: ProposalTotal[];
   titles: string[];
   kinds: Record<ProposalKind, string>;
+  /** How it goes to the client: the proposal is the email itself, or a Word document. */
+  output: "word" | "email";
+  brand: string | null;
+  request_item_id: string | null;
 };
 
 export const KIND_OPTIONS: { value: ProposalKind; label: string }[] = [
@@ -99,4 +121,5 @@ export type ProposalEmailDraft = {
   outlook_connected: boolean;
   outlook_email: string | null;
   contact_name: string | null;
+  output?: "word" | "email";
 };

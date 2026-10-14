@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -53,3 +53,28 @@ class Proposal(Base, UUIDPk, TimestampMixin):
     logged_note_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     follow_up_reminder_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     notes: Mapped[str | None] = mapped_column(Text)
+    # How it goes to the client: "word" (a Word document in the brand's template) or "email" (the proposal is the email itself).
+    output: Mapped[str] = mapped_column(String(8), nullable=False, default="word", server_default="word")
+    # The proposal request (Review Queue item) it was started from, if any.
+    request_item_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+
+class ProposalExample(Base, UUIDPk, TimestampMixin):
+    """A link a salesperson can drop into a proposal: a past page that shows the kind of thing on offer
+    ("Spotlight on JetBlue, page 38"), or a resource (media pack, features list, awards site). One library per
+    brand, shared by everyone; tagged by format and sector so the right ones can be suggested."""
+    __tablename__ = "proposal_examples"
+
+    brand: Mapped[str] = mapped_column(String(20), nullable=False, index=True)        # brands.py key: tbtm | obh | stm
+    kind: Mapped[str] = mapped_column(String(10), nullable=False, default="example")  # example | resource
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    format: Mapped[str | None] = mapped_column(String(60))      # "Spotlight on", "Q&A", "Double page sponsored"...
+    sector: Mapped[str | None] = mapped_column(String(40))      # airline | hotel | tech | tmc | tourism | rail | travel_services | other
+    client: Mapped[str | None] = mapped_column(String(120))     # whose page it was
+    notes: Mapped[str | None] = mapped_column(String(300))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    link_ok: Mapped[bool | None] = mapped_column(Boolean)       # None = not checked yet
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    use_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

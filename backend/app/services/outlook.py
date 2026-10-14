@@ -172,9 +172,48 @@ def access_token(db: Session, acct: MailAccount) -> str:
     return body["access_token"]
 
 
+def _attachment(a: tuple) -> dict:
+    """(name, content type, bytes) or (name, content type, bytes, content id) for a picture shown in the body."""
+    out = {"@odata.type": "#microsoft.graph.fileAttachment", "name": a[0], "contentType": a[1],
+           "contentBytes": base64.b64encode(a[2]).decode()}
+    if len(a) > 3 and a[3]:
+        out.update(isInline=True, contentId=a[3])
+    return out
+
+
+def reply_to(db: Session, acct: MailAccount, message_id: str, *, html_body: str, to: list[str] | None = None,
+             attachments: list[tuple] | None = None) -> None:
+    """Replies in the same email thread, from the connected user's own mailbox (the message must be in it).
+    Raises like send_mail; a RuntimeError with "404" means the message isn't in this mailbox any more."""
+    token = access_token(db, acct)
+    h = {"Authorization": f"Bearer {token}"}
+    r = httpx.post(f"{GRAPH_BASE}/me/messages/{message_id}/createReply", headers=h, timeout=30)
+    if r.status_code == 401:
+        raise OutlookAuthError("Microsoft rejected the sign-in - reconnect Outlook.")
+    if r.status_code >= 300:
+        raise RuntimeError(f"Outlook couldn't start the reply ({r.status_code})")
+    draft = r.json()
+    quoted = (draft.get("body") or {}).get("content") or ""
+    patch: dict = {"body": {"contentType": "HTML", "content": html_body + quoted}}
+    if to:
+        patch["toRecipients"] = [{"emailAddress": {"address": a}} for a in to]
+    r = httpx.patch(f"{GRAPH_BASE}/me/messages/{draft['id']}", headers=h, json=patch, timeout=30)
+    if r.status_code >= 300:
+        raise RuntimeError(f"Outlook couldn't write the reply ({r.status_code})")
+    for a in attachments or []:
+        r = httpx.post(f"{GRAPH_BASE}/me/messages/{draft['id']}/attachments", headers=h, json=_attachment(a), timeout=60)
+        if r.status_code >= 300:
+            raise RuntimeError(f"Outlook couldn't attach {a[0]} ({r.status_code})")
+    r = httpx.post(f"{GRAPH_BASE}/me/messages/{draft['id']}/send", headers=h, timeout=30)
+    if r.status_code == 429:
+        raise RateLimited(int(r.headers.get("Retry-After", "60")))
+    if r.status_code >= 300:
+        raise RuntimeError(f"Outlook didn't send the reply ({r.status_code})")
+
+
 def send_mail(db: Session, acct: MailAccount, *, to: list[str], subject: str, html_body: str,
               cc: list[str] | None = None, bcc: list[str] | None = None,
-              attachments: list[tuple[str, str, bytes]] | None = None) -> None:
+              attachments: list[tuple] | None = None) -> None:
     """Sends as the connected user. Raises OutlookAuthError (reconnect),
     RateLimited (back off) or RuntimeError (this message failed)."""
     token = access_token(db, acct)
@@ -185,8 +224,7 @@ def send_mail(db: Session, acct: MailAccount, *, to: list[str], subject: str, ht
         "bccRecipients": [{"emailAddress": {"address": a}} for a in (bcc or [])],
     }
     if attachments:
-        msg["attachments"] = [{"@odata.type": "#microsoft.graph.fileAttachment", "name": n, "contentType": ct,
-                               "contentBytes": base64.b64encode(data).decode()} for n, ct, data in attachments]
+        msg["attachments"] = [_attachment(a) for a in attachments]
     resp = httpx.post(f"{GRAPH_BASE}/me/sendMail", headers={"Authorization": f"Bearer {token}"},
                       json={"message": msg, "saveToSentItems": True}, timeout=60)
     if resp.status_code == 401:

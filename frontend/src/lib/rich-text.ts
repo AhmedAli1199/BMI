@@ -50,7 +50,7 @@ export function htmlToText(body: string): string {
 }
 
 /** Keep only basic formatting tags, safe links and a few text styles. */
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string, opts: { dataImages?: boolean } = {}): string {
   if (typeof DOMParser === "undefined") return html.replace(/<script[\s\S]*?<\/script>/gi, "");
   const doc = new DOMParser().parseFromString(html, "text/html");
   const clean = (node: Element) => {
@@ -71,7 +71,7 @@ export function sanitizeHtml(html: string): string {
         } else if (name === "href" && tag === "a") {
           if (!/^(https?:|mailto:|tel:|\{\{)/i.test(attr.value.trim())) child.removeAttribute("href");
         } else if (name === "src" && tag === "img") {
-          if (!/^https?:/i.test(attr.value.trim())) child.remove();
+          if (!/^https?:/i.test(attr.value.trim()) && !(opts.dataImages && /^data:image\/(png|jpe?g|gif);base64,/i.test(attr.value.trim()))) child.remove();
         } else if (!(tag === "font" && name === "color") && !["colspan", "rowspan", "alt", "width", "height", "target"].includes(name)) {
           child.removeAttribute(attr.name);
         }

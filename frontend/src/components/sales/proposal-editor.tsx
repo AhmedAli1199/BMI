@@ -3,12 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ClipboardList, ArrowUp, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Plus, Save, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ClipboardList, CalendarDays, CheckCircle2, Download, ExternalLink, Eye, Loader2, Mail, Pencil, Save, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { TEMPLATE_OPTIONS, type Proposal, type ProposalEmailDraft, type ProposalKind, type ProposalSection } from "@/lib/proposals-types";
 import type { SalesRate, SalesTitle } from "@/lib/sales-types";
-import { ProposalLines, localTotals, type EditLine } from "@/components/sales/proposal-lines";
-import { deleteProposal, finishProposal, getProposalEmailDraft, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
+import { ProposalLines, type EditLine } from "@/components/sales/proposal-lines";
+import { deleteProposal, finishProposal, getProposalEmailDraft, previewProposal, redraftProposal, saveProposal, sendProposal } from "@/lib/proposals-actions";
+import { ProposalSections } from "@/components/sales/proposal-sections";
+import { EmailBodyView } from "@/components/mail-merge/rich-email-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,24 +28,6 @@ type Line = EditLine;
 
 /** Offer lines are worked out by the server from the rate card's offers, so they're never sent back. */
 const toSave = (lines: Line[]) => lines.filter((l) => l.source !== "offer").map((l) => ({ ...l, unit_price: l.source === "manual" ? l.unit_price : null }));
-
-/** Renders **bold** and "- " bullets the way the Word file will. */
-function Rich({ text }: { text: string }) {
-  const blocks = text.split(/\n\s*\n/).filter((b) => b.trim());
-  const inline = (s: string) => s.split(/(\*\*.+?\*\*)/g).map((part, i) => (part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : part));
-  return (
-    <>
-      {blocks.map((b, i) => {
-        const lines = b.split("\n");
-        return lines.every((l) => l.startsWith("- ")) ? (
-          <ul key={i} className="my-2 list-disc pl-5">{lines.map((l, j) => <li key={j}>{inline(l.slice(2))}</li>)}</ul>
-        ) : (
-          <p key={i} className="my-2 whitespace-pre-line">{inline(b)}</p>
-        );
-      })}
-    </>
-  );
-}
 
 export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal; titles: SalesTitle[]; rates: SalesRate[] }) {
   const router = useRouter();
@@ -65,6 +49,9 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
   const [mail, setMail] = useState<ProposalEmailDraft | null>(null);
   const [mailTo, setMailTo] = useState("");
   const [mailCc, setMailCc] = useState("");
+  const [output, setOutput] = useState<"word" | "email">(proposal.output ?? "word");
+  const [shown, setShown] = useState<{ html: string; warnings: string[] } | null>(null);
+  const [attachWord, setAttachWord] = useState(false);
   const sent = proposal.status === "sent";
   const h = proposal.context.history;
 
@@ -86,7 +73,18 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
     });
   }
 
-  const saved = () => ({ campaign_name: campaign, template, sections, lines: toSave(lines), kind, discount_pct: discount });
+  const saved = () => ({ campaign_name: campaign, template, sections, lines: toSave(lines), kind, discount_pct: discount, output });
+
+  function showPreview() {
+    if (preview) { setPreview(false); return; }
+    start(async () => {
+      try {
+        if (dirty) { await saveProposal(proposal.id, saved()); setDirty(false); }
+        setShown(await previewProposal(proposal.id));
+        setPreview(true);
+      } catch (e) { toast.error(friendlyError(e, "Couldn't show the preview")); }
+    });
+  }
   const editLines = (next: Line[]) => { setLines(next); setLinesTouched(true); setDirty(true); };
 
   function changeIssue(id: string) {
@@ -112,12 +110,6 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
         setMailOpen(true);
       } catch (e) { toast.error(friendlyError(e, "Couldn't prepare the email")); }
     });
-  }
-
-  function move(i: number, d: -1 | 1) {
-    const next = [...sections];
-    [next[i], next[i + d]] = [next[i + d], next[i]];
-    touch(setSections)(next);
   }
 
   function download() {
@@ -146,6 +138,21 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
           </ul>
         )}
 
+        <section className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
+          <span className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">How it goes to the client
+            <InfoHint>As an email: the proposal is the email itself - keep it to text, simple tables and a few pictures, which every inbox shows well. As a Word document: BMI&apos;s template with the magazine&apos;s logo, header and footer, where bigger tables and more pictures are fine. You can switch at any time.</InfoHint>
+          </span>
+          <div role="radiogroup" aria-label="How it goes to the client" className="flex gap-1.5">
+            {([["email", "As an email"], ["word", "As a Word document"]] as const).map(([v, label]) => (
+              <button key={v} type="button" role="radio" aria-checked={output === v} disabled={sent}
+                onClick={() => { setOutput(v); setDirty(true); }}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${output === v ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:bg-accent/50"}`}>
+                {v === "email" ? <Mail className="mr-1.5 inline size-3.5" aria-hidden="true" /> : <Download className="mr-1.5 inline size-3.5" aria-hidden="true" />}{label}
+              </button>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-2xs sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
             Campaign name (Word header)
@@ -164,13 +171,13 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
           <ProposalLines lines={lines} onChange={editLines} titles={titles} rates={rates} defaultTitleId={proposal.title_id}
             discount={discount} onDiscount={(v) => { setDiscount(v); setLinesTouched(true); setDirty(true); }}
             kind={kind} onKind={(v) => { setKind(v); setDirty(true); }} disabled={sent} serverTotals={proposal.totals} stale={linesTouched} />
-          {dirty && <p className="mt-1.5 text-xs text-muted-foreground">Save to update the Investment section&apos;s figures in the Word file.</p>}
+          {dirty && <p className="mt-1.5 text-xs text-muted-foreground">Save to update the package and prices in the proposal.</p>}
         </section>
 
         <section aria-labelledby="secs-h">
-          <SectionTitle id="secs-h" hint="These headings and paragraphs go into the Word file in this order. Use **double asterisks** for bold, and start a line with “- ” for a bullet. The Investment section's prices are added from the table above automatically." aside={
+          <SectionTitle id="secs-h" hint="What the client reads, in this order. Write your own text (with tables and pictures), or add ready-made blocks that fill themselves in from the rate card, editorial plan, brand facts and examples library." aside={
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPreview(!preview)}>{preview ? <><Pencil className="size-3.5" /> Edit</> : <><Eye className="size-3.5" /> Preview</>}</Button>
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={pending} onClick={showPreview}>{preview ? <><Pencil className="size-3.5" /> Edit</> : <><Eye className="size-3.5" /> Preview</>}</Button>
               {!sent && (
                 <Button size="sm" variant="outline" className="gap-1.5" disabled={pending} onClick={() => {
                   if (!window.confirm("Write every section again from scratch? Your edits to the wording will be replaced.")) return;
@@ -187,53 +194,19 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
                 onApplied={(next) => { setSections(next); setIssueChanged(false); router.refresh(); }} />
             </div>
           )}
-          {preview ? (
+          {preview && shown ? (
             <article className="rounded-xl border border-border/80 bg-card p-6 text-sm shadow-2xs" aria-label="Proposal preview">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{campaign}</p>
-              {sections.map((s) => (
-                <div key={s.id} className="mt-4">
-                  <h3 className="text-base font-bold">{s.heading}</h3>
-                  {s.kind === "investment" && (
-                    <div className="my-2">
-                      {localTotals(lines, discount).map((t, ti, all) => (
-                        <ul key={t.option ?? ti} className="mb-2">
-                          {all.length > 1 && <li className="font-bold">{t.option}</li>}
-                          {lines.filter((l) => !l.option || l.option === t.option).map((l) => {
-                            const q = l.issues?.length || l.qty, u = l.unit_price ?? 0, d = l.discount_pct ?? 0;
-                            return (
-                              <li key={l.id}>
-                                {l.product}: {q > 1 ? `${q} × ${fmtGBP(u)} = ${fmtGBP(q * u)}` : fmtGBP(q * u)}{d ? `, less ${Math.round(d * 1000) / 10}% = ${fmtGBP(q * u * (1 - d))}` : ""}
-                                {l.issue_labels?.length ? <div className="text-xs text-muted-foreground">Runs in {l.issue_labels.join(", ")}</div> : null}
-                              </li>
-                            );
-                          })}
-                          {t.discount_gbp ? <li>Less {Math.round(discount * 1000) / 10}% discount: -{fmtGBP(t.discount_gbp)}</li> : null}
-                          <li className="mt-1 font-bold">{all.length > 1 ? `${t.option} total` : "Total"}: {fmtGBP(t.total_gbp)}</li>
-                        </ul>
-                      ))}
-                    </div>
-                  )}
-                  <Rich text={s.body} />
-                </div>
-              ))}
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{campaign} · {output === "email" ? "as the email" : "as the Word document"}</p>
+              {shown.warnings.length > 0 && (
+                <ul className="mb-3 flex flex-col gap-1 rounded-lg bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] p-2 text-xs">
+                  {shown.warnings.map((w) => <li key={w} className="flex gap-1.5"><AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--warn)]" aria-hidden="true" />{w}</li>)}
+                </ul>
+              )}
+              <EmailBodyView body={shown.html} dataImages />
             </article>
           ) : (
-            <div className="flex flex-col gap-3">
-              {sections.map((s, i) => (
-                <div key={s.id} className="rounded-xl border border-border/80 bg-card p-3 shadow-2xs">
-                  <div className="flex items-center gap-1.5">
-                    <Input aria-label="Section heading" value={s.heading} disabled={sent} onChange={(e) => touch(setSections)(sections.map((x) => (x.id === s.id ? { ...x, heading: e.target.value } : x)))} className="h-8 text-sm font-semibold" />
-                    {!sent && <>
-                      <Button size="icon-sm" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></Button>
-                      <Button size="icon-sm" variant="ghost" aria-label="Move down" disabled={i === sections.length - 1} onClick={() => move(i, 1)}><ArrowDown className="size-3.5" /></Button>
-                      <Button size="icon-sm" variant="ghost" aria-label={`Remove ${s.heading}`} onClick={() => touch(setSections)(sections.filter((x) => x.id !== s.id))}><Trash2 className="size-3.5" /></Button>
-                    </>}
-                  </div>
-                  <Textarea aria-label={`${s.heading} text`} value={s.body} disabled={sent} rows={s.kind === "investment" ? 2 : 4} onChange={(e) => touch(setSections)(sections.map((x) => (x.id === s.id ? { ...x, body: e.target.value } : x)))} className="mt-2 text-sm" />
-                </div>
-              ))}
-              {!sent && <Button size="sm" variant="ghost" className="gap-1.5 self-start" onClick={() => touch(setSections)([...sections, { id: crypto.randomUUID(), kind: "custom", heading: "New section", body: "" }])}><Plus className="size-3.5" /> Add a section</Button>}
-            </div>
+            <ProposalSections proposalId={proposal.id} sections={sections} onChange={touch(setSections)} titleId={proposal.title_id} titles={titles}
+              rates={rates} brand={proposal.brand} disabled={sent} refreshKey={`${proposal.total_gbp}-${proposal.lines.length}-${proposal.edition_id}-${proposal.discount_pct}`} />
           )}
         </section>
 
@@ -310,9 +283,11 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
           <DialogHeader>
             <DialogTitle>Email the proposal</DialogTitle>
             <DialogDescription>
-              {mail?.outlook_connected
-                ? `Sent from your Outlook (${mail.outlook_email}) with the Word file attached. Nothing goes until you press Send.`
-                : "Connect your Outlook in Settings first - proposals are sent from your own account."}
+              {!mail?.outlook_connected
+                ? "Connect your Outlook in Settings first - proposals are sent from your own account."
+                : output === "email"
+                  ? `Sent from your Outlook (${mail.outlook_email}). The proposal is the email itself, under your opening line. Nothing goes until you press Send.`
+                  : `Sent from your Outlook (${mail.outlook_email}) with the Word file attached. Nothing goes until you press Send.`}
             </DialogDescription>
           </DialogHeader>
           {mail && (
@@ -326,9 +301,12 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
               <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Subject
                 <Input value={mail.subject} onChange={(e) => setMail({ ...mail, subject: e.target.value })} className="h-8 text-sm" />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Message
-                <Textarea rows={8} value={mail.body} onChange={(e) => setMail({ ...mail, body: e.target.value })} className="text-sm" />
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">{output === "email" ? "Opening line (the proposal follows it)" : "Message"}
+                <Textarea rows={output === "email" ? 3 : 8} value={mail.body} onChange={(e) => setMail({ ...mail, body: e.target.value })} className="text-sm" />
               </label>
+              {output === "email" && (
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={attachWord} onChange={(e) => setAttachWord(e.target.checked)} /> Also attach it as a Word document</label>
+              )}
               <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">Remind me to follow up in (days)
                 <Input type="number" min={0} max={365} value={days} onChange={(e) => setDays(Number(e.target.value) || 0)} className="h-8 text-sm" />
               </label>
@@ -338,7 +316,8 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
             <DialogClose render={<Button variant="ghost" />}>Cancel</DialogClose>
             <Button disabled={pending || !mail?.outlook_connected || split(mailTo).length === 0} onClick={() => mail && start(async () => {
               try {
-                await sendProposal(proposal.id, { to: split(mailTo), cc: split(mailCc), subject: mail.subject, body: mail.body, follow_up_days: days });
+                await sendProposal(proposal.id, { to: split(mailTo), cc: split(mailCc), subject: mail.subject, body: mail.body, follow_up_days: days,
+                  as_body: output === "email", attach_word: output === "email" ? attachWord : true });
                 toast.success("Sent and logged on the client");
                 setMailOpen(false);
                 router.refresh();

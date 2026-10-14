@@ -125,10 +125,16 @@ def build_docx(*, template: str, campaign_name: str, sections: list[dict], lines
         _add_runs(p, text, bold)
         return p
 
+    from app.proposals import html_docx
+
     for section in sections:
         heading = (section.get("heading") or "").strip()
         if heading:
             add(heading, STYLE_HEADING)
+        # Rich text from the editor, or a ready-made block already filled in (app/proposals/render.py).
+        if section.get("out_html"):
+            html_docx.write(document, section["out_html"], body_style=STYLE_BODY, heading_style=STYLE_HEADING, bold_style=STYLE_BOLD)
+            continue
         if section.get("kind") == "investment" and lines:
             for text, style in investment_paragraphs(lines, discount_pct):
                 add(text, STYLE_BOLD if style == "bold" else STYLE_BODY)

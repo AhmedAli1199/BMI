@@ -576,6 +576,7 @@ export async function resolveReviewItem(
   for (const related of resolved.payload?.related_entities ?? []) {
     revalidatePath(`/${related.type === "contact" ? "contacts" : "companies"}/${related.id}`);
   }
+  return resolved;
 }
 
 /** Regenerates an AI-drafted follow-up with extra reviewer instructions -
