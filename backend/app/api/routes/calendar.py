@@ -161,7 +161,9 @@ def _meeting_view(db: Session, m: CalendarMeeting, user: User, domains: set[str]
             "organizer": m.organizer_name or m.organizer_email,
             "bmi_people": [{"name": names.get(a.user_id, "Someone"), "response": a.response} for a in atts],
             "outside_people": [{"name": p.get("name") or p["email"], "email": p["email"]} for p in cs.outside_people(m, domains)],
-            "decision": {"record": d.record, "reason": d.reason}, "override": m.record_override, "last_error": m.last_error,
+            "decision": {"record": d.record, "reason": d.reason}, "override": m.record_override,
+            # only worth showing while there's still time to act on it
+            "last_error": m.last_error if m.end_at and m.end_at > cs.now() else None,
             "call": {"id": str(call.id), "status": call.status, "status_label": call.status_label} if call else None,
             "contact": {"id": str(contact.id), "name": contact.full_name} if contact else None,
             "company": {"id": str(company.id), "name": company.name} if company else None}

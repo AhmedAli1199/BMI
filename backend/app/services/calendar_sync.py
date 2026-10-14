@@ -252,7 +252,9 @@ def plan(db: Session, at: datetime | None = None) -> dict:
         d = should_record(db, m, domains)
         call = db.get(CallRecording, m.call_id) if m.call_id else None
         live = call and call.status not in ("completed", "failed", "not_admitted", "cancelled")
-        if d.record and not live and not (call and call.status == "completed"):
+        # One bot per meeting. If someone stopped it, it finished, or it wasn't let in, it isn't sent again
+        # (skipping a meeting, or the meeting moving, clears call_id - so those can book again).
+        if d.record and not call:
             if not notetaker.configured():
                 m.last_error = "The notetaker isn't connected yet."
                 continue

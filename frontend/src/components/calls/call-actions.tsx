@@ -34,7 +34,7 @@ export function CallActions({ call }: { call: Call }) {
           viewHref={(id) => `/contacts/${id}`} />
       </div>
       {LIVE_STATUSES.includes(call.status) && call.status !== "processing" && (
-        <Button variant="outline" className="gap-1.5" disabled={pending} onClick={() => run(() => stopNotetaker(call.id), "The notetaker is leaving the call", "Couldn't stop the notetaker")}>
+        <Button variant="outline" className="gap-1.5" disabled={pending} onClick={() => run(() => stopNotetaker(call.id), "The notetaker is leaving the call - the notes follow in a few minutes", "Couldn't stop the notetaker")}>
           <Square className="size-3.5" /> Stop recording
         </Button>
       )}

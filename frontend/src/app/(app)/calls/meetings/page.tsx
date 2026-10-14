@@ -6,6 +6,7 @@ import { CallsTabs } from "@/components/calls/calls-tabs";
 import { CalendarSetup } from "@/components/calls/calendar-setup";
 import { MeetingsAgenda } from "@/components/calls/meetings-agenda";
 import { AutoRefresh } from "@/components/calls/auto-refresh";
+import { SendNotetaker } from "@/components/calls/send-notetaker";
 
 /** The shared calendar: everyone's connected Google and Outlook meetings in one place, and what the notetaker will do with each. */
 export default async function MeetingsPage() {
@@ -25,6 +26,7 @@ export default async function MeetingsPage() {
         </p>
       </div>
       <CallsTabs active="meetings" />
+      <SendNotetaker />
       {setup && <Suspense><CalendarSetup setup={setup} /></Suspense>}
       <MeetingsAgenda meetings={data.meetings} people={data.people} />
     </div>
