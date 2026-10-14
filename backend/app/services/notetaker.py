@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import time
 
 import httpx
@@ -14,6 +15,8 @@ class NotetakerError(Exception):
     """A plain-language reason the notetaker couldn't be reached or refused."""
 
 
+logger = logging.getLogger("app.services.notetaker")
+
 def configured() -> bool:
     return bool(settings.notetaker_url and settings.notetaker_api_key)
 
@@ -24,11 +27,20 @@ def _client() -> httpx.Client:
 
 
 def _detail(r: httpx.Response, fallback: str) -> str:
+    """A plain reason for a refused request. The notetaker's own messages are written for people, so its
+    "can't book that" answers are passed on; anything else gets the plain fallback (and goes in the log)."""
+    if r.status_code == 401:
+        return "The notetaker didn't accept BMI Brain's key. An administrator needs to set a new one (notetaker console, Apps, New key)."
+    if r.status_code == 403:
+        return "BMI Brain is switched off in the notetaker console. An administrator needs to switch it back on."
     try:
         d = r.json().get("detail")
-        return d if isinstance(d, str) and r.status_code == 422 else fallback
     except Exception:
-        return fallback
+        d = None
+    if isinstance(d, str) and r.status_code in (409, 422, 429):
+        return d
+    logger.warning("notetaker refused a request: %s %s", r.status_code, (r.text or "")[:300])
+    return fallback
 
 
 def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict, join_at=None, end_at=None) -> dict:

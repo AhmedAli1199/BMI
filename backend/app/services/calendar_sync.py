@@ -268,7 +268,8 @@ def plan(db: Session, at: datetime | None = None) -> dict:
                                          metadata={"bmi_call_id": str(call.id), "bmi_calendar_meeting_id": str(m.id)})
             except notetaker.NotetakerError as e:
                 db.delete(call)
-                m.last_error = str(e)
+                # Tried again on every sync (every few minutes) until the meeting ends.
+                m.last_error = f"{str(e).replace(' Please try again in a minute.', '')} BMI Brain tries again every few minutes until the meeting ends."
                 continue
             call.notetaker_id, call.platform = res.get("id"), res.get("platform") or m.platform
             call.status, call.status_label = res.get("status", "scheduled"), res.get("status_label") or "Scheduled"
