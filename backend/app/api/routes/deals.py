@@ -301,6 +301,7 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "check": _check_out(db, d),
         "locked": acc.locked(db, d), "can_approve": _approver(db, identity),
         "unlocked": _unlocked_out(db, d),
+        "xero_contact": {"id": d.xero_contact_id, "name": d.xero_contact_name} if d.xero_contact_id else None,
         "invoice_on": d.invoice_on.isoformat() if d.invoice_on else None,
         "invoice_plan_label": inv.PLANS.get(d.invoice_plan or "asap", d.invoice_plan),
         "pending_change": _pending_out(db, d),

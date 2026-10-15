@@ -209,7 +209,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         const what = existing ? "Booking saved" : `Booking added for ${client.trim()}`;
         if (saved.invoice_number && saved.invoice_number !== (existing?.invoice_number ?? null)) {
           if (saved.xero) {
-            const state = { paid: "paid", part_paid: "part paid", unpaid: "awaiting payment", overdue: "overdue", voided: "voided" }[saved.xero.state] ?? saved.xero.state;
+            const state = { draft: "a draft in Xero", paid: "paid", part_paid: "part paid", unpaid: "awaiting payment", overdue: "overdue", voided: "voided" }[saved.xero.state] ?? saved.xero.state;
             toast.success(`${what} · linked to Xero invoice ${saved.xero.invoice_number ?? saved.invoice_number} · ${fmtGBP(saved.invoice_value_gbp ?? 0)} before VAT · ${state}`);
           } else {
             toast.warning(`${what}. ${saved.invoice_number} isn't in Xero yet - it will link by itself when it shows up in Xero.`);

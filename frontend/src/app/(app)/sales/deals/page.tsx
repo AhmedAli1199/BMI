@@ -11,6 +11,7 @@ import { DataSearch, FilterChips, Pagination, SortableTh } from "@/components/da
 import { Button } from "@/components/ui/button";
 import { DealStatusPill } from "@/components/deals/deal-ui";
 import { DealSettingsButton } from "@/components/deals/deal-settings";
+import { XeroCodesButton } from "@/components/deals/xero-codes-button";
 import { BookingFormsButton } from "@/components/deals/booking-forms";
 import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
@@ -21,10 +22,11 @@ type Page = { items: DealListItem[]; total: number; total_value_gbp: number; una
 
 export default async function DealsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const [meta, settings, forms] = await Promise.all([
+  const [meta, settings, forms, xeroCodes] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     backendFetch<DealSettings>("/api/sales/deals/settings").catch(() => null),
     backendFetch<BookingForm[]>("/api/sales/booking-forms").catch(() => null),   // only managers can set these up
+    backendFetch<unknown>("/api/xero-invoicing/codes").catch(() => null),          // only accounts make invoices
   ]);
   const year = new Date().getFullYear();
   const defs: FilterDef[] = [
@@ -67,6 +69,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         actions={<div className="flex items-center gap-2">
           {forms && <BookingFormsButton forms={forms} titles={meta.titles} reps={meta.reps} />}
           {settings && <DealSettingsButton settings={settings} titles={meta.titles} />}
+          {xeroCodes ? <XeroCodesButton titles={meta.titles} /> : null}
           <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/deals/new" />}><Plus className="size-3.5" /> New booking</Button>
         </div>}
       />

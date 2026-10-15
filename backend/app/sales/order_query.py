@@ -106,6 +106,7 @@ def xero_state():
     state = (
         select(case(
             (XeroInvoice.status.in_(("VOIDED", "DELETED")), "voided"),
+            (XeroInvoice.status.in_(("DRAFT", "SUBMITTED")), "draft"),   # made, not sent to the client yet
             (func.coalesce(XeroInvoice.amount_due, 0) <= 0, "paid"),
             (XeroInvoice.due_on < date.today(), "overdue"),
             (func.coalesce(XeroInvoice.amount_paid, 0) > 0, "part_paid"),

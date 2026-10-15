@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { InvoiceMatchPanel } from "@/components/sales/invoice-match-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { XeroInvoiceButton } from "@/components/deals/xero-invoice-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -523,6 +524,9 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2 border-t border-border/70 pt-3">
+          {kind.kind === "invoice_due" && typeof payload.deal_id === "string" && (
+            <XeroInvoiceButton dealId={payload.deal_id} orderIds={(payload.order_ids as string[] | undefined) ?? undefined} />
+          )}
           {kind.actions.map((action) => (
             <Button
               key={action.id}

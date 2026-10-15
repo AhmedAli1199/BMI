@@ -372,7 +372,8 @@ def link_bookings(db: Session, inv: XeroInvoice, orders: list[SalesOrder], sourc
     others = db.scalar(select(func.count()).select_from(SalesOrder).where(
         SalesOrder.xero_invoice_id == inv.id, SalesOrder.id.notin_([o.id for o in orders]))) or 0
     sharing = len(orders) + others
-    who = {"auto": "automatically", "confirmed": "after a person chose it", "typed": "from the typed number"}[source]
+    who = {"auto": "automatically", "confirmed": "after a person chose it", "typed": "from the typed number",
+           "created": "when accounts made it from the booking"}[source]
     for o in orders:
         before = {"invoice_number": o.invoice_number, "invoice_value_gbp": o.invoice_value_gbp,
                   "invoiced_on": o.invoiced_on, "xero_link": None}

@@ -292,7 +292,7 @@ export type InvoiceMatchInvoice = {
   vat: number;
   total: number;
   amount_due: number;
-  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  state: "draft" | "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
   status: string;
   url: string;
 };

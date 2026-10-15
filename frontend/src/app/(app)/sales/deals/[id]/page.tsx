@@ -5,12 +5,13 @@ import { backendFetch } from "@/lib/backend";
 import type { Deal, DealScheduleRow } from "@/lib/deals-types";
 import { DealActions } from "@/components/deals/deal-actions";
 import { InvoiceDue, LockControls } from "@/components/deals/deal-invoicing";
+import { XeroInvoiceButton } from "@/components/deals/xero-invoice-button";
 import { DealStatusPill } from "@/components/deals/deal-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 const XERO: Record<string, [string, string]> = {
-  paid: ["Paid", "var(--ok)"], part_paid: ["Part paid", "var(--warn)"], unpaid: ["Awaiting payment", "var(--muted-foreground)"],
+  draft: ["Draft in Xero", "var(--muted-foreground)"], paid: ["Paid", "var(--ok)"], part_paid: ["Part paid", "var(--warn)"], unpaid: ["Awaiting payment", "var(--muted-foreground)"],
   overdue: ["Overdue", "var(--bad)"], voided: ["Voided", "var(--muted-foreground)"], not_in_xero: ["Not found in Xero", "var(--warn)"],
 };
 
@@ -170,6 +171,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         <h2 id="sched-h" className="flex items-center gap-1 border-b border-border/70 px-4 py-3 text-sm font-bold">
           Schedule <InfoHint>Every item sits in its own issue, month or event. Each earns commission and counts in that issue&apos;s figures when it runs.</InfoHint>
           {ready.length > 0 && <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ color: "var(--warn)", background: "color-mix(in oklab, var(--warn) 12%, transparent)" }}>{ready.length} ready to invoice</span>}
+          {d.can_approve && d.status === "confirmed" && ready.length > 0 && <span className="ml-auto"><XeroInvoiceButton dealId={d.id} label={`Create the invoice in Xero (${ready.length})`} /></span>}
         </h2>
         <table className="w-full min-w-[56rem] text-sm">
           <thead>
@@ -202,7 +204,14 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                     <span>{r.invoice_number}{r.xero_state && XERO[r.xero_state] && <span className="ml-1.5 font-semibold" style={{ color: XERO[r.xero_state][1] }}>{XERO[r.xero_state][0]}</span>}</span>
                   ) : r.ready_to_invoice ? <div className="flex flex-col gap-0.5"><span className="font-semibold" style={{ color: "var(--warn)" }}>Ready to invoice</span><InvoiceDue deal={d} row={r} /></div>
                     : r.to_allocate ? <span className="text-muted-foreground">Once it&apos;s allocated</span>
-                    : r.added_value || r.status === "cancelled" ? "" : <InvoiceDue deal={d} row={r} />}
+                    : r.added_value || r.status === "cancelled" ? "" : (
+                      <div className="flex flex-col items-start gap-0.5">
+                        <InvoiceDue deal={d} row={r} />
+                        {d.can_approve && d.status === "confirmed" && r.order_id && r.value_gbp > 0 && (
+                          <XeroInvoiceButton dealId={d.id} orderIds={[r.order_id]} label="Invoice it now" variant="ghost" />
+                        )}
+                      </div>
+                    )}
                 </td>
               </tr>
             ))}
@@ -228,6 +237,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           d.invoice_currency && d.invoice_currency !== "GBP" ? `Invoice in ${d.invoice_currency}` : null,
           d.invoice_instructions,
         ].filter(Boolean).join("\n")}</Detail>
+        {d.xero_contact && <Detail label="Xero contact">{d.xero_contact.name}</Detail>}
         <Detail label="Copy and artwork from">{[d.copy_contact_name, d.copy_contact_email].filter(Boolean).join("\n")}</Detail>
         <Detail label="Client company">{d.company_id ? <Link href={`/companies/${d.company_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{d.client_name} <ExternalLink className="size-3" aria-hidden="true" /></Link> : d.client_name}</Detail>
         <Detail label="Document">{d.document === "schedule" ? "Schedule of works" : "Order confirmation"}</Detail>

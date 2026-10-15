@@ -59,6 +59,7 @@ function InvoiceCell({ o }: { o: SalesOrder }) {
 const XERO_TONE: Record<string, [string, string]> = {
   paid: ["Paid", "var(--ok)"],
   part_paid: ["Part paid", "var(--warn)"],
+  draft: ["Draft in Xero", "var(--muted-foreground)"],
   unpaid: ["Unpaid", "var(--muted-foreground)"],
   overdue: ["Overdue", "var(--bad)"],
   voided: ["Voided", "var(--muted-foreground)"],

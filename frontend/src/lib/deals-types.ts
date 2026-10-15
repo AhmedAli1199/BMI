@@ -127,6 +127,7 @@ export type Deal = Omit<DealInput, "status"> & {
   /** Accounts unlocked it so the salesperson can change it; it locks again when they save. */
   unlocked?: { at: string; by: string | null } | null;
   invoice_plan_label?: string;
+  xero_contact?: { id: string; name: string | null } | null;
   pending_change?: { id: string; cancel: boolean; reason: string | null; requested_by: string | null; requested_at: string | null; details: { label: string; value: string; href?: string }[] } | null;
   notes_after_save?: string[];
 };

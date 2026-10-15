@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { friendlyError } from "@/lib/errors";
 
-const STATE_LABEL: Record<string, string> = { paid: "Paid", part_paid: "Part paid", unpaid: "Awaiting payment", overdue: "Overdue", voided: "Voided" };
+const STATE_LABEL: Record<string, string> = { draft: "Draft in Xero", paid: "Paid", part_paid: "Part paid", unpaid: "Awaiting payment", overdue: "Overdue", voided: "Voided" };
 
 function money(currency: string, n: number) {
   return currency === "GBP" ? fmtGBP(n) : `${currency} ${n.toLocaleString("en-GB", { maximumFractionDigits: 2 })}`;

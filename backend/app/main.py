@@ -35,6 +35,7 @@ from app.api.routes import (
     proposal_examples,
     proposal_style,
     feedback,
+    xero_invoicing,
     rate_card,
     messaging,
     publications,
@@ -120,6 +121,7 @@ api_router.include_router(proposal_examples.router)
 api_router.include_router(proposal_style.router)
 api_router.include_router(proposal_style.report_router)
 api_router.include_router(feedback.router)
+api_router.include_router(xero_invoicing.router)
 api_router.include_router(rate_card.router)
 api_router.include_router(editorial.router)
 api_router.include_router(calls.router)

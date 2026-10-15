@@ -59,5 +59,9 @@ class Company(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     # source database - it differs significantly title to title.
     custom_fields: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
+    # The Xero contact this company is invoiced as (remembered the first time accounts link it)
+    xero_contact_id: Mapped[str | None] = mapped_column(String(64))
+    xero_contact_name: Mapped[str | None] = mapped_column(String(255))
+
     act_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     act_edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

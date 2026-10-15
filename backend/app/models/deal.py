@@ -80,6 +80,9 @@ class SalesDeal(Base, UUIDPk, TimestampMixin):
     # Accounts can unlock a checked booking so the salesperson can change it; it locks again when they save.
     unlocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     unlocked_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    # The Xero contact its invoices go to (found by name/email, or chosen by accounts)
+    xero_contact_id: Mapped[str | None] = mapped_column(String(64))
+    xero_contact_name: Mapped[str | None] = mapped_column(String(255))
     special_instructions: Mapped[str | None] = mapped_column(Text)
     copy_instructions: Mapped[str | None] = mapped_column(Text)
     production_contact: Mapped[str | None] = mapped_column(String(200))
@@ -117,6 +120,8 @@ class DealSettings(Base):
     default_copy_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     default_special_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     terms_by_title: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")   # {title_id: terms line}
+    # Xero codes for invoice lines: {"default": {...}, "titles": {title_id: {"account_code", "item_code", "tracking": [{"name", "option"}]}}}
+    xero_codes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

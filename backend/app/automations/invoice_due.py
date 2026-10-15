@@ -179,9 +179,9 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
 register(ReviewKind(
     kind=KIND,
     label="Ready to invoice",
-    description="Booked items that have reached the date they should be invoiced (from the booking's \"when to invoice\", or a date accounts set). Raise the invoice in Xero, then record it here, or choose a later date.",
+    description="Booked items that have reached the date they should be invoiced (from the booking's \"when to invoice\", or a date accounts set). Make the draft invoice in Xero in one click, record one you made yourself, or choose a later date.",
     actions=[
-        ReviewAction(id="invoiced", label="Invoiced", style="primary", outcome="approved", extra_fields=[
+        ReviewAction(id="invoiced", label="Already invoiced in Xero", style="secondary", outcome="approved", extra_fields=[
             ExtraField(key="invoice_number", label="Invoice number from Xero", placeholder="INV-3050"),
         ]),
         ReviewAction(id="remind", label="Remind me on…", style="secondary", outcome="rejected", extra_fields=[

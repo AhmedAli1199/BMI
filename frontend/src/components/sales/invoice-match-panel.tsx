@@ -14,6 +14,7 @@ import { friendlyError } from "@/lib/errors";
 const STATE: Record<string, [string, string]> = {
   paid: ["Paid", "var(--ok)"],
   part_paid: ["Part paid", "var(--warn)"],
+  draft: ["Draft in Xero", "var(--muted-foreground)"],
   unpaid: ["Awaiting payment", "var(--muted-foreground)"],
   overdue: ["Overdue", "var(--bad)"],
   voided: ["Voided", "var(--muted-foreground)"],

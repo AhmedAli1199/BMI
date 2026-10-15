@@ -363,7 +363,9 @@ class Settings(BaseSettings):
     xero_redirect_uri: str = ""  # default: {app_base_url}/api/xero/callback
     # Granular scopes: Xero apps created in 2026 can't use the older broad
     # accounting.transactions scope. These are the ones BMI's existing app already works with.
-    xero_scopes: str = "offline_access accounting.invoices.read accounting.contacts.read"
+    # accounting.invoices (not .read) lets accounts make DRAFT invoices from a booking; accounting.settings.read
+    # lists the account codes, items and tracking categories for those invoices. Reconnect Xero after changing.
+    xero_scopes: str = "offline_access accounting.invoices accounting.contacts.read accounting.settings.read"
     automations_xero_sync_enabled: bool = True
     xero_sync_from: str = "2023-01-01"  # first sync pulls invoices dated from here
     # Alternative to the in-app sign-in: an n8n workflow that already holds the

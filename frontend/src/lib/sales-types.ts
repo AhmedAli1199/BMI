@@ -62,7 +62,7 @@ export type Ref = { id: string; label: string };
 export type Credit = { rep_id: string; code: string; name: string; amount_gbp: number };
 
 export type XeroRef = {
-  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  state: "draft" | "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
   status: string;
   currency: string | null;
   total: number | null;
@@ -89,7 +89,7 @@ export type UnmatchedInvoice = {
   currency: string;
   net: number;
   total: number;
-  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  state: "draft" | "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
   url: string;
 };
 
@@ -454,7 +454,7 @@ export type XeroChoice = {
   issued_on: string | null;
   currency: string;
   net: number;
-  state: "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
+  state: "draft" | "paid" | "part_paid" | "unpaid" | "overdue" | "voided";
   url: string;
   /** Why it's suggested: "Same client", "Similar name", "Same amount". */
   fit: string[];
