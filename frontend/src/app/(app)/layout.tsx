@@ -8,6 +8,7 @@ import { PublicationSwitcher } from "@/components/publication-switcher";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
 import { NotificationBell } from "@/components/notification-bell";
 import { FeedbackWidget } from "@/components/feedback/feedback-widget";
+import { BrainProvider } from "@/components/brain/brain-provider";
 import { getPublicationFilter } from "@/lib/publication";
 import { listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, canUseAutomations } from "@/lib/access";
@@ -88,8 +89,14 @@ export default async function AppLayout({
             </div>
           )}
         </header>
-        <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
-        {session && <FeedbackWidget />}
+        {session ? (
+          <BrainProvider userName={session.name}>
+            <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
+            <FeedbackWidget />
+          </BrainProvider>
+        ) : (
+          <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

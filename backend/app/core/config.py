@@ -64,6 +64,14 @@ class Settings(BaseSettings):
     # just set GEMINI_VISION_MODEL/GEMINI_TEXT_MODEL directly, no code
     # change needed) then.
     gemini_vision_model: str = "gemini-3.6-flash"
+    # The AI Hub chat (app/brain, docs/ai-hub-plan.md). Empty model = gemini_text_model. Thinking level
+    # (minimal | low | medium | high): "low" keeps answers quick; Gemini 3 defaults to "high" if unset.
+    brain_model: str = ""
+    brain_thinking: str = "low"
+    # Gemini caches repeated prompt starts by itself (implicit caching). True also creates explicit caches
+    # (guaranteed discount, small storage charge) - see ADK ContextCacheConfig.
+    brain_explicit_cache: bool = False
+    brain_history_messages: int = 16
     # The Notetaker service (separate app, see notetaker/ on its branch): it joins Meet/Teams
     # calls and sends the notes back to /api/calls/webhook (through the frontend's public
     # /api/notetaker/webhook). Empty URL = the "Send the notetaker" button is hidden.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { CheckCircle2, Crosshair, ExternalLink, Info, Loader2, MapPin, MessageSquarePlus, Mic, Monitor, ScanLine, Square, ThumbsUp, X } from "lucide-react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { FEEDBACK_KINDS, type FeedbackElement, type FeedbackItem, type FeedbackK
 import { feedbackPins, similarFeedback, toggleMeToo } from "@/lib/feedback-actions";
 import { browserContext, captureScreen, crop, installProblemLog, toDataUrl } from "@/lib/feedback-capture";
 import { friendlyError } from "@/lib/errors";
+import { useSpeech } from "@/lib/use-speech";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AnnotateDialog } from "@/components/feedback/annotate-dialog";
@@ -18,38 +19,6 @@ type Shot = { key: string; data: string; width: number; height: number; label: s
 type Marked = FeedbackElement & { key: string };
 
 const newKey = () => Math.random().toString(36).slice(2, 10);
-
-/** Turn speech into text with the same service the proposals use. */
-function useSpeech(onText: (t: string) => void) {
-  const rec = useRef<MediaRecorder | null>(null);
-  const [state, setState] = useState<"idle" | "listening" | "writing">("idle");
-  async function toggle() {
-    if (rec.current) { rec.current.stop(); rec.current = null; return; }
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { toast.error("This browser can't record - type it instead."); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const r = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      r.ondataavailable = (e) => chunks.push(e.data);
-      r.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setState("writing");
-        try {
-          const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
-          const res = await fetch("/api/files/proposals/transcribe", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
-          const body = await res.json();
-          if (!res.ok) throw new Error(body.detail || "");
-          onText(body.text);
-        } catch (e) { toast.error(friendlyError(e, "Couldn't make out the recording - type it instead.")); }
-        finally { setState("idle"); }
-      };
-      r.start();
-      rec.current = r;
-      setState("listening");
-    } catch { toast.error("The microphone isn't available - type it instead."); }
-  }
-  return { state, toggle };
-}
 
 /** The Feedback button on every page: say what's wrong, point at it, snap a screenshot, see what's already been said. */
 export function FeedbackWidget() {
@@ -79,7 +48,7 @@ export function FeedbackWidget() {
   // While a pop-up or side panel is open the rest of the page can't be clicked, so the button steps aside.
   const [covered, setCovered] = useState(false);
   useEffect(() => {
-    const check = () => setCovered(!!document.querySelector("[data-base-ui-inert]"));
+    const check = () => setCovered(!!document.querySelector("[data-base-ui-inert], [data-brain-panel]"));
     const mo = new MutationObserver(check);
     mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-base-ui-inert"] });
     return () => mo.disconnect();

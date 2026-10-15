@@ -462,6 +462,18 @@ export function AppSidebar({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/brain" />}
+                    isActive={pathname.startsWith("/brain")}
+                    className={NAV_ITEM}
+                  >
+                    <Sparkles
+                      className={`mr-1.5 size-4 ${pathname.startsWith("/brain") ? "text-primary" : "text-sidebar-foreground/70"}`}
+                    />
+                    <span>Ask AI</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 {/* The job/settings/cost control panel - stays
                     admin/data_manager only even though Today/Review Queue
                     above are now open to sales too (scoped to their own

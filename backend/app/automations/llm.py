@@ -276,7 +276,7 @@ def _throttle(min_interval: float) -> None:
 def _log_usage(
     *, provider: str, model: str, call_type: str, purpose: str,
     prompt_tokens: int, completion_tokens: int, cost_rates: tuple[float, float],
-    success: bool, error_type: str | None,
+    success: bool, error_type: str | None, cached_tokens: int = 0,
 ) -> None:
     """Writes one LlmUsageEvent row via its own short-lived session -
     deliberately independent of whatever DB session/transaction the
@@ -290,7 +290,9 @@ def _log_usage(
         from app.db.session import SessionLocal
         from app.models import LlmUsageEvent
         input_rate, output_rate = cost_rates
-        cost = (prompt_tokens / 1_000_000) * input_rate + (completion_tokens / 1_000_000) * output_rate
+        # cached input (prompt caching) is billed at about a tenth of the normal input rate
+        billed_in = (prompt_tokens - cached_tokens) + cached_tokens * 0.1
+        cost = (billed_in / 1_000_000) * input_rate + (completion_tokens / 1_000_000) * output_rate
         db = SessionLocal()
         try:
             db.add(LlmUsageEvent(

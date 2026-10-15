@@ -381,3 +381,16 @@
 .proposal-page .pblock-auto:hover { border-color: var(--border); }
 .proposal-page .pblock-tag { margin-bottom: 0.35rem; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em; color: var(--muted-foreground); }
 .proposal-page .pblock-wait { color: var(--muted-foreground); font-size: 0.75rem; }
+
+/* The assistant's "Show me" spotlight (components/brain/show-me.ts) */
+@keyframes brain-pulse {
+  0%, 100% { outline: 0 solid transparent; }
+  50% { outline: 6px solid color-mix(in oklab, var(--primary) 25%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-brain-spotlight] { animation: none !important; }
+}
+/* The assistant's side panel: on wide screens the page makes room instead of hiding under it. */
+@media (min-width: 1280px) {
+  body.brain-open [data-slot="sidebar-inset"] { margin-right: 26rem; width: auto; min-width: 0; }
+}

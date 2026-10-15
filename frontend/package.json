@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "help-map": "node scripts/build-help-map.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
