@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Ban, Bot, ExternalLink, Lock } from "lucide-react";
+import { Ban, Bot, CircleAlert, ExternalLink, Lock } from "lucide-react";
 import { toast } from "sonner";
 import type { FilterDef, SortState } from "@/lib/data-view/schema";
 import { PLATFORM_LABEL, type SharedMeeting } from "@/lib/calls-types";
@@ -24,6 +24,9 @@ const ACCESSORS = {
   platform: (m: SharedMeeting) => m.platform ?? "none",
   mine: (m: SharedMeeting) => (m.mine ? "1" : "0"),
 };
+const TONE: Record<SharedMeeting["outcome"]["tone"], string> = {
+  ok: "var(--ok)", live: "var(--warn)", warn: "var(--warn)", bad: "var(--destructive)", muted: "var(--muted-foreground)",
+};
 const SORTS = { start: (m: SharedMeeting) => m.start_at };
 
 function day(iso: string) {
@@ -40,7 +43,7 @@ export function MeetingsAgenda({ meetings, people }: { meetings: SharedMeeting[]
   const defs: FilterDef[] = [
     { kind: "search", key: "q", label: "Search meetings", placeholder: "Title, person, company…" },
     { kind: "multi", key: "person", label: "Who from BMI", section: "Meeting", options: people.map((p) => ({ value: p, label: p })), searchable: people.length > 8 },
-    { kind: "single", key: "plan", label: "Notetaker", section: "Meeting", options: [{ value: "record", label: "Will be recorded" }, { value: "no", label: "Won't be recorded" }] },
+    { kind: "single", key: "plan", label: "Notetaker", section: "Meeting", options: [{ value: "record", label: "Meant to be recorded" }, { value: "no", label: "Not meant to be recorded" }] },
     { kind: "multi", key: "platform", label: "Call type", section: "Meeting", options: [{ value: "google_meet", label: "Google Meet" }, { value: "teams", label: "Microsoft Teams" }, { value: "zoom", label: "Zoom" }, { value: "none", label: "No meeting link" }] },
     { kind: "single", key: "mine", label: "Whose", section: "Meeting", options: [{ value: "1", label: "Only my meetings" }] },
   ];
@@ -94,17 +97,16 @@ export function MeetingsAgenda({ meetings, people }: { meetings: SharedMeeting[]
                           </div>
                         )}
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-                          {m.call && m.call.status !== "cancelled" ? (
+                          {m.call && m.call.status !== "cancelled" && !(m.call.status === "scheduled" && new Date(m.end_at).getTime() <= Date.now()) && (
                             <Link href={`/calls/${m.call.id}`} className="hover:opacity-80"><CallStatus status={m.call.status} label={m.call.status_label} /></Link>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 font-semibold" style={{ color: m.decision.record ? "var(--ok)" : "var(--muted-foreground)" }}>
-                              {m.decision.record ? <Bot className="size-3" /> : <Ban className="size-3" />} {m.decision.reason}
-                            </span>
                           )}
-                          {m.last_error && <span style={{ color: "var(--warn)" }}>{m.last_error}</span>}
+                          <span className="inline-flex items-start gap-1 font-semibold" style={{ color: TONE[m.outcome?.tone ?? "muted"] }}>
+                            {m.outcome?.tone === "ok" || m.outcome?.tone === "live" ? <Bot className="mt-px size-3 shrink-0" /> : m.outcome?.tone === "bad" || m.outcome?.tone === "warn" ? <CircleAlert className="mt-px size-3 shrink-0" /> : <Ban className="mt-px size-3 shrink-0" />}
+                            {m.outcome?.text ?? m.decision.reason}
+                          </span>
                         </div>
                       </div>
-                      {!m.private && m.platform && m.platform !== "zoom" && !["Everyone at BMI declined", "No meeting link", "All-day event"].includes(m.decision.reason) &&
+                      {!m.private && new Date(m.end_at).getTime() > Date.now() && m.platform && m.platform !== "zoom" && !["Everyone at BMI declined", "No meeting link", "All-day event"].includes(m.decision.reason) &&
                         (!m.call || m.call.status === "scheduled" || m.call.status === "cancelled") && (
                         <div className="flex gap-1.5 sm:justify-end">
                           {m.decision.record ? (

@@ -78,3 +78,23 @@ def verify(body: bytes, timestamp: str, signature: str, max_age: int = 600) -> b
         return False
     expected = "sha256=" + hmac.new(secret.encode(), timestamp.encode() + b"." + body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
+
+
+def check() -> tuple[bool, str]:
+    """Can BMI Brain reach the notetaker with its key? Plain words either way (for the Notetaker check)."""
+    if not configured():
+        return False, "Not connected: NOTETAKER_URL and NOTETAKER_API_KEY aren't set on the BMI Brain backend."
+    try:
+        with _client() as c:
+            r = c.get("/v1/capacity")
+    except httpx.HTTPError:
+        return False, "BMI Brain can't reach the notetaker at its address. Check NOTETAKER_URL and that the notetaker is running."
+    if r.status_code >= 400:
+        return False, _detail(r, "The notetaker answered with a problem. Check its console.")
+    try:
+        free = r.json().get("free")
+    except Exception:
+        free = None
+    if free == 0:
+        return False, "Connected, but it's already in as many calls as it can join at once, so new meetings can't be booked right now."
+    return True, "Connected and answering" + (f" - room for {free} more call{'s' if free != 1 else ''} right now" if isinstance(free, int) else "")

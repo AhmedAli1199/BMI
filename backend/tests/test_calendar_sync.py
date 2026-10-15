@@ -149,3 +149,71 @@ def test_cancelled_after_booking_calls_off(db_session, people, monkeypatch):
     cs.sync_connection(db_session, cm, NOW, [])   # the meeting is deleted
     cs.plan(db_session, NOW)
     assert stopped == ["nt_9"]
+
+
+def test_outcome_says_what_actually_happened(db_session, people, monkeypatch):
+    matt, sam, cm, cg = people
+    monkeypatch.setattr(settings, "notetaker_url", "")
+    start = NOW + timedelta(minutes=10)
+    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", start, me="organizer")])
+    m = meetings(db_session)[0]
+    m.created_at = NOW - timedelta(days=1)
+    d = cs.should_record(db_session, m)
+    assert cs.outcome(m, None, d, NOW)["tone"] == "ok"
+    cs.plan(db_session, NOW)   # notetaker not connected: the reason is kept
+    after = start + timedelta(hours=1)
+    o = cs.outcome(m, None, d, after)
+    assert o["tone"] == "bad" and o["text"].startswith("Not recorded") and "isn't connected" in o["text"]
+    # never tried at all (job not running)
+    m.last_error = None
+    assert "never sent" in cs.outcome(m, None, d, after)["text"]
+    # booked but never joined / not let in / recorded
+    call = CallRecording(id=uuid.uuid4(), user_id=matt.id, calendar_meeting_id=m.id, meeting_url=m.join_url, status="scheduled", status_label="Scheduled")
+    assert "never joined" in cs.outcome(m, call, d, after)["text"]
+    call.status = "not_admitted"
+    assert "wasn't let into" in cs.outcome(m, call, d, after)["text"]
+    call.status = "completed"
+    assert cs.outcome(m, call, d, after) == {"tone": "ok", "text": "Recorded - the notes are in Call notes"}
+    # the rules said no: past tense once it's over
+    m.record_override = "skip"
+    o = cs.outcome(m, None, cs.should_record(db_session, m), after)
+    assert o == {"tone": "muted", "text": "Not recorded - skipped for this meeting"}
+
+
+def test_start_over_keeps_connections_and_recorded_calls(db_session, people, monkeypatch):
+    matt, sam, cm, cg = people
+    monkeypatch.setattr(settings, "notetaker_url", "http://nt")
+    monkeypatch.setattr(settings, "notetaker_api_key", "k")
+    stopped = []
+    monkeypatch.setattr(notetaker, "send_bot", lambda **kw: {"id": "nt_1", "status": "scheduled"})
+    monkeypatch.setattr(notetaker, "stop_bot", lambda nid: stopped.append(nid))
+    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", NOW + timedelta(minutes=5)),
+                                             ev("ms-2", NOW - timedelta(hours=3), link="https://meet.google.com/xyz-abcd-efg")])
+    cs.plan(db_session, NOW)
+    old = meetings(db_session)[0]
+    done = CallRecording(id=uuid.uuid4(), user_id=matt.id, calendar_meeting_id=old.id, meeting_url=old.join_url, status="completed", status_label="Done")
+    db_session.add(done)
+    db_session.flush()
+    out = cs.start_over(db_session)
+    assert out["meetings"] == 2 and stopped == ["nt_1"] and out["calls_removed"] == 1
+    assert meetings(db_session) == [] and db_session.query(CalendarAttendance).count() == 0
+    assert db_session.query(CalendarConnection).count() == 2 and cm.last_synced_at is None
+    db_session.refresh(done)
+    assert done.calendar_meeting_id is None
+
+
+def test_notetaker_check_and_start_over_are_admin_only(client, db_session, people, monkeypatch):
+    from tests.conftest import identity_headers
+    monkeypatch.setattr(settings, "notetaker_url", "")
+    admin = make_user(db_session, role="admin", name="Ahmed")
+    sales = make_user(db_session, role="sales", name="Tom")
+    db_session.flush()
+    assert client.get("/api/calendar/health", headers=identity_headers(sales)).status_code == 403
+    r = client.get("/api/calendar/health", headers=identity_headers(admin))
+    assert r.status_code == 200, r.text
+    first = r.json()["checks"][0]
+    assert first["label"] == "The notetaker service" and not first["ok"] and "NOTETAKER_URL" in first["text"]
+    assert client.post("/api/calendar/start-over", headers=identity_headers(sales)).status_code == 403
+    monkeypatch.setattr(cs, "sync_all", lambda db, force=False: 0)
+    r = client.post("/api/calendar/start-over", headers=identity_headers(admin))
+    assert r.status_code == 200 and r.json()["meetings"] == 0

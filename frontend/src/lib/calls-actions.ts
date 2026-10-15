@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { Call } from "@/lib/calls-types";
+import type { Call, NotetakerHealth } from "@/lib/calls-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -54,5 +54,16 @@ export async function disconnectCalendar(provider: "google" | "microsoft") {
 export async function syncCalendarsNow() {
   const r = await backendFetch<{ booked: number; called_off: number }>(`/api/calendar/sync`, { method: "POST" });
   revalidatePath("/calls/meetings");
+  return r;
+}
+
+export async function getNotetakerHealth() {
+  return backendFetch<NotetakerHealth>(`/api/calendar/health`);
+}
+
+export async function startCalendarOver() {
+  const r = await backendFetch<{ meetings: number; bots_called_off: number; calls_removed: number; booked: number }>(`/api/calendar/start-over`, { method: "POST" });
+  revalidatePath("/calls/meetings");
+  revalidatePath("/calls");
   return r;
 }

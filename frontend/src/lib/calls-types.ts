@@ -59,9 +59,17 @@ export type SharedMeeting = {
   bmi_people: { name: string; response: string }[];
   outside_people: { name: string; email: string }[];
   decision: { record: boolean; reason: string };
+  /** What actually happened (past meetings) or will happen (upcoming), in plain words. */
+  outcome: { tone: "ok" | "warn" | "bad" | "muted" | "live"; text: string };
   override: "record" | "skip" | null;
   last_error?: string | null;
   call: { id: string; status: string; status_label: string } | null;
   contact: { id: string; name: string | null } | null;
   company: { id: string; name: string } | null;
+};
+
+export type NotetakerHealth = {
+  checks: { label: string; ok: boolean; text: string }[];
+  missed: { title: string; start_at: string; text: string }[];
+  missed_count: number;
 };

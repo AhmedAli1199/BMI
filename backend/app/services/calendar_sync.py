@@ -312,6 +312,100 @@ def plan(db: Session, at: datetime | None = None) -> dict:
     return out
 
 
+# ---- What happened (the line on each meeting) ---------------------------------------------------
+
+def latest_call(db: Session, m: CalendarMeeting) -> CallRecording | None:
+    call = db.get(CallRecording, m.call_id) if m.call_id else None
+    return call or db.scalar(select(CallRecording).where(CallRecording.calendar_meeting_id == m.id)
+                             .order_by(CallRecording.created_at.desc()).limit(1))
+
+
+def outcome(m: CalendarMeeting, call: CallRecording | None, d: Decision, at: datetime | None = None) -> dict:
+    """One plain sentence for the meeting's line: what actually happened once it's over, what will happen
+    before it starts. tone: ok | warn | bad | muted | live."""
+    at = at or now()
+    ended = bool(m.end_at and m.end_at <= at)
+    started = m.start_at <= at
+    def low(t: str) -> str:   # "The notetaker..." reads as "...- the notetaker..." after a dash
+        return t[0].lower() + t[1:] if len(t) > 1 and not t[1].isupper() else t
+    err = low((m.last_error or "").strip())
+    detail = low(((call.status_detail if call else None) or "").strip())
+
+    def say(tone: str, text: str) -> dict:
+        return {"tone": tone, "text": text}
+
+    if call and call.status != "cancelled":
+        s = call.status
+        if s == "completed":
+            return say("ok", "Recorded - the notes are in Call notes")
+        if s == "not_admitted":
+            return say("bad", f"Not recorded - the notetaker wasn't let into the call{': ' + detail if detail else '. Someone in the meeting has to admit it from the waiting room.'}")
+        if s == "failed":
+            return say("bad", f"Not recorded - {detail or 'the notetaker had a problem in the call'}")
+        if s == "processing":
+            return say("live", "Recorded - writing up the notes now")
+        if s == "scheduled":
+            if ended:
+                return say("bad", "Not recorded - the notetaker was booked but never joined. The notetaker service didn't report back, so check its console.")
+            if started:
+                return say("warn", "The notetaker is booked and should be joining now")
+            return say("ok", "Will be recorded - the notetaker is booked")
+        return say("live", call.status_label or "The notetaker is in the call")
+
+    if call and call.status == "cancelled" and not d.record:
+        return say("muted", f"{'Not recorded' if ended else 'Won’t be recorded'} - {detail or d.reason}")
+
+    if not d.record:
+        if d.reason == "Cancelled":
+            return say("muted", "Cancelled")
+        return say("muted", f"{'Not recorded' if ended else 'Won’t be recorded'} - {low(d.reason)}")
+
+    # The rules say record it, but no bot is (or was) booked.
+    if ended:
+        if err:
+            return say("bad", f"Not recorded - {err}")
+        if m.created_at and m.created_at > m.start_at + LATE_JOIN:
+            return say("muted", "Not recorded - it reached BMI Brain after it had started, too late for the notetaker to join")
+        return say("bad", "Not recorded - the notetaker was never sent. The calendar job may not have been running then - an administrator can see why in Notetaker check.")
+    if err:
+        return say("bad" if started else "warn", f"{'Not recording yet' if started else 'Will try to record'} - {err}")
+    if started:
+        return say("warn", "Should be recording - sending the notetaker now")
+    return say("ok", "Will be recorded - the notetaker gets booked 20 minutes before it starts")
+
+
+# ---- Starting over ------------------------------------------------------------------------------
+
+def start_over(db: Session) -> dict:
+    """Clears the shared calendar's history - every meeting and each person's copy - and calls off bots that
+    were booked but haven't joined. Calendar connections stay; they're read again from scratch straight after.
+    Calls that were actually recorded (they have notes) are kept, just no longer tied to a meeting."""
+    from app.services import notetaker
+    out = {"meetings": 0, "bots_called_off": 0, "calls_removed": 0}
+    calls = db.scalars(select(CallRecording).where(CallRecording.calendar_meeting_id.is_not(None))).all()
+    for c in calls:
+        if c.status == "scheduled":
+            try:
+                if c.notetaker_id and notetaker.configured():
+                    notetaker.stop_bot(c.notetaker_id)
+                    out["bots_called_off"] += 1
+            except notetaker.NotetakerError:
+                log.warning("couldn't call off notetaker %s while starting over", c.notetaker_id)
+        if c.status in ("scheduled", "cancelled", "failed", "not_admitted"):
+            db.delete(c)
+            out["calls_removed"] += 1
+        else:
+            c.calendar_meeting_id = None
+    db.flush()
+    out["meetings"] = db.query(CalendarMeeting).count()
+    db.query(CalendarAttendance).delete(synchronize_session=False)
+    db.query(CalendarMeeting).delete(synchronize_session=False)
+    for conn in db.scalars(select(CalendarConnection)):
+        conn.last_synced_at = None
+    db.commit()
+    return out
+
+
 def run(db: Session) -> dict:
     """The scheduled job: read calendars that are due, then book or call off bots."""
     sync_all(db)
