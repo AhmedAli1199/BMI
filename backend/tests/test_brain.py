@@ -90,7 +90,11 @@ def test_guides_load_and_match_pages():
     assert knowledge.guides_for_path("/sales/deals/new")[0].id == "sales-orders/booking-form"
     assert knowledge.search("unlock booking accounts")
     text = prompt.static_instruction()
-    assert "sales-orders/invoicing" in text and "<guide id=\"sales-orders/booking-page\"" in text
+    assert "sales-orders/invoicing" in text and "<guide id=" not in text      # only the list; guides come on demand
+    g = runner.page_guide("/sales/deals/1b2c3d4e-0000-0000-0000-000000000000", set(), [])
+    assert g.startswith('\n\n<guide id="sales-orders/booking-page"')
+    assert runner.page_guide("/sales/deals/x", set(), [("user", "q " + g)]) == ""          # already in this conversation
+    assert runner.page_guide("/sales/deals/x", {"orders"}, []) == ""                       # can't open that page
     assert not re.search(r"\b20\d\d-\d\d-\d\d\b", prompt.RULES)   # nothing that changes day to day in the fixed part
 
 

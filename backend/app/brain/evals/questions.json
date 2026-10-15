@@ -116,5 +116,65 @@
    "I have changed",
    "done"
   ]
+ },
+ {
+  "page": "/automations",
+  "q": "Which automations are switched off right now?",
+  "any": [
+   "switched off",
+   "off"
+  ],
+  "role": "admin"
+ },
+ {
+  "page": "/automations",
+  "q": "When did the renewal emails automation last run and did it work?",
+  "any": [
+   "ago",
+   "ran",
+   "never"
+  ],
+  "role": "admin"
+ },
+ {
+  "page": "/automations/review",
+  "q": "How many cards are waiting for me?",
+  "any": [
+   "waiting",
+   "nothing"
+  ]
+ },
+ {
+  "page": "/editorial",
+  "q": "When is the next advertising deadline?",
+  "any": [
+   "deadline",
+   "no deadlines"
+  ]
+ },
+ {
+  "page": "/settings",
+  "q": "Do I get my notifications by email?",
+  "any": [
+   "email",
+   "on",
+   "off"
+  ]
+ },
+ {
+  "page": "/sales",
+  "q": "Which automations are live?",
+  "role": "sales",
+  "all": [
+   "You don't have permission to view that."
+  ]
+ },
+ {
+  "page": "/contacts",
+  "q": "How do I import contacts from a spreadsheet?",
+  "any": [
+   "import",
+   "Import"
+  ]
  }
 ]

@@ -185,9 +185,9 @@ def test_switched_off_screens_stay_off(crm, monkeypatch):
     from app import ui_sections
     db = crm["db"]
     tom = make_user(db, role="sales", name="Tom")
-    ui_sections.save(db, {"sales": ["sales_overview", "bookings", "editions"]})
+    ui_sections.save(db, {"sales": ["sales_overview", "sales_dashboard", "bookings", "editions"]})
     out = _tool("sales_metrics", Identity(user_id=str(tom.id), role="sales"), monkeypatch, db)
-    assert "switched off" in out["error"]
+    assert out["error"].startswith("You don't have permission to view that.")
     ok = _tool("sales_metrics", Identity(user_id=str(make_user(db, role="admin").id), role="admin"), monkeypatch, db, year=2025, basis="calendar")
     assert ok["total"] == 3650
 

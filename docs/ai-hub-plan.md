@@ -114,4 +114,9 @@ sending CRM data to Gemini (paid tier, not used for training); keep the OpenAI f
 - **Phase 2 built (15 Oct):** client and figures tools, metrics in code (tested against the overview), hybrid search
   index with an incremental 15-minute job. Works without pgvector (keyword only); meaning search turns on by itself
   once the extension is on the production database. Data evals to fill in with Matt and Samantha.
-- Next: phase 3 (MCP door, actions with a confirmation card, memory), then phase 4 (voice).
+- **Phase 3 built (15 Oct) - reads everything, changes nothing:** automations (live on/off, runs, settings, how each
+  works), Review Queue, settings (own, company, others for admins), editorial plan, and the rest of the CRM; guides
+  for every area, loaded on demand. Permission rule: only what the person can open (role + Settings > Sections).
+- Next: phase 4 - actions with a confirmation card (reminders, logging a call or note, drafting an email or proposal,
+  starting a pencilled booking, approving a review card, switching an automation for admins); then phase 5 (MCP door,
+  memory, voice).

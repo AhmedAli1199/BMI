@@ -172,7 +172,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
               <div className="text-sm">
                 <p className="font-semibold">Hi{userName ? ` ${userName.split(" ")[0]}` : ""}, what would you like to know?</p>
                 <p className="mt-0.5 text-muted-foreground">
-                  Ask how anything in Sales Orders works, why a booking is the way it is, or about a client and the figures. Point at something on the screen and I&apos;ll explain it.
+                  Ask how anything in BMI Brain works, about a client, the figures, the editorial plan, your Review Queue or the automations. Point at something on the screen and I&apos;ll explain it.
                 </p>
               </div>
             </div>

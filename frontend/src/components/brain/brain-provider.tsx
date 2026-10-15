@@ -38,7 +38,7 @@ export function BrainProvider({ userName, children }: { userName?: string; child
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") { e.preventDefault(); setOpen((o) => !o); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j" && !window.location.pathname.startsWith("/brain")) { e.preventDefault(); setOpen((o) => !o); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

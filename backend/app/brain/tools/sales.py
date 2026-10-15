@@ -50,6 +50,8 @@ def sales_order_find(env: ToolEnv, query: str) -> dict:
     Args:
       query: a booking number or some words from the client/agency/contact name
     """
+    from app.brain.tools.crm import need
+    need(env, "orders", "invoicing")
     q = (query or "").strip().lstrip("#")
     if not q:
         raise ToolError("Say which booking - a number or the client's name.")
@@ -73,6 +75,8 @@ def sales_order_explain(env: ToolEnv, booking: str) -> dict:
       booking: the booking number (e.g. "1234") or its id from the page address
     """
     from app.api.routes import deals as routes
+    from app.brain.tools.crm import need
+    need(env, "orders", "invoicing")
     d = _find(env, booking)
     out = routes._out(env.db, d, env.identity)
     me = env.user
@@ -152,7 +156,7 @@ def sales_metrics(env: ToolEnv, measure: str = "booked", group_by: str = "none",
     """
     from app.brain import metrics
     from app.brain.tools.crm import need
-    need(env, "sales_overview", "bookings", "editions")
+    need(env, "sales_overview", "sales_dashboard", "bookings", "editions")
     try:
         return metrics.compute(env.db, measure=measure, group_by=group_by, year=year or None, basis=basis or None, title=title or None,
                                salesperson=salesperson or None, client=client or None, product_line=product_line or None,

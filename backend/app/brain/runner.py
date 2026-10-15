@@ -62,12 +62,33 @@ def context_block(user, identity: Identity, ctx: dict, images: int = 0, today: d
         if known and known.get("hint"):
             bits.append(f"(its hint says: {known['hint'][:200]})")
         lines.append("Pointed at: " + " ".join(bits))
+    if ctx.get("cannot_open"):
+        lines.append("This person can't open (answer \"You don't have permission to view that.\" to anything about these): "
+                     + ", ".join(ctx["cannot_open"]))
     errs = [x.get("message") for x in (ctx.get("errors") or [])[-3:] if x.get("message")]
     if errs:
         lines.append("Recent messages on screen: " + " | ".join(m[:160] for m in errs))
     if images:
         lines.append(f"Screenshot{'s' if images > 1 else ''} attached: {images} (look at {'them' if images > 1 else 'it'})")
     return "<context>\n" + "\n".join(lines) + "\n</context>"
+
+
+def page_guide(page_path: str | None, blocked: set[str], history: list[tuple[str, str]]) -> str:
+    """The guide for the page the question was asked on, in full - unless this conversation already has it or the
+    person can't open that page. Added after <context>, so the fixed start of the request stays cached, and later
+    turns replay it from history (cached too)."""
+    from app.brain import access
+    gs = knowledge.guides_for_path(page_path)
+    if not gs:
+        return ""
+    g = gs[0]
+    sec = access.section_for(page_path)
+    if sec and sec in blocked:
+        return ""
+    tag = f'<guide id="{g.id}"'
+    if any(tag in text for role, text in history if role == "user"):
+        return ""
+    return f'\n\n{tag} title="{g.title}">\n{g.body}\n</guide>'
 
 
 def finish(text: str, page_path: str | None) -> tuple[str, dict]:

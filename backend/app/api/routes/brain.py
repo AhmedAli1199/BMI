@@ -139,9 +139,13 @@ async def chat(p: ChatIn, db: Session = Depends(get_db), user: User = Depends(cu
         history = [(m.role, m.model_text or m.text) for m in prior if (m.model_text or m.text)]
         if history and history[0][0] != "user":
             history = history[1:]
+        from app.brain import access
         ctx["is_accounts"] = bool(identity.user_uuid and accounts.can_approve(db, identity.user_uuid))
-        model_text = f"{question}\n\n{runner.context_block(user, identity, ctx, len(pics))}"
+        ctx["cannot_open"] = access.blocked_labels(db, identity)
+        model_text = (f"{question}\n\n{runner.context_block(user, identity, ctx, len(pics))}"
+                      + runner.page_guide(ctx.get("page_path"), access.blocked(db, identity), history))
         ctx.pop("is_accounts", None)
+        ctx.pop("cannot_open", None)
         msg = BrainMessage(id=uuid.uuid4(), conversation_id=conv.id, role="user", text=question, model_text=model_text, context=ctx,
                            created_at=_now())
         db.add(msg)

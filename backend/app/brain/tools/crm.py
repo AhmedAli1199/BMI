@@ -18,16 +18,10 @@ from app.sales.analytics import BOOKED, period_label, period_year_of
 UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
 
 
-def _hidden(env: ToolEnv) -> set[str]:
-    from app.ui_sections import hidden_for
-    return set(hidden_for(env.db, env.identity.role, env.identity.user_id))
-
-
 def need(env: ToolEnv, *sections: str) -> None:
-    """Respect what an administrator has switched off for this person: if every screen that shows it is hidden,
-    the assistant doesn't show it either."""
-    if sections and all(s in _hidden(env) for s in sections):
-        raise ToolError("That part of BMI Brain is switched off for this person, so say you can't look it up for them.")
+    """Only what this person can open themselves (role + Settings > Sections) - see app/brain/access.py."""
+    from app.brain.access import require_any
+    require_any(env, *sections)
 
 
 def _d(v) -> str | None:
@@ -226,3 +220,132 @@ def crm_my_day(env: ToolEnv, days: int = 7) -> dict:
         "activities": [{"when": a.start_at.strftime("%a %-d %b %H:%M"), "what": a.activity_type, "subject": a.subject} for a in acts],
         "see_all": "/reminders",
     }
+
+
+@brain_tool("Looking at the person")
+def crm_contact(env: ToolEnv, person: str) -> dict:
+    """One person in the CRM: job, company, emails and phones, the groups they're in, when they were last
+    contacted, their next activity and the latest notes about them.
+
+    Args:
+      person: their name or email, or a contact id from crm_find or the page
+    """
+    need(env, "contacts")
+    from app.models import Group, GroupMembership, Phone
+    p = (person or "").strip()
+    if UUID_RE.match(p):
+        c = env.db.get(Contact, uuid.UUID(p))
+        if not c or not vis.can_see_contact(env.db, c.id, env.identity):
+            raise ToolError("That person doesn't exist or this person can't see them.")
+        people = [c]
+    else:
+        people = _contacts(env, p, 6)
+    if not people:
+        raise ToolError(f"Nobody called {person!r} that this person can see.")
+    if len(people) > 1 and not any((x.full_name or "").lower() == p.lower() for x in people):
+        return {"which_one": [{"id": str(x.id), "name": x.full_name, "job_title": x.job_title, "link": f"/contacts/{x.id}"} for x in people]}
+    c = next((x for x in people if (x.full_name or "").lower() == p.lower()), people[0])
+    db = env.db
+    co = db.get(Company, c.company_id) if c.company_id else None
+    groups = db.scalars(select(Group).join(GroupMembership, GroupMembership.group_id == Group.id).where(GroupMembership.contact_id == c.id).limit(12)).all()
+    now = datetime.now(timezone.utc)
+    nxt = db.scalar(select(Activity).where(Activity.contact_id == c.id, Activity.start_at >= now, Activity.is_cleared.is_(False))
+                    .order_by(Activity.start_at).limit(1))
+    return {
+        "name": c.full_name, "job_title": c.job_title, "company": co.name if co else c.company_name_freetext,
+        "company_link": f"/companies/{co.id}" if co else None, "link": f"/contacts/{c.id}",
+        "emails": [e for e in db.scalars(select(Email.address).where(Email.contact_id == c.id).limit(4))],
+        "phones": [ph for ph in db.scalars(select(Phone.number).where(Phone.contact_id == c.id).limit(4))],
+        "groups": [g.name for g in groups],
+        "last_contacted": {"meeting": _d(c.last_meet_date), "spoke": _d(c.last_reach_date), "email": _d(c.last_email_date),
+                           "letter": _d(c.last_letter_date)},
+        "unsubscribed": c.is_unsubscribed or c.is_email_opted_out or None, "email_bounced": c.has_bounced or None,
+        "next_activity": {"when": _d(nxt.start_at), "what": nxt.activity_type, "subject": nxt.subject} if nxt else None,
+        "latest_notes": brain_search.search(db, env.identity, "", contact_id=c.id, limit=4),
+    }
+
+
+@brain_tool("Looking at the groups")
+def crm_groups(env: ToolEnv, query: str = "") -> dict:
+    """Contact groups (lists) this person can see, with how many people are in each.
+
+    Args:
+      query: optional part of a group name
+    """
+    need(env, "groups")
+    from app.models import Group, GroupMembership
+    stmt = select(Group, func.count(GroupMembership.id)).outerjoin(GroupMembership, GroupMembership.group_id == Group.id).group_by(Group.id)
+    if query.strip():
+        stmt = stmt.where(Group.name.ilike(f"%{query.strip()}%"))
+    if (cl := vis.group_clause(env.db, env.identity)) is not None:
+        stmt = stmt.where(cl)
+    rows = env.db.execute(stmt.order_by(func.count(GroupMembership.id).desc()).limit(25)).all()
+    return {"groups": [{"name": g.name, "people": n, "about": g.description, "link": f"/groups/{g.id}"} for g, n in rows], "see_all": "/groups"}
+
+
+@brain_tool("Checking the calls")
+def calls_recent(env: ToolEnv, limit: int = 10) -> dict:
+    """Recent calls the notetaker joined (or was booked for) that this person can see: when, with whom, and
+    whether the notes are ready, saved to history or the call wasn't recorded.
+
+    Args:
+      limit: how many (up to 25)
+    """
+    need(env, "calls")
+    from app.models.calendar import CalendarAttendance
+    from app.roles import CAN_USE_AUTOMATIONS
+    q = select(CallRecording).order_by(CallRecording.created_at.desc()).limit(max(1, min(limit, 25)))
+    if env.identity.role not in CAN_USE_AUTOMATIONS:
+        me = env.identity.user_uuid
+        q = q.where(or_(CallRecording.user_id == me, CallRecording.calendar_meeting_id.in_(
+            select(CalendarAttendance.meeting_id).where(CalendarAttendance.user_id == me))))
+    rows = env.db.scalars(q).all()
+    return {"calls": [{"title": c.title, "when": _d(c.started_at or c.created_at), "status": c.status_label or c.status,
+                       "saved_to_history": bool(c.saved_to_history_at), "link": f"/calls/{c.id}"} for c in rows], "see_all": "/calls"}
+
+
+@brain_tool("Checking team activity")
+def team_activity(env: ToolEnv, days: int = 7) -> dict:
+    """How much each person has logged recently: history entries (calls, meetings, emails logged) and activities
+    scheduled, over the last few days.
+
+    Args:
+      days: how many days back (1-60)
+    """
+    need(env, "sales_dashboard")
+    from app.models import HistoryEntry, User
+    since = datetime.now(timezone.utc) - timedelta(days=max(1, min(int(days or 7), 60)))
+    names = {u.id: u.name for u in env.db.scalars(select(User))}
+    hist = dict(env.db.execute(select(HistoryEntry.created_by_user_id, func.count()).where(
+        HistoryEntry.created_by_user_id.isnot(None), HistoryEntry.occurred_at >= since).group_by(HistoryEntry.created_by_user_id)).all())
+    acts = dict(env.db.execute(select(Activity.created_by_user_id, func.count()).where(
+        Activity.created_by_user_id.isnot(None), Activity.start_at >= since).group_by(Activity.created_by_user_id)).all())
+    people = sorted(set(hist) | set(acts), key=lambda u: -(hist.get(u, 0) + acts.get(u, 0)))
+    return {"since": _d(since), "people": [{"name": names.get(u, "Someone"), "history_logged": hist.get(u, 0), "activities": acts.get(u, 0)}
+                                           for u in people], "see_all": "/sales/dashboard"}
+
+
+@brain_tool("Checking the feedback board")
+def feedback_open(env: ToolEnv, page: str = "") -> dict:
+    """Open feedback on the feedback board (what people reported as broken, confusing or an idea), newest first.
+
+    Args:
+      page: optional page address to see only feedback about that page, e.g. "/sales/deals"
+    """
+    from app.models import Feedback
+    stmt = select(Feedback).where(Feedback.status.in_(("new", "looking"))).order_by(Feedback.created_at.desc()).limit(15)
+    if page.strip():
+        stmt = stmt.where(Feedback.page_path == page.strip())
+    rows = env.db.scalars(stmt).all()
+    return {"open": [{"number": f.number, "kind": f.kind, "said": (f.message or "")[:200], "page": f.page_path,
+                      "status": "being looked at" if f.status == "looking" else "new", "votes": len(f.me_too or []),
+                      "link": f"/feedback?open={f.id}"} for f in rows], "see_all": "/feedback"}
+
+
+@brain_tool("Checking data health")
+def data_health(env: ToolEnv) -> dict:
+    """How tidy the CRM is: people with no email or phone, companies with no industry, and the clean-up cards
+    waiting (duplicates, bounces, out-of-office replies, people who've left)."""
+    need(env, "data_health")
+    from app.api.routes.dashboard import get_data_health
+    return get_data_health(source_db=None, db=env.db).model_dump() | {"see_all": "/data-health"}

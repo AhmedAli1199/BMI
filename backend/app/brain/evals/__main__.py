@@ -35,16 +35,18 @@ async def main(only: int | None, data: bool = False) -> int:
         print("GEMINI_API_KEY isn't set - nothing to test against.")
         return 2
     db = SessionLocal()
-    user = db.scalar(select(User).where(User.role == "admin").limit(1))
-    identity = Identity(user_id=str(user.id), role="admin")
+    people = {r: db.scalar(select(User).where(User.role == r, User.is_active.is_(True)).limit(1)) for r in ("admin", "sales")}
     qs = json.loads((Path(__file__).parent / ("data_questions.json" if data else "questions.json")).read_text())
     qs = [q for q in qs if "<client>" not in q["q"]]   # not filled in yet
     failed = 0
     for i, q in enumerate(qs, 1):
         if only and i != only:
             continue
-        ctx = {"page_path": q["page"]}
-        model_text = f"{q['q']}\n\n{runner.context_block(user, identity, ctx)}"
+        user = people.get(q.get("role", "admin")) or people["admin"]
+        identity = Identity(user_id=str(user.id), role=user.role)
+        from app.brain import access
+        ctx = {"page_path": q["page"], "cannot_open": access.blocked_labels(db, identity)}
+        model_text = f"{q['q']}\n\n{runner.context_block(user, identity, ctx)}" + runner.page_guide(q["page"], access.blocked(db, identity), [])
         t0, done = time.monotonic(), None
         async for ev in runner.run(user, identity, [], runner.Asked(question=q["q"], context=ctx), model_text):
             if ev["type"] == "done":
