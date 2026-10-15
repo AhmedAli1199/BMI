@@ -20,7 +20,7 @@ Companies lists every account in the CRM: advertisers, agencies and prospects, a
 - An amber strip with your own reminders about this company, if any.
 - The company card in three columns: Company Profile (Name, Industry, Phone, E-mail, Web Site), Headquarters Address, and Account Status & Scope (Category, Territory, Region, Employees, plus how many Linked Contacts and Logged Notes).
 - **History of changes**.
-- Tabs: **Associated Contacts**, **Activity & History**, **Company Notes**, **Bookings** and **User Fields**, each with a count.
+- Tabs, each with a count: **Associated Contacts (<n>)**, **Activity & History (<n>)**, **Company Notes (<n>)**, **Bookings (<n>)** and **User Fields (<n>)**.
 
 ## Buttons and controls
 

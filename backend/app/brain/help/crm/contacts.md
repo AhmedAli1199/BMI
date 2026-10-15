@@ -21,7 +21,7 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 - An amber strip with your own open reminders about this person (red once overdue).
 - The record card in three columns: Business Card (company, title, department, phone, mobile, e-mail), Address & Web, and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
 - **History of changes** (closed until you click it).
-- Tabs: **Activities**, **Notes**, **History**, **Groups**, **Magazine & Issues** and **User Fields**, with one search box that searches the first three at once.
+- Tabs: **Activities (<n>)**, **Notes (<n>)**, **History (<n>)**, **Groups (<n>)**, **Magazine & Issues** and **User Fields (<n>)**, with one search box that searches the first three at once.
 
 ## Buttons and controls
 
@@ -29,7 +29,7 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 Type several words in any order. Every word must appear somewhere: name, job title, department, category, company, email, phone (digits alone work, so "020 7946" finds "+44 (0)20 7946..."), any address line or postcode, or a custom field. Only the first six words count. Notes are not searched here; use **Advanced search** for that.
 
 ### Company, City / town, Country, Job title
-Each one narrows the list further ("contains"). Press **Look up** to run the search. The small X next to **Look up** clears the whole lookup.
+Each one narrows the list further ("contains"). Press **Look up** to run the search. The small X next to **Look up** (**Clear lookup**) clears the whole lookup.
 
 ### Advanced search
 Opens rules of the form field / how / value, for example Postcode **starts with** SW1. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
@@ -52,7 +52,7 @@ Tick people (or the top box for the whole page). A bar appears with "<n> contact
 Opens Import contacts (see below).
 
 ### Copy emails
-Copies the email addresses of everyone in the lookup (or the ticked people), separated by semicolons, ready to paste into Outlook's Bcc box. People who unsubscribed, opted out or whose email bounced are left out, as are people with no email and repeated addresses; the message says how many. Over 5,000 contacts is too many to copy: narrow the search or use **Export**. Above 500 it reminds you Outlook only sends to about 500 at once.
+Hovering over it says "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box". Copies the email addresses of everyone in the lookup (or the ticked people), separated by semicolons, ready to paste into Outlook's Bcc box. People who unsubscribed, opted out or whose email bounced are left out, as are people with no email and repeated addresses; the message says how many. Over 5,000 contacts is too many to copy: narrow the search or use **Export**. Above 500 it reminds you Outlook only sends to about 500 at once.
 
 ### Bulk update
 Opens "Change many contacts at once" for the whole lookup (or the ticked people).

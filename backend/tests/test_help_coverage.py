@@ -52,10 +52,7 @@ def _missing(area: str = "sales-orders") -> dict[str, list[str]]:
 import pytest  # noqa: E402
 
 
-DONE = ("sales-orders", "editorial", "platform")   # crm and automations guides are being written
-
-
-@pytest.mark.parametrize("area", DONE)
+@pytest.mark.parametrize("area", sorted(AREAS))
 def test_every_button_is_in_a_guide(area):
     missing = _missing(area)
     assert not missing, f"Not mentioned in any {area} guide:\n" + "\n".join(f"  {f}: {sorted(set(v))}" for f, v in sorted(missing.items()))

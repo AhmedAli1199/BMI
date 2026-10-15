@@ -44,7 +44,7 @@ Where the contacts come from. Mail merge opens with this already set from wherev
 Appear when the message uses brand figures (print run, email database, readership, website, media pack, video, latest issue) or issue details (issue, date, ad deadline, copy deadline, theme, feature). Choose the brand and the issue, and type the feature. Anything still empty is listed under "Still to fill in".
 
 ### Subject and Message
-Write the email. Click a merge field button under "Insert into subject" or "Insert into message" to drop it in where your cursor is. {{first_name|there}} means "use 'there' if the contact has no first name". The formatting bar has **Bold**, **Italic**, **Underline**, yellow, green and blue highlights, red, blue and green text, **Bullet list**, **Numbered list**, **Add a link** and **Clear formatting**. Letters are plain text.
+Write the email. Click a merge field button under "Insert into subject" or "Insert into message" to drop it in where your cursor is. {{first_name|there}} means "use 'there' if the contact has no first name". The formatting bar has **Bold**, **Italic**, **Underline**, yellow, green and blue highlights, red, blue and green text, **Bullet list**, **Numbered list**, **Add a link** and **Clear formatting**. Letters are plain text. (The table and picture buttons - **Insert a table**, **Add a row**, **Add a column** and **Insert a picture** - only appear in the proposal editor; see the Proposals guide.)
 
 ### Preview, Previous contact, Next contact
 The preview shows the email exactly as one person will get it. Step through people with **Previous contact** and **Next contact**. Unknown merge fields are flagged so you can fix the spelling.
