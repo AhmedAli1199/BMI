@@ -29,7 +29,7 @@ Found while writing the assistant's help guides (15 Oct), by reading the code. N
 - Proposals list only newest 200, no paging.
 
 ## Overview, editions, all items, renewals
-- Edition Export .xlsx likely fails for editions with a pencilled item (no "pencilled" in export status lookup).
+- ~~Edition Export .xlsx fails for editions with a pencilled item~~ - fixed 15 Oct (pencilled items read "Pencilled").
 - All items Status filter / item panel don't offer "Pencilled".
 - Weekly summary Run now toast shows internal job name.
 - "Advert with no booking" lists salespeople with no login -> fails.
@@ -51,7 +51,7 @@ Found while writing the assistant's help guides (15 Oct), by reading the code. N
 - Settings Xero card says "Nothing is ever written to Xero" (no longer true); Reconnect only on error.
 - Remembered Xero contact can't be changed/cleared in app.
 - Advert with no booking: salesperson without login -> unhelpful error.
-- Uninvoiced Bookings + Order Register Client Matching cards: no filters, no booking links (breaks rule).
+- ~~Uninvoiced Bookings + Order Register Client Matching cards: no filters, no booking links~~ - fixed 15 Oct (links, filters, date sort; waiting cards updated on the next run).
 - Ready to invoice: snoozes count as rejected.
 - Payment (Xero) filter lacks "Draft in Xero".
 - Xero errors shown as "Xero said: <Xero's message>".

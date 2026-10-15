@@ -46,15 +46,70 @@ def _already_queued(db: Session) -> set[str]:
     }
 
 
-def match_clients(db: Session, max_queued: int = 200) -> tuple[int, int]:
-    """Returns (bookings linked, review items queued)."""
+def _band(score: float) -> str:
+    return "Very close (90%+)" if score >= 0.9 else "Close (75-90%)" if score >= 0.75 else "Possible (under 75%)"
+
+
+def match_payload(g: dict, company: Company, score: float) -> dict:
+    """The card: every record it mentions links to its page (opens in a new tab), plus its filters and sort date."""
+    from urllib.parse import quote
+    titles = sorted(g.get("titles") or [])
+    return {
+        "summary": f"Is SOR client “{g['name']}” the CRM company “{company.name}”?",
+        "details": [
+            {"key": "client_name", "label": "Client in the order register", "value": g["name"], "href": f"/sales/bookings?q={quote(g['name'])}"},
+            {"key": "company", "label": "Suggested CRM company", "value": company.name, "href": f"/companies/{company.id}"},
+            {"key": "bookings", "label": "Bookings affected", "value": f"{len(g['ids'])} (£{g['value']:,.0f})", "href": f"/sales/bookings?q={quote(g['name'])}"},
+            {"key": "titles", "label": "Booked in", "value": ", ".join(titles) or "-"},
+            {"key": "similarity", "label": "Name similarity", "value": f"{score:.0%}"},
+        ],
+        "related_entities": [{"type": "company", "id": str(company.id), "label": company.name}],
+        "client_name": g["name"],
+        "company_id": str(company.id),
+        "confidence": round(float(score), 2),
+        "facets": {"title": titles[0] if len(titles) == 1 else "Several titles" if titles else "-", "similarity": _band(float(score))},
+        **({"sort_date": g["latest"].isoformat()} if g.get("latest") else {}),
+    }
+
+
+def _groups(db: Session) -> dict[str, dict]:
     rows = db.execute(
-        select(SalesOrder.id, SalesOrder.client_name, SalesTitle.crm_source_db, SalesOrder.value_gbp)
+        select(SalesOrder.id, SalesOrder.client_name, SalesTitle.crm_source_db, SalesOrder.value_gbp, SalesTitle.name,
+               func.coalesce(SalesOrder.booked_on, SalesEdition.edition_date))
         .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
         .join(SalesTitle, SalesEdition.title_id == SalesTitle.id)
         .where(SalesOrder.company_id.is_(None), SalesOrder.match_dismissed.is_(False))
     ).all()
-    if not rows:
+    groups: dict[str, dict] = {}
+    for order_id, client, source_db, value, title, when in rows:
+        g = groups.setdefault(client.strip().lower(), {"name": client.strip(), "ids": [], "source_db": source_db, "value": 0.0,
+                                                        "titles": set(), "latest": None})
+        g["ids"].append(order_id)
+        g["value"] += float(value or 0)
+        g["titles"].add(title)
+        if when and (g["latest"] is None or when > g["latest"]):
+            g["latest"] = when
+    return groups
+
+
+def refresh_pending(db: Session) -> int:
+    """Cards already waiting get the same links, filters and figures as new ones."""
+    groups = _groups(db)
+    n = 0
+    for item in db.scalars(select(ReviewQueueItem).where(ReviewQueueItem.kind == MATCH_KIND, ReviewQueueItem.status == "pending")):
+        g = groups.get((item.payload.get("client_name") or "").strip().lower())
+        company = db.get(Company, uuid.UUID(item.payload["company_id"])) if item.payload.get("company_id") else None
+        if g and company:
+            item.payload = match_payload(g, company, float(item.payload.get("confidence") or 0))
+            n += 1
+    db.flush()
+    return n
+
+
+def match_clients(db: Session, max_queued: int = 200) -> tuple[int, int]:
+    """Returns (bookings linked, review items queued)."""
+    groups = _groups(db)
+    if not groups:
         return 0, 0
 
     by_key: dict[str, list[tuple[uuid.UUID, str]]] = {}
@@ -62,12 +117,6 @@ def match_clients(db: Session, max_queued: int = 200) -> tuple[int, int]:
         key = normalise(c.name or "")
         if key:
             by_key.setdefault(key, []).append((c.id, c.source_db))
-
-    groups: dict[str, dict] = {}
-    for order_id, client, source_db, value in rows:
-        g = groups.setdefault(client.strip().lower(), {"name": client.strip(), "ids": [], "source_db": source_db, "value": 0.0})
-        g["ids"].append(order_id)
-        g["value"] += float(value or 0)
 
     linked = 0
     queued = 0
@@ -97,19 +146,7 @@ def match_clients(db: Session, max_queued: int = 200) -> tuple[int, int]:
         db.add(ReviewQueueItem(
             id=uuid.uuid4(), kind=MATCH_KIND, source_db=company.source_db,
             entity_type="company", entity_id=company.id,
-            payload={
-                "summary": f"Is SOR client “{g['name']}” the CRM company “{company.name}”?",
-                "details": [
-                    {"key": "client_name", "label": "Client in the order register", "value": g["name"]},
-                    {"key": "company", "label": "Suggested CRM company", "value": company.name},
-                    {"key": "bookings", "label": "Bookings affected", "value": f"{len(g['ids'])} (£{g['value']:,.0f})"},
-                    {"key": "similarity", "label": "Name similarity", "value": f"{score:.0%}"},
-                ],
-                "related_entities": [{"type": "company", "id": str(company.id), "label": company.name}],
-                "client_name": g["name"],
-                "company_id": str(company.id),
-                "confidence": round(float(score), 2),
-            },
+            payload=match_payload(g, company, score),
         ))
         already.add(lowered)
         queued += 1

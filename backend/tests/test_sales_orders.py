@@ -852,3 +852,40 @@ def test_compare_any_two_editions(client, db_session, sor):
     w = r["weeks"]
     assert r["a"]["pace"][w.index(-9)] == 1200 and r["b"]["pace"][w.index(-9)] == 0 and r["a"]["pace"][w.index(0)] == 1500
     assert r["a"]["invoiced_gbp"] == 300
+
+
+def _links_ok(item):
+    """Every record a card mentions opens in a new tab: each detail with a record behind it has a link."""
+    return {d["key"]: d.get("href") for d in item.payload["details"]}
+
+
+def test_client_match_card_links_filters_and_sort(db_session, sor):
+    likely = Company(id=uuid.uuid4(), name="Gategroup International", source_db="onboard", source_act_id=str(uuid.uuid4()))
+    db_session.add(likely)
+    db_session.flush()
+    _order(db_session, sor["this"], "Gategroup Intl", 100)
+    match_clients(db_session)
+    item = db_session.query(ReviewQueueItem).filter_by(kind="sor_client_match").one()
+    links = _links_ok(item)
+    assert links["company"] == f"/companies/{likely.id}" and links["client_name"].startswith("/sales/bookings?q=Gategroup")
+    assert set(item.payload["facets"]) == {"title", "similarity"} and item.payload["sort_date"]
+    kind = get_kind("sor_client_match")
+    assert [k for k, _ in kind.facets] == ["title", "similarity"] and kind.date_sort_label
+    # a card queued before the links existed gets them on the next run
+    item.payload = {k: v for k, v in item.payload.items() if k not in ("facets", "sort_date")}
+    from app.sales.matching import refresh_pending
+    assert refresh_pending(db_session) == 1 and "facets" in item.payload
+
+
+def test_uninvoiced_card_links_filters_and_sort(db_session, sor, monkeypatch):
+    monkeypatch.setattr(sor_automations, "SessionLocal", lambda: _NoCloseSession(db_session))
+    o = _order(db_session, sor["this"], "Late Payer", 900, sor["reps"]["SP"])
+    sor_automations.scan_uninvoiced()
+    item = db_session.query(ReviewQueueItem).filter_by(kind="sor_invoice_missing").one()
+    links = _links_ok(item)
+    assert links["edition"] == f"/sales/editions/{sor['this'].id}" and links["value"] == f"/sales/orders/{o.id}"
+    assert links["client"].startswith("/sales/bookings?q=Late")          # not linked to a CRM company yet
+    assert item.payload["facets"]["salesperson"] == sor["reps"]["SP"].name and item.payload["facets"]["waiting"]
+    assert item.payload["sort_date"] == sor["this"].edition_date.isoformat()
+    kind = get_kind("sor_invoice_missing")
+    assert [k for k, _ in kind.facets] == ["salesperson", "title", "waiting"] and kind.date_sort_label == "publication"

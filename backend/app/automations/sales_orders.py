@@ -33,7 +33,7 @@ from app.db.session import SessionLocal
 from app.models import Company, Note, ReviewQueueItem, SalesEdition, SalesOrder, SalesRep, SalesTitle, User
 from app.sales.analytics import BOOKED
 from app.sales.editorial import issue_facts, issue_sentence, renewal_issue
-from app.sales.matching import MATCH_KIND, match_clients
+from app.sales.matching import MATCH_KIND, match_clients, refresh_pending
 
 logger = logging.getLogger("app.automations.sales_orders")
 
@@ -78,6 +78,8 @@ register(ReviewKind(
     ],
     handler=_handle_client_match,
     audience="admin",
+    facets=(("title", "Title"), ("similarity", "How close the names are")),
+    date_sort_label="latest booking",
 ))
 
 
@@ -85,6 +87,7 @@ def scan_client_matches() -> None:
     db = SessionLocal()
     try:
         linked, queued = match_clients(db, max_queued=runtime_settings.get_int(db, "sor_match_max_per_run"))
+        refresh_pending(db)
         db.commit()
         logger.info("sor client match: %d booking(s) linked, %d suggestion(s) queued", linked, queued)
     finally:
@@ -135,7 +138,47 @@ register(ReviewKind(
     ],
     handler=_handle_invoice,
     audience="admin",
+    facets=(("salesperson", "Salesperson"), ("title", "Title"), ("waiting", "Waiting")),
+    date_sort_label="publication",
 ))
+
+
+def _waiting(days: int) -> str:
+    return "Over 90 days" if days > 90 else "30-90 days" if days >= 30 else "Under 30 days"
+
+
+def invoice_payload(db: Session, order: SalesOrder, ed: SalesEdition, reps: dict, today: date) -> dict:
+    """The card: every record it mentions links to its page (opens in a new tab), plus its filters and sort date."""
+    from urllib.parse import quote
+    label = _edition_label(db, ed)
+    days = (today - ed.edition_date).days
+    rep = reps.get(order.rep_id)
+    title = db.get(SalesTitle, ed.title_id)
+    client_href = f"/companies/{order.company_id}" if order.company_id else f"/sales/bookings?q={quote(order.client_name)}"
+    details = [
+        {"key": "client", "label": "Client", "value": order.client_name, "href": client_href},
+        {"key": "edition", "label": "Edition", "value": label, "href": f"/sales/editions/{ed.id}"},
+        {"key": "edition_date", "label": "Published / held", "value": f"{ed.edition_date:%d %b %Y} ({days} days ago)"},
+        {"key": "value", "label": "Booking value", "value": _money(order.value_gbp), "href": f"/sales/orders/{order.id}"},
+        {"key": "size", "label": "What was sold", "value": order.size or "-"},
+        {"key": "rep", "label": "Salesperson", "value": rep.name if rep else "-"},
+        {"key": "note", "label": "Sheet note", "value": order.invoice_note or "-"},
+    ]
+    if order.deal_id:
+        from app.models import SalesDeal
+        d = db.get(SalesDeal, order.deal_id)
+        if d:
+            details.insert(1, {"key": "booking", "label": "Booking", "value": f"{d.number} - {d.client_name}", "href": f"/sales/deals/{d.id}"})
+    return {
+        "summary": f"No invoice yet: {order.client_name} - {label} ({_money(order.value_gbp)})",
+        "details": details,
+        "related_entities": [{"type": "company", "id": str(order.company_id), "label": order.client_name}] if order.company_id else [],
+        "order_id": str(order.id),
+        "edition_id": str(ed.id),
+        "due_date": ed.edition_date.isoformat(),
+        "facets": {"salesperson": rep.name if rep else "House account", "title": title.name if title else "-", "waiting": _waiting(days)},
+        "sort_date": ed.edition_date.isoformat(),
+    }
 
 
 def scan_uninvoiced() -> None:
@@ -174,31 +217,19 @@ def scan_uninvoiced() -> None:
                 continue
             if any(a == "later" and r and r.date() > today - timedelta(days=snooze) for _, a, r in history):
                 continue
-            label = _edition_label(db, ed)
-            days = (today - ed.edition_date).days
-            rep = reps.get(order.rep_id)
             title = db.get(SalesTitle, ed.title_id)
             db.add(ReviewQueueItem(
                 id=uuid.uuid4(), kind=INVOICE_KIND, source_db=title.crm_source_db,
                 entity_type="company" if order.company_id else None, entity_id=order.company_id,
-                payload={
-                    "summary": f"No invoice yet: {order.client_name} - {label} ({_money(order.value_gbp)})",
-                    "details": [
-                        {"key": "client", "label": "Client", "value": order.client_name},
-                        {"key": "edition", "label": "Edition", "value": label},
-                        {"key": "edition_date", "label": "Published / held", "value": f"{ed.edition_date:%d %b %Y} ({days} days ago)"},
-                        {"key": "value", "label": "Booking value", "value": _money(order.value_gbp)},
-                        {"key": "size", "label": "What was sold", "value": order.size or "-"},
-                        {"key": "rep", "label": "Salesperson", "value": rep.name if rep else "-"},
-                        {"key": "note", "label": "Sheet note", "value": order.invoice_note or "-"},
-                    ],
-                    "related_entities": [{"type": "company", "id": str(order.company_id), "label": order.client_name}] if order.company_id else [],
-                    "order_id": str(order.id),
-                    "edition_id": str(ed.id),
-                    "due_date": ed.edition_date.isoformat(),
-                },
+                payload=invoice_payload(db, order, ed, reps, today),
             ))
             queued += 1
+        # cards already waiting get the same links and filters (and an up-to-date "days ago")
+        for item in db.scalars(select(ReviewQueueItem).where(ReviewQueueItem.kind == INVOICE_KIND, ReviewQueueItem.status == "pending")):
+            order = db.get(SalesOrder, uuid.UUID(item.payload["order_id"])) if item.payload.get("order_id") else None
+            ed = db.get(SalesEdition, order.edition_id) if order else None
+            if order and ed and ed.edition_date:
+                item.payload = invoice_payload(db, order, ed, reps, today)
         db.commit()
         logger.info("sor invoice chase: %d item(s) queued of %d uninvoiced candidate(s)", queued, len(rows))
     finally:

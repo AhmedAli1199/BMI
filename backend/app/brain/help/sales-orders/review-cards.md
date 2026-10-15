@@ -61,13 +61,13 @@ An entry from an online booking form (awards, event seats, quiz teams). Filters:
 - **Not a booking**: needs a note.
 
 ### Uninvoiced Bookings (administrators and data managers)
-An item on the order register whose issue has published, still with no invoice number. While Ready to invoice reminders are on, bookings made in the Brain get Ready to invoice cards instead, so these are for imported rows.
+An item on the order register whose issue has published, still with no invoice number. While Ready to invoice reminders are on, bookings made in the Brain get Ready to invoice cards instead, so these are for imported rows. The client, edition, item and booking on the card each open in a new tab. Filter by **Salesperson**, **Title** or **Waiting** (under 30 days, 30-90 days, over 90 days), and sort by publication date.
 - **Record invoice**: type the **Invoice number** and, if different, the **Invoice value (£)**. Blank means the booking value.
 - **Not yet - remind me later**: comes back after the snooze period in the settings.
 - **No invoice needed**: needs a note.
 
 ### Order Register Client Matching (administrators and data managers)
-"Is SOR client <name> the CRM company <company>?", with the number of bookings affected and how alike the names are.
+"Is SOR client <name> the CRM company <company>?", with the number of bookings affected and how alike the names are. The client's bookings and the suggested company each open in a new tab. Filter by **Title** or **How close the names are**, and sort by the latest booking.
 - **Yes - link all their bookings**: links every unlinked booking with that client name to the company.
 - **Not the same company**: they aren't suggested again.
 

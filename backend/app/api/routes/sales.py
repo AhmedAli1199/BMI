@@ -1490,6 +1490,10 @@ def update_title_links(title_id: uuid.UUID, payload: TitleLinks, db: Session = D
     return _title_out(t)
 
 
+# How each status reads in the exported sheet (the order register's own words; booked is left blank).
+EXPORT_STATUS = {"booked": "", "pencilled": "Pencilled", "cancelled": "CANX", "contra": "Contra", "moved": "Moved"}
+
+
 @router.get("/editions/{edition_id}/export")
 def export_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> StreamingResponse:
     """The edition as an .xlsx in the SOR sheet's own layout, so finance
@@ -1524,7 +1528,7 @@ def export_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> Stre
             o.booked_on.strftime("%d.%m.%y") if o.booked_on else "", o.client_name, o.size or "", o.series or "",
             o.position or "", "/".join(c.code for c in o.credits) or (o.rep.code if o.rep else ""),
             o.rate_usd, o.value_gbp, o.invoice_number or "", o.invoice_value_gbp, diff, o.invoice_note or "",
-            {"booked": "", "cancelled": "CANX", "contra": "Contra", "moved": "Moved"}[o.status],
+            EXPORT_STATUS.get(o.status, o.status.capitalize()),
             o.notes or "", *[credit.get(code, 0) for code in rep_codes],
         ])
     ws.append([])
