@@ -83,6 +83,8 @@ class SalesDeal(Base, UUIDPk, TimestampMixin):
     # The Xero contact its invoices go to (found by name/email, or chosen by accounts)
     xero_contact_id: Mapped[str | None] = mapped_column(String(64))
     xero_contact_name: Mapped[str | None] = mapped_column(String(255))
+    # Hand-offs sent to editorial/production, per line: {line_key: {"editorial"|"production": {"to": [...], "at", "sig", "error"}}}
+    handoff_log: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     special_instructions: Mapped[str | None] = mapped_column(Text)
     copy_instructions: Mapped[str | None] = mapped_column(Text)
     production_contact: Mapped[str | None] = mapped_column(String(200))
@@ -122,6 +124,8 @@ class DealSettings(Base):
     terms_by_title: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")   # {title_id: terms line}
     # Xero codes for invoice lines: {"default": {...}, "titles": {title_id: {"account_code", "item_code", "tracking": [{"name", "option"}]}}}
     xero_codes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    # Who gets each kind of hand-off: {"default": {"editorial": "a@x", "production": "b@y"}, "titles": {title_id: {...}}}
+    handoff_routes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

@@ -26,6 +26,7 @@ from app.models.proposal import Proposal
 from app.roles import CAN_USE_AUTOMATIONS
 from app.automations import booking_changes as bc
 from app.automations import invoice_due
+from app.sales import handoffs
 from app.automations import order_checks as oc
 from app.sales import accounts as acc
 from app.sales import deals as dl
@@ -60,6 +61,25 @@ class LineIn(BaseModel):
     share_gbp: float | None = Field(default=None, ge=0)          # package split "manual": this line's share
     allocate_by: date | None = None                              # when the items still to be allocated must be decided
     placements: list[PlacementIn] = Field(default_factory=list, max_length=60)
+    # Who works on it after it's sold (app/sales/handoffs.py). None = the Brain's suggestion and the routing table.
+    handoff: "HandoffIn | None" = None
+    activities: list["ActivityIn"] = Field(default_factory=list, max_length=12)   # where else it appears, and when
+
+
+class HandoffIn(BaseModel):
+    team: str = Field(default="auto", pattern="^(auto|editorial|production|both|none)$")
+    editorial_to: str | None = Field(default=None, max_length=500)
+    production_to: str | None = Field(default=None, max_length=500)
+    format: str | None = Field(default=None, max_length=300)   # e.g. "How to sell" - can be decided later
+
+
+class ActivityIn(BaseModel):
+    kind: str = Field(pattern="^(print|online|newsletter|social|banner|email|event|other)$")
+    on: date | None = None
+    note: str | None = Field(default=None, max_length=200)
+
+
+LineIn.model_rebuild()
 
 
 class SplitIn(BaseModel):
@@ -301,6 +321,7 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "check": _check_out(db, d),
         "locked": acc.locked(db, d), "can_approve": _approver(db, identity),
         "unlocked": _unlocked_out(db, d),
+        "handoffs": handoffs.status(db, d),
         "xero_contact": {"id": d.xero_contact_id, "name": d.xero_contact_name} if d.xero_contact_id else None,
         "invoice_on": d.invoice_on.isoformat() if d.invoice_on else None,
         "invoice_plan_label": inv.PLANS.get(d.invoice_plan or "asap", d.invoice_plan),
@@ -512,6 +533,7 @@ def get_settings(db: Session = Depends(get_db), identity: Identity = Depends(get
             "default_production_contact": st.default_production_contact or "", "default_copy_instructions": st.default_copy_instructions or "",
             "default_special_instructions": st.default_special_instructions or "",
             "terms_by_title": st.terms_by_title or {},
+            "handoff_routes": st.handoff_routes or {},
             "can_edit": not identity.is_known or identity.role == "admin"}
 
 
@@ -527,6 +549,7 @@ class SettingsIn(BaseModel):
     default_copy_instructions: str = Field(default="", max_length=2000)
     default_special_instructions: str = Field(default="", max_length=2000)
     terms_by_title: dict[str, str] = Field(default_factory=dict)   # {title_id: terms line}; empty = the general terms
+    handoff_routes: dict = Field(default_factory=dict)             # {"default": {"editorial", "production"}, "titles": {title_id: {...}}}
 
 
 def _addresses(text: str | None) -> list[str]:
@@ -548,6 +571,19 @@ def save_settings(p: SettingsIn, db: Session = Depends(get_db), identity: Identi
             raise HTTPException(422, f"“{bad[0]}” doesn't look like an email address.")
         setattr(p, field, ", ".join(_addresses(getattr(p, field))))
     p.terms_by_title = {k: v.strip()[:3000] for k, v in p.terms_by_title.items() if (v or "").strip()}
+    def _row(r):
+        out = {}
+        for team in ("editorial", "production"):
+            addrs = _addresses((r or {}).get(team))
+            bad = [a for a in addrs if "@" not in a]
+            if bad:
+                raise HTTPException(422, f"“{bad[0]}” doesn't look like an email address.")
+            if addrs:
+                out[team] = ", ".join(addrs)
+        return out
+    hr = p.handoff_routes or {}
+    p.handoff_routes = {"default": _row(hr.get("default")),
+                        "titles": {k: r for k, r in ((k, _row(v)) for k, v in (hr.get("titles") or {}).items()) if r}}
     for k, v in p.model_dump().items():
         setattr(st, k, v)
     st.updated_at = datetime.now(timezone.utc)
@@ -619,6 +655,7 @@ def create_deal(p: DealIn, background: BackgroundTasks, db: Session = Depends(ge
     oc.request_check(db, d)
     db.flush()
     invoice_due.refresh(db, d)
+    handoffs.process(db, d)
     acc.tell_accounts_new(db, d, identity.user_uuid)
     db.commit()
     background.add_task(acc.email_new_booking, d.id)
@@ -657,6 +694,7 @@ def apply_change(db: Session, d: SalesDeal, p: DealIn, user_id: uuid.UUID | None
         _keep_checked(db, d, identity)
     db.flush()
     invoice_due.refresh(db, d)
+    handoffs.process(db, d)
     return notes
 
 
@@ -745,6 +783,7 @@ def apply_status(db: Session, d: SalesDeal, status: str, reason: str | None, kee
         oc.withdraw(db, d, "The booking was cancelled.")
     db.flush()
     invoice_due.refresh(db, d)
+    handoffs.process(db, d)
     return kept
 
 
@@ -791,6 +830,54 @@ def unbooked_ad(p: UnbookedAdIn, db: Session = Depends(get_db), identity: Identi
                         link=f"/sales/deals/new?{q}", email=True)
     db.commit()
     return {"ok": True, "message": f"{rep.name} has been asked to make the booking."}
+
+
+class HandoffSendIn(BaseModel):
+    lines: list[str] = Field(default_factory=list, max_length=60)   # empty = every line
+
+
+@router.post("/{deal_id}/handoffs/send")
+def send_handoffs(deal_id: uuid.UUID, p: HandoffSendIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Send (again) the hand-off emails to editorial / production for this booking."""
+    d = _get(db, deal_id)
+    if not (_can_edit(db, identity, d) or _approver(db, identity)):
+        raise HTTPException(403, "Only the salesperson on this booking, accounts or a manager can send this.")
+    if not handoffs.ready(db, d):
+        raise HTTPException(409, "Hand-offs go once the booking is confirmed and accounts have checked it.")
+    r = handoffs.process(db, d, only_lines=set(p.lines) if p.lines else None, force=True)
+    db.commit()
+    out = _out(db, d, identity)
+    out["notes"] = ([f"Sent to {r['sent']} team{'s' if r['sent'] != 1 else ''}."] if r["sent"] else []) + (
+        ["Some couldn't be sent - see below."] if r["failed"] else []) or ["Nothing to send: no team or address for these items."]
+    return out
+
+
+class LineHandoffIn(BaseModel):
+    handoff: HandoffIn | None = None
+    activities: list[ActivityIn] | None = None
+
+
+@router.put("/{deal_id}/lines/{line_key}/handoff")
+def set_line_handoff(deal_id: uuid.UUID, line_key: str, p: LineHandoffIn, db: Session = Depends(get_db),
+                     identity: Identity = Depends(get_identity)) -> dict:
+    """Who works on an item, its format and where else it appears. Doesn't change what's invoiced, so it can be
+    changed on a locked booking (e.g. the client picks the sponsored format after accounts have checked it)."""
+    d = _get(db, deal_id)
+    if not (_can_edit(db, identity, d) or _approver(db, identity)):
+        raise HTTPException(403, "Only the salesperson on this booking, accounts or a manager can change this.")
+    lines = [dict(ln) for ln in d.lines or []]
+    ln = next((x for x in lines if x.get("key") == line_key), None)
+    if ln is None:
+        raise HTTPException(404, "That item isn't on this booking any more.")
+    if p.handoff is not None:
+        ln["handoff"] = p.handoff.model_dump()
+    if p.activities is not None:
+        ln["activities"] = [a.model_dump(mode="json") for a in p.activities]
+    d.lines = lines
+    d.updated_at = datetime.now(timezone.utc)
+    handoffs.process(db, d)
+    db.commit()
+    return _out(db, d, identity)
 
 
 class UnlockIn(BaseModel):
@@ -847,6 +934,7 @@ def set_invoice_date(deal_id: uuid.UUID, p: InvoiceDateIn, db: Session = Depends
         o.invoice_due_on = p.due_on
     db.flush()
     invoice_due.refresh(db, d)
+    handoffs.process(db, d)
     rep = db.get(SalesRep, d.rep_id) if d.rep_id else None
     if rep and rep.user_id and rep.user_id != identity.user_uuid and p.due_on:
         from app.services.notify import create_notification
@@ -996,6 +1084,7 @@ def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity:
         oc.request_check(db, d)
         db.flush()
         invoice_due.refresh(db, d)
+    handoffs.process(db, d)
     _log_sent(db, d, identity.user_uuid, "outlook", to)
     db.commit()
     return _out(db, d, identity)

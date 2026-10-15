@@ -6,6 +6,7 @@ import type { Deal, DealScheduleRow } from "@/lib/deals-types";
 import { DealActions } from "@/components/deals/deal-actions";
 import { InvoiceDue, LockControls } from "@/components/deals/deal-invoicing";
 import { XeroInvoiceButton } from "@/components/deals/xero-invoice-button";
+import { DealHandoffs } from "@/components/deals/deal-handoffs";
 import { DealStatusPill } from "@/components/deals/deal-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
@@ -225,6 +226,8 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           </tfoot>
         </table>
       </section>
+
+      <DealHandoffs deal={d} />
 
       <section className="grid gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-2xs sm:grid-cols-2 lg:grid-cols-4" aria-label="Details">
         <Detail label="Their contact">{[d.contact_name, d.contact_email].filter(Boolean).join("\n")}</Detail>

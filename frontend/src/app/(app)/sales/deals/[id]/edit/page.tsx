@@ -13,7 +13,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
   } catch {
     notFound();
   }
-  const { meta, rates } = await formData();
+  const { meta, rates, handoffRoutes, productionEmails } = await formData();
   const asking = !!d.locked && !d.can_approve;
   const initial: DealInput = Object.fromEntries(Object.keys(EMPTY_DEAL).map((k) => [k, (d as unknown as Record<string, unknown>)[k] ?? (EMPTY_DEAL as unknown as Record<string, unknown>)[k]])) as unknown as DealInput;
   return (
@@ -25,7 +25,7 @@ export default async function EditDealPage({ params }: { params: Promise<{ id: s
           ? "Accounts has checked this booking. Make the change below and say why - it goes to accounts, and the booking changes once they approve it."
           : "Changes go straight to the items. An item that's already invoiced and is taken off is marked cancelled, not deleted."}
       />
-      <DealForm dealId={d.id} initial={initial} titles={meta.titles} reps={meta.reps} rates={rates}
+      <DealForm handoffRoutes={handoffRoutes} productionEmails={productionEmails} dealId={d.id} initial={initial} titles={meta.titles} reps={meta.reps} rates={rates}
         company={d.company_id ? { id: d.company_id, label: d.client_name } : null}
         contact={d.contact_id ? { id: d.contact_id, label: d.contact_name ?? "Contact" } : null} myRepId={meta.my_rep_id} requestChange={asking} />
     </div>

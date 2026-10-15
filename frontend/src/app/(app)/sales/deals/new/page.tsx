@@ -12,7 +12,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   if (sp.proposal) q.set("proposal_id", sp.proposal);
   if (sp.edition) q.set("edition_id", sp.edition);
   if (sp.option) q.set("option", sp.option);
-  const [{ meta, rates }, pre] = await Promise.all([formData(), backendFetch<DealPrefill>(`/api/sales/deals/prefill?${q}`).catch(() => ({} as DealPrefill))]);
+  const [{ meta, rates, handoffRoutes, productionEmails }, pre] = await Promise.all([formData(), backendFetch<DealPrefill>(`/api/sales/deals/prefill?${q}`).catch(() => ({} as DealPrefill))]);
   const { company, contact, last_order: _last, option: _option, options: _options, ...rest } = pre as DealPrefill & { option?: string | null; options?: string[] };
   void _last; void _options;
   const initial: DealInput = {
@@ -27,7 +27,7 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
         crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Bookings", href: "/sales/deals" }]}
         description={sp.proposal ? `Started from the proposal${_option ? ` (${_option})` : ""}: check the issues and prices, then confirm.` : "Everything the client has agreed, in one place. Each item is added to its issue, and the confirmation is printed from it."}
       />
-      <DealForm initial={initial} titles={meta.titles} reps={meta.reps} rates={rates} company={company ?? null} contact={contact ?? null} myRepId={meta.my_rep_id ?? (rest.rep_id ?? null)} />
+      <DealForm handoffRoutes={handoffRoutes} productionEmails={productionEmails} initial={initial} titles={meta.titles} reps={meta.reps} rates={rates} company={company ?? null} contact={contact ?? null} myRepId={meta.my_rep_id ?? (rest.rep_id ?? null)} />
     </div>
   );
 }

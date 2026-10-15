@@ -30,6 +30,25 @@ export type DealLine = {
   allocate_by?: string | null;
   placements: DealPlacement[];
   total_gbp?: number;
+  /** Who works on it after it's sold; "auto" (or missing) = the Brain's suggestion and the routing table. */
+  handoff?: DealHandoff | null;
+  /** Where else it appears and when (online, newsletter, social…). */
+  activities?: DealActivity[];
+};
+
+export type HandoffTeam = "auto" | "editorial" | "production" | "both" | "none";
+export type DealHandoff = { team: HandoffTeam; editorial_to?: string | null; production_to?: string | null; format?: string | null };
+export type ActivityKind = "print" | "online" | "newsletter" | "social" | "banner" | "email" | "event" | "other";
+export type DealActivity = { kind: ActivityKind; on?: string | null; note?: string | null };
+export const ACTIVITY_KINDS: { value: ActivityKind; label: string }[] = [
+  { value: "online", label: "Online" }, { value: "newsletter", label: "Newsletter" }, { value: "social", label: "Social media" },
+  { value: "banner", label: "Banner" }, { value: "email", label: "HTML email" }, { value: "print", label: "In print" },
+  { value: "event", label: "At the event" }, { value: "other", label: "Other" },
+];
+export type HandoffRoutes = { default?: { editorial?: string; production?: string }; titles?: Record<string, { editorial?: string; production?: string }> };
+export type HandoffStatus = {
+  line: string; description: string; team: HandoffTeam; suggested: string; format: string | null; activities: DealActivity[];
+  teams: { team: "editorial" | "production"; to: string[]; state: "sent" | "failed" | "no_address" | "waiting_format" | "waiting_check" | "due"; sent_at: string | null; error: string | null }[];
 };
 
 export type InvoicePlan = "asap" | "on_publication" | "after_run" | "on_date" | "next_quarter" | "next_year";
@@ -128,6 +147,7 @@ export type Deal = Omit<DealInput, "status"> & {
   unlocked?: { at: string; by: string | null } | null;
   invoice_plan_label?: string;
   xero_contact?: { id: string; name: string | null } | null;
+  handoffs?: HandoffStatus[];
   pending_change?: { id: string; cancel: boolean; reason: string | null; requested_by: string | null; requested_at: string | null; details: { label: string; value: string; href?: string }[] } | null;
   notes_after_save?: string[];
 };
@@ -172,7 +192,7 @@ export type DealSettings = { next_number: number; company_block: string; footer:
   production_emails: string; accounts_emails: string;
   default_production_contact: string; default_copy_instructions: string; default_special_instructions: string;
   /** Terms line per publication (title id -> text); a publication without one uses the general terms. */
-  terms_by_title: Record<string, string>; can_edit: boolean };
+  terms_by_title: Record<string, string>; handoff_routes?: HandoffRoutes; can_edit: boolean };
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = { pencilled: "Pencilled", confirmed: "Confirmed", cancelled: "Cancelled" };
 

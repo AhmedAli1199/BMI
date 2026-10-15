@@ -1,15 +1,17 @@
 import { backendFetch } from "@/lib/backend";
 import type { SalesMeta, SalesRate } from "@/lib/sales-types";
-import type { DealInput } from "@/lib/deals-types";
+import type { DealInput, DealSettings } from "@/lib/deals-types";
 
 /** What the order form needs: titles, salespeople and this year's and next year's rate cards. */
 export async function formData() {
   const year = new Date().getFullYear();
-  const [meta, rates] = await Promise.all([
+  const [meta, rates, settings] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     backendFetch<SalesRate[]>("/api/sales/rates").catch(() => [] as SalesRate[]),
+    backendFetch<DealSettings>("/api/sales/deals/settings").catch(() => null),
   ]);
-  return { meta, rates: rates.filter((r) => r.year >= year - 1 && r.year <= year + 1) };
+  return { meta, rates: rates.filter((r) => r.year >= year - 1 && r.year <= year + 1),
+    handoffRoutes: settings?.handoff_routes, productionEmails: settings?.production_emails ?? "" };
 }
 
 export const EMPTY_DEAL: DealInput = {

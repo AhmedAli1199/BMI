@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { DealStatusPill } from "@/components/deals/deal-ui";
 import { DealSettingsButton } from "@/components/deals/deal-settings";
 import { XeroCodesButton } from "@/components/deals/xero-codes-button";
+import { HandoffRoutesButton } from "@/components/deals/handoff-routes-button";
 import { BookingFormsButton } from "@/components/deals/booking-forms";
 import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
@@ -69,6 +70,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         actions={<div className="flex items-center gap-2">
           {forms && <BookingFormsButton forms={forms} titles={meta.titles} reps={meta.reps} />}
           {settings && <DealSettingsButton settings={settings} titles={meta.titles} />}
+          {settings?.can_edit && <HandoffRoutesButton settings={settings} titles={meta.titles} />}
           {xeroCodes ? <XeroCodesButton titles={meta.titles} /> : null}
           <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/deals/new" />}><Plus className="size-3.5" /> New booking</Button>
         </div>}

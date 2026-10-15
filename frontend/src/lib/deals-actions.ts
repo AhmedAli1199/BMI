@@ -127,3 +127,17 @@ export async function reportUnbookedAd(input: { edition_id: string; client_name:
   revalidatePath(`/sales/editions/${input.edition_id}`);
   return r;
 }
+
+/** Send (again) the hand-off emails to editorial / production for some lines (empty = all). */
+export async function sendHandoffs(id: string, lines: string[] = []): Promise<Deal & { notes_after_save?: string[] }> {
+  const d = await backendFetch<Deal & { notes?: string[] }>(`/api/sales/deals/${id}/handoffs/send`, { method: "POST", headers: json, body: JSON.stringify({ lines }) });
+  refresh(d);
+  return { ...d, notes_after_save: d.notes };
+}
+
+/** Who works on an item, its format and where else it appears - allowed on a locked booking (it doesn't change the invoice). */
+export async function setLineHandoff(id: string, lineKey: string, input: { handoff?: import("@/lib/deals-types").DealHandoff; activities?: import("@/lib/deals-types").DealActivity[] }): Promise<Deal> {
+  const d = await backendFetch<Deal>(`/api/sales/deals/${id}/lines/${encodeURIComponent(lineKey)}/handoff`, { method: "PUT", headers: json, body: JSON.stringify(input) });
+  refresh(d);
+  return d;
+}

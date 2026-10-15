@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, CalendarPlus, Copy, Gift, Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { SalesRate, SalesRep, SalesTitle } from "@/lib/sales-types";
-import { INVOICE_PLANS, type DealInput, type DealIssue, type DealLine, type DealPlacement, type DealPreview } from "@/lib/deals-types";
+import { INVOICE_PLANS, type HandoffRoutes, type DealInput, type DealIssue, type DealLine, type DealPlacement, type DealPreview } from "@/lib/deals-types";
 import { createDeal, getDealIssues, getDealPrefill, previewDeal, requestDealChange, updateDeal } from "@/lib/deals-actions";
 import { searchCompanies, searchContacts } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityPicker } from "@/components/entity-picker";
+import { LineHandoff } from "@/components/deals/line-handoff";
 import { InfoHint } from "@/components/sales/info-hint";
 import { fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 import { friendlyError } from "@/lib/errors";
@@ -33,7 +34,10 @@ function blankLine(titleId: string | null): Line {
     discount_pct: 0, added_value: false, share_gbp: null, placements: [{}] };
 }
 
-export function DealForm({ dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId, requestChange = false }: {
+export function DealForm({ dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId, requestChange = false, handoffRoutes, productionEmails = "" }: {
+  /** The hand-off routing table (Bookings > Hand-offs), for the addresses each item suggests. */
+  handoffRoutes?: HandoffRoutes;
+  productionEmails?: string;
   dealId?: string;
   /** The booking is checked by accounts: saving sends the change to them for approval instead. */
   requestChange?: boolean;
@@ -341,6 +345,10 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                     </div>
                   )}
                 </div>
+
+                <LineHandoff line={l} titleName={titles.find((t) => t.id === l.title_id)?.name ?? null}
+                  productName={rates.find((r) => r.id === l.rate_id)?.product ?? null} routes={handoffRoutes} productionFallback={productionEmails}
+                  onChange={(patch) => updLine(l.key, patch)} />
 
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold tabular-nums">{l.added_value ? "Free" : pl ? `${fmtGBP(pl.total_gbp)}${l.placements.length > 1 ? ` for ${l.placements.length}` : ""}` : ""}</span>

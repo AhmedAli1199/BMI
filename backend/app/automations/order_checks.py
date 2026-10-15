@@ -169,6 +169,8 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
         raise ValueError("Only accounts can check bookings.")
     if action_id == "approve":
         d.checked_at, d.checked_by_user_id, d.check_note = datetime.now(timezone.utc), uuid.UUID(actor) if actor else None, None
+        from app.sales import handoffs
+        handoffs.process(db, d)   # now editorial / production can start
         return
     if action_id == "fix":
         note = (input_data.get("note") or "").strip()
