@@ -65,7 +65,7 @@ class ExtraField:
     label: str
     placeholder: str = ""
     required: bool = True
-    field_type: Literal["text", "bool"] = "text"
+    field_type: Literal["text", "bool", "date"] = "text"
 
 
 @dataclass(frozen=True)

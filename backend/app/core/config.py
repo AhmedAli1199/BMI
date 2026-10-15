@@ -256,8 +256,11 @@ class Settings(BaseSettings):
     save_the_sale_max_per_run: int = 25
     rate_card_publishers_can_edit: bool = False  # off: only admins and data managers change prices
     orders_accounts_check: bool = True
-    orders_check_before_sending: bool = True
+    orders_check_before_sending: bool = False   # 15 Oct: salespeople send confirmations themselves; accounts check before invoicing
     orders_lock_after_check: bool = True   # once accounts has checked a booking, others request changes instead of editing
+    accounts_away: bool = False   # accounts on holiday: administrators approve and get accounts' notifications
+    automations_invoice_reminders_enabled: bool = True   # "Ready to invoice" cards for accounts on each item's invoice date
+    invoice_after_run_days: int = 3
     orders_copy_accounts_on_create: bool = True   # every new booking: a note to accounts, and the confirmation emailed to the Accounts addresses
     automations_allocation_reminders_enabled: bool = False   # remind salespeople about items still to be allocated
     orders_allocate_remind_days: int = 14

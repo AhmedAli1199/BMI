@@ -320,6 +320,7 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     filler: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     item_date: Mapped[date | None] = mapped_column(Date, index=True)   # when this item runs, if not the issue's date (an email on 13 May)
     copy_due: Mapped[date | None] = mapped_column(Date)                # copy / artwork deadline for this item
+    invoice_due_on: Mapped[date | None] = mapped_column(Date)          # accounts' own "remind me on" date (wins over the booking's rule)
 
 
 

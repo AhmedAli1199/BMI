@@ -104,7 +104,7 @@ def test_online_booking_form_entry_becomes_a_booking(w, client):
     assert r.status_code == 200, r.text
     db.refresh(item)
     deal = db.get(SalesDeal, uuid.UUID(item.payload["deal_id"]))
-    assert deal.status == "pencilled" and deal.client_name == "SkyHigh Airlines" and float(deal.total_gbp) == 590
+    assert deal.status == "confirmed" and deal.client_name == "SkyHigh Airlines" and float(deal.total_gbp) == 590
     assert db.query(SalesOrder).filter_by(deal_id=deal.id, edition_id=ed.id).count() == 2
     assert db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").count() == 1
 

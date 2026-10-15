@@ -202,7 +202,8 @@ def test_reimporting_the_order_register_keeps_orders_made_in_the_app(w, client, 
 
 
 def test_accounts_check_holds_the_confirmation_until_it_looks_right(w, client):
-    """Matt's safeguard: each new order is checked by accounts before its confirmation goes out."""
+    """15 Oct: the salesperson sends the confirmation themselves; once the client has said yes (Confirm), accounts
+    check the booking before it's invoiced. Holding the confirmation back is now an option, off by default."""
     from app.models import Notification, ReviewQueueItem
 
     db = w["db"]
@@ -211,14 +212,15 @@ def test_accounts_check_holds_the_confirmation_until_it_looks_right(w, client):
     db.flush()
     body = _wisconsin(w)
     d = client.post("/api/sales/deals", json=body, headers=w["h"]).json()
-    assert d["check"]["state"] == "waiting" and d["check"]["blocks_sending"]
+    assert d["status"] == "pencilled" and db.query(ReviewQueueItem).filter_by(kind="order_check").count() == 0   # nothing to check yet
+    assert client.post(f"/api/sales/deals/{d['id']}/mark-sent", json={}, headers=w["h"]).status_code == 200      # sending isn't held up
+    d = client.post(f"/api/sales/deals/{d['id']}/status", json={"status": "confirmed"}, headers=w["h"]).json()
+    assert d["check"]["state"] == "waiting" and not d["check"]["blocks_sending"]
     item = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
     labels = {x["label"]: x for x in item.payload["details"]}
     assert labels["Booking"]["href"] == f"/sales/deals/{d['id']}" and "Travel Wisconsin" in labels["Client on the booking"]["value"]
     assert "Sponsored feature" in labels["Items"]["value"] and item.payload["facets"]["salesperson"] == "Sally Parker"
-    r = client.post(f"/api/sales/deals/{d['id']}/mark-sent", json={}, headers=w["h"])
-    assert r.status_code == 409 and "waiting for the accounts check" in r.json()["detail"]
-    # needs a fix: the salesperson is told; saving again sends it back with the note
+    assert labels["When to invoice"]["value"].startswith("As soon as allowed")
     db.commit()
     r = client.post(f"/api/review-queue/{item.id}/actions/fix", json={"note": "Client is Cellet Travel, not Travel Wisconsin"}, headers=w["h"])
     assert r.status_code == 200, r.text
@@ -234,7 +236,6 @@ def test_accounts_check_holds_the_confirmation_until_it_looks_right(w, client):
     db.expire_all()
     got = client.get(f"/api/sales/deals/{d['id']}", headers=w["h"]).json()
     assert got["check"]["state"] == "checked" and not got["check"]["blocks_sending"]
-    assert client.post(f"/api/sales/deals/{d['id']}/mark-sent", json={}, headers=w["h"]).status_code == 200
     # a checked order whose client changes goes back for checking; one that only gets a note doesn't
     client.put(f"/api/sales/deals/{d['id']}", json={**body, "client_name": "Cellet Travel Services", "notes": "hi"}, headers=w["h"])
     assert db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").count() == 0

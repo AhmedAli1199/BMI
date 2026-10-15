@@ -99,3 +99,31 @@ export async function deleteBookingForm(id: string): Promise<void> {
   await backendFetch(`/api/sales/booking-forms/${id}`, { method: "DELETE" });
   revalidatePath("/sales/deals");
 }
+
+/** Accounts: let the salesperson change a locked booking. It locks again (and comes back for checking) when they save. */
+export async function unlockDeal(id: string, note: string | null): Promise<Deal> {
+  const d = await backendFetch<Deal>(`/api/sales/deals/${id}/unlock`, { method: "POST", headers: json, body: JSON.stringify({ note }) });
+  refresh(d);
+  return d;
+}
+
+export async function relockDeal(id: string): Promise<Deal> {
+  const d = await backendFetch<Deal>(`/api/sales/deals/${id}/relock`, { method: "POST" });
+  refresh(d);
+  return d;
+}
+
+/** Accounts' own "remind me on" date for items (null = back to the booking's rule). */
+export async function setInvoiceDate(id: string, orderIds: string[], dueOn: string | null): Promise<Deal> {
+  const d = await backendFetch<Deal>(`/api/sales/deals/${id}/invoice-date`, { method: "POST", headers: json, body: JSON.stringify({ order_ids: orderIds, due_on: dueOn }) });
+  refresh(d);
+  return d;
+}
+
+/** An advert in the printed issue with no booking: record it as a filler, or ask the salesperson to make the booking. */
+export async function reportUnbookedAd(input: { edition_id: string; client_name: string; company_id?: string | null; rep_id?: string | null; page?: string | null;
+  outcome: "filler" | "needs_booking"; note?: string | null }): Promise<{ ok: boolean; message: string }> {
+  const r = await backendFetch<{ ok: boolean; message: string }>("/api/sales/deals/unbooked-ad", { method: "POST", headers: json, body: JSON.stringify(input) });
+  revalidatePath(`/sales/editions/${input.edition_id}`);
+  return r;
+}

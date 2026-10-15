@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, CalendarPlus, Copy, Gift, Loader2, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { SalesRate, SalesRep, SalesTitle } from "@/lib/sales-types";
-import type { DealInput, DealIssue, DealLine, DealPlacement, DealPreview } from "@/lib/deals-types";
+import { INVOICE_PLANS, type DealInput, type DealIssue, type DealLine, type DealPlacement, type DealPreview } from "@/lib/deals-types";
 import { createDeal, getDealIssues, getDealPrefill, previewDeal, requestDealChange, updateDeal } from "@/lib/deals-actions";
 import { searchCompanies, searchContacts } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
@@ -408,16 +408,27 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             </label>
             <label className={labelCls}>Client&apos;s order or PO number<Input value={f.po_number ?? ""} onChange={(e) => set("po_number", e.target.value || null)} className="h-8 text-sm" /></label>
             <label className={labelCls}>Email the invoice to<Input type="email" value={f.invoice_email ?? ""} onChange={(e) => set("invoice_email", e.target.value || null)} placeholder="if not the contact" className="h-8 text-sm" /></label>
-            <label className={labelCls}><span className="flex items-center gap-1">When to invoice <InfoHint>Shown on the booking page as &quot;ready to invoice&quot;, so accounts know what to raise.</InfoHint></span>
+            <label className={labelCls}><span className="flex items-center gap-1">When to invoice <InfoHint>What you agreed with the client. Accounts get a reminder on the day, and can change it.</InfoHint></span>
               <select className={selectCls} value={f.invoice_plan} onChange={(e) => set("invoice_plan", e.target.value as DealInput["invoice_plan"])}>
-                <option value="on_publication">Each item as it runs</option>
-                <option value="upfront">All of it now</option>
-                <option value="custom">As agreed (see instructions)</option>
+                {INVOICE_PLANS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+              <span className="text-[11px] font-normal">{INVOICE_PLANS.find((p) => p.value === f.invoice_plan)?.hint}</span>
+            </label>
+            {f.invoice_plan === "on_date" && (
+              <label className={labelCls}>Invoice on<Input type="date" value={f.invoice_on ?? ""} onChange={(e) => set("invoice_on", e.target.value || null)} className="h-8 w-44 text-sm" /></label>
+            )}
+            <label className={labelCls}><span className="flex items-center gap-1">Invoice in <InfoHint>Prices here stay in pounds; accounts invoice in this currency.</InfoHint></span>
+              <select className={selectCls} value={f.invoice_currency} onChange={(e) => set("invoice_currency", e.target.value as DealInput["invoice_currency"])}>
+                <option value="GBP">Pounds (GBP)</option><option value="EUR">Euros (EUR)</option><option value="USD">US dollars (USD)</option>
               </select>
             </label>
+            <label className={`${labelCls} sm:col-span-2`}>Invoice instructions for accounts (never printed)
+              <Textarea rows={2} value={f.invoice_instructions ?? ""} onChange={(e) => set("invoice_instructions", e.target.value || null)} placeholder="e.g. Only invoice once they've seen the printed copy; PO to follow" className="text-sm" /></label>
             <label className={labelCls}>Insertions booked<Input value={f.insertions_label ?? ""} onChange={(e) => set("insertions_label", e.target.value || null)} placeholder="Filled in from the items (e.g. April, June, September)" className="h-8 text-sm" /></label>
             <label className={`${labelCls} sm:col-span-2`}>Special instructions<Textarea rows={2} value={f.special_instructions ?? ""} onChange={(e) => set("special_instructions", e.target.value || null)} className="text-sm" /></label>
             <label className={`${labelCls} sm:col-span-2`}>Copy and artwork<Textarea rows={2} value={f.copy_instructions ?? ""} onChange={(e) => set("copy_instructions", e.target.value || null)} placeholder="e.g. 500 words copy for the 3/4 column; all insertions proofed and signed off before publication" className="text-sm" /></label>
+            <label className={labelCls}>Client&apos;s copy and artwork contact<Input value={f.copy_contact_name ?? ""} onChange={(e) => set("copy_contact_name", e.target.value || null)} placeholder="if not the contact above, e.g. their creative agency" className="h-8 text-sm" /></label>
+            <label className={labelCls}>Their email<Input type="email" value={f.copy_contact_email ?? ""} onChange={(e) => set("copy_contact_email", e.target.value || null)} className="h-8 text-sm" /></label>
             <label className={labelCls}>Production contact<Input value={f.production_contact ?? ""} onChange={(e) => set("production_contact", e.target.value || null)} placeholder="e.g. Steve Hunter - production@bmipublishing.co.uk" className="h-8 text-sm" /></label>
             <label className="flex items-center gap-2 self-end pb-1.5 text-sm"><input type="checkbox" checked={f.show_artwork_specs} onChange={(e) => set("show_artwork_specs", e.target.checked)} /> Print the artwork specification</label>
           </div>

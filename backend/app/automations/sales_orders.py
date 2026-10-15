@@ -156,6 +156,8 @@ def scan_uninvoiced() -> None:
         rows = db.execute(
             select(SalesOrder, SalesEdition).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
             .where(SalesOrder.status == BOOKED, SalesOrder.value_gbp > 0, SalesOrder.invoice_number.is_(None),
+                   # bookings made in the Brain get "Ready to invoice" cards on their own dates instead
+                   SalesOrder.deal_id.is_(None) if runtime_settings.get_bool(db, "automations_invoice_reminders_enabled") else True,
                    SalesEdition.edition_date.isnot(None), SalesEdition.edition_date <= cutoff,
                    SalesEdition.edition_date >= today - timedelta(days=400))
             .order_by(SalesEdition.edition_date)

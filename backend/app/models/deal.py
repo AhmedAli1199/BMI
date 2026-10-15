@@ -69,7 +69,17 @@ class SalesDeal(Base, UUIDPk, TimestampMixin):
     unallocated_gbp: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0, server_default="0")
     allocate_by: Mapped[date | None] = mapped_column(Date)    # the earliest "decide the issues by" date on any line
 
-    invoice_plan: Mapped[str] = mapped_column(String(14), nullable=False, default="on_publication")  # upfront | on_publication | custom
+    # When to invoice (agreed with the client; app/sales/invoicing.py works out the date):
+    # asap | on_publication | after_run | on_date | next_quarter | next_year
+    invoice_plan: Mapped[str] = mapped_column(String(14), nullable=False, default="asap")
+    invoice_on: Mapped[date | None] = mapped_column(Date)                  # for "on_date"
+    invoice_instructions: Mapped[str | None] = mapped_column(Text)         # for accounts, never printed
+    invoice_currency: Mapped[str] = mapped_column(String(3), nullable=False, default="GBP", server_default="GBP")
+    copy_contact_name: Mapped[str | None] = mapped_column(String(200))     # the client's person for copy/artwork (often a creative agency)
+    copy_contact_email: Mapped[str | None] = mapped_column(String(320))
+    # Accounts can unlock a checked booking so the salesperson can change it; it locks again when they save.
+    unlocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    unlocked_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     special_instructions: Mapped[str | None] = mapped_column(Text)
     copy_instructions: Mapped[str | None] = mapped_column(Text)
     production_contact: Mapped[str | None] = mapped_column(String(200))
@@ -106,6 +116,7 @@ class DealSettings(Base):
     default_production_contact: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     default_copy_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     default_special_instructions: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    terms_by_title: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")   # {title_id: terms line}
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

@@ -222,7 +222,7 @@ export type ReviewExtraField = {
   label: string;
   placeholder: string;
   required: boolean;
-  field_type: "text" | "bool";
+  field_type: "text" | "bool" | "date";
 };
 
 export type ReviewAction = {

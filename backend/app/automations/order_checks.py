@@ -1,9 +1,9 @@
-"""Accounts check on orders - Matt's safeguard from the 8 Oct meeting: before a confirmation goes out, someone in
-accounts (Samantha) looks over what the salesperson typed - the client name, the CRM company it's linked to, the
-addresses, the contact and the items - because mistakes there end up on invoices.
+"""Accounts check on bookings - Matt's safeguard from the 8 Oct meeting, reshaped on the 15 Oct call: the salesperson
+sends the confirmation to the client and presses Confirm once the client has said yes; then someone in accounts
+(Samantha) looks over what was typed - the client name, the CRM company it's linked to, the addresses, the contact
+and the items - before it's invoiced, because mistakes there end up on invoices. Pencilled bookings aren't checked.
 
-Every new order (and every order whose client, addresses or items change after it was checked) gets one review
-item. "Looks right" marks the order checked; "Needs a fix" sends the note to the salesperson, and the order comes
+Every confirmed booking (and every checked one whose client, addresses or items change) gets one review item. "Looks right" marks the order checked; "Needs a fix" sends the note to the salesperson, and the order comes
 back for checking once they save it again. While the "Confirmation waits for the check" setting is on, the
 confirmation can't be sent or marked as sent until the order is checked (app/api/routes/deals.py).
 
@@ -95,10 +95,17 @@ def _payload(db: Session, d: SalesDeal) -> dict:
     details.append({"label": "Items", "value": "\n".join(items) or "None"})
     details.append({"label": "Total before VAT", "value": _money(d.total_gbp)})
     details.append({"label": "Salesperson", "value": rep.name if rep else "House account"})
+    from app.sales.invoicing import PLANS
+    when = PLANS.get(d.invoice_plan or "asap", d.invoice_plan)
+    if d.invoice_plan == "on_date" and d.invoice_on:
+        when = f"On {d.invoice_on:%-d %b %Y}"
+    details.append({"label": "When to invoice", "value": when + (f" · {d.invoice_currency}" if d.invoice_currency and d.invoice_currency != "GBP" else "")})
+    if d.invoice_instructions:
+        details.append({"label": "Invoice instructions", "value": d.invoice_instructions})
     if name_differs:
         details.insert(1, {"label": "Worth a look", "value": f"The client is typed as “{d.client_name}” but linked to “{company.name}”."})
     return {
-        "summary": f"Check booking {d.number} for {d.client_name} ({_money(d.total_gbp)}) before the confirmation goes out",
+        "summary": f"Check booking {d.number} for {d.client_name} ({_money(d.total_gbp)}) before it's invoiced",
         "details": details,
         "deal_id": str(d.id),
         "related_entities": [{"type": "company", "id": str(company.id), "label": company.name}] if company else [],
@@ -114,6 +121,10 @@ def request_check(db: Session, d: SalesDeal, before: dict | None = None) -> None
     """After an order is saved: put it (back) in front of accounts if it needs checking. `before` is the
     snapshot taken before the save; a checked order whose checked details changed is checked again."""
     if not enabled(db) or d.status == "cancelled":
+        return
+    if d.status != "confirmed":
+        # Pencilled: nothing to check until the client has said yes.
+        withdraw(db, d, "Back to pencilled.")
         return
     if d.checked_at and before is not None and before != snapshot(d):
         d.checked_at = d.checked_by_user_id = None
@@ -136,6 +147,9 @@ def request_check(db: Session, d: SalesDeal, before: dict | None = None) -> None
         return
     db.add(ReviewQueueItem(id=uuid.uuid4(), kind=KIND, source_db=title.crm_source_db if title else None, status="pending",
                            entity_type="company" if d.company_id else None, entity_id=d.company_id, payload=payload))
+    from app.sales.accounts import tell_accounts
+    tell_accounts(db, KIND, f"Booking {d.number} confirmed: {d.client_name}", f"{_money(d.total_gbp)} before VAT, ready for your check.",
+                  "/automations/review?kind=order_check", skip=d.created_by_user_id)
 
 
 def withdraw(db: Session, d: SalesDeal, why: str) -> None:
@@ -167,7 +181,7 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
             who.add(rep.user_id)
         checker = db.get(User, uuid.UUID(actor)) if actor else None
         for uid in who:
-            create_notification(db, uid, "order_check", f"Booking {d.number} needs a fix before it goes out",
+            create_notification(db, uid, "order_check", f"Booking {d.number} needs a fix before it's invoiced",
                                 f"{checker.name if checker else 'Accounts'}: {note}", link=f"/sales/deals/{d.id}")
         return
     raise ValueError(f"Unknown action {action_id!r} for {KIND}")
@@ -176,7 +190,7 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
 register(ReviewKind(
     kind=KIND,
     label="Booking check",
-    description="A new or changed booking, for accounts to check the client, CRM company, addresses and items before the confirmation goes out.",
+    description="A confirmed (or changed) booking, for accounts to check the client, CRM company, addresses, items and when to invoice before it's invoiced. Looks right locks it; changes then go through accounts.",
     actions=[
         ReviewAction(id="approve", label="Looks right", style="primary", outcome="approved"),
         ReviewAction(id="fix", label="Needs a fix", style="secondary", outcome="rejected", requires_note=True),

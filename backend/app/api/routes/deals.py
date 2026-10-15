@@ -25,6 +25,7 @@ from app.models.messaging import MailAccount
 from app.models.proposal import Proposal
 from app.roles import CAN_USE_AUTOMATIONS
 from app.automations import booking_changes as bc
+from app.automations import invoice_due
 from app.automations import order_checks as oc
 from app.sales import accounts as acc
 from app.sales import deals as dl
@@ -91,7 +92,12 @@ class DealIn(BaseModel):
     package_split: str = Field(default="rate_card", pattern="^(rate_card|even|manual)$")
     discount_pct: float = Field(default=0, ge=0, le=1)
     lines: list[LineIn] = Field(default_factory=list, max_length=60)
-    invoice_plan: str = Field(default="on_publication", pattern="^(upfront|on_publication|custom)$")
+    invoice_plan: str = Field(default="asap", pattern="^(asap|on_publication|after_run|on_date|next_quarter|next_year)$")
+    invoice_on: date | None = None
+    invoice_instructions: str | None = Field(default=None, max_length=2000)
+    invoice_currency: str = Field(default="GBP", pattern="^(GBP|EUR|USD)$")
+    copy_contact_name: str | None = Field(default=None, max_length=200)
+    copy_contact_email: str | None = Field(default=None, max_length=320)
     special_instructions: str | None = Field(default=None, max_length=3000)
     copy_instructions: str | None = Field(default=None, max_length=3000)
     production_contact: str | None = Field(default=None, max_length=200)
@@ -104,7 +110,8 @@ class DealIn(BaseModel):
 FIELDS = ("company_id", "client_name", "contact_id", "contact_name", "contact_email", "confirmation_address", "invoice_to",
           "invoice_email", "po_number", "agency_name", "agency_pct", "rep_id", "title_id", "publication_label", "insertions_label",
           "document", "pricing", "package_price_gbp", "package_label", "package_split", "discount_pct", "invoice_plan",
-          "special_instructions", "copy_instructions", "production_contact", "show_artwork_specs", "notes")
+          "special_instructions", "copy_instructions", "production_contact", "show_artwork_specs", "notes",
+          "invoice_on", "invoice_instructions", "invoice_currency", "copy_contact_name", "copy_contact_email")
 
 
 # ---- access ------------------------------------------------------------------------------------
@@ -182,6 +189,12 @@ def _apply(db: Session, d: SalesDeal, p: DealIn) -> None:
     d.booked_on = p.booked_on or d.booked_on or date.today()
     if not p.lines:
         raise HTTPException(422, "Add at least one item to the booking.")
+    if p.invoice_plan == "on_date" and not p.invoice_on:
+        raise HTTPException(422, "Choose the date to invoice on, or pick another option for when to invoice.")
+    if p.invoice_plan != "on_date":
+        d.invoice_on = None
+    if p.copy_contact_email and "@" not in p.copy_contact_email:
+        raise HTTPException(422, "The copy and artwork contact's email doesn't look right.")
 
 
 def _lines_in(p: DealIn) -> list[dict]:
@@ -210,6 +223,7 @@ def _labels(db: Session) -> tuple[dict, dict]:
 
 
 def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
+    from app.sales import invoicing as inv
     from app.sales.order_query import xero_state
     titles, edition_label = _labels(db)
     pr = dl.price_deal(d)
@@ -246,8 +260,11 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
                 "xero_state": states.get(o.id) if o else None, "booked_on": o.booked_on.isoformat() if o and o.booked_on else None,
                 "published": bool(runs and runs <= today),
             }
+            due = inv.due_date(db, d, runs, o.invoice_due_on if o else None, today) if o else None
+            row["invoice_due"] = due.isoformat() if due else None
+            row["invoice_due_set"] = bool(o and o.invoice_due_on)
             row["ready_to_invoice"] = bool(o and o.status == "booked" and not o.invoice_number and pl["value_gbp"] > 0
-                                           and (d.invoice_plan == "upfront" or row["published"]))
+                                           and not ln.get("added_value") and due is not None and due <= today)
             if o and ed and d.status != "cancelled" and o.status != "cancelled":
                 if ed.ad_deadline and ed.ad_deadline < today and not row["published"] and o.created_at and o.created_at.date() > ed.ad_deadline:
                     warnings.append(f"{row['edition']}: booked after its advertising deadline ({ed.ad_deadline:%-d %b}). Check production can still fit it in.")
@@ -255,6 +272,8 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
                     warnings.append(f"{row['edition']} is marked closed.")
             schedule.append(row)
     schedule.sort(key=lambda r: (r["runs_on"] or "9999", r["description"]))
+    if w := inv.quarter_warning(db, d, [date.fromisoformat(r["runs_on"]) for r in schedule if r["runs_on"]]):
+        warnings.append(w)
     reps = {r.id: r for r in db.scalars(select(SalesRep))}
     rep = reps.get(d.rep_id)
     invoiced = sum(r["value_gbp"] for r in schedule if r["invoice_number"])
@@ -281,8 +300,18 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "can_edit": _can_edit(db, identity, d),
         "check": _check_out(db, d),
         "locked": acc.locked(db, d), "can_approve": _approver(db, identity),
+        "unlocked": _unlocked_out(db, d),
+        "invoice_on": d.invoice_on.isoformat() if d.invoice_on else None,
+        "invoice_plan_label": inv.PLANS.get(d.invoice_plan or "asap", d.invoice_plan),
         "pending_change": _pending_out(db, d),
     }
+
+
+def _unlocked_out(db: Session, d: SalesDeal) -> dict | None:
+    if not d.unlocked_at:
+        return None
+    who = db.get(User, d.unlocked_by_user_id) if d.unlocked_by_user_id else None
+    return {"at": d.unlocked_at.isoformat(), "by": who.name if who else None}
 
 
 def _pending_out(db: Session, d: SalesDeal) -> dict | None:
@@ -310,7 +339,7 @@ def _check_out(db: Session, d: SalesDeal) -> dict | None:
 @router.get("")
 def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_id: list[uuid.UUID] = Query(default=[]),
                title_id: list[uuid.UUID] = Query(default=[]), company_id: uuid.UUID | None = None, year: int | None = None,
-               mine: bool = False, to_allocate: bool = False, sort: str = "number", desc: bool = True, limit: int = Query(default=50, le=200), offset: int = 0,
+               mine: bool = False, to_allocate: bool = False, to_invoice: str | None = None, sort: str = "number", desc: bool = True, limit: int = Query(default=50, le=200), offset: int = 0,
                db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     stmt = select(SalesDeal)
     if q and q.strip():
@@ -333,6 +362,9 @@ def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_
         stmt = stmt.where(SalesDeal.company_id == company_id)
     if to_allocate:
         stmt = stmt.where(SalesDeal.unallocated_count > 0, SalesDeal.status != "cancelled")
+    if to_invoice in ("due", "month"):
+        # accounts' month-end check: bookings with items due to invoice now, or by the end of this month
+        stmt = stmt.where(SalesDeal.id.in_(_to_invoice_ids(db, to_invoice)))
     if year:
         stmt = stmt.where(func.extract("year", SalesDeal.booked_on) == year)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
@@ -362,6 +394,22 @@ def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_
                       "allocate_by": d.allocate_by.isoformat() if d.allocate_by else None})
     return {"items": items, "total": total, "total_value_gbp": round(float(value), 2),
             "unallocated_gbp": round(float(unallocated), 2), "unallocated_bookings": int(waiting)}
+
+
+def _to_invoice_ids(db: Session, when: str) -> list[uuid.UUID]:
+    from app.sales import invoicing as inv
+    today = date.today()
+    cutoff = today if when == "due" else inv.add_months(today.replace(day=1), 1) - timedelta(days=1)
+    rows = db.execute(select(SalesDeal, SalesOrder, SalesEdition).join(SalesOrder, SalesOrder.deal_id == SalesDeal.id)
+                      .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+                      .where(SalesDeal.status == "confirmed", SalesOrder.status == "booked", SalesOrder.invoice_number.is_(None),
+                             SalesOrder.xero_invoice_id.is_(None), SalesOrder.value_gbp > 0, SalesOrder.added_value.is_(False))).all()
+    out = set()
+    for d, o, ed in rows:
+        due = inv.due_date(db, d, o.item_date or ed.edition_date, o.invoice_due_on, today)
+        if due is not None and due <= cutoff and "No invoice needed" not in (o.invoice_note or ""):
+            out.add(d.id)
+    return list(out) or [uuid.uuid4()]
 
 
 @router.get("/prefill")
@@ -462,6 +510,7 @@ def get_settings(db: Session = Depends(get_db), identity: Identity = Depends(get
             "artwork_specs": st.artwork_specs, "production_emails": st.production_emails or "", "accounts_emails": st.accounts_emails or "",
             "default_production_contact": st.default_production_contact or "", "default_copy_instructions": st.default_copy_instructions or "",
             "default_special_instructions": st.default_special_instructions or "",
+            "terms_by_title": st.terms_by_title or {},
             "can_edit": not identity.is_known or identity.role == "admin"}
 
 
@@ -476,6 +525,7 @@ class SettingsIn(BaseModel):
     default_production_contact: str = Field(default="", max_length=300)
     default_copy_instructions: str = Field(default="", max_length=2000)
     default_special_instructions: str = Field(default="", max_length=2000)
+    terms_by_title: dict[str, str] = Field(default_factory=dict)   # {title_id: terms line}; empty = the general terms
 
 
 def _addresses(text: str | None) -> list[str]:
@@ -496,6 +546,7 @@ def save_settings(p: SettingsIn, db: Session = Depends(get_db), identity: Identi
         if bad:
             raise HTTPException(422, f"“{bad[0]}” doesn't look like an email address.")
         setattr(p, field, ", ".join(_addresses(getattr(p, field))))
+    p.terms_by_title = {k: v.strip()[:3000] for k, v in p.terms_by_title.items() if (v or "").strip()}
     for k, v in p.model_dump().items():
         setattr(st, k, v)
     st.updated_at = datetime.now(timezone.utc)
@@ -565,6 +616,8 @@ def create_deal(p: DealIn, background: BackgroundTasks, db: Session = Depends(ge
     db.add(d)
     notes = _save(db, d, p, identity)
     oc.request_check(db, d)
+    db.flush()
+    invoice_due.refresh(db, d)
     acc.tell_accounts_new(db, d, identity.user_uuid)
     db.commit()
     background.add_task(acc.email_new_booking, d.id)
@@ -578,7 +631,13 @@ def update_deal(deal_id: uuid.UUID, p: DealIn, db: Session = Depends(get_db), id
     _need_unlocked(db, identity, d)
     if d.status == "cancelled":
         raise HTTPException(409, "This booking is cancelled. Reopen it first to change it.")
+    was_unlocked = bool(d.unlocked_at) and not _approver(db, identity)
     notes = apply_change(db, d, p, identity.user_uuid, identity)
+    if was_unlocked:
+        # Unlocked for this change: it locks again now, and goes back to accounts to check.
+        d.unlocked_at = d.unlocked_by_user_id = None
+        d.checked_at = d.checked_by_user_id = None
+        oc.request_check(db, d)
     db.commit()
     return {**_out(db, d, identity), "notes": notes}
 
@@ -595,6 +654,8 @@ def apply_change(db: Session, d: SalesDeal, p: DealIn, user_id: uuid.UUID | None
     oc.request_check(db, d, before)
     if identity is not None:
         _keep_checked(db, d, identity)
+    db.flush()
+    invoice_due.refresh(db, d)
     return notes
 
 
@@ -625,10 +686,8 @@ def request_change(deal_id: uuid.UUID, p: ChangeRequestIn, db: Session = Depends
         proposed = p.booking.model_dump(mode="json")
     bc.request(db, d, proposed=proposed, cancel=p.cancel, cancel_reason=p.cancel_reason, keep_run=p.keep_run,
                reason=p.reason.strip(), user_id=identity.user_uuid)
-    for u in acc.accounts_people(db):
-        from app.services.notify import create_notification
-        create_notification(db, u.id, "booking_change", f"Change requested on booking {d.number}", p.reason.strip(),
-                            link="/automations/review?kind=booking_change", email=False)
+    acc.tell_accounts(db, "booking_change", f"Change requested on booking {d.number}", p.reason.strip(),
+                      "/automations/review?kind=booking_change", skip=identity.user_uuid)
     db.commit()
     return _out(db, d, identity)
 
@@ -683,7 +742,117 @@ def apply_status(db: Session, d: SalesDeal, status: str, reason: str | None, kee
         oc.request_check(db, d)
     else:
         oc.withdraw(db, d, "The booking was cancelled.")
+    db.flush()
+    invoice_due.refresh(db, d)
     return kept
+
+
+class UnbookedAdIn(BaseModel):
+    edition_id: uuid.UUID
+    client_name: str = Field(min_length=1, max_length=256)
+    company_id: uuid.UUID | None = None
+    rep_id: uuid.UUID | None = None
+    page: str | None = Field(default=None, max_length=40)
+    outcome: str = Field(pattern="^(filler|needs_booking)$")
+    note: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/unbooked-ad", status_code=201)
+def unbooked_ad(p: UnbookedAdIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """An advert in the printed issue with no booking behind it (Samantha's check after publication): either it was
+    a filler (recorded on the issue as one, no charge), or someone forgot the booking (the salesperson is asked to
+    make it - it can be dated back)."""
+    ed = db.get(SalesEdition, p.edition_id)
+    if not ed:
+        raise HTTPException(404, "We couldn't find that issue.")
+    company = db.get(Company, p.company_id) if p.company_id else None
+    rep = db.get(SalesRep, p.rep_id) if p.rep_id else None
+    where = f"page {p.page}" if p.page else "the issue"
+    if p.outcome == "filler":
+        o = SalesOrder(id=uuid.uuid4(), edition_id=ed.id, client_name=company.name if company else p.client_name.strip(),
+                       company_id=company.id if company else None, rep_id=rep.id if rep else None, booked_on=date.today(),
+                       value_gbp=0, status="booked", filler=True, description="Filler ad", position=(p.page or None),
+                       notes="; ".join(filter(None, [f"Filler found on {where}", (p.note or "").strip() or None])),
+                       created_by_user_id=identity.user_uuid)
+        db.add(o)
+        db.commit()
+        return {"ok": True, "order_id": str(o.id), "message": "Recorded as a filler on this issue."}
+    if not rep or not rep.user_id:
+        raise HTTPException(422, "Choose the salesperson who should make the booking.")
+    from app.api.routes.sales import edition_label
+    title = db.get(SalesTitle, ed.title_id)
+    q = f"edition={ed.id}" + (f"&company={company.id}" if company else "")
+    from app.services.notify import create_notification
+    me = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    create_notification(db, rep.user_id, "unbooked_ad", f"An advert with no booking: {p.client_name.strip()}",
+                        f"{me.name if me else 'Accounts'} found it on {where} of {edition_label(title, ed)}. Please make the booking "
+                        f"(you can date it back) so it can be invoiced.{(' ' + p.note.strip()) if p.note and p.note.strip() else ''}",
+                        link=f"/sales/deals/new?{q}", email=True)
+    db.commit()
+    return {"ok": True, "message": f"{rep.name} has been asked to make the booking."}
+
+
+class UnlockIn(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+
+
+def _need_approver(db: Session, identity: Identity) -> None:
+    if not _approver(db, identity):
+        raise HTTPException(403, "Only accounts can do this (or an administrator while accounts are away).")
+
+
+@router.post("/{deal_id}/unlock")
+def unlock(deal_id: uuid.UUID, p: UnlockIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Let the salesperson change a locked booking themselves. It locks again (and comes back for checking) when they save."""
+    d = _get(db, deal_id)
+    _need_approver(db, identity)
+    if not acc.locked(db, d):
+        raise HTTPException(409, "This booking isn't locked, so it can already be changed.")
+    d.unlocked_at, d.unlocked_by_user_id = datetime.now(timezone.utc), identity.user_uuid
+    from app.services.notify import create_notification
+    me = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    rep = db.get(SalesRep, d.rep_id) if d.rep_id else None
+    for uid in {u for u in (d.created_by_user_id, rep.user_id if rep else None) if u and u != identity.user_uuid}:
+        create_notification(db, uid, "booking_unlocked", f"Booking {d.number} is unlocked for you to change",
+                            (p.note or "").strip() or f"{me.name if me else 'Accounts'} unlocked it. It locks again when you save.",
+                            link=f"/sales/deals/{d.id}")
+    db.commit()
+    return _out(db, d, identity)
+
+
+@router.post("/{deal_id}/relock")
+def relock(deal_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    d = _get(db, deal_id)
+    _need_approver(db, identity)
+    d.unlocked_at = d.unlocked_by_user_id = None
+    db.commit()
+    return _out(db, d, identity)
+
+
+class InvoiceDateIn(BaseModel):
+    order_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+    due_on: date | None = None   # None = back to the booking's rule
+
+
+@router.post("/{deal_id}/invoice-date")
+def set_invoice_date(deal_id: uuid.UUID, p: InvoiceDateIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Accounts' own "remind me on" date for items on this booking; it wins over the booking's rule."""
+    d = _get(db, deal_id)
+    _need_approver(db, identity)
+    items = db.scalars(select(SalesOrder).where(SalesOrder.deal_id == d.id, SalesOrder.id.in_(p.order_ids))).all()
+    if not items:
+        raise HTTPException(404, "Those items aren't on this booking.")
+    for o in items:
+        o.invoice_due_on = p.due_on
+    db.flush()
+    invoice_due.refresh(db, d)
+    rep = db.get(SalesRep, d.rep_id) if d.rep_id else None
+    if rep and rep.user_id and rep.user_id != identity.user_uuid and p.due_on:
+        from app.services.notify import create_notification
+        create_notification(db, rep.user_id, "invoice_date", f"Booking {d.number}: invoicing moved to {p.due_on:%-d %b %Y}",
+                            "Accounts changed when it's invoiced, so you know what the client will see.", link=f"/sales/deals/{d.id}", email=False)
+    db.commit()
+    return _out(db, d, identity)
 
 
 @router.delete("/{deal_id}", status_code=204, response_model=None)
@@ -823,6 +992,9 @@ def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity:
         d.status, d.confirmed_at = "confirmed", datetime.now(timezone.utc)
         for o in db.scalars(select(SalesOrder).where(SalesOrder.deal_id == d.id)):
             o.status = "booked"
+        oc.request_check(db, d)
+        db.flush()
+        invoice_due.refresh(db, d)
     _log_sent(db, d, identity.user_uuid, "outlook", to)
     db.commit()
     return _out(db, d, identity)

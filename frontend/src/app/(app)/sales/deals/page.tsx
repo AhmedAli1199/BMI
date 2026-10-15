@@ -32,6 +32,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     { kind: "multi", key: "status", label: "Status", section: "Booking", options: [
       { value: "pencilled", label: "Pencilled", hint: "Held for the client, not confirmed yet" }, { value: "confirmed", label: "Confirmed" }, { value: "cancelled", label: "Cancelled" }] },
     { kind: "single", key: "mine", label: "Whose", section: "Booking", options: [{ value: "1", label: "Only my bookings" }] },
+    { kind: "single", key: "invoice", label: "To invoice", section: "Booking", options: [
+      { value: "due", label: "Due to invoice now", hint: "Items that have reached their invoice date" },
+      { value: "month", label: "Due by the end of this month", hint: "For the month-end check" },
+    ] },
     { kind: "single", key: "allocate", label: "Still to allocate", section: "Booking", options: [{ value: "1", label: "Has items with no issue yet", hint: "Packages sold but not yet split by issue" }] },
     { kind: "multi", key: "rep", label: "Salesperson", section: "Booking", options: meta.reps.filter((r) => r.active).map((r) => ({ value: r.id, label: r.name })) },
     { kind: "multi", key: "title", label: "Title", section: "Where it runs", searchable: true, options: meta.titles.map((t) => ({ value: t.id, label: t.name })) },
@@ -51,6 +55,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   if (values.year) qs.set("year", String(values.year));
   if (values.mine) qs.set("mine", "true");
   if (values.allocate) qs.set("to_allocate", "true");
+  if (values.invoice === "due" || values.invoice === "month") qs.set("to_invoice", String(values.invoice));
   const data = await backendFetch<Page>(`/api/sales/deals?${qs}`).catch((): Page => ({ items: [], total: 0, total_value_gbp: 0 }));
 
   return (
@@ -61,7 +66,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         description="Client bookings with everything agreed in one place: items across issues, months and events, package prices, discounts and agency commission. Each one prints as BMI's order confirmation or schedule of works."
         actions={<div className="flex items-center gap-2">
           {forms && <BookingFormsButton forms={forms} titles={meta.titles} reps={meta.reps} />}
-          {settings && <DealSettingsButton settings={settings} />}
+          {settings && <DealSettingsButton settings={settings} titles={meta.titles} />}
           <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href="/sales/deals/new" />}><Plus className="size-3.5" /> New booking</Button>
         </div>}
       />

@@ -5,7 +5,8 @@ The Business Travel People Awards, The Business Travel Quiz).
 Each form is set up once in Bookings settings (app/models/deal.py BookingForm): what an entry is, which title and
 issue or event it's for, and the price. The form's own web address goes into Jotform (Settings > Integrations >
 Webhooks) or Stova; every entry then arrives here as a Review Queue item with the answers laid out and the client
-matched to the CRM where possible. "Create booking" makes a pencilled booking from it - priced, on the order register
+matched to the CRM where possible. "Create booking" makes a confirmed booking from it (the client booked it
+themselves), which goes to accounts' check - priced, on the order register
 and sent for the accounts check like any other - so nobody types it in twice.
 
 Jotform posts the entry as a form (rawRequest holds the answers as JSON). Anything else (Stova, or a test) can post
@@ -169,7 +170,7 @@ def receive(db: Session, form: BookingForm, ref: str | None, answers: dict[str, 
 
 
 def make_booking(db: Session, item: ReviewQueueItem, input_data: dict) -> SalesDeal:
-    """A pencilled booking from the entry, through the same path as a booking made by hand."""
+    """A confirmed booking from the entry (the client booked it themselves), through the same path as one made by hand."""
     from fastapi import HTTPException
 
     from app.api.routes import deals as routes
@@ -204,7 +205,7 @@ def make_booking(db: Session, item: ReviewQueueItem, input_data: dict) -> SalesD
         company_id=company.id if company else None, client_name=client[:256],
         contact_id=uuid.UUID(item.payload["contact_id"]) if item.payload.get("contact_id") else None,
         contact_name=(g.get("name") or None), contact_email=(g.get("email") or None),
-        rep_id=rep.id if rep else None, title_id=title_id, status="pencilled",
+        rep_id=rep.id if rep else None, title_id=title_id, status="confirmed",
         notes=f"From the online form “{form.name}”" + (f" (entry {item.payload['submission_ref']})" if item.payload.get("submission_ref") else "") + ".",
         lines=[routes.LineIn(title_id=title_id, rate_id=rate.id if rate else None, description=(form.description or form.name)[:300],
                              detail=detail, qty=1, unit_price=price, list_price=float(rate.price_gbp) if rate and rate.price_gbp is not None else None,
@@ -212,7 +213,8 @@ def make_booking(db: Session, item: ReviewQueueItem, input_data: dict) -> SalesD
     )
     actor = input_data.get("_actor_user_id")
     who = routes._Who(uuid.UUID(actor) if actor else None)
-    d = SalesDeal(id=uuid.uuid4(), number=dl.next_number(db), status="pencilled", created_by_user_id=who.user_uuid, lines=[], split=[])
+    d = SalesDeal(id=uuid.uuid4(), number=dl.next_number(db), status="confirmed", created_by_user_id=who.user_uuid, lines=[], split=[],
+                  confirmed_at=datetime.now(timezone.utc))
     try:
         routes._apply(db, d, p)
         db.add(d)
@@ -222,7 +224,7 @@ def make_booking(db: Session, item: ReviewQueueItem, input_data: dict) -> SalesD
     oc.request_check(db, d)
     acc.tell_accounts_new(db, d, who.user_uuid)
     item.payload = {**item.payload, "deal_id": str(d.id),
-                    "details": [{"label": "Booking made", "value": f"{d.number} (pencilled)", "href": f"/sales/deals/{d.id}"}, *item.payload["details"]]}
+                    "details": [{"label": "Booking made", "value": f"{d.number} (confirmed)", "href": f"/sales/deals/{d.id}"}, *item.payload["details"]]}
     return d
 
 

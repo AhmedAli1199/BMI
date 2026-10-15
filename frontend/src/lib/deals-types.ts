@@ -32,6 +32,18 @@ export type DealLine = {
   total_gbp?: number;
 };
 
+export type InvoicePlan = "asap" | "on_publication" | "after_run" | "on_date" | "next_quarter" | "next_year";
+
+/** When to invoice, as agreed with the client (app/sales/invoicing.py works out each item's date). */
+export const INVOICE_PLANS: { value: InvoicePlan; label: string; hint: string }[] = [
+  { value: "asap", label: "As soon as allowed", hint: "Straight away if it runs this quarter, otherwise at the start of the quarter it runs in." },
+  { value: "on_publication", label: "When it runs", hint: "The day the issue comes out or the event happens." },
+  { value: "after_run", label: "After it has run", hint: "For clients who pay once they've had the tear sheet or link." },
+  { value: "on_date", label: "On a date agreed with the client", hint: "Pick the date below." },
+  { value: "next_quarter", label: "The quarter after it runs", hint: "No budget left this quarter." },
+  { value: "next_year", label: "The financial year after it runs", hint: "No budget left this financial year." },
+];
+
 export type DealInput = {
   company_id: string | null;
   client_name: string;
@@ -57,7 +69,12 @@ export type DealInput = {
   package_split: "rate_card" | "even" | "manual";
   discount_pct: number;
   lines: DealLine[];
-  invoice_plan: "upfront" | "on_publication" | "custom";
+  invoice_plan: InvoicePlan;
+  invoice_on: string | null;
+  invoice_instructions: string | null;
+  invoice_currency: "GBP" | "EUR" | "USD";
+  copy_contact_name: string | null;
+  copy_contact_email: string | null;
   special_instructions: string | null;
   copy_instructions: string | null;
   production_contact: string | null;
@@ -78,6 +95,8 @@ export type DealScheduleRow = {
   runs_on: string | null; ad_deadline: string | null; copy_due: string | null; value_gbp: number; agency_gbp: number; added_value: boolean;
   status: string | null; invoice_number: string | null; xero_state: string | null; booked_on: string | null; published: boolean; ready_to_invoice: boolean;
   to_allocate?: boolean; allocate_by?: string | null;
+  /** When accounts should invoice it, and whether accounts set that date themselves. */
+  invoice_due?: string | null; invoice_due_set?: boolean;
 };
 
 export type Deal = Omit<DealInput, "status"> & {
@@ -105,6 +124,9 @@ export type Deal = Omit<DealInput, "status"> & {
   locked?: boolean;
   /** This person has the Accounts permission (or nobody does and they're a manager). */
   can_approve?: boolean;
+  /** Accounts unlocked it so the salesperson can change it; it locks again when they save. */
+  unlocked?: { at: string; by: string | null } | null;
+  invoice_plan_label?: string;
   pending_change?: { id: string; cancel: boolean; reason: string | null; requested_by: string | null; requested_at: string | null; details: { label: string; value: string; href?: string }[] } | null;
   notes_after_save?: string[];
 };
@@ -140,13 +162,16 @@ export type DealDocument = {
   rows: { description: string; when: string[]; insertions: number; detail: string | null; added_value: boolean; qty: number; each: number | null; total: number | null; note: string | null }[];
   gross: number; discount_pct: number; discount: number; total: number; agency_pct: number; agency: number; agency_name: string | null; payable: number;
   special_instructions: string | null; copy_instructions: string | null; copy_dates: { date: string; item: string; dates: string }[]; production_contact: string | null;
+  copy_contact?: string | null;
 };
 
 export type DealEmailDraft = { to: string[]; cc: string[]; always_copied?: string[]; subject: string; body: string; outlook_connected: boolean; outlook_email: string | null };
 
 export type DealSettings = { next_number: number; company_block: string; footer: string; terms: string; artwork_specs: string;
   production_emails: string; accounts_emails: string;
-  default_production_contact: string; default_copy_instructions: string; default_special_instructions: string; can_edit: boolean };
+  default_production_contact: string; default_copy_instructions: string; default_special_instructions: string;
+  /** Terms line per publication (title id -> text); a publication without one uses the general terms. */
+  terms_by_title: Record<string, string>; can_edit: boolean };
 
 export const DEAL_STATUS_LABEL: Record<DealStatus, string> = { pencilled: "Pencilled", confirmed: "Confirmed", cancelled: "Cancelled" };
 

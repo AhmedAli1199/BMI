@@ -15,7 +15,7 @@ import { friendlyError } from "@/lib/errors";
 const labelCls = "flex flex-col gap-1 text-xs font-semibold text-muted-foreground";
 
 /** What every confirmation carries: BMI's address, footer, terms, artwork specification - and the next booking number. */
-export function DealSettingsButton({ settings }: { settings: DealSettings }) {
+export function DealSettingsButton({ settings, titles = [] }: { settings: DealSettings; titles?: { id: string; name: string }[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [s, setS] = useState(settings);
@@ -33,7 +33,22 @@ export function DealSettingsButton({ settings }: { settings: DealSettings }) {
           <div className="flex flex-col gap-4 p-4">
             <label className={labelCls}>Next booking number<Input type="number" value={s.next_number} onChange={set("next_number")} disabled={!s.can_edit} className="h-8 w-32 text-sm" /></label>
             <label className={labelCls}>BMI&apos;s name and address (top right)<Textarea rows={6} value={s.company_block} onChange={set("company_block")} disabled={!s.can_edit} className="text-sm" /></label>
-            <label className={labelCls}>Terms line<Textarea rows={2} value={s.terms} onChange={set("terms")} disabled={!s.can_edit} className="text-sm" /></label>
+            <label className={labelCls}>Terms line (general)<Textarea rows={2} value={s.terms} onChange={set("terms")} disabled={!s.can_edit} className="text-sm" />
+              <span className="font-normal text-[11px]">Used for any publication without its own terms below.</span></label>
+            {titles.length > 0 && (
+              <details className="rounded-lg border border-border/70 p-3" open={Object.keys(s.terms_by_title ?? {}).length > 0}>
+                <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">Terms for each publication</summary>
+                <p className="mt-1 text-[11px] text-muted-foreground">Each publication&apos;s confirmations print its own terms (e.g. a link to its terms and conditions). Leave one empty to use the general terms.</p>
+                <div className="mt-2 flex flex-col gap-2">
+                  {titles.map((t) => (
+                    <label key={t.id} className={labelCls}>{t.name}
+                      <Textarea rows={2} value={s.terms_by_title?.[t.id] ?? ""} disabled={!s.can_edit} className="text-sm"
+                        onChange={(e) => setS({ ...s, terms_by_title: { ...(s.terms_by_title ?? {}), [t.id]: e.target.value } })} />
+                    </label>
+                  ))}
+                </div>
+              </details>
+            )}
             <label className={labelCls}>Artwork specification (printed when the booking asks for it)<Textarea rows={6} value={s.artwork_specs} onChange={set("artwork_specs")} disabled={!s.can_edit} className="text-xs" /></label>
             <label className={labelCls}>Production - always copied on confirmations
               <Input value={s.production_emails} onChange={set("production_emails")} disabled={!s.can_edit} placeholder="production@bmipublishing.co.uk" className="h-8 text-sm" />

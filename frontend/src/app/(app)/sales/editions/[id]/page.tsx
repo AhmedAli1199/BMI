@@ -12,6 +12,7 @@ import { EditionStatusButton } from "@/components/sales/edition-actions";
 import { InfoHint } from "@/components/sales/info-hint";
 import { OrdersExplorer } from "@/components/sales/orders-explorer";
 import { AddBookingButton } from "@/components/sales/add-booking-button";
+import { UnbookedAdButton } from "@/components/deals/unbooked-ad-button";
 import { RenewalPassButton } from "@/components/sales/renewal-pass-button";
 import { EditionLinkButton } from "@/components/sales/edition-link-button";
 import { EditionCostsPanel } from "@/components/sales/edition-costs-panel";
@@ -248,7 +249,10 @@ export default async function EditionPage({
           year={ed.year}
           showEdition={false}
           emptyText={ed.orders_list.length ? "No bookings in this edition match these filters." : "No bookings yet - add the first one."}
-          actions={<AddBookingButton edition={{ editionId: ed.id, titleId: ed.title.id, editionLabel: ed.label, year: ed.year }} reps={meta.reps} />}
+          actions={<>
+            <UnbookedAdButton editionId={ed.id} editionLabel={ed.label} reps={meta.reps} />
+            <AddBookingButton edition={{ editionId: ed.id, titleId: ed.title.id, editionLabel: ed.label, year: ed.year }} reps={meta.reps} />
+          </>}
         />
         {ed.source && <p className="text-[11px] text-muted-foreground">Imported from {ed.source}.</p>}
       </section>

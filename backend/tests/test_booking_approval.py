@@ -29,7 +29,7 @@ def test_only_accounts_checks_bookings_once_someone_has_the_permission(w, client
     sam_h = identity_headers(sam)
     assert "order_check" in _kinds(client, sam_h) and "booking_change" in _kinds(client, sam_h)   # even though she's a sales login
     assert "order_check" not in _kinds(client, admin_h)                                          # the admin no longer does it
-    d = client.post("/api/sales/deals", json=_wisconsin(w), headers=sally_h).json()
+    d = client.post("/api/sales/deals", json={**_wisconsin(w), "status": "confirmed"}, headers=sally_h).json()
     item = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
     db.commit()
     assert client.post(f"/api/review-queue/{item.id}/actions/approve", json={}, headers=admin_h).status_code == 404
@@ -43,7 +43,7 @@ def test_checked_booking_changes_go_through_accounts(w, client):
     sam.can_approve_bookings = True
     db.commit()
     sam_h = identity_headers(sam)
-    body = _wisconsin(w)
+    body = {**_wisconsin(w), "status": "confirmed"}
     d = client.post("/api/sales/deals", json=body, headers=sally_h).json()
     item = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
     db.commit()
@@ -98,7 +98,7 @@ def test_accounts_can_change_a_checked_booking_directly(w, client):
     sam.can_approve_bookings = True
     db.commit()
     sam_h = identity_headers(sam)
-    body = _wisconsin(w)
+    body = {**_wisconsin(w), "status": "confirmed"}
     d = client.post("/api/sales/deals", json=body, headers=sally_h).json()
     item = db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").one()
     db.commit()
@@ -115,7 +115,7 @@ def test_confirmations_copy_production_and_accounts(w, client):
     r = client.put("/api/sales/deals/settings", json={**cur, "production_emails": "production@bmi.example; ads@bmi.example",
                                                        "accounts_emails": "samantha@bmi.example"}, headers=h)
     assert r.status_code == 200 and r.json()["production_emails"] == "production@bmi.example, ads@bmi.example"
-    d = client.post("/api/sales/deals", json=_wisconsin(w), headers=h).json()
+    d = client.post("/api/sales/deals", json={**_wisconsin(w), "status": "confirmed"}, headers=h).json()
     draft = client.get(f"/api/sales/deals/{d['id']}/email-draft", headers=h).json()
     assert draft["cc"] == ["production@bmi.example", "ads@bmi.example", "samantha@bmi.example"]
 

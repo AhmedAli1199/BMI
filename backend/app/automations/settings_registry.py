@@ -409,19 +409,34 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
-        key="orders_accounts_check", label="Accounts check on new orders",
-        description="Each new or changed order goes to the Review Queue for accounts (e.g. Samantha) to check the client name, CRM company, address and items before the confirmation goes out.",
+        key="orders_accounts_check", label="Accounts check on confirmed bookings",
+        description="When a salesperson confirms a booking (the client has said yes), it goes to the Review Queue for accounts (e.g. Samantha) to check the client name, CRM company, addresses and items before it's invoiced. A checked booking that changes is checked again.",
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
         key="orders_check_before_sending", label="Confirmation waits for the check",
-        description="On: an order confirmation can't be sent (or marked as sent) until the accounts check says it looks right. Off: the check still happens, but doesn't hold anything up.",
+        description="Off (agreed 15 Oct): salespeople send the confirmation to the client themselves and accounts check before invoicing. On: the confirmation can't be sent until the accounts check says it looks right.",
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
         key="orders_lock_after_check", label="Only accounts can change checked bookings",
         description="Once accounts has checked a booking, salespeople can't edit or cancel it themselves - they request the change and someone with the Accounts permission approves it. Has no effect until someone has the Accounts permission (Users).",
         group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="accounts_away", label="Accounts are away",
+        description="While Samantha is on holiday: administrators (Matt, Clare) can pass booking checks, approve changes and unlock bookings, and get accounts' notifications too. Switch it off when she's back.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="automations_invoice_reminders_enabled", label="Ready to invoice reminders",
+        description="Daily: when a booked item reaches the date it should be invoiced (from the booking's \"when to invoice\", or a date accounts set), accounts get a Ready to invoice card. Follows issue dates, so a moved issue moves its reminder.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="invoice_after_run_days", label="Days after it runs, for \"after it has run\"",
+        description="For clients who are invoiced once the item has run (tear sheet or link sent first): how many days after it runs the reminder appears.",
+        group="Sales Order Register", type="int", min=0,
     ),
     AutomationSettingDef(
         key="orders_copy_accounts_on_create", label="Tell accounts about every new booking",

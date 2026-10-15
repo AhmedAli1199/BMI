@@ -324,6 +324,13 @@ def document(db: Session, deal: SalesDeal) -> dict:
     rep = db.get(SalesRep, deal.rep_id) if deal.rep_id else None
     rep_user = db.get(User, rep.user_id) if rep and rep.user_id else None
     title = db.get(SalesTitle, deal.title_id) if deal.title_id else None
+    if not title:   # the first item's title decides the terms (each publication has its own)
+        first = next((ln.get("title_id") for ln in deal.lines or [] if ln.get("title_id")), None)
+        title = db.get(SalesTitle, uuid.UUID(str(first))) if first else None
+    if not title:   # or the first item's issue
+        ed_id = next((p.get("edition_id") for ln in deal.lines or [] for p in ln.get("placements") or [] if p.get("edition_id")), None)
+        ed = db.get(SalesEdition, uuid.UUID(str(ed_id))) if ed_id else None
+        title = db.get(SalesTitle, ed.title_id) if ed else None
     rows: list[dict] = []
     for ln in pr.lines:
         when = []
@@ -362,7 +369,9 @@ def document(db: Session, deal: SalesDeal) -> dict:
         "heading": "SCHEDULE OF WORKS" if deal.document == "schedule" else "ORDER CONFIRMATION",
         "subheading": None if deal.document == "schedule" else "(Invoice to follow)",
         "date": (deal.confirmed_at.date() if deal.confirmed_at else date.today()).isoformat(),
-        "company_block": st.company_block, "footer": st.footer, "terms": st.terms,
+        "company_block": st.company_block, "footer": st.footer,
+        "terms": ((st.terms_by_title or {}).get(str(title.id)) if title else None) or st.terms,
+        "copy_contact": " · ".join(x for x in (deal.copy_contact_name, deal.copy_contact_email) if x) or None,
         "artwork_specs": st.artwork_specs if deal.show_artwork_specs else None,
         "confirmation_address": deal.confirmation_address or deal.client_name, "invoice_to": deal.invoice_to or deal.confirmation_address or deal.client_name,
         "your_contact": deal.contact_name, "your_email": deal.contact_email,
@@ -473,6 +482,7 @@ def build_docx(doc: dict) -> bytes:
     run = p.add_run("VAT is not included")
     run.bold, run.underline = True, True
     extra = [x for x in (doc["special_instructions"], doc["copy_instructions"],
+                         f"Copy and artwork from: {doc['copy_contact']}" if doc.get("copy_contact") else None,
                          f"Please email the invoice to {doc['invoice_email']}" if doc["invoice_email"] else None) if x]
     if doc["copy_dates"]:
         extra.append("Copy due: " + "; ".join(f"{c['dates']} ({c['item']})" if len(doc["copy_dates"]) > 1 else c["dates"] for c in doc["copy_dates"]))

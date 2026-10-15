@@ -4,6 +4,7 @@ import { AlertTriangle, CalendarClock, ShieldAlert, ShieldCheck, ExternalLink } 
 import { backendFetch } from "@/lib/backend";
 import type { Deal, DealScheduleRow } from "@/lib/deals-types";
 import { DealActions } from "@/components/deals/deal-actions";
+import { InvoiceDue, LockControls } from "@/components/deals/deal-invoicing";
 import { DealStatusPill } from "@/components/deals/deal-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
@@ -89,14 +90,13 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 <span className="font-semibold">Checked by accounts</span>
                 {[d.check.checked_by, d.check.checked_at ? fmtDate(d.check.checked_at.slice(0, 10)) : null].some(Boolean) &&
                   ` (${[d.check.checked_by, d.check.checked_at ? fmtDate(d.check.checked_at.slice(0, 10)) : null].filter(Boolean).join(", ")})`}
-                . The confirmation can go out.
-                {d.locked && !d.can_approve && " Any change now goes to accounts for approval - use “Request a change”."}
+                . It&apos;s ready to invoice when it&apos;s due.
               </>
             )}
             {d.check.state === "waiting" && (
               <>
                 <span className="font-semibold">Waiting for the accounts check.</span> Accounts look over the client, CRM company, addresses and items
-                before the confirmation goes out{d.check.blocks_sending ? " - it can be sent as soon as they say it looks right." : "."}
+                before it&apos;s invoiced{d.check.blocks_sending ? " - the confirmation can be sent as soon as they say it looks right." : "."}
               </>
             )}
             {d.check.state === "fix" && (
@@ -106,6 +106,17 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               </>
             )}
           </p>
+        </div>
+      )}
+
+      {(d.locked || d.unlocked) && d.status !== "cancelled" && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/80 bg-muted/30 px-4 py-2.5 text-sm">
+          <span className="flex-1">
+            {d.unlocked
+              ? <><span className="font-semibold">Unlocked{d.unlocked.by ? ` by ${d.unlocked.by}` : ""}</span> so the salesperson can change it. It locks again, and goes back to accounts to check, when they save.</>
+              : <><span className="font-semibold">Locked.</span> {d.can_approve ? "You can change it, or unlock it for the salesperson." : "Accounts have checked or invoiced it, so changes go to them - use “Request a change”."}</>}
+          </span>
+          <LockControls deal={d} />
         </div>
       )}
 
@@ -151,7 +162,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         <Tile label="Agency commission" value={fmtGBP(t.agency_gbp)} />
         <Tile label="To invoice in all" value={fmtGBP(t.payable_gbp)} hint="The total less any agency's commission, before VAT." />
         <Tile label="Invoiced so far" value={fmtGBP(t.invoiced_gbp)} />
-        <Tile label="Ready to invoice" value={fmtGBP(t.to_invoice_gbp)} hint={d.invoice_plan === "upfront" ? "Everything not invoiced yet - this booking is invoiced up front." : "Items that have run and aren't invoiced yet."} />
+        <Tile label="Ready to invoice" value={fmtGBP(t.to_invoice_gbp)} hint={`Items due to invoice now and not invoiced yet. When to invoice: ${d.invoice_plan_label ?? ""}.`} />
         <Tile label="Below rate card" value={t.off_rate_card_pct != null ? `${t.off_rate_card_pct}%` : "—"} hint={`Rate card value ${fmtGBP(t.rate_card_gbp)}${t.added_value_gbp ? `, of which ${fmtGBP(t.added_value_gbp)} given free` : ""}.`} />
       </section>
 
@@ -189,9 +200,9 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
                 <td className="px-4 py-2 text-xs">
                   {r.invoice_number ? (
                     <span>{r.invoice_number}{r.xero_state && XERO[r.xero_state] && <span className="ml-1.5 font-semibold" style={{ color: XERO[r.xero_state][1] }}>{XERO[r.xero_state][0]}</span>}</span>
-                  ) : r.ready_to_invoice ? <span className="font-semibold" style={{ color: "var(--warn)" }}>Ready to invoice</span>
+                  ) : r.ready_to_invoice ? <div className="flex flex-col gap-0.5"><span className="font-semibold" style={{ color: "var(--warn)" }}>Ready to invoice</span><InvoiceDue deal={d} row={r} /></div>
                     : r.to_allocate ? <span className="text-muted-foreground">Once it&apos;s allocated</span>
-                    : r.added_value || r.status === "cancelled" ? "" : <span className="text-muted-foreground">{d.invoice_plan === "on_publication" ? "When it runs" : "Not yet"}</span>}
+                    : r.added_value || r.status === "cancelled" ? "" : <InvoiceDue deal={d} row={r} />}
                 </td>
               </tr>
             ))}
@@ -212,7 +223,12 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         <Detail label="Invoice to">{[d.invoice_to, d.invoice_email ? `Email: ${d.invoice_email}` : null].filter(Boolean).join("\n")}</Detail>
         <Detail label="Their order or PO number">{d.po_number}</Detail>
         <Detail label="Agency">{d.agency_name ? `${d.agency_name}${d.agency_pct ? ` (${Math.round(d.agency_pct * 1000) / 10}%)` : ""}` : null}</Detail>
-        <Detail label="Invoicing">{{ upfront: "All of it now", on_publication: "Each item as it runs", custom: "As agreed" }[d.invoice_plan]}</Detail>
+        <Detail label="When to invoice">{[
+          d.invoice_plan === "on_date" && d.invoice_on ? `On ${fmtDate(d.invoice_on)}` : d.invoice_plan_label,
+          d.invoice_currency && d.invoice_currency !== "GBP" ? `Invoice in ${d.invoice_currency}` : null,
+          d.invoice_instructions,
+        ].filter(Boolean).join("\n")}</Detail>
+        <Detail label="Copy and artwork from">{[d.copy_contact_name, d.copy_contact_email].filter(Boolean).join("\n")}</Detail>
         <Detail label="Client company">{d.company_id ? <Link href={`/companies/${d.company_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{d.client_name} <ExternalLink className="size-3" aria-hidden="true" /></Link> : d.client_name}</Detail>
         <Detail label="Document">{d.document === "schedule" ? "Schedule of works" : "Order confirmation"}</Detail>
         {(d.special_instructions || d.copy_instructions || d.production_contact) && (
