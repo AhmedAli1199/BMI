@@ -1,15 +1,120 @@
 [
-  {"page": "/sales/deals/00000000-0000-0000-0000-000000000000", "q": "Accounts has checked this booking - how do I change it now?",
-   "all": ["Request a change"], "none": ["deal"]},
-  {"page": "/sales/deals", "q": "What does pencilled mean?", "any": ["provisional", "not confirmed", "isn't confirmed", "not yet confirmed"]},
-  {"page": "/sales/deals/new", "q": "What are my options for when it gets invoiced?", "all": ["As soon as allowed"], "any": ["publication", "after"]},
-  {"page": "/sales/deals/new", "q": "The client wants the same advert in three issues. How do I add that?", "any": ["Another", "Every open issue"]},
-  {"page": "/sales/bookings", "q": "How do I split a booking between two salespeople?", "all": ["Add person"]},
-  {"page": "/sales/deals/00000000-0000-0000-0000-000000000000", "q": "How do I put this booking into Xero as an invoice?", "any": ["Create the invoice in Xero", "Invoice it now"], "none": ["Xero API"]},
-  {"page": "/sales/editions/00000000-0000-0000-0000-000000000000", "q": "There's an advert in the issue but no booking for it - what do I do?", "any": ["Advert with no booking", "Record the filler", "Ask them to book it"]},
-  {"page": "/sales/editions/00000000-0000-0000-0000-000000000000", "q": "What happens after an issue goes to press?", "any": ["Review Queue", "card"], "all": ["Accounts"]},
-  {"page": "/sales/proposals", "q": "How do I turn a proposal into a booking once they say yes?", "any": ["make the booking", "make the order"]},
-  {"page": "/sales", "q": "When does our financial year start?", "any": ["1 July", "July"]},
-  {"page": "/sales/deals", "q": "What was our total revenue last year?", "any": ["can't", "cannot", "not yet", "coming soon", "isn't something"], "none": ["£1", "£2", "£3", "£4", "£5", "£6", "£7", "£8", "£9"]},
-  {"page": "/sales/deals/00000000-0000-0000-0000-000000000000", "q": "Who sends the editorial team the details of a sponsored article?", "any": ["hand-off", "Hand-off", "automatically", "email"]}
+ {
+  "page": "/sales/deals/00000000-0000-0000-0000-000000000000",
+  "q": "Accounts has checked this booking - how do I change it now?",
+  "all": [
+   "Request a change"
+  ],
+  "none": [
+   "deal"
+  ]
+ },
+ {
+  "page": "/sales/deals",
+  "q": "What does pencilled mean?",
+  "any": [
+   "provisional",
+   "not confirmed",
+   "isn't confirmed",
+   "not yet confirmed"
+  ]
+ },
+ {
+  "page": "/sales/deals/new",
+  "q": "What are my options for when it gets invoiced?",
+  "all": [
+   "As soon as allowed"
+  ],
+  "any": [
+   "publication",
+   "after"
+  ]
+ },
+ {
+  "page": "/sales/deals/new",
+  "q": "The client wants the same advert in three issues. How do I add that?",
+  "any": [
+   "Another",
+   "Every open issue"
+  ]
+ },
+ {
+  "page": "/sales/bookings",
+  "q": "How do I split a booking between two salespeople?",
+  "all": [
+   "Add person"
+  ]
+ },
+ {
+  "page": "/sales/deals/00000000-0000-0000-0000-000000000000",
+  "q": "How do I put this booking into Xero as an invoice?",
+  "any": [
+   "Create the invoice in Xero",
+   "Invoice it now"
+  ],
+  "none": [
+   "Xero API"
+  ]
+ },
+ {
+  "page": "/sales/editions/00000000-0000-0000-0000-000000000000",
+  "q": "There's an advert in the issue but no booking for it - what do I do?",
+  "any": [
+   "Advert with no booking",
+   "Record the filler",
+   "Ask them to book it"
+  ]
+ },
+ {
+  "page": "/sales/editions/00000000-0000-0000-0000-000000000000",
+  "q": "What happens after an issue goes to press?",
+  "any": [
+   "Review Queue",
+   "card"
+  ],
+  "all": [
+   "Accounts"
+  ]
+ },
+ {
+  "page": "/sales/proposals",
+  "q": "How do I turn a proposal into a booking once they say yes?",
+  "any": [
+   "make the booking",
+   "make the order"
+  ]
+ },
+ {
+  "page": "/sales",
+  "q": "When does our financial year start?",
+  "any": [
+   "1 July",
+   "July"
+  ]
+ },
+ {
+  "page": "/sales/deals/00000000-0000-0000-0000-000000000000",
+  "q": "Who sends the editorial team the details of a sponsored article?",
+  "any": [
+   "hand-off",
+   "Hand-off",
+   "automatically",
+   "email"
+  ]
+ },
+ {
+  "page": "/sales/deals",
+  "q": "Can you change the price on a booking for me?",
+  "any": [
+   "can't",
+   "cannot",
+   "not able",
+   "isn't something"
+  ],
+  "none": [
+   "I've changed",
+   "I have changed",
+   "done"
+  ]
+ }
 ]

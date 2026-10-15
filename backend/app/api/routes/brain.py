@@ -337,7 +337,8 @@ def suggestions(page: str | None = None, user: User = Depends(current_user)) -> 
             if s.heading.lower().startswith("common questions"):
                 qs += [q.strip() for q in re.findall(r"\*\*Q:\s*(.+?)\*\*", s.text)]
     if not qs:
-        qs = ["How do I make a new booking?", "Why can't I change a booking?", "When does a booking get invoiced?"]
+        qs = ["How much have we booked so far this year?", "What did our biggest client last buy?", "What's on my list this week?",
+              "How do I make a new booking?"]
     guide = (knowledge.guides_for_path(page) or [None])[0]
     return {"configured": agent.configured(), "questions": qs[:4], "guide": guide.title if guide else None}
 
@@ -373,7 +374,10 @@ def activity(days: int = 14, db: Session = Depends(get_db), user: User = Depends
                       "input_tokens": t.get("input_tokens"), "cached_tokens": t.get("cached_tokens"), "output_tokens": t.get("output_tokens"),
                       "problem": bool(t.get("error"))})
     n = len(items)
-    return {"items": items, "summary": {
+    from app.brain import search as brain_search
+    idx = brain_search.stats(db)
+    return {"items": items, "index": {"chunks": idx["chunks"], "embedded": idx["embedded"], "meaning_search": idx["meaning_search"],
+                                      "last_indexed": idx["last_indexed"].isoformat() if idx["last_indexed"] else None}, "summary": {
         "answers": n, "helpful": sum(1 for i in items if i["rating"] == 1), "not_helpful": sum(1 for i in items if i["rating"] == -1),
         "avg_seconds": round(tot_ms / n / 1000, 1) if n else None,
         "cache_hit_pct": round(100 * tot_cached / tot_in) if tot_in else None}}

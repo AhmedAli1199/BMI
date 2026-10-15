@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     # (guaranteed discount, small storage charge) - see ADK ContextCacheConfig.
     brain_explicit_cache: bool = False
     brain_history_messages: int = 16
+    # Meaning search over notes and history (needs pgvector; keyword search works without it).
+    brain_embedding_model: str = "gemini-embedding-001"
+    automations_brain_index_enabled: bool = True
     # The Notetaker service (separate app, see notetaker/ on its branch): it joins Meet/Teams
     # calls and sends the notes back to /api/calls/webhook (through the frontend's public
     # /api/notetaker/webhook). Empty URL = the "Send the notetaker" button is hidden.

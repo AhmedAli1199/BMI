@@ -374,6 +374,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_brain_index_enabled", label="Ask AI search index",
+        description="Every 15 minutes: adds new and changed notes, history, activities and call notes to what the Ask AI assistant can search. It only reads.",
+        group="Ask AI", type="bool",
+    ),
+    AutomationSettingDef(
         key="automations_calendar_sync_enabled", label="Shared calendar and automatic notetaker",
         description="Every 3 minutes: reads everyone's connected calendars into the shared calendar and sends BMI Notetaker into meetings that should be recorded.",
         group="Call notes", type="bool",

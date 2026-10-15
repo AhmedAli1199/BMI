@@ -111,4 +111,7 @@ sending CRM data to Gemini (paid tier, not used for training); keep the OpenAI f
   areas are added and it passes ~80k tokens, move areas out of `prompt.ALWAYS_LOADED_AREAS` (they're then read on
   demand with help_read_guide).
 - Not yet run against real Gemini (no key in the build session): run `python -m app.brain.evals` once the key is set.
-- Next: phase 2 (CRM data tools, metrics, hybrid search) - needs pgvector on production and the sign-offs above.
+- **Phase 2 built (15 Oct):** client and figures tools, metrics in code (tested against the overview), hybrid search
+  index with an incremental 15-minute job. Works without pgvector (keyword only); meaning search turns on by itself
+  once the extension is on the production database. Data evals to fill in with Matt and Samantha.
+- Next: phase 3 (MCP door, actions with a confirmation card, memory), then phase 4 (voice).

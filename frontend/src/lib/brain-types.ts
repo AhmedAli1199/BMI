@@ -31,5 +31,6 @@ export type BrainActivity = {
     feedback_id: string | null; route: string | null; steps: string[]; ms: number | null;
     input_tokens: number | null; cached_tokens: number | null; output_tokens: number | null; problem: boolean;
   }[];
+  index?: { chunks: number; embedded: number; meaning_search: boolean; last_indexed: string | null };
   summary: { answers: number; helpful: number; not_helpful: number; avg_seconds: number | null; cache_hit_pct: number | null };
 };

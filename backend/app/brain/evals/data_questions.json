@@ -1,0 +1,77 @@
+[
+ {
+  "page": "/sales",
+  "q": "How much have we booked so far this financial year?",
+  "any": [
+   "£"
+  ],
+  "all": [
+   "so far"
+  ],
+  "check": "Matches the Sales Orders overview's booked figure for this financial year."
+ },
+ {
+  "page": "/sales",
+  "q": "Which title has booked the most this year, and how does that compare with last year?",
+  "any": [
+   "£"
+  ],
+  "check": "Same order as the overview's by-title table."
+ },
+ {
+  "page": "/sales",
+  "q": "What did <client> last buy, and at what rate?",
+  "any": [
+   "£"
+  ],
+  "check": "Matt/Samantha: put a real client here and the item and value they'd expect."
+ },
+ {
+  "page": "/sales",
+  "q": "When does <client> decide their budget?",
+  "any": [
+   "note",
+   "call"
+  ],
+  "check": "Matt/Samantha: a client with a budget note; expected month."
+ },
+ {
+  "page": "/sales/invoicing",
+  "q": "How much is waiting to be invoiced?",
+  "any": [
+   "£"
+  ],
+  "check": "Matches the Invoicing page's awaiting figure."
+ },
+ {
+  "page": "/sales",
+  "q": "Who are our top five advertisers this year?",
+  "any": [
+   "£"
+  ],
+  "check": "Same as All items sorted by client value."
+ },
+ {
+  "page": "/sales",
+  "q": "What's on my list for this week?",
+  "any": [
+   "reminder",
+   "nothing",
+   "diary"
+  ],
+  "check": "Matches the person's Reminders page."
+ },
+ {
+  "page": "/sales",
+  "q": "How much did Sarah at <client> say their budget was?",
+  "any": [
+   "£",
+   "can't find"
+  ],
+  "none": [
+   "probably",
+   "around £"
+  ],
+  "check": "Never guesses a figure that isn't in a note."
+ }
+]

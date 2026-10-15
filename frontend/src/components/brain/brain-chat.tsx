@@ -172,7 +172,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
               <div className="text-sm">
                 <p className="font-semibold">Hi{userName ? ` ${userName.split(" ")[0]}` : ""}, what would you like to know?</p>
                 <p className="mt-0.5 text-muted-foreground">
-                  Ask how anything in Sales Orders works, or why a booking is the way it is. Point at something on the screen and I&apos;ll explain it.
+                  Ask how anything in Sales Orders works, why a booking is the way it is, or about a client and the figures. Point at something on the screen and I&apos;ll explain it.
                 </p>
               </div>
             </div>
@@ -231,7 +231,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
         <div className="relative">
           <Textarea value={input} onChange={(e) => setInput(e.target.value)} rows={variant === "page" ? 3 : 2} disabled={!!off}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (canSend) void send(input); } }}
-            placeholder={elements.length || shots.length ? "What would you like to know about this?" : "Ask anything about using BMI Brain…"}
+            placeholder={elements.length || shots.length ? "What would you like to know about this?" : "Ask about a client, the figures, or how something works…"}
             aria-label="Your question" className="min-h-0 resize-none pr-11 text-sm" />
           <Button size="icon-sm" className="absolute bottom-1.5 right-1.5" aria-label="Send" disabled={!canSend} onClick={() => void send(input)}>
             {pending ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUp className="size-3.5" />}

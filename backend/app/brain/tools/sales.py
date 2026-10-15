@@ -131,3 +131,73 @@ def sales_order_explain(env: ToolEnv, booking: str) -> dict:
         "handoffs": handoffs, "warnings": out["warnings"][:8],
         "total_gbp": out["totals"]["total_gbp"],
     }
+
+
+@brain_tool("Working out the figures")
+def sales_metrics(env: ToolEnv, measure: str = "booked", group_by: str = "none", year: int = 0, basis: str = "",
+                  title: str = "", salesperson: str = "", client: str = "", product_line: str = "", compare_last_year: bool = False) -> dict:
+    """Sales figures worked out exactly like the Sales Orders screens. ALWAYS use this for totals - never add
+    numbers up yourself. Quote the period and the definition it gives back.
+
+    Args:
+      measure: booked | invoiced | awaiting_invoice | items | advertisers
+      group_by: none | title | salesperson | month | client | edition | product_line
+      year: the reporting year (a financial year is named by the year it starts in: 2025 = Jul 2025 - Jun 2026); 0 = this year
+      basis: financial | calendar | "" for BMI's usual setting
+      title: optional magazine/brand name, e.g. "Selling Travel"
+      salesperson: optional name or initials
+      client: optional client name
+      product_line: optional print | online | events
+      compare_last_year: also give the year before, for comparison
+    """
+    from app.brain import metrics
+    from app.brain.tools.crm import need
+    need(env, "sales_overview", "bookings", "editions")
+    try:
+        return metrics.compute(env.db, measure=measure, group_by=group_by, year=year or None, basis=basis or None, title=title or None,
+                               salesperson=salesperson or None, client=client or None, product_line=product_line or None,
+                               compare_last_year=compare_last_year)
+    except metrics.MetricError as e:
+        raise ToolError(str(e))
+
+
+@brain_tool("Listing the items")
+def sales_items(env: ToolEnv, client: str = "", title: str = "", year: int = 0, status: str = "booked", uninvoiced_only: bool = False,
+                limit: int = 20) -> dict:
+    """Individual booked items (one per advert or listing per edition), newest edition first - for "what did they
+    book in ...", "which items aren't invoiced". For totals use sales_metrics instead.
+
+    Args:
+      client: optional client name
+      title: optional magazine/brand name
+      year: optional edition year (calendar), 0 = any
+      status: booked | pencilled | cancelled | any
+      uninvoiced_only: only booked items with a value and no invoice number
+      limit: how many to list (up to 50)
+    """
+    from sqlalchemy import func
+
+    from app.brain.tools.crm import need
+    from app.models import Company, SalesEdition, SalesOrder, SalesTitle
+    need(env, "bookings", "editions")
+    stmt = (select(SalesOrder, SalesEdition, SalesTitle).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+            .join(SalesTitle, SalesEdition.title_id == SalesTitle.id).outerjoin(Company, Company.id == SalesOrder.company_id))
+    if client.strip():
+        like = f"%{client.strip()}%"
+        stmt = stmt.where(or_(SalesOrder.client_name.ilike(like), Company.name.ilike(like)))
+    if title.strip():
+        t = f"%{title.strip()}%"
+        stmt = stmt.where(or_(SalesTitle.name.ilike(t), SalesTitle.slug.ilike(t)))
+    if year:
+        stmt = stmt.where(SalesEdition.year == year)
+    if status in ("booked", "pencilled", "cancelled"):
+        stmt = stmt.where(SalesOrder.status == status)
+    if uninvoiced_only:
+        stmt = stmt.where(SalesOrder.status == "booked", SalesOrder.invoice_number.is_(None), SalesOrder.value_gbp > 0)
+    total = env.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    rows = env.db.execute(stmt.order_by(func.coalesce(SalesOrder.item_date, SalesEdition.edition_date).desc().nulls_last())
+                          .limit(max(1, min(limit, 50)))).all()
+    return {"items": [{"client": o.client_name, "edition": f"{t.name} · {e.name}", "runs": _date((o.item_date or e.edition_date).isoformat()) if (o.item_date or e.edition_date) else None,
+                       "what": o.size or o.series, "value_gbp": float(o.value_gbp or 0), "status": o.status, "invoice": o.invoice_number,
+                       "link": f"/sales/orders/{o.id}"} for o, e, t in rows],
+            "total_matching": total, "see_all": "/sales/bookings"}

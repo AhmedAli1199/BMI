@@ -42,11 +42,12 @@ def _model():
 
 @dataclass(frozen=True)
 class Route:
-    name: str        # help | record | general
+    name: str        # help | record | data | general
     thinking: str    # minimal | low | medium | high
 
 
-DEEP = re.compile(r"\b(compare|analy[sz]e|explain (all|every)|step by step|work out|calculate|difference between)\b", re.I)
+DEEP = re.compile(r"\b(compare|analy[sz]e|explain (all|every)|step by step|work out|calculate|difference between|trend|why (did|has|is) (revenue|sales|it)|versus|vs\.?)\b", re.I)
+DATA = re.compile(r"\b(how much|how many|total|revenue|booked|invoiced|figures?|top|biggest|last (bought|rate|year)|budget|who (is|are|did)|client|advertiser|spend|spent)\b", re.I)
 RECORD = re.compile(r"\b(this|my|booking|order|invoice|item|edition)\b.*\b(why|when|where|locked|status|invoiced|sent|due)\b|\b(why|when)\b.*\b(this|booking|invoice)\b", re.I)
 
 
@@ -57,6 +58,8 @@ def route(question: str, context: dict) -> Route:
         return Route("general", "medium" if base in ("minimal", "low") else base)
     if context.get("record") or RECORD.search(question or ""):
         return Route("record", base)
+    if DATA.search(question or ""):
+        return Route("data", base)
     return Route("help", base)
 
 

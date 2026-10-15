@@ -11,7 +11,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col gap-4 p-4 sm:p-6 lg:p-8">
       <HubHeader title="Ask AI"
-        description="Ask how anything in BMI Brain works, or why a booking is the way it is. It knows the Sales Orders area inside out and can look at a real booking to explain it."
+        description="Ask about a client (what they bought, at what rate, what was said), the sales figures, or how anything in BMI Brain works. It only uses what you're allowed to see, and links to where each answer comes from."
         actions={session?.role === "admin" ? (
           <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href="/brain/activity" />}><BarChart3 className="size-3.5" /> What it&apos;s been asked</Button>
         ) : null} />

@@ -1,4 +1,6 @@
-"""python -m app.brain.evals [--only N]: asks every question in questions.json for real and checks the answers.
+"""python -m app.brain.evals [--data] [--only N]: asks every question in questions.json (or, with --data,
+data_questions.json - questions about real clients and figures, to fill in with Matt and Samantha: replace each
+<client> and add what the right answer must say; each "check" says what to compare it with) for real.
 
 Each check: "all" must all appear, at least one of "any" must appear, none of "none" may appear (case-insensitive).
 Prints pass/fail, seconds and how much came from the prompt cache. A help answer that names the wrong button
@@ -28,14 +30,15 @@ def check(text: str, q: dict) -> list[str]:
     return bad
 
 
-async def main(only: int | None) -> int:
+async def main(only: int | None, data: bool = False) -> int:
     if not agent.configured():
         print("GEMINI_API_KEY isn't set - nothing to test against.")
         return 2
     db = SessionLocal()
     user = db.scalar(select(User).where(User.role == "admin").limit(1))
     identity = Identity(user_id=str(user.id), role="admin")
-    qs = json.loads((Path(__file__).parent / "questions.json").read_text())
+    qs = json.loads((Path(__file__).parent / ("data_questions.json" if data else "questions.json")).read_text())
+    qs = [q for q in qs if "<client>" not in q["q"]]   # not filled in yet
     failed = 0
     for i, q in enumerate(qs, 1):
         if only and i != only:
@@ -50,6 +53,8 @@ async def main(only: int | None) -> int:
         tr = done["trace"]
         cache = f"{round(100 * tr['cached_tokens'] / tr['input_tokens'])}%" if tr.get("input_tokens") else "-"
         print(f"{'PASS' if not bad else 'FAIL'}  {i:>2}. {q['q'][:60]:<60} {time.monotonic() - t0:5.1f}s  cache {cache:>4}  {'; '.join(bad)}")
+        if data and q.get("check"):
+            print(f"      check by hand: {q['check']}\n      " + done["text"][:300].replace("\n", " "))
         if bad:
             failed += 1
             print("      " + done["text"][:400].replace("\n", " ") + "\n")
@@ -59,4 +64,4 @@ async def main(only: int | None) -> int:
 
 if __name__ == "__main__":
     n = int(sys.argv[sys.argv.index("--only") + 1]) if "--only" in sys.argv else None
-    raise SystemExit(asyncio.run(main(n)))
+    raise SystemExit(asyncio.run(main(n, "--data" in sys.argv)))
