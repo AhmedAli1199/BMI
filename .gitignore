@@ -16,4 +16,5 @@ etl-onboard.log
 DESIGN.md
 PRODUCT.md
 .gemini/
-*.bakdocs/tutorials/**/*.webm
+*.bak
+docs/tutorials/**/*.webm
