@@ -49,7 +49,7 @@ Sales Orders first, in the order a new person meets them. Each video ends where 
 
 | # | Video | Who it's for | Length | What it teaches |
 |---|---|---|---|---|
-| 1 | **Making a new booking** ([blueprint](01-making-a-booking/blueprint.md)) | Sales | 2:45 | Client, contact, an item from the rate card, two issues, confirming once the client has said yes |
+| 1 | **Making a new booking** ([blueprint](01-making-a-booking/blueprint.md)) | Sales | 2:47 | Client, contact, an item from the rate card, two issues, confirming once the client has said yes |
 | 2 | Sending the confirmation | Sales | 1:30 | Email the confirmation, Print or PDF, what the client receives, "hasn't been sent yet" |
 | 3 | Pencil it in, then confirm | Sales | 1:30 | Holding space without counting it in sales figures or commission, confirming later |
 | 4 | Packages and "to be allocated" | Sales | 2:30 | One package price, Every open issue, To be allocated, allocating later |
@@ -71,7 +71,13 @@ Recommended order to make them: 1, 2, 6, 7, 8, 10 (one booking's full life, from
 11, 12, and the rest. Each one gets the same check in the real app before its blueprint is written: none of the
 labels in the table beyond video 1 should be used in a script until that check is done.
 
-## Previewing before Antigravity (about 3 minutes, no AI)
+## Previewing and making the finished video (no Antigravity needed)
+
+The full method, for a person or an agent: [HOW-TO-MAKE-A-VIDEO.md](HOW-TO-MAKE-A-VIDEO.md). In short: add `--final`
+to the command below, then run `python docs/tutorials/preview/voiceover.py docs/tutorials/01-making-a-booking` to
+add the voice and get `final.mp4`.
+
+### Previewing (about 3 minutes, no AI)
 
 Each video has a `preview.mjs` that plays its blueprint in the real app at real speed and records it: the voiceover
 as subtitles, each step's callout and badge, a visible cursor, and a ring on what's being pointed at. The words and

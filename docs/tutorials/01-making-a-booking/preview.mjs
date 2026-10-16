@@ -1,16 +1,16 @@
 // Preview of Video 1, recorded from the real app with the blueprint's words. See ../README.md ("Previewing").
-//   node docs/tutorials/01-making-a-booking/preview.mjs [app address] [chrome path]
-// Run the tutorial seed first (it clears earlier takes). Takes about 3 minutes; writes preview.webm next to this file.
+//   node docs/tutorials/01-making-a-booking/preview.mjs [app address] [chrome path] [--final [--subtitles]]
+// Run the tutorial seed first (it clears earlier takes). Takes about 3 minutes; writes preview.webm (or final.webm
+// with --final) and its timeline next to this file. Then: python docs/tutorials/preview/voiceover.py <this folder>
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { director, finish, readBlueprint } from "../preview/lib.mjs";
+import { args, director, finish, readBlueprint } from "../preview/lib.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(path.join(here, "../../../frontend/package.json"));
 const { chromium } = require("playwright");
-const APP = process.argv[2] || "http://localhost:3000";
-const CHROME = process.argv[3] || process.env.CHROME_PATH || undefined;
+const [APP = "http://localhost:3000", CHROME = process.env.CHROME_PATH || undefined] = args();
 const steps = readBlueprint(path.join(here, "blueprint.md"));
 
 const browser = await chromium.launch({ executablePath: CHROME });
@@ -29,10 +29,11 @@ await login.close();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, baseURL: APP, storageState: state,
   recordVideo: { dir: here, size: { width: 1440, height: 900 } } });
 const page = await ctx.newPage();
+const t0 = Date.now();   // the video starts when the page opens
 const field = (label) => page.locator(`xpath=(//label[starts-with(normalize-space(.), ${JSON.stringify(label)})]//*[self::input or self::select or self::textarea])[1]`);
 const suggestion = (text) => page.locator("body > div[style] button", { hasText: text }).first();
-const total = page.getByText("Booking total").locator("xpath=ancestor::div[2]");
-const h = director(page, steps);
+const total = page.getByText("Booking total", { exact: true }).locator("xpath=ancestor::div[1]");   // the card on the right
+const h = director(page, steps, t0);
 // a native drop-down can't be filmed, so: click it, pause as if reading, then choose
 const choose = async (sel, label) => { await h.click(sel); await page.waitForTimeout(700); await sel.selectOption({ label }); await page.waitForTimeout(400); };
 
@@ -127,5 +128,5 @@ await h.step(12, async (s) => {
 
 await h.step(13, async (s) => { await h.card(s); });
 
-await finish(ctx, page, here, "preview");
+await finish(ctx, page, here, h);
 await browser.close();

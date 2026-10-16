@@ -18,7 +18,7 @@ Audience ......... Salespeople (role: Sales)
 Goal ............. The viewer can record a booking the client has agreed: client, contact, one item from the
                    rate card, two issues, then confirm it. Confirming is the salesperson's sign-off that the
                    client said yes; Accounts only check it later, before it's invoiced.
-Length ........... 2:44 (14 steps)
+Length ........... 2:47 (14 steps)
 Tone ............. Calm, plain, step by step. Teaching only - no selling, no praise of the product.
 Voice (TTS) ...... British English, neutral, ~150 words a minute. Say "pounds" in full for money.
 App URL .......... http://localhost:3000 (production build: npm run build && npm start)
@@ -119,22 +119,22 @@ Data used (from the tutorial seed - type exactly this)
 3. STEP-BY-STEP SCENE CHOREOGRAPHY
 ──────────────────────────────
 
-STEP 00 · 0:00-0:08 · Chapter card
+STEP 00 · 0:00-0:10 · Chapter card
   Voiceover: "Making a new booking. You'll pick the client, add what they've bought, choose the issues it runs
     in, and confirm it."
   Target: none (full frame). Behind the card: Screen A, blurred 12 px.
   Camera: static, 1.0x.
   Cursor: hidden.
   Callout: ARCHETYPE D - Kinetic chapter card. Badge pill: [clapperboard] "Lesson 1" (primary navy).
-    Headline: "Making a new booking". Sub-line: "Sales Orders · 2 minutes 45". Card in 1.2 s, holds, out 0.4 s.
+    Headline: "Making a new booking". Sub-line: "Sales Orders · under 3 minutes". Card in 1.2 s, holds, out 0.4 s.
   QA:
     await page.goto("/sales/deals");
     await expect(page.getByRole("heading", { name: "Bookings", level: 1 })).toBeVisible();
 
-STEP 01 · 0:08-0:16 · Open the form
+STEP 01 · 0:10-0:18 · Open the form
   Voiceover: "This is Sales Orders, Bookings. To start, click New booking, at the top right of the list."
   Target: link "New booking" - page.locator('a[href="/sales/deals/new"]') - (1288,182,120x28), TOP-RIGHT.
-  Camera: start 1.0x; at 0:10 push in to 1.35x centred on (1348,196) over 900 ms; after the click, pull back to
+  Camera: start 1.0x; at 0:12 push in to 1.35x centred on (1348,196) over 900 ms; after the click, pull back to
     1.0x as the new page loads.
   Cursor: appears under the H1 "Bookings" at (330,160) while the camera is wide, then glides to (1348,196);
     hover 300 ms (button darkens); click.
@@ -147,7 +147,7 @@ STEP 01 · 0:08-0:16 · Open the form
     await expect(page.getByRole("heading", { name: "New booking", level: 1 })).toBeVisible();
     await expect(page.getByPlaceholder("Search the CRM…")).toHaveValue("");
 
-STEP 02 · 0:16-0:31 · Choose the company
+STEP 02 · 0:18-0:33 · Choose the company
   Voiceover: "Start with the client. In the company box, type the first few letters of the name, then pick the
     company from the list. Its name is copied into Client name as booked."
   Target: company search - page.getByPlaceholder("Search the CRM…") - (305,284,383x32), TOP-CENTRE-LEFT; then
@@ -165,7 +165,7 @@ STEP 02 · 0:16-0:31 · Choose the company
     await suggestion("Gate Gourmet").click();
     await expect(field("Client name as booked")).toHaveValue("Gate Gourmet");
 
-STEP 03 · 0:31-0:42 · Choose the contact
+STEP 03 · 0:33-0:44 · Choose the contact
   Voiceover: "Next, the contact. Type their name and choose them. Their name and email address fill in by
     themselves."
   Target: contact search - page.getByPlaceholder("Search for the contact…") - (700,284,383x32), TOP-CENTRE; then
@@ -183,7 +183,7 @@ STEP 03 · 0:31-0:42 · Choose the contact
     await expect(field("Contact name")).toHaveValue("Daniel Weber");
     await expect(field("Contact email")).toHaveValue("daniel.weber@gategourmet.example");
 
-STEP 04 · 0:42-0:50 · Already filled in
+STEP 04 · 0:44-0:52 · Already filled in
   Voiceover: "Salesperson and Booking date are already filled in, with your name and today's date."
   Target: "Salesperson" (305,412,383x32) and "Booking date" (700,412,383x32), CENTRE-LEFT - treated as one row.
   Camera: hold 1.5x, tilt down to centre (694,428) over 500 ms.
@@ -196,7 +196,7 @@ STEP 04 · 0:42-0:50 · Already filled in
     await expect(field("Salesperson").locator("option:checked")).toHaveText("Sally Parker (SP)");
     await expect(field("Booking date")).not.toHaveValue("");
 
-STEP 05 · 0:50-1:00 · Choose the title
+STEP 05 · 0:52-1:02 · Choose the title
   Voiceover: "Now, what they've booked. Choose the Title. The rate card list next to it opens up, with that
     title's prices."
   Target: "Title" select (305,594,319x32), BOTTOM-LEFT; then "From the rate card" (636,594,447x32), BOTTOM-CENTRE.
@@ -213,13 +213,13 @@ STEP 05 · 0:50-1:00 · Choose the title
     await expect(field("From the rate card")).toBeEnabled();
     await expect(field("From the rate card").locator("option").first()).toHaveText("Choose a product, or type your own below");
 
-STEP 06 · 1:00-1:14 · Pick the product
+STEP 06 · 1:02-1:16 · Pick the product
   Voiceover: "Pick Full page. The description, the price and the rate card price all fill in, and the Booking
     total on the right goes up to two thousand, nine hundred and ninety pounds."
   Target: "From the rate card" (636,594,447x32); then the fields "What it is, as it should read on the
     confirmation" (305,658), "Price each (£)" (621,722), "Rate card price (£)" (937,722); then the "Booking
     total" card (1121,236 - 1408,575), TOP-RIGHT.
-  Camera: 1.25x on the item card; at 1:08 glide right/up to the Booking total card at 1.4x (centre 1264,300)
+  Camera: 1.25x on the item card; at 1:10 glide right/up to the Booking total card at 1.4x (centre 1264,300)
     over 900 ms.
   Cursor: click (859,610); choose "Full page (210 x 297 mm, 3 mm bleed) - £2,990" from the list. Then park at
     (1100,560) out of the way.
@@ -236,7 +236,7 @@ STEP 06 · 1:00-1:14 · Pick the product
     await expect(page.getByText("At rate card")).toBeVisible();
     await expect(page.getByText("£2,990", { exact: true }).first()).toBeVisible();
 
-STEP 07 · 1:14-1:28 · Choose the issue
+STEP 07 · 1:16-1:30 · Choose the issue
   Voiceover: "Under Runs in, choose the issue. Each one shows its date and its booking deadline, and an issue
     that's past its deadline says so."
   Setup: scroll the page to 200 px smoothly over 700 ms: await page.evaluate(() => window.scrollTo({ top: 200, behavior: "smooth" }))
@@ -255,12 +255,12 @@ STEP 07 · 1:14-1:28 · Choose the issue
     await runs.first().selectOption({ label: "Issue 108 · 10 Dec 2026 · book by 2 Dec 2026" });
     await expect(page.getByText("Runs in (1)")).toBeVisible();
 
-STEP 08 · 1:28-1:42 · Add a second issue
+STEP 08 · 1:30-1:44 · Add a second issue
   Voiceover: "Running it twice? Click Another, and choose Issue 109. Runs in now shows two, and the total doubles
     to five thousand, nine hundred and eighty pounds."
   Target: link-style button "Another" - page.getByRole("button", { name: "Another", exact: true }) -
     (897,619,60x16), CENTRE-RIGHT; then the new row's select (318,699,258x32); then Total (1137,106), TOP-RIGHT.
-  Camera: hold 1.45x, pan to (700,650) for the click; at 1:37 move to 1.3x showing both the rows and the Booking
+  Camera: hold 1.45x, pan to (700,650) for the click; at 1:39 move to 1.3x showing both the rows and the Booking
     total card (centre 850,400) over 800 ms.
   Cursor: glide to (927,627), click; a second row appears below the first; glide to (447,715), click, choose
     "Issue 109 · 18 Mar 2027 · book by 10 Mar 2027". Park at (1100,560).
@@ -275,7 +275,7 @@ STEP 08 · 1:28-1:42 · Add a second issue
     await expect(page.getByText("Runs in (2)")).toBeVisible();
     await expect(page.getByText("£5,980", { exact: true }).first()).toBeVisible();
 
-STEP 09 · 1:42-1:54 · When to invoice
+STEP 09 · 1:44-1:56 · When to invoice
   Voiceover: "Further down, When to invoice is set to As soon as allowed. Leave it, unless the client agreed
     something different."
   Setup: scroll so the field sits mid-screen, smoothly over 900 ms:
@@ -291,7 +291,7 @@ STEP 09 · 1:42-1:54 · When to invoice
     await expect(field("When to invoice")).toHaveValue("asap");
     await expect(field("When to invoice").locator("option:checked")).toHaveText("As soon as allowed");
 
-STEP 10 · 1:54-2:06 · Confirm
+STEP 10 · 1:56-2:08 · Confirm
   Voiceover: "When the client has said yes, click Confirm the booking. Confirming is your sign-off that it's agreed
     with the client. It's saved, with its own number."
   Setup: scroll to the top smoothly over 900 ms: await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }))
@@ -310,12 +310,12 @@ STEP 10 · 1:54-2:06 · Confirm
     await expect(page.locator("[data-sonner-toast]")).toContainText(/Booking \d+ created/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Booking \d+: Gate Gourmet$/);
 
-STEP 11 · 2:06-2:20 · Confirmed, and yours to send
+STEP 11 · 2:08-2:23 · Confirmed, and yours to send
   Voiceover: "It's marked Confirmed, and Email the confirmation is ready, so you can send it to the client now.
     The message underneath is for Accounts: they check it before it's invoiced, not before you send it."
   Target: badge "Confirmed" (304,211,83x22) TOP-LEFT; button "Email the confirmation" (1047,142,176x28)
     TOP-RIGHT; then the amber banner (304,253,1088x46) TOP-CENTRE.
-  Camera: 1.4x on the badge (centre 345,222); at 2:09 pan to the button (centre 1135,156); at 2:14 pull to 1.2x
+  Camera: 1.4x on the badge (centre 345,222); at 2:11 pan to the button (centre 1135,156); at 2:16 pull to 1.2x
     on the banner (centre 700,276), each move 800 ms.
   Cursor: glide to (345,222) and hover; glide to (1135,156) and hover (button darkens, NO click - sending is
     lesson 2); then trace along under the banner to (800,290).
@@ -328,12 +328,12 @@ STEP 11 · 2:06-2:20 · Confirmed, and yours to send
     await expect(page.getByRole("button", { name: "Email the confirmation" })).toBeEnabled();
     await expect(page.getByText("Waiting for the accounts check.")).toBeVisible();
 
-STEP 12 · 2:20-2:36 · The schedule
+STEP 12 · 2:23-2:39 · The schedule
   Voiceover: "The Schedule lists both issues. Issue 108 runs this quarter, so it's ready to invoice now. Issue
     109 is due in January."
   Target: "Schedule" card (305,418 - 1391,620), CENTRE; rows at y 496-546 (OBH 108) and 546-583 (OBH 109); the
     Invoice column "Ready to invoice / Due 16 Oct 2026" (1190,504) and "Due 1 Jan 2027" (1190,557), CENTRE-RIGHT.
-  Camera: 1.2x on the card (centre 848,510); at 2:28 push to 1.5x on the Invoice column (centre 1230,535).
+  Camera: 1.2x on the card (centre 848,510); at 2:31 push to 1.5x on the Invoice column (centre 1230,535).
   Cursor: glide along row 1 to (1236,512), pause; then down to (1232,565), pause.
   State change: none - reading. Row 1 then row 2 highlight in turn.
   Callout: ARCHETYPE C - 3D pop-out of the Schedule card; "2 items £5,980" counts up from £0 in 700 ms.
@@ -345,7 +345,7 @@ STEP 12 · 2:20-2:36 · The schedule
     await expect(page.locator("table").getByText("Ready to invoice")).toBeVisible();
     await expect(page.getByText("Due 1 Jan 2027")).toBeVisible();
 
-STEP 13 · 2:36-2:44 · End card
+STEP 13 · 2:39-2:47 · End card
   Voiceover: "That's a new booking made. Next, sending the confirmation to the client."
   Target: none (full frame). Behind: Screen C, blurred 12 px.
   Camera: slow pull back 1.0x -> 0.95x.

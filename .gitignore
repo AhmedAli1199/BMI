@@ -18,3 +18,7 @@ PRODUCT.md
 .gemini/
 *.bak
 docs/tutorials/**/*.webm
+docs/tutorials/**/*.mp4
+docs/tutorials/**/*.srt
+docs/tutorials/**/*.timeline.json
+docs/tutorials/**/voice/

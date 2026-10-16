@@ -1,7 +1,13 @@
 // Rough preview of a tutorial video, made in a few minutes instead of an hour: plays a blueprint in the real app
 // at real speed, with the voiceover as subtitles, each step's callout, a visible cursor and a ring on the target,
 // and records it. The words come straight from the video's blueprint.md, so edit the blueprint and run it again.
-// It's an animatic for checking wording, order and timing - the polished camera moves are Antigravity's job.
+// Two modes: preview (subtitles, step names and callout types shown - for checking a script) and --final (none of
+// those, for adding the voiceover with voiceover.py). Either way it writes timeline.json: when each step starts in
+// the video, which voiceover.py uses to place each line.
+
+/** options from the command line: --final, --subtitles (keep subtitles in --final) */
+export const MODE = { final: process.argv.includes("--final"), subtitles: !process.argv.includes("--final") || process.argv.includes("--subtitles") };
+export const args = () => process.argv.slice(2).filter((a) => !a.startsWith("--"));
 import fs from "node:fs";
 import path from "node:path";
 
@@ -23,7 +29,7 @@ export function readBlueprint(file) {
   return steps;
 }
 
-const OVERLAY = () => {
+const OVERLAY = (mode) => {
   if (document.getElementById("tut-layer")) return;
   const css = document.createElement("style");
   css.textContent = `
@@ -50,6 +56,9 @@ const OVERLAY = () => {
     <div id="tut-step"></div><div id="tut-sub"></div>
     <svg id="tut-cursor" viewBox="0 0 24 24"><path d="M3 2l7 19 2.5-7.5L20 11z" fill="#0f172a" stroke="#fff" stroke-width="1.5"/></svg>`;
   document.body.appendChild(layer);
+  if (mode.final) document.getElementById("tut-step").style.display = "none";
+  if (!mode.subtitles) document.getElementById("tut-sub").style.display = "none";
+  layer.dataset.final = mode.final ? "1" : "";
   const cur = document.getElementById("tut-cursor");
   const at = window.__tutCursor || { x: 720, y: 450 };
   cur.style.left = at.x + "px"; cur.style.top = at.y + "px";
@@ -58,10 +67,11 @@ const OVERLAY = () => {
   addEventListener("mouseup", () => cur.classList.remove("down"), true);
 };
 
-export function director(page, steps) {
+/** t0 = when the recorded page was opened (the video starts then) */
+export function director(page, steps, t0 = Date.now()) {
   let mouse = { x: 720, y: 450 };
-  page.on("framenavigated", () => {});
-  const ensure = () => page.evaluate(OVERLAY);
+  const timeline = [];
+  const ensure = () => page.evaluate(OVERLAY, MODE);
   const h = {
     page,
     async ensure() { await ensure(); },
@@ -94,7 +104,7 @@ export function director(page, steps) {
       const b = target ? await target.boundingBox() : { x: 720, y: 300, width: 0, height: 0 };
       await page.evaluate(({ s, b, side }) => {
         const c = document.getElementById("tut-call");
-        c.innerHTML = `<b>${s.badge}</b>${s.line}<i>Callout ${s.arche}${s.arche === "B" ? " (split-screen in the final cut)" : s.arche === "C" ? " (pop-out in the final cut)" : ""}</i>`;
+        c.innerHTML = `<b>${s.badge}</b>${s.line}${document.getElementById("tut-layer").dataset.final ? "" : `<i>Callout ${s.arche}</i>`}`;
         c.style.opacity = 1;
         const w = 360, pos = { below: [b.x, b.y + b.height + 14], above: [b.x, b.y - 74], right: [b.x + b.width + 16, b.y - 8], left: [b.x - w - 16, b.y - 8] }[side];
         c.style.left = Math.max(270, Math.min(innerWidth - w - 16, pos[0])) + "px"; c.style.top = Math.max(64, pos[1]) + "px";
@@ -111,6 +121,7 @@ export function director(page, steps) {
       const s = steps[n];
       if (!s) throw new Error(`STEP ${n} isn't in the blueprint`);
       const start = Date.now();
+      timeline.push({ step: n, title: s.title, start: (start - t0) / 1000, secs: s.secs, voiceover: s.vo });
       await ensure();
       await page.evaluate(({ s }) => { document.getElementById("tut-sub").textContent = s.vo; document.getElementById("tut-step").textContent = `Step ${String(s.n).padStart(2, "0")} · ${s.title}`; }, { s });
       await actions(s);
@@ -120,15 +131,18 @@ export function director(page, steps) {
       await h.ring(null); await h.hideCallout();
     },
   };
+  h.timeline = timeline;
   return h;
 }
 
-export async function finish(ctx, page, outDir, name) {
+export async function finish(ctx, page, outDir, h) {
+  const name = MODE.final ? "final" : "preview";
   const video = page.video();
   await ctx.close();
   if (!video) return;
   const src = await video.path();
   const dest = path.join(outDir, `${name}.webm`);
   fs.renameSync(src, dest);
-  console.log(`Preview saved: ${dest}`);
+  fs.writeFileSync(path.join(outDir, `${name}.timeline.json`), JSON.stringify({ video: `${name}.webm`, steps: h.timeline }, null, 1));
+  console.log(`Saved: ${dest} (and ${name}.timeline.json)`);
 }
