@@ -11,11 +11,11 @@ Groups are named lists of contacts, as in Act!: circulation lists, award panels,
 ## What you see
 **The list**
 - "Groups", with how many groups there are, a **Search group name...** box and **New group**.
-- Title chips (**All Titles** and one per database), the same title filter as the switcher at the top of the app.
 - One indented list: each top-level group, with its sub-groups underneath it (marked with a small arrow). Each row shows the name, the description if there is one, and the number of members.
 - **Previous** and **Next** for more pages (50 groups a page).
 
 **A group's page**
+- A **Groups** link above the name to go back to the list.
 - The group's name and description, with **Export**, **Mail merge**, **Edit** and **Delete**.
 - **Members (<n>)**: a table of **Name**, **Company** and **Job title**, with a tick box on each row.
 
@@ -24,8 +24,8 @@ Groups are named lists of contacts, as in Act!: circulation lists, award panels,
 ### Search group name...
 Type part of a group's name and press Enter.
 
-### Title chips (All Titles and each title)
-Show one database's groups, or all you can see.
+### Which title (the switcher at the top of the app)
+To see one database's groups, or all you can see, use the **All Titles** switcher at the top of the app.
 
 ### New group
 Choose the **Database**, type a **Name** and an optional **Description**, then **Create group**. The group starts empty. To make a group with people already in it, tick them on the Contacts list (or in another group) and use **New group** in the selection bar instead.

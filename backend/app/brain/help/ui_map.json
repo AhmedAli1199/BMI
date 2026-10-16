@@ -12,8 +12,8 @@
     "components/entity-picker.tsx",
     "components/interactive-activity-table.tsx",
     "components/log-interaction-dialog.tsx",
-    "components/publication-quick-filter.tsx",
-    "lib/publication-style.tsx"
+    "components/page-header.tsx",
+    "components/page-tabs.tsx"
    ]
   },
   {
@@ -24,6 +24,7 @@
     "components/automations/automations-table.tsx",
     "components/automations/charts.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/photo-upload-dialog.tsx",
     "lib/automation-style.tsx"
    ]
@@ -34,6 +35,7 @@
    "files": [
     "app/(app)/automations/engine/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/run-job-button.tsx",
     "lib/automation-style.tsx"
    ]
@@ -42,7 +44,8 @@
    "route": "/automations/llm-usage",
    "page": "app/(app)/automations/llm-usage/page.tsx",
    "files": [
-    "app/(app)/automations/llm-usage/page.tsx"
+    "app/(app)/automations/llm-usage/page.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
@@ -52,6 +55,7 @@
     "app/(app)/automations/page.tsx",
     "components/automations/charts.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "lib/automation-style.tsx"
    ]
   },
@@ -64,6 +68,7 @@
     "components/deals/xero-invoice-button.tsx",
     "components/draft-review-dialog.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/reopen-review-item-button.tsx",
     "components/review-item-card.tsx",
     "components/sales/info-hint.tsx",
@@ -77,14 +82,16 @@
    "page": "app/(app)/automations/settings/page.tsx",
    "files": [
     "app/(app)/automations/settings/page.tsx",
-    "components/automation-setting-field.tsx"
+    "components/automation-setting-field.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
    "route": "/automations/signals",
    "page": "app/(app)/automations/signals/page.tsx",
    "files": [
-    "app/(app)/automations/signals/page.tsx"
+    "app/(app)/automations/signals/page.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
@@ -95,6 +102,7 @@
     "components/deals/xero-invoice-button.tsx",
     "components/draft-review-dialog.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/review-item-card.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/invoice-match-panel.tsx",
@@ -120,7 +128,8 @@
     "components/calls/auto-refresh.tsx",
     "components/calls/call-actions.tsx",
     "components/calls/call-status.tsx",
-    "components/entity-picker.tsx"
+    "components/entity-picker.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
@@ -136,6 +145,7 @@
     "components/calls/notetaker-check.tsx",
     "components/calls/send-notetaker.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx"
    ]
   },
@@ -150,6 +160,7 @@
     "components/calls/send-notetaker.tsx",
     "components/empty-state.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx"
    ]
   },
@@ -159,7 +170,6 @@
    "files": [
     "app/(app)/companies/[id]/page.tsx",
     "components/act-company-card.tsx",
-    "components/act-subbar.tsx",
     "components/add-existing-contact-picker.tsx",
     "components/commission/booking-new-business.tsx",
     "components/contact-form-dialog.tsx",
@@ -168,6 +178,8 @@
     "components/entity-picker.tsx",
     "components/field-change-history.tsx",
     "components/log-interaction-dialog.tsx",
+    "components/page-header.tsx",
+    "components/record-pager.tsx",
     "components/record-reminders.tsx",
     "components/remind-me-dialog.tsx",
     "components/reminder-row-actions.tsx",
@@ -193,7 +205,7 @@
     "components/company-form-dialog.tsx",
     "components/empty-state.tsx",
     "components/entity-avatar.tsx",
-    "components/publication-quick-filter.tsx",
+    "components/page-header.tsx",
     "lib/publication-style.tsx"
    ]
   },
@@ -203,19 +215,19 @@
    "files": [
     "app/(app)/contacts/[id]/page.tsx",
     "components/act-contact-card.tsx",
-    "components/act-subbar.tsx",
     "components/act-tab-workstation.tsx",
     "components/contact-groups-editor.tsx",
     "components/delete-item-button.tsx",
     "components/duplicate-contact-dialog.tsx",
-    "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
     "components/field-change-history.tsx",
     "components/log-interaction-dialog.tsx",
     "components/mail-merge/email-from-template.tsx",
     "components/mail-merge/email-template-button.tsx",
     "components/mail-merge/rich-email-editor.tsx",
+    "components/page-header.tsx",
     "components/reassign-contact-button.tsx",
+    "components/record-pager.tsx",
     "components/record-reminders.tsx",
     "components/remind-me-dialog.tsx",
     "components/reminder-row-actions.tsx",
@@ -236,6 +248,7 @@
     "components/contacts/import/import-review-step.tsx",
     "components/contacts/import/import-wizard.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx"
    ]
   },
@@ -244,7 +257,8 @@
    "page": "app/(app)/contacts/import/page.tsx",
    "files": [
     "app/(app)/contacts/import/page.tsx",
-    "components/contacts/import/import-upload.tsx"
+    "components/contacts/import/import-upload.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
@@ -262,7 +276,7 @@
     "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
     "components/interactive-contact-table.tsx",
-    "components/publication-quick-filter.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "lib/publication-style.tsx"
    ]
@@ -272,6 +286,7 @@
    "page": "app/(app)/data-health/page.tsx",
    "files": [
     "app/(app)/data-health/page.tsx",
+    "components/page-header.tsx",
     "lib/automation-style.tsx"
    ]
   },
@@ -286,6 +301,7 @@
     "components/entity-picker.tsx",
     "components/mail-merge/email-from-template.tsx",
     "components/mail-merge/rich-email-editor.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/proposal-issue-picker.tsx",
     "components/sales/sales-ui.tsx"
@@ -303,6 +319,7 @@
     "components/editorial/issue-sheet.tsx",
     "components/editorial/print-button.tsx",
     "components/editorial/year-planner.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -313,6 +330,7 @@
    "files": [
     "app/(app)/editorial/settings/[brand]/page.tsx",
     "components/editorial/brand-settings-form.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx"
    ]
   },
@@ -334,6 +352,7 @@
     "components/entity-picker.tsx",
     "components/group-form-dialog.tsx",
     "components/group-members-table.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "lib/publication-style.tsx"
    ]
@@ -345,7 +364,7 @@
     "app/(app)/groups/page.tsx",
     "components/empty-state.tsx",
     "components/group-form-dialog.tsx",
-    "components/publication-quick-filter.tsx",
+    "components/page-header.tsx",
     "lib/publication-style.tsx"
    ]
   },
@@ -354,7 +373,8 @@
    "page": "app/(app)/mail-merge/[id]/page.tsx",
    "files": [
     "app/(app)/mail-merge/[id]/page.tsx",
-    "components/mail-merge/merge-progress-controls.tsx"
+    "components/mail-merge/merge-progress-controls.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
@@ -362,7 +382,8 @@
    "page": "app/(app)/mail-merge/history/page.tsx",
    "files": [
     "app/(app)/mail-merge/history/page.tsx",
-    "components/empty-state.tsx"
+    "components/empty-state.tsx",
+    "components/page-header.tsx"
    ]
   },
   {
@@ -373,6 +394,7 @@
     "components/entity-picker.tsx",
     "components/mail-merge/mail-merge-wizard.tsx",
     "components/mail-merge/rich-email-editor.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/proposal-issue-picker.tsx",
     "components/sales/sales-ui.tsx"
@@ -385,6 +407,7 @@
     "app/(app)/mail-merge/templates/[id]/page.tsx",
     "components/mail-merge/rich-email-editor.tsx",
     "components/mail-merge/template-editor.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/proposal-issue-picker.tsx",
     "components/sales/sales-ui.tsx"
@@ -397,6 +420,7 @@
     "app/(app)/mail-merge/templates/new/page.tsx",
     "components/mail-merge/rich-email-editor.tsx",
     "components/mail-merge/template-editor.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/proposal-issue-picker.tsx",
     "components/sales/sales-ui.tsx"
@@ -411,6 +435,7 @@
     "components/mail-merge/email-from-template.tsx",
     "components/mail-merge/rich-email-editor.tsx",
     "components/mail-merge/templates-library.tsx",
+    "components/page-header.tsx",
     "components/sales/proposal-issue-picker.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -425,6 +450,7 @@
     "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
     "components/group-form-dialog.tsx",
+    "components/page-header.tsx",
     "components/publication-form-dialog.tsx",
     "components/publication-tile-button.tsx",
     "lib/automation-style.tsx",
@@ -438,6 +464,8 @@
     "app/(app)/reminders/page.tsx",
     "components/calendar-reminders-header.tsx",
     "components/empty-state.tsx",
+    "components/page-header.tsx",
+    "components/page-tabs.tsx",
     "components/reminder-row-actions.tsx"
    ]
   },
@@ -464,6 +492,7 @@
     "app/(app)/sales/commissions/[rep]/[period]/page.tsx",
     "components/commission/commission-ui.tsx",
     "components/commission/statement-view.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -474,6 +503,7 @@
    "files": [
     "app/(app)/sales/commissions/page.tsx",
     "components/commission/commission-ui.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -485,6 +515,7 @@
     "app/(app)/sales/commissions/plans/page.tsx",
     "components/commission/commission-ui.tsx",
     "components/commission/plans-view.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -495,6 +526,7 @@
    "files": [
     "app/(app)/sales/compare/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/sales/compare-chart.tsx",
     "components/sales/compare-picker.tsx",
     "components/sales/info-hint.tsx",
@@ -507,6 +539,7 @@
    "files": [
     "app/(app)/sales/costs/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/sales/costs-report.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
@@ -518,6 +551,7 @@
    "files": [
     "app/(app)/sales/dashboard/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/page-tabs.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx",
@@ -532,6 +566,7 @@
     "components/deals/deal-form.tsx",
     "components/deals/line-handoff.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -546,6 +581,7 @@
     "components/deals/deal-invoicing.tsx",
     "components/deals/deal-ui.tsx",
     "components/deals/xero-invoice-button.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -566,6 +602,7 @@
     "components/deals/deal-form.tsx",
     "components/deals/line-handoff.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -580,6 +617,7 @@
     "components/deals/deal-ui.tsx",
     "components/deals/handoff-routes-button.tsx",
     "components/deals/xero-codes-button.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -594,6 +632,7 @@
     "components/commission/edition-commission.tsx",
     "components/deals/unbooked-ad-button.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/add-booking-button.tsx",
     "components/sales/edition-actions.tsx",
     "components/sales/edition-costs-panel.tsx",
@@ -615,6 +654,7 @@
    "files": [
     "app/(app)/sales/editions/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/sales/editions-explorer.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/new-edition-dialog.tsx",
@@ -629,6 +669,7 @@
     "components/automations/hub-ui.tsx",
     "components/commission/booking-new-business.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/invoice-match-panel.tsx",
     "components/sales/not-booking-controls.tsx",
@@ -662,6 +703,7 @@
    "files": [
     "app/(app)/sales/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-header.tsx",
     "components/page-tabs.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/pace-chart.tsx",
@@ -674,6 +716,7 @@
    "files": [
     "app/(app)/sales/proposals/[id]/page.tsx",
     "components/mail-merge/rich-email-editor.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/proposal-ai-revise.tsx",
     "components/sales/proposal-document.tsx",
@@ -689,6 +732,7 @@
    "page": "app/(app)/sales/proposals/examples/page.tsx",
    "files": [
     "app/(app)/sales/proposals/examples/page.tsx",
+    "components/page-header.tsx",
     "components/sales/examples-library.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
@@ -700,6 +744,7 @@
    "files": [
     "app/(app)/sales/proposals/new/page.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/proposal-issue-picker.tsx",
     "components/sales/proposal-lines.tsx",
@@ -712,6 +757,7 @@
    "page": "app/(app)/sales/proposals/page.tsx",
    "files": [
     "app/(app)/sales/proposals/page.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -721,6 +767,7 @@
    "page": "app/(app)/sales/proposals/report/page.tsx",
    "files": [
     "app/(app)/sales/proposals/report/page.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -730,6 +777,7 @@
    "page": "app/(app)/sales/proposals/style/page.tsx",
    "files": [
     "app/(app)/sales/proposals/style/page.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx",
     "components/sales/writing-profile.tsx"
@@ -740,6 +788,7 @@
    "page": "app/(app)/sales/rate-card/[brand]/page.tsx",
    "files": [
     "app/(app)/sales/rate-card/[brand]/page.tsx",
+    "components/page-header.tsx",
     "components/rate-card/brand-rate-card.tsx",
     "components/rate-card/history-sheet.tsx",
     "components/rate-card/next-year-dialog.tsx",
@@ -756,6 +805,7 @@
    "page": "app/(app)/sales/rate-card/page.tsx",
    "files": [
     "app/(app)/sales/rate-card/page.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
    ]
@@ -769,6 +819,7 @@
     "components/commission/booking-new-business.tsx",
     "components/commission/commission-ui.tsx",
     "components/entity-picker.tsx",
+    "components/page-header.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/invoice-match-panel.tsx",
     "components/sales/order-sheet.tsx",
@@ -782,6 +833,7 @@
    "page": "app/(app)/sales/summaries/page.tsx",
    "files": [
     "app/(app)/sales/summaries/page.tsx",
+    "components/page-header.tsx",
     "components/run-job-button.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx"
@@ -793,6 +845,7 @@
    "files": [
     "app/(app)/settings/page.tsx",
     "components/outlook-connection-card.tsx",
+    "components/page-header.tsx",
     "components/preference-group.tsx",
     "components/theme-switcher.tsx",
     "components/xero-connection-card.tsx"
@@ -803,6 +856,7 @@
    "page": "app/(app)/settings/sections/page.tsx",
    "files": [
     "app/(app)/settings/sections/page.tsx",
+    "components/page-header.tsx",
     "components/sections-editor.tsx"
    ]
   },
@@ -811,6 +865,7 @@
    "page": "app/(app)/settings/users/page.tsx",
    "files": [
     "app/(app)/settings/users/page.tsx",
+    "components/page-header.tsx",
     "components/team-roster.tsx",
     "components/user-form-dialog.tsx"
    ]
@@ -848,43 +903,43 @@
  "elements": [
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:134",
+   "src": "app/(app)/activities/page.tsx:125",
    "kind": "button",
    "label": "Log or schedule"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:154",
+   "src": "app/(app)/activities/page.tsx:138",
    "kind": "link",
    "label": "Open"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:164",
+   "src": "app/(app)/activities/page.tsx:148",
    "kind": "link",
    "label": "Overdue"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:179",
+   "src": "app/(app)/activities/page.tsx:163",
    "kind": "link",
    "label": "Done"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:189",
+   "src": "app/(app)/activities/page.tsx:173",
    "kind": "link",
    "label": "All"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:209",
+   "src": "app/(app)/activities/page.tsx:193",
    "kind": "link",
    "label": "To-do"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:250",
+   "src": "app/(app)/activities/page.tsx:234",
    "kind": "link",
    "label": "Showing mine only"
   },
@@ -961,12 +1016,6 @@
    "label": "Actions"
   },
   {
-   "file": "app/(app)/automations/llm-usage/page.tsx",
-   "src": "app/(app)/automations/llm-usage/page.tsx:62",
-   "kind": "link",
-   "label": "Automations Settings"
-  },
-  {
    "file": "app/(app)/automations/page.tsx",
    "src": "app/(app)/automations/page.tsx:52",
    "kind": "button",
@@ -1028,141 +1077,111 @@
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:131",
-   "kind": "link",
-   "label": "Automations"
-  },
-  {
-   "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:184",
+   "src": "app/(app)/automations/review/page.tsx:173",
    "kind": "link",
    "label": "All"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:273",
+   "src": "app/(app)/automations/review/page.tsx:262",
    "kind": "link",
    "label": "(selected)"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:305",
+   "src": "app/(app)/automations/review/page.tsx:294",
    "kind": "link",
    "label": ": … remove this filter"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:314",
+   "src": "app/(app)/automations/review/page.tsx:303",
    "kind": "link",
    "label": "Clear all filters"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:348",
+   "src": "app/(app)/automations/review/page.tsx:337",
    "kind": "link",
    "label": "Clear"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:393",
+   "src": "app/(app)/automations/review/page.tsx:382",
    "kind": "link",
    "label": "Clear"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:435",
+   "src": "app/(app)/automations/review/page.tsx:424",
    "kind": "link",
    "label": "View every automation →"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:494",
+   "src": "app/(app)/automations/review/page.tsx:483",
    "kind": "link",
    "label": "Open … record"
   },
   {
    "file": "app/(app)/automations/settings/page.tsx",
-   "src": "app/(app)/automations/settings/page.tsx:23",
-   "kind": "link",
-   "label": "Scanners & Settings"
-  },
-  {
-   "file": "app/(app)/automations/settings/page.tsx",
-   "src": "app/(app)/automations/settings/page.tsx:42",
+   "src": "app/(app)/automations/settings/page.tsx:35",
    "kind": "link",
    "label": "View Brain usage & cost →"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:26",
-   "kind": "link",
-   "label": "Automations"
-  },
-  {
-   "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:46",
+   "src": "app/(app)/automations/signals/page.tsx:34",
    "kind": "column",
    "label": "Contact"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:47",
+   "src": "app/(app)/automations/signals/page.tsx:35",
    "kind": "column",
    "label": "Type"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:48",
+   "src": "app/(app)/automations/signals/page.tsx:36",
    "kind": "column",
    "label": "Due date"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:49",
+   "src": "app/(app)/automations/signals/page.tsx:37",
    "kind": "column",
    "label": "Summary"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:50",
+   "src": "app/(app)/automations/signals/page.tsx:38",
    "kind": "column",
    "label": "Confidence"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:51",
+   "src": "app/(app)/automations/signals/page.tsx:39",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:52",
+   "src": "app/(app)/automations/signals/page.tsx:40",
    "kind": "column",
    "label": "Created"
   },
   {
    "file": "app/(app)/automations/today/page.tsx",
-   "src": "app/(app)/automations/today/page.tsx:59",
-   "kind": "link",
-   "label": "Automations"
-  },
-  {
-   "file": "app/(app)/automations/today/page.tsx",
-   "src": "app/(app)/automations/today/page.tsx:81",
+   "src": "app/(app)/automations/today/page.tsx:73",
    "kind": "link",
    "label": "My list"
   },
   {
    "file": "app/(app)/automations/today/page.tsx",
-   "src": "app/(app)/automations/today/page.tsx:87",
+   "src": "app/(app)/automations/today/page.tsx:79",
    "kind": "link",
    "label": "Everyone"
-  },
-  {
-   "file": "app/(app)/calls/[id]/page.tsx",
-   "src": "app/(app)/calls/[id]/page.tsx:38",
-   "kind": "link",
-   "label": "Call notes"
   },
   {
    "file": "app/(app)/calls/[id]/page.tsx",
@@ -1190,362 +1209,339 @@
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:40",
+   "src": "app/(app)/calls/page.tsx:37",
    "kind": "heading",
    "label": "Recent calls"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:47",
+   "src": "app/(app)/calls/page.tsx:44",
    "kind": "column",
    "label": "Call"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:47",
+   "src": "app/(app)/calls/page.tsx:44",
    "kind": "column",
    "label": "With"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:48",
+   "src": "app/(app)/calls/page.tsx:45",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:48",
+   "src": "app/(app)/calls/page.tsx:45",
    "kind": "column",
    "label": "When"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:95",
-   "kind": "link",
-   "label": "Back to Companies"
-  },
-  {
-   "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:113",
+   "src": "app/(app)/companies/[id]/page.tsx:91",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:123",
+   "src": "app/(app)/companies/[id]/page.tsx:101",
    "kind": "button",
    "label": "Build a proposal"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:133",
+   "src": "app/(app)/companies/[id]/page.tsx:111",
    "kind": "button",
    "label": "New booking"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:157",
+   "src": "app/(app)/companies/[id]/page.tsx:136",
    "kind": "tab",
    "label": "Associated Contacts ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:164",
+   "src": "app/(app)/companies/[id]/page.tsx:143",
    "kind": "tab",
    "label": "Activity & History ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:170",
+   "src": "app/(app)/companies/[id]/page.tsx:149",
    "kind": "tab",
    "label": "Company Notes ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:177",
+   "src": "app/(app)/companies/[id]/page.tsx:156",
    "kind": "tab",
    "label": "Bookings ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:185",
+   "src": "app/(app)/companies/[id]/page.tsx:164",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:199",
+   "src": "app/(app)/companies/[id]/page.tsx:178",
    "kind": "heading",
    "label": "Contacts linked to"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:320",
+   "src": "app/(app)/companies/[id]/page.tsx:299",
    "kind": "heading",
    "label": "Act! Custom Database Fields"
   },
   {
    "file": "app/(app)/companies/page.tsx",
-   "src": "app/(app)/companies/page.tsx:142",
+   "src": "app/(app)/companies/page.tsx:129",
    "kind": "link",
    "label": "Previous"
   },
   {
    "file": "app/(app)/companies/page.tsx",
-   "src": "app/(app)/companies/page.tsx:150",
+   "src": "app/(app)/companies/page.tsx:137",
    "kind": "link",
    "label": "Next"
   },
   {
    "file": "app/(app)/contacts/[id]/page.tsx",
    "src": "app/(app)/contacts/[id]/page.tsx:96",
-   "kind": "link",
-   "label": "Back to Contacts"
-  },
-  {
-   "file": "app/(app)/contacts/[id]/page.tsx",
-   "src": "app/(app)/contacts/[id]/page.tsx:114",
    "kind": "button",
    "label": "Write"
   },
   {
    "file": "app/(app)/contacts/import/page.tsx",
-   "src": "app/(app)/contacts/import/page.tsx:11",
-   "kind": "link",
-   "label": "Contacts"
-  },
-  {
-   "file": "app/(app)/contacts/import/page.tsx",
-   "src": "app/(app)/contacts/import/page.tsx:27",
+   "src": "app/(app)/contacts/import/page.tsx:21",
    "kind": "heading",
    "label": "Recent imports"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:148",
+   "src": "app/(app)/contacts/page.tsx:133",
    "kind": "button",
    "label": "Import"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:154",
-   "kind": "button",
-   "label": "Export"
-  },
-  {
-   "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:164",
-   "kind": "button",
-   "label": "Mail merge"
-  },
-  {
-   "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:199",
+   "src": "app/(app)/contacts/page.tsx:162",
    "kind": "button",
    "label": "Look up"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:209",
+   "src": "app/(app)/contacts/page.tsx:166",
+   "kind": "hint",
+   "label": "",
+   "hint": "The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several words in any order. The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy their emails or mail-merge them."
+  },
+  {
+   "file": "app/(app)/contacts/page.tsx",
+   "src": "app/(app)/contacts/page.tsx:177",
    "kind": "link",
    "label": "Clear lookup"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:252",
+   "src": "app/(app)/contacts/page.tsx:194",
+   "kind": "button",
+   "label": "Export"
+  },
+  {
+   "file": "app/(app)/contacts/page.tsx",
+   "src": "app/(app)/contacts/page.tsx:204",
+   "kind": "button",
+   "label": "Mail merge"
+  },
+  {
+   "file": "app/(app)/contacts/page.tsx",
+   "src": "app/(app)/contacts/page.tsx:235",
    "kind": "link",
    "label": "← Previous"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:260",
+   "src": "app/(app)/contacts/page.tsx:243",
    "kind": "link",
    "label": "Next →"
   },
   {
    "file": "app/(app)/data-health/page.tsx",
-   "src": "app/(app)/data-health/page.tsx:74",
+   "src": "app/(app)/data-health/page.tsx:75",
    "kind": "link",
    "label": "Fix"
   },
   {
    "file": "app/(app)/data-health/page.tsx",
-   "src": "app/(app)/data-health/page.tsx:174",
+   "src": "app/(app)/data-health/page.tsx:170",
    "kind": "heading",
    "label": "Record completeness"
   },
   {
    "file": "app/(app)/data-health/page.tsx",
-   "src": "app/(app)/data-health/page.tsx:191",
+   "src": "app/(app)/data-health/page.tsx:187",
    "kind": "heading",
    "label": "Automation hygiene backlog"
   },
   {
    "file": "app/(app)/editorial/page.tsx",
-   "src": "app/(app)/editorial/page.tsx:66",
+   "src": "app/(app)/editorial/page.tsx:67",
    "kind": "link",
    "label": "All brands"
   },
   {
    "file": "app/(app)/editorial/page.tsx",
-   "src": "app/(app)/editorial/page.tsx:77",
+   "src": "app/(app)/editorial/page.tsx:78",
    "kind": "link",
    "label": "year"
   },
   {
    "file": "app/(app)/editorial/page.tsx",
-   "src": "app/(app)/editorial/page.tsx:104",
+   "src": "app/(app)/editorial/page.tsx:105",
    "kind": "button",
    "label": "Deadline rules & sections"
   },
   {
    "file": "app/(app)/editorial/page.tsx",
-   "src": "app/(app)/editorial/page.tsx:112",
+   "src": "app/(app)/editorial/page.tsx:113",
    "kind": "hint",
    "label": "",
    "hint": "Admins and data managers can change every brand. Each brand's publishers can change their own brand's plan. Everyone can view it."
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:51",
+   "src": "app/(app)/groups/[id]/page.tsx:52",
    "kind": "button",
    "label": "Export"
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:61",
+   "src": "app/(app)/groups/[id]/page.tsx:62",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:83",
+   "src": "app/(app)/groups/[id]/page.tsx:85",
    "kind": "heading",
    "label": "Members ( … )"
   },
   {
    "file": "app/(app)/groups/page.tsx",
-   "src": "app/(app)/groups/page.tsx:113",
+   "src": "app/(app)/groups/page.tsx:103",
    "kind": "link",
    "label": "Previous"
   },
   {
    "file": "app/(app)/groups/page.tsx",
-   "src": "app/(app)/groups/page.tsx:121",
+   "src": "app/(app)/groups/page.tsx:111",
    "kind": "link",
    "label": "Next"
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:31",
-   "kind": "link",
-   "label": "Mail merges"
-  },
-  {
-   "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:94",
+   "src": "app/(app)/mail-merge/[id]/page.tsx:91",
    "kind": "column",
    "label": "Contact"
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:95",
+   "src": "app/(app)/mail-merge/[id]/page.tsx:92",
    "kind": "column",
    "label": "Email"
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:96",
+   "src": "app/(app)/mail-merge/[id]/page.tsx:93",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/mail-merge/history/page.tsx",
-   "src": "app/(app)/mail-merge/history/page.tsx:22",
-   "kind": "link",
-   "label": "Mail merge"
-  },
-  {
-   "file": "app/(app)/mail-merge/history/page.tsx",
-   "src": "app/(app)/mail-merge/history/page.tsx:31",
+   "src": "app/(app)/mail-merge/history/page.tsx:28",
    "kind": "button",
    "label": "New mail merge"
   },
   {
    "file": "app/(app)/mail-merge/page.tsx",
-   "src": "app/(app)/mail-merge/page.tsx:74",
+   "src": "app/(app)/mail-merge/page.tsx:67",
    "kind": "button",
    "label": "Email templates"
   },
   {
    "file": "app/(app)/mail-merge/page.tsx",
-   "src": "app/(app)/mail-merge/page.tsx:78",
+   "src": "app/(app)/mail-merge/page.tsx:71",
    "kind": "button",
    "label": "Sent mail merges"
   },
   {
    "file": "app/(app)/mail-merge/templates/page.tsx",
-   "src": "app/(app)/mail-merge/templates/page.tsx:22",
+   "src": "app/(app)/mail-merge/templates/page.tsx:18",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:286",
+   "src": "app/(app)/page.tsx:288",
    "kind": "heading",
    "label": "BMI Brain · Overnight Activity"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:294",
+   "src": "app/(app)/page.tsx:296",
    "kind": "link",
    "label": "Open review queue"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:305",
+   "src": "app/(app)/page.tsx:307",
    "kind": "heading",
    "label": "New for your review"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:346",
+   "src": "app/(app)/page.tsx:348",
    "kind": "heading",
    "label": "Recently resolved"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:357",
+   "src": "app/(app)/page.tsx:359",
    "kind": "link",
    "label": "Approved ·"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:395",
+   "src": "app/(app)/page.tsx:397",
    "kind": "heading",
    "label": "Recently Active Contacts"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:404",
+   "src": "app/(app)/page.tsx:406",
    "kind": "link",
    "label": "View all →"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:447",
+   "src": "app/(app)/page.tsx:449",
    "kind": "heading",
    "label": "Top Companies"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:454",
+   "src": "app/(app)/page.tsx:456",
    "kind": "link",
    "label": "View all →"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:464",
+   "src": "app/(app)/page.tsx:466",
    "kind": "link",
    "label": "contacts"
   },
@@ -2182,69 +2178,57 @@
   },
   {
    "file": "app/(app)/sales/summaries/page.tsx",
-   "src": "app/(app)/sales/summaries/page.tsx:33",
+   "src": "app/(app)/sales/summaries/page.tsx:35",
    "kind": "link",
    "label": "Open Selling now →"
   },
   {
    "file": "app/(app)/sales/summaries/page.tsx",
-   "src": "app/(app)/sales/summaries/page.tsx:154",
+   "src": "app/(app)/sales/summaries/page.tsx:156",
    "kind": "link",
    "label": "Week of"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:61",
+   "src": "app/(app)/settings/page.tsx:54",
    "kind": "link",
    "label": "Team & access Create accounts, assign roles, and control which database each person can see"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:80",
+   "src": "app/(app)/settings/page.tsx:73",
    "kind": "link",
    "label": "Sections people see Hide parts of the app that Sales or Data Manager users don't need, so their screens stay simple"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:99",
+   "src": "app/(app)/settings/page.tsx:92",
    "kind": "heading",
    "label": "Appearance"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:112",
+   "src": "app/(app)/settings/page.tsx:105",
    "kind": "heading",
    "label": "Email"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:118",
+   "src": "app/(app)/settings/page.tsx:111",
    "kind": "heading",
    "label": "Integrations"
   },
   {
    "file": "app/(app)/settings/sections/page.tsx",
-   "src": "app/(app)/settings/sections/page.tsx:17",
-   "kind": "link",
-   "label": "Back to Settings"
-  },
-  {
-   "file": "app/(app)/settings/sections/page.tsx",
-   "src": "app/(app)/settings/sections/page.tsx:28",
-   "kind": "link",
-   "label": "Settings"
-  },
-  {
-   "file": "app/(app)/settings/users/page.tsx",
-   "src": "app/(app)/settings/users/page.tsx:22",
+   "src": "app/(app)/settings/sections/page.tsx:18",
    "kind": "link",
    "label": "Back to Settings"
   },
   {
    "file": "app/(app)/settings/users/page.tsx",
-   "src": "app/(app)/settings/users/page.tsx:34",
+   "src": "app/(app)/settings/users/page.tsx:23",
    "kind": "link",
-   "label": "Settings"
+   "label": "Back to Settings"
   },
   {
    "file": "app/(app)/vault-9f2kq7/build-spec/page.tsx",
@@ -2290,105 +2274,57 @@
   },
   {
    "file": "components/act-company-card.tsx",
-   "src": "components/act-company-card.tsx:164",
+   "src": "components/act-company-card.tsx:130",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/act-company-card.tsx",
-   "src": "components/act-company-card.tsx:174",
+   "src": "components/act-company-card.tsx:140",
    "kind": "button",
    "label": "Saving..."
   },
   {
    "file": "components/act-company-card.tsx",
-   "src": "components/act-company-card.tsx:185",
+   "src": "components/act-company-card.tsx:151",
    "kind": "button",
    "label": "Edit Company"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:208",
+   "src": "components/act-contact-card.tsx:164",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:218",
+   "src": "components/act-contact-card.tsx:174",
    "kind": "button",
    "label": "Saving..."
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:231",
+   "src": "components/act-contact-card.tsx:187",
    "kind": "button",
    "label": "Edit Record"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:258",
+   "src": "components/act-contact-card.tsx:214",
    "kind": "field",
    "label": "First Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:266",
+   "src": "components/act-contact-card.tsx:222",
    "kind": "field",
    "label": "Last Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:523",
+   "src": "components/act-contact-card.tsx:479",
    "kind": "link",
    "label": "Company Profile"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:46",
-   "kind": "link",
-   "label": "Contacts"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:59",
-   "kind": "link",
-   "label": "Companies"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:72",
-   "kind": "link",
-   "label": "Groups"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:91",
-   "kind": "link",
-   "label": "List"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:120",
-   "kind": "button",
-   "label": "First Record"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:131",
-   "kind": "button",
-   "label": "Previous Record"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:149",
-   "kind": "button",
-   "label": "Next Record"
-  },
-  {
-   "file": "components/act-subbar.tsx",
-   "src": "components/act-subbar.tsx:160",
-   "kind": "button",
-   "label": "Last Record"
   },
   {
    "file": "components/act-tab-workstation.tsx",
@@ -2560,13 +2496,7 @@
   },
   {
    "file": "components/automations/hub-ui.tsx",
-   "src": "components/automations/hub-ui.tsx:25",
-   "kind": "link",
-   "label": "Automations Hub"
-  },
-  {
-   "file": "components/automations/hub-ui.tsx",
-   "src": "components/automations/hub-ui.tsx:134",
+   "src": "components/automations/hub-ui.tsx:115",
    "kind": "link",
    "label": "Go to your Today queue"
   },
@@ -3741,12 +3671,6 @@
    "src": "components/contacts/import/import-upload.tsx:67",
    "kind": "heading",
    "label": "What happens next"
-  },
-  {
-   "file": "components/contacts/import/import-wizard.tsx",
-   "src": "components/contacts/import/import-wizard.tsx:23",
-   "kind": "link",
-   "label": "Import contacts"
   },
   {
    "file": "components/deals/booking-forms.tsx",
@@ -5063,76 +4987,70 @@
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:69",
-   "kind": "link",
-   "label": "Editorial plan"
-  },
-  {
-   "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:78",
+   "src": "components/editorial/brand-settings-form.tsx:67",
    "kind": "heading",
    "label": "Usual deadlines"
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:79",
+   "src": "components/editorial/brand-settings-form.tsx:68",
    "kind": "hint",
    "label": "",
    "hint": "Two ways to set a deadline: a number of days before publication (“9 days before”), or a day of the month before (“the 25th of the month before”)."
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:109",
+   "src": "components/editorial/brand-settings-form.tsx:98",
    "kind": "button",
    "label": "Another deadline"
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:116",
+   "src": "components/editorial/brand-settings-form.tsx:105",
    "kind": "heading",
    "label": "Regular sections"
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:117",
+   "src": "components/editorial/brand-settings-form.tsx:106",
    "kind": "hint",
    "label": "",
    "hint": "The sections every issue has - shown on each issue's page so the team and proposals can mention them."
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:128",
+   "src": "components/editorial/brand-settings-form.tsx:117",
    "kind": "button",
    "label": "Add a section"
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:132",
+   "src": "components/editorial/brand-settings-form.tsx:121",
    "kind": "heading",
    "label": "About the publishing schedule"
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:137",
+   "src": "components/editorial/brand-settings-form.tsx:126",
    "kind": "heading",
    "label": "Figures and links used in emails Every email template quotes these through merge fields like {{print_run}}, so change a "
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:137",
+   "src": "components/editorial/brand-settings-form.tsx:126",
    "kind": "hint",
    "label": "",
    "hint": "Every email template quotes these through merge fields like {{print_run}}, so change a figure here once and every email that mentions it is up to date."
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:149",
+   "src": "components/editorial/brand-settings-form.tsx:138",
    "kind": "button",
    "label": "Back to the plan"
   },
   {
    "file": "components/editorial/brand-settings-form.tsx",
-   "src": "components/editorial/brand-settings-form.tsx:149",
+   "src": "components/editorial/brand-settings-form.tsx:138",
    "kind": "button",
    "label": "Saving"
   },
@@ -5174,220 +5092,214 @@
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:37",
-   "kind": "link",
-   "label": "Editorial plan"
-  },
-  {
-   "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:49",
+   "src": "components/editorial/issue-page.tsx:47",
    "kind": "button",
    "label": "Bookings in the order register"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:50",
+   "src": "components/editorial/issue-page.tsx:48",
    "kind": "button",
    "label": "Pitch this issue"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:59",
+   "src": "components/editorial/issue-page.tsx:57",
    "kind": "button",
    "label": "The dates are right"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:74",
+   "src": "components/editorial/issue-page.tsx:72",
    "kind": "link",
    "label": "'s settings"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:82",
+   "src": "components/editorial/issue-page.tsx:80",
    "kind": "heading",
    "label": "Bookings so far Live bookings in the order register for this issue, before VAT."
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:82",
+   "src": "components/editorial/issue-page.tsx:80",
    "kind": "hint",
    "label": "",
    "hint": "Live bookings in the order register for this issue, before VAT."
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:91",
+   "src": "components/editorial/issue-page.tsx:89",
    "kind": "button",
    "label": "Delete from the plan"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:143",
+   "src": "components/editorial/issue-page.tsx:141",
    "kind": "heading",
    "label": "Key dates"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:148",
+   "src": "components/editorial/issue-page.tsx:146",
    "kind": "button",
    "label": "Use the usual rules"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:153",
+   "src": "components/editorial/issue-page.tsx:151",
    "kind": "button",
    "label": "Change dates"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:175",
+   "src": "components/editorial/issue-page.tsx:173",
    "kind": "heading",
    "label": "Other key dates Anything else with a date: entries close, voting opens, sponsored content deadline, press day"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:175",
+   "src": "components/editorial/issue-page.tsx:173",
    "kind": "hint",
    "label": "",
    "hint": "Anything else with a date: entries close, voting opens, sponsored content deadline, press day"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:180",
+   "src": "components/editorial/issue-page.tsx:178",
    "kind": "button",
    "label": "Remove this date"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:183",
+   "src": "components/editorial/issue-page.tsx:181",
    "kind": "button",
    "label": "Add a key date"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:186",
+   "src": "components/editorial/issue-page.tsx:184",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:187",
+   "src": "components/editorial/issue-page.tsx:185",
    "kind": "button",
    "label": "Saving"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:228",
+   "src": "components/editorial/issue-page.tsx:226",
    "kind": "heading",
    "label": "Features"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:229",
+   "src": "components/editorial/issue-page.tsx:227",
    "kind": "hint",
    "label": "",
    "hint": "What this issue will cover. “Open to sponsors” marks features a client can sponsor or write sponsored content for - proposals mention them."
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:259",
+   "src": "components/editorial/issue-page.tsx:257",
    "kind": "button",
    "label": "Add"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:278",
+   "src": "components/editorial/issue-page.tsx:276",
    "kind": "field",
    "label": "Status Planned Confirmed Dropped"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:283",
+   "src": "components/editorial/issue-page.tsx:281",
    "kind": "field",
    "label": "Open to sponsors"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:285",
+   "src": "components/editorial/issue-page.tsx:283",
    "kind": "button",
    "label": "Delete"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:287",
+   "src": "components/editorial/issue-page.tsx:285",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:288",
+   "src": "components/editorial/issue-page.tsx:286",
    "kind": "button",
    "label": "Save"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:307",
+   "src": "components/editorial/issue-page.tsx:305",
    "kind": "heading",
    "label": "Details"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:308",
+   "src": "components/editorial/issue-page.tsx:306",
    "kind": "button",
    "label": "Change details"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:319",
+   "src": "components/editorial/issue-page.tsx:317",
    "kind": "field",
    "label": "Name"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:320",
+   "src": "components/editorial/issue-page.tsx:318",
    "kind": "field",
    "label": "Theme"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:321",
+   "src": "components/editorial/issue-page.tsx:319",
    "kind": "field",
    "label": "Venue"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:322",
+   "src": "components/editorial/issue-page.tsx:320",
    "kind": "field",
    "label": "Months it covers"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:324",
+   "src": "components/editorial/issue-page.tsx:322",
    "kind": "field",
    "label": "Format —"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:331",
+   "src": "components/editorial/issue-page.tsx:329",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:332",
+   "src": "components/editorial/issue-page.tsx:330",
    "kind": "button",
    "label": "Save"
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:348",
+   "src": "components/editorial/issue-page.tsx:346",
    "kind": "heading",
    "label": "Notes The same notes as on this edition in the order register. Saved when you click away."
   },
   {
    "file": "components/editorial/issue-page.tsx",
-   "src": "components/editorial/issue-page.tsx:348",
+   "src": "components/editorial/issue-page.tsx:346",
    "kind": "hint",
    "label": "",
    "hint": "The same notes as on this edition in the order register. Saved when you click away."
@@ -6073,99 +5985,93 @@
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:92",
-   "kind": "link",
-   "label": "Email templates"
-  },
-  {
-   "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:102",
+   "src": "components/mail-merge/template-editor.tsx:96",
    "kind": "button",
    "label": "Delete"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:106",
+   "src": "components/mail-merge/template-editor.tsx:100",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:107",
+   "src": "components/mail-merge/template-editor.tsx:101",
    "kind": "button",
    "label": "Save"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:114",
+   "src": "components/mail-merge/template-editor.tsx:108",
    "kind": "heading",
    "label": "About this template"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:116",
+   "src": "components/mail-merge/template-editor.tsx:110",
    "kind": "field",
    "label": "Name"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:117",
+   "src": "components/mail-merge/template-editor.tsx:111",
    "kind": "field",
    "label": "Brand Any brand"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:123",
+   "src": "components/mail-merge/template-editor.tsx:117",
    "kind": "field",
    "label": "Title (optional) Any title"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:129",
+   "src": "components/mail-merge/template-editor.tsx:123",
    "kind": "field",
    "label": "What it's for"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:134",
+   "src": "components/mail-merge/template-editor.tsx:128",
    "kind": "field",
    "label": "Everyone can use it"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:135",
+   "src": "components/mail-merge/template-editor.tsx:129",
    "kind": "field",
    "label": "Note for the team (optional)"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:140",
+   "src": "components/mail-merge/template-editor.tsx:134",
    "kind": "heading",
    "label": "The email"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:142",
+   "src": "components/mail-merge/template-editor.tsx:136",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:144",
+   "src": "components/mail-merge/template-editor.tsx:138",
    "kind": "hint",
    "label": "",
    "hint": "Select some words, then use the buttons above the message to make them bold, italic or underlined, highlight them, colour them, or turn lines into a list. Ctrl+B, Ctrl+I and Ctrl+U work too."
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:148",
+   "src": "components/mail-merge/template-editor.tsx:142",
    "kind": "hint",
    "label": "",
    "hint": "Click to put it where the cursor is. Brand figures come from the brand's settings in the editorial plan; issue details come from the issue you choose when sending."
   },
   {
    "file": "components/mail-merge/template-editor.tsx",
-   "src": "components/mail-merge/template-editor.tsx:163",
+   "src": "components/mail-merge/template-editor.tsx:157",
    "kind": "heading",
    "label": "How it will look"
   },

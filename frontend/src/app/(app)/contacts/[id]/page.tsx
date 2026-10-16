@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { EmailTemplateButton } from "@/components/mail-merge/email-template-button";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactDetail, GroupListItem, Page, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { canAccessRecord } from "@/lib/access";
-import { sourceLabel } from "@/lib/sources";
-import { ActSubbar } from "@/components/act-subbar";
+import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
+import { PageHeader } from "@/components/page-header";
+import { RecordPager } from "@/components/record-pager";
+import { Badge } from "@/components/ui/badge";
 import { ActContactCard } from "@/components/act-contact-card";
 import { ActTabWorkstation } from "@/components/act-tab-workstation";
 import { FieldChangeHistory } from "@/components/field-change-history";
@@ -77,39 +79,19 @@ export default async function ContactDetailPage({
   return (
     <div className="flex w-full flex-col">
       {/* ACT! Sub-header Navigation & Action Ribbon */}
-      <ActSubbar
-        module="contacts"
-        currentRecordIndex={position?.position ?? undefined}
-        totalRecords={position?.total}
-        firstHref={position && position.position && position.position > 1 ? hrefFor(position.first_id) : null}
-        prevHref={hrefFor(position?.prev_id ?? null)}
-        nextHref={hrefFor(position?.next_id ?? null)}
-        lastHref={
-          position && position.position && position.position < position.total ? hrefFor(position.last_id) : null
-        }
-      />
-
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
-        {/* Editorial Breadcrumb & Status */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2">
-            <Link
-              href="/contacts"
-              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Back to Contacts</span>
-            </Link>
-            <span className="text-muted-foreground/50">/</span>
-            <span className="text-xs font-medium text-muted-foreground">
-              {sourceLabel(contact.source_db)}
-            </span>
-            <span className="text-muted-foreground/50">/</span>
-            <span className="text-xs font-bold text-foreground truncate max-w-[240px]">
-              {name}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+        <PageHeader
+          crumbs={[{ label: "Contacts", href: "/contacts" }]}
+          title={name}
+          below={
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {contact.job_title && <span>{contact.job_title}</span>}
+              {contact.job_title && contact.company && <span aria-hidden="true">·</span>}
+              {contact.company && <Link href={`/companies/${contact.company.id}`} className="font-semibold text-primary hover:underline">{contact.company.name}</Link>}
+              <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(contact.source_db)}`}>{sourceLabel(contact.source_db)}</Badge>
+            </div>
+          }
+          actions={<>
             <RemindMeDialog contactId={contact.id} about={name} />
             <Button
               variant="outline"
@@ -128,18 +110,18 @@ export default async function ContactDetailPage({
               companyName={contact.company?.name}
               jobTitle={contact.job_title}
             />
-          </div>
-        </div>
+            <RecordPager noun="contact" position={position?.position} total={position?.total}
+              prevHref={hrefFor(position?.prev_id ?? null)} nextHref={hrefFor(position?.next_id ?? null)} />
+          </>}
+        />
 
         <RecordReminders reminders={reminders} />
 
-        {/* Tier 1: ACT! Authentic 3-Column Upper Form Card */}
-        <ActContactCard contact={contact} />
+                <ActContactCard contact={contact} />
 
         <FieldChangeHistory entityId={contact.id} fetchChanges={getContactFieldChanges} />
 
-        {/* Tier 2: ACT! Full-Width Bottom Sub-Workstation Tabs */}
-        <ActTabWorkstation contact={contact} />
+                <ActTabWorkstation contact={contact} />
       </div>
     </div>
   );

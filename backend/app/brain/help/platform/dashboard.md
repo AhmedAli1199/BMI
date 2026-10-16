@@ -10,7 +10,7 @@ The home page (**Home** in the menu, or the BMI name at the top of the menu) giv
 
 ## What you see
 From top to bottom:
-- **Header** - "Sales & Editorial Brain", with **Add contact**, **Add company** and **New group** buttons on the right. If your access is limited to one group, a line says "Showing <database> / <group> only".
+- **Header** - the Brain waving and a greeting ("Good morning, <your first name>"), with **Add contact**, **Add company** and **New group** buttons on the right. If your access is limited to one group, a line says "Showing <database> / <group> only".
 - **Database tiles** - only when you're looking at all titles. One tile per database you can see (for example OnBoard, Selling Travel, Prospects), each with its description and how many contacts it has. Administrators also get an **Add database** tile.
 - When one database is chosen instead, a line says "Showing <database> only", with **Show all titles** if you can see more than one.
 - **Three totals** - **Total Contacts**, **Companies** and **Groups**. Each one is a link to that list.

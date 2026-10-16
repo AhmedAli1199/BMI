@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 
 // THROWAWAY page - quick visibility into what email_summary.py's scan has
@@ -22,22 +21,11 @@ export default async function EmailSignalsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 sm:p-6 lg:p-8">
-      <div>
-        <Link
-          href="/automations"
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Automations
-        </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Email signals
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {rows.length} {rows.length === 1 ? "thing" : "things"} the Brain has picked out of client emails so far - budgets,
-          renewal dates, promised call-backs and the like - with how sure it was of each.
-        </p>
-      </div>
+      <PageHeader
+        title="Email signals"
+        crumbs={[{ label: "Automations Hub", href: "/automations" }]}
+        description={`${rows.length} ${rows.length === 1 ? "thing" : "things"} the Brain has picked out of client emails so far, such as budgets, renewal dates and promised call-backs, with how sure it was of each.`}
+      />
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-left text-xs">

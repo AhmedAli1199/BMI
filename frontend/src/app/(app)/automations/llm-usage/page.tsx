@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Coins, Sparkles } from "lucide-react";
+import { Coins } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import type { LlmUsageSummary } from "@/lib/types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -58,27 +59,19 @@ export default async function LlmUsagePage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div>
-        <Link
-          href="/automations/settings"
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Automations Settings
-        </Link>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Sparkles className="size-3.5" />
-          <span>Brain usage &amp; cost</span>
-        </div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          What the Brain costs
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Every time an automation or the chat asks the Brain, it's logged here with how much text it read and wrote and an
-          estimated cost in dollars from the prices set at the time. Estimates, not an invoice - check the provider&apos;s
-          own bill for exact figures.
-        </p>
-      </div>
+      <PageHeader
+        crumbs={[
+          { label: "Automations Hub", href: "/automations" },
+          { label: "Scanners & Settings", href: "/automations/engine" },
+        ]}
+        title="Brain usage & cost"
+        description={
+          <>
+            Every time an automation or the chat asks the Brain, it&apos;s logged here with how much text it read and wrote and an
+            estimated cost in dollars. Estimates, not an invoice - check the provider&apos;s own bill for exact figures.
+          </>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 rounded-lg border border-border/70 p-0.5">
@@ -148,7 +141,7 @@ export default async function LlmUsagePage({
         </CardHeader>
         <CardContent className="p-0">
           {summary.buckets.length === 0 ? (
-            <p className="p-4 text-xs text-muted-foreground">The Brain wasn't used in this range.</p>
+            <p className="p-4 text-xs text-muted-foreground">The Brain wasn&apos;t used in this range.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -184,7 +177,7 @@ export default async function LlmUsagePage({
         </CardHeader>
         <CardContent className="p-0">
           {summary.by_purpose.length === 0 ? (
-            <p className="p-4 text-xs text-muted-foreground">The Brain wasn't used in this range.</p>
+            <p className="p-4 text-xs text-muted-foreground">The Brain wasn&apos;t used in this range.</p>
           ) : (
             <Table>
               <TableHeader>

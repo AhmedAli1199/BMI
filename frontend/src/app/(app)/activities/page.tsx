@@ -2,9 +2,8 @@ import Link from "next/link";
 import { Search, Plus, Clock } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getPublicationFilter } from "@/lib/publication";
-import { listActivities, listPublications } from "@/lib/actions";
-import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
-import { PublicationQuickFilter } from "@/components/publication-quick-filter";
+import { listActivities } from "@/lib/actions";
+import { resolveScope } from "@/lib/access";
 import { CalendarRemindersHeader } from "@/components/calendar-reminders-header";
 import { InteractiveActivityTable } from "@/components/interactive-activity-table";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
@@ -37,11 +36,7 @@ export default async function ActivitiesPage({
   const selectedPriority = priorityParam && priorityParam !== "all" ? priorityParam : undefined;
   const searchQuery = qParam?.trim() || undefined;
 
-  const [rawSourceDb, session, allPublications] = await Promise.all([
-    getPublicationFilter(),
-    getSession(),
-    listPublications(),
-  ]);
+  const [rawSourceDb, session] = await Promise.all([getPublicationFilter(), getSession()]);
   const scope = resolveScope(session, rawSourceDb);
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
   // The database filter above scopes by title, not by person - by
@@ -54,10 +49,6 @@ export default async function ActivitiesPage({
   // back off, same as anyone else can toggle it either way.
   const mine =
     rawMine === "1" ? "1" : rawMine === "0" ? undefined : session?.role === "sales" ? "1" : undefined;
-  const publications =
-    session?.role === "admin"
-      ? allPublications
-      : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   const isCleared =
     status === "done" ? true : status === "open" || status === "overdue" ? false : undefined;
@@ -139,13 +130,6 @@ export default async function ActivitiesPage({
           />
         </>} />
 
-      {/* Publication Segmentation Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PublicationQuickFilter current={source_db} publications={publications} />
-        <span className="text-xs text-muted-foreground">
-          Tip: Click any subject or row to open full activity details &amp; notes
-        </span>
-      </div>
 
       {/* Filter Control Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-muted/20 p-2.5">

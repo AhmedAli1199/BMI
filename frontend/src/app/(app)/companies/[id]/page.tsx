@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, ArrowLeft, ExternalLink, FileText, Layers, Mail, ReceiptText, Users } from "lucide-react";
+import { ClipboardList, ExternalLink, FileText, Layers, Mail, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
@@ -14,10 +14,11 @@ import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline"
 import { cleanNoteBody } from "@/lib/notes";
 import { deleteCompanyNote } from "@/lib/actions";
 import { DeleteItemButton } from "@/components/delete-item-button";
-import { sourceLabel } from "@/lib/sources";
+import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
-import { ActSubbar } from "@/components/act-subbar";
+import { PageHeader } from "@/components/page-header";
+import { RecordPager } from "@/components/record-pager";
 import { Button } from "@/components/ui/button";
 import { RemindMeDialog } from "@/components/remind-me-dialog";
 import { RecordReminders } from "@/components/record-reminders";
@@ -75,40 +76,17 @@ export default async function CompanyDetailPage({
 
   return (
     <div className="flex w-full flex-col">
-      {/* ACT! Sub-header Navigation Ribbon */}
-      <ActSubbar
-        module="companies"
-        currentRecordIndex={position?.position ?? undefined}
-        totalRecords={position?.total}
-        firstHref={position && position.position && position.position > 1 ? hrefFor(position.first_id) : null}
-        prevHref={hrefFor(position?.prev_id ?? null)}
-        nextHref={hrefFor(position?.next_id ?? null)}
-        lastHref={
-          position && position.position && position.position < position.total ? hrefFor(position.last_id) : null
-        }
-      />
-
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 sm:p-6">
-        {/* Top Editorial Breadcrumb */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2">
-            <Link
-              href="/companies"
-              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ArrowLeft className="size-3.5" />
-              <span>Back to Companies</span>
-            </Link>
-            <span className="text-muted-foreground/50">/</span>
-            <span className="text-xs font-medium text-muted-foreground">
-              {sourceLabel(company.source_db)}
-            </span>
-            <span className="text-muted-foreground/50">/</span>
-            <span className="text-xs font-bold text-foreground truncate max-w-[240px]">
-              {company.name}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+        <PageHeader
+          crumbs={[{ label: "Companies", href: "/companies" }]}
+          title={company.name}
+          below={
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {company.industry && <span>{company.industry}</span>}
+              <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(company.source_db)}`}>{sourceLabel(company.source_db)}</Badge>
+            </div>
+          }
+          actions={<>
             <RemindMeDialog companyId={company.id} about={company.name} />
             <Button
               variant="outline"
@@ -140,12 +118,13 @@ export default async function CompanyDetailPage({
               <ClipboardList className="size-3.5" />
               New booking
             </Button>
-          </div>
-        </div>
+            <RecordPager noun="company" position={position?.position} total={position?.total}
+              prevHref={hrefFor(position?.prev_id ?? null)} nextHref={hrefFor(position?.next_id ?? null)} />
+          </>}
+        />
 
         <RecordReminders reminders={reminders} />
 
-        {/* Tier 1: ACT! Authentic 3-Column Upper Company Card */}
         <ActCompanyCard company={company} />
 
         <FieldChangeHistory entityId={company.id} fetchChanges={getCompanyFieldChanges} />

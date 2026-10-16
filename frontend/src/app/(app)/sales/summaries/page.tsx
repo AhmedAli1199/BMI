@@ -6,7 +6,8 @@ import { getSession } from "@/lib/session";
 import { canUseAutomations } from "@/lib/access";
 import type { ManagementAlert, WeeklySummary, WeeklySummaryListItem } from "@/lib/sales-types";
 import { RunJobButton } from "@/components/run-job-button";
-import { EmptyState, SalesHeader, SectionTitle, fmtDate } from "@/components/sales/sales-ui";
+import { EmptyState, SectionTitle, fmtDate } from "@/components/sales/sales-ui";
+import { PageHeader } from "@/components/page-header";
 
 const dateTime = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -24,9 +25,10 @@ export default async function SummariesPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <SalesHeader
+      <PageHeader
         title="Weekly summary & alerts"
-        description="The Monday leadership brief and the early-warning alerts for editions running behind last cycle. Every figure comes from the order register, the same numbers as the dashboard."
+        section="Sales"
+        description="The Monday brief for the leadership team, and early warnings for editions selling behind last time. The figures match the Sales overview."
         actions={
           <>
             <RunJobButton jobId="weekly_management_summary" />

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Mic } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { LIVE_STATUSES, PLATFORM_LABEL, type Call } from "@/lib/calls-types";
 import { SendNotetaker } from "@/components/calls/send-notetaker";
@@ -7,6 +6,7 @@ import { CallStatus } from "@/components/calls/call-status";
 import { AutoRefresh } from "@/components/calls/auto-refresh";
 import { CallsTabs } from "@/components/calls/calls-tabs";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -22,14 +22,11 @@ export default async function CallsPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {live && <AutoRefresh seconds={6} />}
-      <div>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary"><Mic className="size-3.5" /><span>Calls</span></div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">Call notes</h1>
-        <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
-          Send the notetaker into a Google Meet or Teams call. When the call ends, the summary, what was agreed and who&apos;s doing what
-          appear here and in your review queue, ready to save onto the contact.
-        </p>
-      </div>
+      <PageHeader
+        title="Call notes"
+        section="Everyday"
+        description="Send the notetaker into a Google Meet or Teams call. When it ends, the summary and who's doing what appear here and in your review queue."
+      />
       <CallsTabs active="calls" />
       {status.available ? (
         <SendNotetaker />

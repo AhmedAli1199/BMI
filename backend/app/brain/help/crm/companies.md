@@ -11,14 +11,13 @@ Companies lists every account in the CRM: advertisers, agencies and prospects, a
 ## What you see
 **The list**
 - "Companies", with how many accounts match, a **Search company name...** box and **Add company**.
-- Title chips (**All Titles** and one per database), the same title filter as the switcher at the top of the app.
 - A table: **Company**, **Industry**, **Contacts** (how many people are linked) and **Source** (the database badge). 50 a page, with **Previous** and **Next**.
 
 **A company's page**
-- The ribbon (**Contacts**, **Companies**, **Groups**, **List** / Detail and the record arrows).
-- **Back to Companies**, then **Remind me**, **Mail merge**, **Build a proposal** and **New booking**.
+- **Companies** above the name goes back to the list. Under the name: the industry and which database it's in.
+- On the right: **Remind me**, **Mail merge**, **Build a proposal**, **New booking**, and **Previous company** / **Next company** arrows with "3 of 5".
 - An amber strip with your own reminders about this company, if any.
-- The company card in three columns: Company Profile (Name, Industry, Phone, E-mail, Web Site), Headquarters Address, and Account Status & Scope (Category, Territory, Region, Employees, plus how many Linked Contacts and Logged Notes).
+- **Company details** in three columns (empty fields are hidden until you press **Edit Company**): Company Profile (Name, Industry, Phone, E-mail, Web Site), Headquarters Address, and Account Status & Scope (Category, Territory, Region, Employees, plus how many Linked Contacts and Logged Notes).
 - **History of changes**.
 - Tabs, each with a count: **Associated Contacts (<n>)**, **Activity & History (<n>)**, **Company Notes (<n>)**, **Bookings (<n>)** and **User Fields (<n>)**.
 
@@ -27,8 +26,8 @@ Companies lists every account in the CRM: advertisers, agencies and prospects, a
 ### Search company name...
 Type part of a company's name and press Enter. Only the name is searched.
 
-### Title chips (All Titles and each title)
-Show one database's companies, or all you can see. The choice also applies to Contacts, Groups and the Dashboard.
+### Which title (the switcher at the top of the app)
+To see one database's companies, or all you can see, use the **All Titles** switcher at the top of the app. The choice also applies to Contacts, Groups and Home.
 
 ### Add company
 Choose the **Database**, then type **Name**, **Industry**, **Category** and **Website**. **Add company** saves it and opens the new company. The name is required.
@@ -36,10 +35,10 @@ Choose the **Database**, then type **Name**, **Industry**, **Category** and **We
 ### A row in the list
 Opens the company. The record arrows on its page then step through the same list.
 
-### First Record, Previous Record, Next Record, Last Record
+### Previous company, Next company
 Step to the neighbouring company in the list you came from.
 
-### Back to Companies
+### Companies (above the name)
 Back to the list.
 
 ### Remind me
@@ -91,7 +90,7 @@ The Act! custom fields stored on this company, under their stored names.
 
 ## Common questions
 **Q: How do I find a company?**
-A: Type part of its name in **Search company name...** and press Enter. Check the title chips aren't limiting you to one database.
+A: Type part of its name in **Search company name...** and press Enter. Check the **All Titles** switcher at the top of the app isn't limiting you to one database.
 
 **Q: How do I add a new person who works at this company?**
 A: Open the company, stay on **Associated Contacts** and press **Add contact here**.

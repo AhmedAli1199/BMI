@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, CalendarClock, Users } from "lucide-react";
+import { CalendarClock, Users } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import type { ReviewKind, TodayItem } from "@/lib/types";
@@ -55,26 +56,17 @@ export default async function TodayPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div>
-        <Link
-          href="/automations"
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Automations
-        </Link>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <CalendarClock className="size-3.5" />
-          <span>Today</span>
-        </div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {view === "mine" ? "Your list for today" : "Everyone's list for today"}
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          {items.length.toLocaleString()} item{items.length === 1 ? "" : "s"} - budget windows, renewals and
-          promised call-backs that are due, plus overdue follow-ups.
-        </p>
-      </div>
+      <PageHeader
+        section="Everyday"
+        title="Today"
+        description={
+          <>
+            {view === "mine" ? "" : "Everyone's list. "}
+            {items.length.toLocaleString()} item{items.length === 1 ? "" : "s"} - budget windows, renewals and
+            promised call-backs that are due, plus overdue follow-ups.
+          </>
+        }
+      />
 
       {canViewEveryone && (
         <div className="flex items-center gap-2">

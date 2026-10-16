@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, HeartPulse, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, ShieldAlert, ShieldCheck } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import type { DataHealthMetric, DataHealthStats } from "@/lib/types";
 import { canUseAutomations } from "@/lib/access";
@@ -116,22 +117,17 @@ export default async function DataHealthPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-5">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-            <HeartPulse className="size-3.5" aria-hidden="true" />
-            <span>BMI Brain · Data Health</span>
-          </div>
-          <h1 className="editorial-title text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Data Health
-          </h1>
-          <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
+      <PageHeader
+        section="The Brain"
+        title="Data Health"
+        description={
+          <>
             Record completeness across {health.total_contacts.toLocaleString()} contacts and{" "}
             {health.total_companies.toLocaleString()} companies, plus every hygiene automation&apos;s
             backlog - one place to see what&apos;s dragging on data quality and jump straight to fixing it.
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="editorial-card h-full overflow-hidden">

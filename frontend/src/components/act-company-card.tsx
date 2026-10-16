@@ -1,29 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
-import {
-  Building2,
-  Check,
-  Copy,
-  ExternalLink,
-  Globe,
-  Mail,
-  MapPin,
-  Pencil,
-  Phone,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Check, Copy, ExternalLink, Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import type { CompanyDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 import { updateCompany, saveCompanyPhone, saveCompanyEmail, saveCompanyAddress } from "@/lib/actions";
+
+// A field row: label on the left, value next to it. Empty fields are hidden while viewing (Edit shows them all).
+const ROW = "grid grid-cols-[7.5rem_minmax(0,1fr)] items-baseline gap-2";
+const ROW_VIEW = `${ROW} [&:has([data-empty])]:hidden`;
+const EMPTY = <span data-empty="" className="text-muted-foreground/50">—</span>;
 
 export function ActCompanyCard({ company }: { company: CompanyDetail }) {
   const [editing, setEditing] = useState(false);
@@ -130,32 +120,8 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
   return (
     <Card className="overflow-hidden border border-border/90 bg-card shadow-2xs">
       {/* Identity Header Bar */}
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border/80 bg-muted/20 px-5 py-3">
-        <div className="flex items-center gap-3.5">
-          <div className="brand-icon size-11 text-primary">
-            <Building2 className="size-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="editorial-title text-xl font-bold tracking-tight text-foreground">
-                {company.name}
-              </h1>
-              <Badge
-                variant="outline"
-                className={`text-[11px] font-medium ${publicationBadgeStyle(
-                  company.source_db
-                )}`}
-              >
-                {sourceLabel(company.source_db)}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {company.industry && <span>{company.industry}</span>}
-              {company.industry && company.territory && <span>·</span>}
-              {company.territory && <span>{company.territory}</span>}
-            </div>
-          </div>
-        </div>
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/80 px-5 py-2.5">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Company details</span>
 
         {/* Action Controls (Edit / Save / Cancel) */}
         <div className="flex items-center gap-2">
@@ -195,7 +161,7 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
         </div>
       </CardHeader>
 
-      {/* ACT! 3-Column Upper Company Card */}
+      
       <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 text-xs">
         {/* COLUMN 1: Company Profile & Web */}
         <div className="flex flex-col gap-2.5">
@@ -206,8 +172,8 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
           </div>
 
           {/* Company Name */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Name:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Name</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -215,15 +181,15 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 onChange={(e) => setName(e.target.value)}
               />
             ) : (
-              <span className="font-semibold text-foreground truncate flex-1 text-right">
+              <span className="font-semibold text-foreground truncate min-w-0 text-left">
                 {company.name}
               </span>
             )}
           </div>
 
           {/* Industry */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Industry:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Industry</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -231,15 +197,15 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 onChange={(e) => setIndustry(e.target.value)}
               />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {company.industry || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {company.industry || EMPTY}
               </span>
             )}
           </div>
 
           {/* Phone */}
           <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
-            <span className="w-24 shrink-0 text-muted-foreground">Phone:</span>
+            <span className="w-24 shrink-0 text-muted-foreground">Phone</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -265,13 +231,13 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 </button>
               </div>
             ) : (
-              <span className="text-muted-foreground">—</span>
+              EMPTY
             )}
           </div>
 
           {/* E-mail */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">E-mail:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">E-mail</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -297,13 +263,13 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 </button>
               </div>
             ) : (
-              <span className="text-muted-foreground">—</span>
+              EMPTY
             )}
           </div>
 
           {/* Web Site */}
           <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
-            <span className="w-24 shrink-0 text-muted-foreground">Web Site:</span>
+            <span className="w-24 shrink-0 text-muted-foreground">Web Site</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -322,7 +288,7 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 <ExternalLink className="size-3" />
               </a>
             ) : (
-              <span className="text-muted-foreground">—</span>
+              EMPTY
             )}
           </div>
         </div>
@@ -335,68 +301,68 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
             </span>
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Address 1:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Address 1</span>
             {editing ? (
               <Input className="h-7 text-xs flex-1" value={addrLine1} onChange={(e) => setAddrLine1(e.target.value)} />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {primaryAddress?.line1 || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {primaryAddress?.line1 || EMPTY}
               </span>
             )}
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Address 2:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Address 2</span>
             {editing ? (
               <Input className="h-7 text-xs flex-1" value={addrLine2} onChange={(e) => setAddrLine2(e.target.value)} />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {primaryAddress?.line2 || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {primaryAddress?.line2 || EMPTY}
               </span>
             )}
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">City:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">City</span>
             {editing ? (
               <Input className="h-7 text-xs flex-1" value={addrCity} onChange={(e) => setAddrCity(e.target.value)} />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {primaryAddress?.city || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {primaryAddress?.city || EMPTY}
               </span>
             )}
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">County / State:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">County / State</span>
             {editing ? (
               <Input className="h-7 text-xs flex-1" value={addrState} onChange={(e) => setAddrState(e.target.value)} />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {primaryAddress?.state || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {primaryAddress?.state || EMPTY}
               </span>
             )}
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Postal Code:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Postal Code</span>
             {editing ? (
               <Input className="h-7 text-xs flex-1 font-mono" value={addrPostal} onChange={(e) => setAddrPostal(e.target.value)} />
             ) : (
-              <span className="font-mono font-medium text-foreground truncate flex-1 text-right">
-                {primaryAddress?.postal_code || "—"}
+              <span className="font-mono font-medium text-foreground truncate min-w-0 text-left">
+                {primaryAddress?.postal_code || EMPTY}
               </span>
             )}
           </div>
 
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Country:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Country</span>
             {editing ? (
               <Input className="h-7 text-xs flex-1" value={addrCountry} onChange={(e) => setAddrCountry(e.target.value)} />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {primaryAddress?.country || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {primaryAddress?.country || EMPTY}
               </span>
             )}
           </div>
@@ -411,8 +377,8 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
           </div>
 
           {/* Category */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Category:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Category</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -427,8 +393,8 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
           </div>
 
           {/* Territory */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Territory:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Territory</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -436,15 +402,15 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 onChange={(e) => setTerritory(e.target.value)}
               />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {company.territory || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {company.territory || EMPTY}
               </span>
             )}
           </div>
 
           {/* Region */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Region:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Region</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -452,15 +418,15 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
                 onChange={(e) => setRegion(e.target.value)}
               />
             ) : (
-              <span className="font-medium text-foreground truncate flex-1 text-right">
-                {company.region || "—"}
+              <span className="font-medium text-foreground truncate min-w-0 text-left">
+                {company.region || EMPTY}
               </span>
             )}
           </div>
 
           {/* Employees */}
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="w-24 shrink-0 text-muted-foreground">Employees:</span>
+          <div className={editing ? ROW : ROW_VIEW}>
+            <span className="w-24 shrink-0 text-muted-foreground">Employees</span>
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
@@ -470,21 +436,21 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
               />
             ) : (
               <span className="font-semibold text-foreground">
-                {company.num_employees ? company.num_employees.toLocaleString() : "—"}
+                {company.num_employees ? company.num_employees.toLocaleString() : EMPTY}
               </span>
             )}
           </div>
 
           {/* Linked Contacts Count */}
           <div className="flex items-baseline justify-between gap-2 pt-2 border-t border-border/40 text-[11px]">
-            <span className="text-muted-foreground">Linked Contacts:</span>
+            <span className="text-muted-foreground">Linked Contacts</span>
             <span className="font-bold text-primary">
               {company.contacts.length} people
             </span>
           </div>
 
           <div className="flex items-baseline justify-between text-[11px]">
-            <span className="text-muted-foreground">Logged Notes:</span>
+            <span className="text-muted-foreground">Logged Notes</span>
             <span className="font-semibold text-foreground">
               {company.notes.length} entries
             </span>

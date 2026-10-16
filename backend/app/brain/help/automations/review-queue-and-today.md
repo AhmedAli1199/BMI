@@ -10,7 +10,7 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 
 ## What you see
 **Review Queue**
-- The title shows the chosen automation's name, or "Everything waiting on you", plus how many cards are waiting.
+- The title shows the chosen automation's name, or "Review Queue", plus how many cards are waiting.
 - Tabs: **Pending** (the working queue), **Approved** and **Rejected** (what was decided, read-only).
 - A row of chips: **All**, then one chip per kind of card, each with its waiting count. Kinds with nothing waiting are greyed and sit at the end.
 - The sort buttons on the right.
@@ -34,7 +34,7 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 **Approved and Rejected rows** show what was pressed, by whom ("· no reviewer recorded" if nobody was signed in), when, and any note. They also show **Open contact record** / **Open company record**, the person's name, company, email and phone, the details and the **Original message**.
 
 **Today**
-- "Your list for today" or "Everyone's list for today", with a count.
+- The title "Today", with a count. On the Everyone view the line starts "Everyone's list."
 - Administrators and data managers get **My list** and **Everyone** switches. Everyone groups the cards by salesperson, with Unassigned last.
 - The same cards as in the Review Queue, best first.
 

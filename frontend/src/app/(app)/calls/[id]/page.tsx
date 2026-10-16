@@ -1,11 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { LIVE_STATUSES, PLATFORM_LABEL, type Call } from "@/lib/calls-types";
 import { CallStatus } from "@/components/calls/call-status";
 import { AutoRefresh } from "@/components/calls/auto-refresh";
 import { CallActions } from "@/components/calls/call-actions";
+import { PageHeader } from "@/components/page-header";
 
 function clock(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -33,20 +33,20 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {live && <AutoRefresh seconds={5} />}
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/80 pb-5">
-        <div className="min-w-0">
-          <Link href="/calls" className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Call notes</Link>
-          <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">{c.title || n?.title || "Call"}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <PageHeader
+        title={c.title || n?.title || "Call"}
+        crumbs={[{ label: "Call notes", href: "/calls" }]}
+        below={
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <CallStatus status={c.status} label={c.status_label} />
             {c.status_detail && <span>{c.status_detail}</span>}
             <span>· {PLATFORM_LABEL[c.platform ?? ""] ?? "Call"}</span>
             <a href={c.meeting_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:underline">meeting link <ExternalLink className="size-3" /></a>
             {c.participants.length > 0 && <span>· {c.participants.join(", ")}</span>}
           </div>
-        </div>
-        <CallActions call={c} />
-      </div>
+        }
+        actions={<CallActions call={c} />}
+      />
 
       {live && (
         <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">

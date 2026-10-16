@@ -11,7 +11,7 @@ Each brand (Onboard Hospitality, The Business Travel Magazine, Selling Travel) h
 You get here from the editorial plan: click **Deadline rules & sections** on a brand's card, or the "<brand>'s settings" link under Regular sections on an issue page.
 
 ## What you see
-- **Breadcrumb:** **Editorial plan** > "<brand> settings", and the heading "<brand>: deadlines and regular sections".
+- **Breadcrumb:** **Editorial plan** > "<brand> settings", and the heading "<brand> settings".
 - **Usual deadlines:** one line per rule, reading like a sentence - "<deadline name> is <number> days before publication" or "<deadline name> is the <day> of the month before". Under each is a worked example, for an issue out on Thursday 11 June.
 - **Regular sections:** the standing sections, each with a name and an optional "What it is".
 - **About the publishing schedule:** a short paragraph, for example "Quarterly magazine, published to coincide with the industry's key trade shows."

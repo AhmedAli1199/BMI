@@ -2,7 +2,6 @@ import Link from "next/link";
 import { InvoiceMatchPanel } from "@/components/sales/invoice-match-panel";
 import {
   ArrowDownWideNarrow,
-  ArrowLeft,
   ArrowUpNarrowWide,
   Building2,
   Check,
@@ -14,9 +13,9 @@ import {
   Mail,
   PartyPopper,
   Phone,
-  Sparkles,
   UserCircle,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
 import { cleanNoteBody } from "@/lib/notes";
@@ -127,26 +126,16 @@ export default async function ReviewQueuePage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div>
-        <Link
-          href="/automations"
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Automations
-        </Link>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Sparkles className="size-3.5" />
-          <span>Review queue</span>
-        </div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {activeDef ? activeDef.label : "Everything waiting on you"}
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          {totalPending.toLocaleString()} item{totalPending === 1 ? "" : "s"} waiting
-          {activeKind ? " in this filter" : " across every automation"} - work through them in any order.
-        </p>
-      </div>
+      <PageHeader
+        section="The Brain"
+        title={activeDef ? activeDef.label : "Review Queue"}
+        description={
+          <>
+            {totalPending.toLocaleString()} item{totalPending === 1 ? "" : "s"} waiting
+            {activeKind ? " in this filter" : " across every automation"} - work through them in any order.
+          </>
+        }
+      />
 
       {/* Status tabs - Pending is the working queue (the only one
           ReviewItemCard renders full actions for); Approved/Rejected are

@@ -1,24 +1,18 @@
 import Link from "next/link";
-import { ArrowLeft, FileSpreadsheet, Upload } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
 import { listImports } from "@/lib/contact-tools-actions";
 import { ImportUpload } from "@/components/contacts/import/import-upload";
+import { PageHeader } from "@/components/page-header";
 
 export default async function ImportContactsPage() {
   const recent = await listImports().catch(() => []);
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6">
-      <div className="border-b border-border/80 pb-4">
-        <Link href="/contacts" className="mb-1 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-3.5" /> Contacts
-        </Link>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Upload className="size-3.5" /> Import
-        </div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Import contacts</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Add people from an Excel sheet, a CSV file or a PDF. We match the columns for you, check for people who are already in the CRM, and show you everything before it&apos;s saved.
-        </p>
-      </div>
+      <PageHeader
+        title="Import contacts"
+        crumbs={[{ label: "Contacts", href: "/contacts" }]}
+        description="Add people from an Excel sheet, a CSV file or a PDF. We match the columns, check for people already in the CRM, and show you everything before it's saved."
+      />
 
       <ImportUpload />
 

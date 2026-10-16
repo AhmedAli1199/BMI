@@ -10,16 +10,16 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 
 ## What you see
 **The list (Contacts)**
-- Header with the number of contacts that match, and buttons: **Import**, **Copy emails**, **Bulk update**, **Export**, **Mail merge** and **Add contact**. If your access is limited to one group, a line says "Showing <group> only".
-- The lookup box: a search box plus **Company**, **City / town**, **Country** and **Job title** boxes, the **Look up** button, and **Advanced search** underneath.
-- Title chips (**All Titles** and one per database). This is the same title filter as the switcher at the top of the app, so it also applies to Companies, Groups and the Dashboard until you change it back.
+- Header with the number of contacts that match, and the buttons **Import** and **Add contact**. If your access is limited to one group, a line says "Showing <group> only".
+- The lookup box: a search box plus **Company**, **City / town**, **Country** and **Job title** boxes, the **Look up** button (with an ⓘ that explains the search), and **Advanced search** underneath.
+- A bar "With these <n> contacts:" and the buttons **Copy emails**, **Bulk update**, **Export** and **Mail merge**, which work on everyone the lookup found.
 - The table: tick box, **Contact & Title**, **Company**, **Location**, **Email** and **Publication** (a coloured badge for the database the person belongs to). 50 a page, with **← Previous** and **Next →** at the bottom.
 
 **A contact's page**
-- A ribbon with **Contacts**, **Companies** and **Groups**, a **List** / Detail switch, and arrows to step through the list you came from ("12 of 340").
-- **Back to Contacts**, then **Remind me**, **Write**, **Email from a template** and **Duplicate**.
+- **Contacts** above the name goes back to the list. Under the name: their job title, their company (click to open it) and which database they're in.
+- On the right: **Remind me**, **Write**, **Email from a template**, **Duplicate**, and **Previous contact** / **Next contact** arrows with "12 of 340" to step through the list you came from.
 - An amber strip with your own open reminders about this person (red once overdue).
-- The record card in three columns: Business Card (company, title, department, phone, mobile, e-mail), Address & Web, and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
+- **Contact details** in three columns (empty fields are hidden until you press **Edit Record**): Business Card (company, title, department, phone, mobile, e-mail), Address & Web, and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
 - **History of changes** (closed until you click it).
 - Tabs: **Activities (<n>)**, **Notes (<n>)**, **History (<n>)**, **Groups (<n>)**, **Magazine & Issues** and **User Fields (<n>)**, with one search box that searches the first three at once.
 
@@ -37,8 +37,8 @@ Opens rules of the form field / how / value, for example Postcode **starts with*
 ### Column headings (Contact & Title, Company, Location, Email)
 Click to sort, click again to reverse. Location sorts by town. **Publication** does not sort.
 
-### Title chips (All Titles and each title)
-Show one database, or all of the ones you can see. **All Titles** only appears if you have more than one.
+### Which title (the switcher at the top of the app)
+To see one title's database, or all the ones you can see, use the **All Titles** switcher at the top of the app. It also applies to Companies, Groups, Calendar & Reminders and Home until you change it back.
 
 ### Tick boxes and the selection bar
 Tick people (or the top box for the whole page). A bar appears with "<n> contacts selected" and:
@@ -71,7 +71,7 @@ Opens Mail merge with this lookup (including any advanced search) already chosen
 ### Add contact
 Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
 
-### The record arrows (First Record, Previous Record, Next Record, Last Record)
+### Previous contact, Next contact
 Step through the same list, in the same order, that you opened the contact from.
 
 ### Remind me
@@ -183,7 +183,7 @@ A: Contacts > **Import** > **Choose a file**. Check the matched columns, choose 
 A: Open them and click **History of changes**.
 
 ## If something doesn't work
-- **"No contacts match this lookup"**: one of the boxes or rules is too narrow. Press the X next to **Look up** to start again, and check the title chips aren't set to one database.
+- **"No contacts match this lookup"**: one of the boxes or rules is too narrow. Press the X next to **Look up** to start again, and check the **All Titles** switcher at the top of the app isn't set to one database.
 - **I can't find someone I know is there**: they may be in a database or group you haven't been given. Ask an administrator.
 - **Bulk update doesn't list email, phone or address**: those can't be changed in bulk. Edit them on each contact.
 - **"Change <n> contacts" is greyed out**: the preview found nothing to change ("already match"). If you change any choice after the preview, press **See what will change** again.

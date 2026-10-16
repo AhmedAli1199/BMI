@@ -5,6 +5,7 @@ import type { Deadline, Planner } from "@/lib/editorial-types";
 import { Button } from "@/components/ui/button";
 import { YearSwitch } from "@/components/sales/sales-ui";
 import { InfoHint } from "@/components/sales/info-hint";
+import { PageHeader } from "@/components/page-header";
 import { YearPlanner, PlannerLegend } from "@/components/editorial/year-planner";
 import { IssueList } from "@/components/editorial/issue-list";
 import { DeadlinesList } from "@/components/editorial/deadlines-list";
@@ -43,17 +44,17 @@ export default async function EditorialPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-5">
-        <div className="min-w-0">
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary"><CalendarRange className="size-3.5" aria-hidden="true" /> Editorial plan</p>
-          <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Editorial plan</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Every brand&apos;s issues, specials and events for the year - with their deadlines and the features planned for each. Proposals and renewal emails use it to pitch the right issue.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 print-hide">
-          <AddIssueButton brands={plan.brands} year={year} />
-          {view !== "deadlines" && <YearSwitch years={plan.years} current={year} href={(y) => href({ year: String(y) })} />}
-        </div>
-      </div>
+      <PageHeader
+        title="Editorial plan"
+        section="Editorial"
+        description="Every brand's issues, specials and events for the year, with their deadlines and planned features. Proposals and renewal emails use it to pitch the right issue."
+        actions={
+          <div className="flex flex-wrap items-center gap-2 print-hide">
+            <AddIssueButton brands={plan.brands} year={year} />
+            {view !== "deadlines" && <YearSwitch years={plan.years} current={year} href={(y) => href({ year: String(y) })} />}
+          </div>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3 print-hide">
         <nav aria-label="View" className="flex items-center gap-0.5 rounded-lg border border-border/80 bg-card p-0.5">

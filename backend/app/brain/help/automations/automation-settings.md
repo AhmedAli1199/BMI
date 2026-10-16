@@ -6,10 +6,10 @@ sources: ["frontend/src/app/(app)/automations/settings/page.tsx", "frontend/src/
 ---
 
 ## What this screen is for
-Automations > Settings ("Tune every scan") holds every setting for the background automations: which ones are switched on, which inboxes they read, how far back they look, how many cards they make per run, and the business rules for bookings and reports. Open it from **Scanners & Settings** > **Automation settings**.
+Automation settings holds every setting for the background automations: which ones are switched on, which inboxes they read, how far back they look, how many cards they make per run, and the business rules for bookings and reports. Open it from **Scanners & Settings** > **Automation settings**.
 
 ## What you see
-- A back link, **Scanners & Settings**, and **View Brain usage & cost →**.
+- A breadcrumb back to **Automations Hub** and **Scanners & Settings**, and **View Brain usage & cost →** on the right.
 - One card per group of settings, for example "Deliverability & Out-of-Office".
 - Each setting has its name, an (i) to hover over for a description, and a **Customized** badge when it differs from its starting value. Then:
   - a tick box saying **Enabled** or **Disabled**, or

@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { MergeField, TemplateKind } from "@/lib/messaging-types";
 import { BRAND_LABEL, TEMPLATE_KIND_LABEL } from "@/lib/messaging-types";
@@ -13,6 +12,7 @@ import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/sales/info-hint";
+import { PageHeader } from "@/components/page-header";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 import { EmailBodyView, RichEmailEditor, type RichEmailEditorHandle } from "@/components/mail-merge/rich-email-editor";
 
@@ -87,26 +87,20 @@ export function TemplateEditor({ draft, fields, titles }: { draft: TemplateDraft
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/80 pb-5">
-        <div className="min-w-0">
-          <Link href="/mail-merge/templates" className="mb-1.5 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-3.5" /> Email templates
-          </Link>
-          <h1 className="editorial-title truncate text-2xl font-bold tracking-tight sm:text-3xl">{d.id ? (d.name || "Change template") : "New template"}</h1>
-          <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
-            Use merge fields for anything that changes: the contact&apos;s name, the brand&apos;s figures, the issue and feature. Write {"{{first_name|there}}"} to say &quot;there&quot; when a name is missing.
-          </p>
-          {d.needs_check && <p className="mt-2 text-xs font-medium" style={{ color: "var(--warn)" }}>Brought over from ACT - read it through and update old dates, prices or links. Saving marks it as checked.</p>}
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title={d.id ? (d.name || "Untitled template") : "New template"}
+        crumbs={[{ label: "Email templates", href: "/mail-merge/templates" }]}
+        description={<>Use merge fields for anything that changes, like the contact&apos;s name or the issue. Write {"{{first_name|there}}"} to say &quot;there&quot; when a name is missing.</>}
+        below={d.needs_check ? <p className="text-xs font-medium" style={{ color: "var(--warn)" }}>Brought over from ACT - read it through and update old dates, prices or links. Saving marks it as checked.</p> : undefined}
+        actions={<>
           {d.id && <Button variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" disabled={pending} onClick={() => {
             if (!window.confirm(`Delete “${d.name}”?`)) return;
             start(async () => { try { await deleteTemplate(d.id!); setDirty(false); toast.success("Deleted"); back(); router.refresh(); } catch (e) { toast.error(friendlyError(e, "Couldn't delete it")); } });
           }}><Trash2 className="size-3.5" /> Delete</Button>}
           <Button variant="outline" onClick={() => { if (!dirty || window.confirm("Leave without saving your changes?")) back(); }}>Cancel</Button>
           <Button disabled={pending || !d.name.trim()} onClick={save}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save</Button>
-        </div>
-      </div>
+        </>}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="flex min-w-0 flex-col gap-5">

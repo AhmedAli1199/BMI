@@ -10,6 +10,7 @@ import { GroupMembersTable } from "@/components/group-members-table";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteGroup } from "@/lib/actions";
+import { PageHeader } from "@/components/page-header";
 
 export default async function GroupDetailPage({
   params,
@@ -42,41 +43,42 @@ export default async function GroupDetailPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{group.name}</h1>
-          {group.description && <p className="text-sm text-muted-foreground">{group.description}</p>}
-        </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<a href={`/api/files/groups/${group.id}/export`} download />}
-            title="Download every member (including sub-groups) as an Excel sheet"
-          >
-            <Download className="size-4" />
-            Export
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/mail-merge?group=${group.id}`} />}
-          >
-            <Mail className="size-4" />
-            Mail merge
-          </Button>
-          <GroupFormDialog existing={group} />
-          <DeleteEntityButton
-            entityLabel={group.name}
-            id={group.id}
-            action={deleteGroup}
-            redirectTo="/groups"
-            description="This can't be undone. Contacts in this group are not deleted - only their membership in this group is removed. Any sub-groups nested under it are kept, just detached (no longer nested here)."
-          />
-        </div>
-      </div>
+      <PageHeader
+        title={group.name}
+        crumbs={[{ label: "Groups", href: "/groups" }]}
+        description={group.description || undefined}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<a href={`/api/files/groups/${group.id}/export`} download />}
+              title="Download every member (including sub-groups) as an Excel sheet"
+            >
+              <Download className="size-4" />
+              Export
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/mail-merge?group=${group.id}`} />}
+            >
+              <Mail className="size-4" />
+              Mail merge
+            </Button>
+            <GroupFormDialog existing={group} />
+            <DeleteEntityButton
+              entityLabel={group.name}
+              id={group.id}
+              action={deleteGroup}
+              redirectTo="/groups"
+              description="This can't be undone. Contacts in this group are not deleted - only their membership in this group is removed. Any sub-groups nested under it are kept, just detached (no longer nested here)."
+            />
+          </>
+        }
+      />
 
       <Card>
         <CardHeader>

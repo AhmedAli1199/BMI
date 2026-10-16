@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Settings2, Sparkles } from "lucide-react";
+import { Settings2 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { isAdmin } from "@/lib/access";
@@ -19,33 +20,26 @@ export default async function AutomationSettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div>
-        <Link
-          href="/automations/engine"
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
-          Scanners &amp; Settings
-        </Link>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Sparkles className="size-3.5" />
-          <span>Automations · Settings</span>
-        </div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Tune every scan
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          {readOnly
+      <PageHeader
+        crumbs={[
+          { label: "Automations Hub", href: "/automations" },
+          { label: "Scanners & Settings", href: "/automations/engine" },
+        ]}
+        title="Automation settings"
+        description={
+          readOnly
             ? "You can see every setting here. Only administrators can change them - ask one if something needs adjusting."
-            : <>Changes take effect automatically on the next scheduled run or when you click &quot;Run now&quot;.</>}
-        </p>
-        <Link
-          href="/automations/llm-usage"
-          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary hover:underline"
-        >
-          View Brain usage &amp; cost &rarr;
-        </Link>
-      </div>
+            : <>Changes take effect automatically on the next scheduled run or when you click &quot;Run now&quot;.</>
+        }
+        actions={
+          <Link
+            href="/automations/llm-usage"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary hover:underline"
+          >
+            View Brain usage &amp; cost &rarr;
+          </Link>
+        }
+      />
 
       <div className="flex flex-col gap-4">
         {[...groups.entries()].map(([group, items]) => (

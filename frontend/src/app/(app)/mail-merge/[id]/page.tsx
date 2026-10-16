@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Clock, Loader2, Paperclip, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, Paperclip, XCircle } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { MailMergeDetail } from "@/lib/messaging-types";
 import { Badge } from "@/components/ui/badge";
 import { MergeProgressControls } from "@/components/mail-merge/merge-progress-controls";
+import { PageHeader } from "@/components/page-header";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   queued: { label: "Starting", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30" },
@@ -28,14 +29,11 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6">
-      <Link href="/mail-merge/history" className="flex w-fit items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-3.5" />
-        Mail merges
-      </Link>
-
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/80 pb-4">
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-2">
+      <PageHeader
+        title={m.subject || "(no subject)"}
+        crumbs={[{ label: "Mail merge", href: "/mail-merge" }, { label: "Sent mail merges", href: "/mail-merge/history" }]}
+        below={<>
+          <div className="flex items-center gap-2">
             <Badge variant="outline" className={s.cls}>
               {(m.status === "sending" || m.status === "queued") && <Loader2 className="mr-1 size-3 animate-spin" />}
               {s.label}
@@ -45,11 +43,10 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
               {m.source_label ? ` · ${m.source_label}` : ""}
             </span>
           </div>
-          <h1 className="editorial-title truncate text-2xl font-bold tracking-tight">{m.subject || "(no subject)"}</h1>
           {m.error && <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{m.error}</p>}
-        </div>
-        <MergeProgressControls id={m.id} status={m.status} failed={m.failed} noEmailCount={noEmail} />
-      </div>
+        </>}
+        actions={<MergeProgressControls id={m.id} status={m.status} failed={m.failed} noEmailCount={noEmail} />}
+      />
 
       <div className="flex flex-col gap-2">
         <div className="h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>

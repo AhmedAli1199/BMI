@@ -90,8 +90,8 @@ Administrators only, on the four scanners that remember where they got to in eac
 ### 7 days / 30 days / 90 days and By hour / By day
 On Brain usage & cost. They choose the period (30 days to start with) and whether the usage table is grouped by day or by hour.
 
-### Automations Settings (back link)
-On Brain usage & cost, it goes back to the settings page. On the Email signals page, **Automations** goes back to the Overview.
+### Automations Hub and Scanners & Settings (breadcrumb)
+On Automation settings and Brain usage & cost, the breadcrumb above the title takes you back to **Automations Hub** or **Scanners & Settings**. On the Email signals page, **Automations Hub** in the breadcrumb goes back to the Overview.
 
 ## How it works
 - Every scanner has an on/off setting in Automations > Settings. Most are off until switched on. Reminders, notification emails, mail merge sending, the Xero sync, the shared calendar, the Brain search index, Ready to invoice reminders and the weekly example-link check start on. Switching one changes its next scheduled run, with no restart.

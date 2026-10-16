@@ -4,6 +4,8 @@ import { backendFetch } from "@/lib/backend";
 import type { DashboardStats, Page, ReviewQueueItem, UserPreferences } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
+import { PageHeader } from "@/components/page-header";
+import { BrainBuddy } from "@/components/brain/brain-buddy";
 import { listPublications } from "@/lib/actions";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
 import { styleForKind } from "@/lib/automation-style";
@@ -33,6 +35,12 @@ function timeAgo(iso: string): string {
   const days = Math.round(hours / 24);
   if (days < 30) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+/** "Good morning" etc. by the time in London, where BMI is. */
+function greeting() {
+  const h = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/London" }).format(new Date()));
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
 export default async function DashboardPage() {
@@ -146,30 +154,24 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
-      {/* Editorial Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-1">
-            <Sparkles className="size-3.5" />
-            <span>BMI Publishing Intelligence</span>
-          </div>
-          <h1 className="editorial-title text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Sales &amp; Editorial Brain
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
-            Unified audience database, commercial advertising tracking, and circulation management across every BMI media brand.
-          </p>
-          {scope.group_name && (
-            <p className="mt-1 text-[11px] font-medium text-primary">
-              Showing {accessLabel({ source_db: sourceDb, group_id: scope.group_id, group_name: scope.group_name })} only
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <ContactFormDialog defaultSourceDb={sourceDb} />
-          <CompanyFormDialog defaultSourceDb={sourceDb} />
-          <GroupFormDialog />
+      <div className="flex flex-wrap items-center gap-4">
+        <BrainBuddy mood="waving" size={72} className="shrink-0" />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            section="BMI Brain"
+            title={`${greeting()}${session?.name ? `, ${session.name.split(" ")[0]}` : ""}`}
+            description="Your clients, titles and what the Brain picked up overnight, in one place."
+            below={scope.group_name ? (
+              <p className="text-[11px] font-medium text-primary">
+                Showing {accessLabel({ source_db: sourceDb, group_id: scope.group_id, group_name: scope.group_name })} only
+              </p>
+            ) : undefined}
+            actions={<>
+              <ContactFormDialog defaultSourceDb={sourceDb} />
+              <CompanyFormDialog defaultSourceDb={sourceDb} />
+              <GroupFormDialog />
+            </>}
+          />
         </div>
       </div>
 

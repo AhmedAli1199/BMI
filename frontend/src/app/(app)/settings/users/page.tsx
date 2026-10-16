@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert, Sparkles, Users } from "lucide-react";
+import { ShieldAlert, Users } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { getSession } from "@/lib/session";
 import { canManageUsers } from "@/lib/access";
 import { listPublications, listRoles, listTeamUsers } from "@/lib/actions";
@@ -30,31 +31,17 @@ export default async function TeamSettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="border-b border-border/80 pb-5">
-        <Link
-          href="/settings"
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Settings
-        </Link>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Sparkles className="size-3.5" />
-          <span>Team &amp; access</span>
-        </div>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Who can see what
-            </h1>
-            <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
-              Each account gets a role (what they can do) and one or more database/group grants (what data they
-              can see). A role alone never grants access to data — see each role&apos;s description below.
-            </p>
-          </div>
-          <UserFormDialog roles={roles} publications={publications} />
-        </div>
-      </div>
+      <PageHeader
+        crumbs={[{ label: "Settings", href: "/settings" }]}
+        title="Team & access"
+        description={
+          <>
+            Each account gets a role (what they can do) and one or more database/group grants (what data they can see). A role
+            alone never grants access to data — see each role&apos;s description below.
+          </>
+        }
+        actions={<UserFormDialog roles={roles} publications={publications} />}
+      />
 
       {/* Role reference - shown once, plainly, so nobody has to guess what
           "Data Manager" actually means before picking it. */}

@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowLeft, FileText, Mail, Plus } from "lucide-react";
+import { FileText, Mail, Plus } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { MailMergeSummary } from "@/lib/messaging-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 
 const LABEL: Record<string, string> = {
   queued: "Starting",
@@ -19,20 +20,17 @@ export default async function MailMergeHistoryPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6">
-      <Link href="/mail-merge" className="flex w-fit items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="size-3.5" />
-        Mail merge
-      </Link>
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/80 pb-4">
-        <div>
-          <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">Your mail merges</h1>
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">Emails you&apos;ve sent and letters you&apos;ve logged, newest first.</p>
-        </div>
-        <Button size="sm" nativeButton={false} render={<Link href="/mail-merge" />}>
-          <Plus className="size-3.5" />
-          New mail merge
-        </Button>
-      </div>
+      <PageHeader
+        title="Sent mail merges"
+        crumbs={[{ label: "Mail merge", href: "/mail-merge" }]}
+        description="Emails you've sent and letters you've logged, newest first."
+        actions={
+          <Button size="sm" nativeButton={false} render={<Link href="/mail-merge" />}>
+            <Plus className="size-3.5" />
+            New mail merge
+          </Button>
+        }
+      />
 
       {merges.length === 0 ? (
         <EmptyState title="No mail merges yet">Press <strong>New mail merge</strong> to send your first one.</EmptyState>

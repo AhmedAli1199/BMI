@@ -9,7 +9,7 @@ sources: ["frontend/src/app/(app)/settings/page.tsx", "frontend/src/app/(app)/se
 **Settings** (the cog button at the bottom of the menu, next to your name) holds the choices that are personal to you: how the app looks, your Outlook connection, notification emails, what the dashboard counts as "recently active" and whether the notetaker records your meetings. Administrators and data managers also see the **Xero** link here. Administrators get two more pages: **Team & access** (accounts, roles, database access and the Accounts permission) and **Sections people see** (tidying the menu for each role or person).
 
 ## What you see
-### Settings ("How the app behaves for you")
+### Settings
 From top to bottom:
 - **Team & access** card - administrators only. Opens the team page.
 - **Sections people see** card - administrators only. Opens the sections page.
@@ -20,7 +20,7 @@ From top to bottom:
 
 If you aren't signed in, an amber box says your changes can't be saved.
 
-### Team & access ("Who can see what") - administrators only
+### Team & access - administrators only
 - **Add team member** button at the top right.
 - Three role cards explaining each role: **Administrator** (sees everything and manages the team), **Data Manager** (full access to their assigned databases) and **Sales** (their own contacts, tasks and queue only).
 - The list of accounts. Each row shows the name, a role badge, the email and, for anyone who isn't an administrator, the databases or groups they can see. Extra badges:
@@ -31,7 +31,7 @@ If you aren't signed in, an amber box says your changes can't be saved.
   - "No database access - can't see anything" (red) - a non-administrator with no grants.
 - On each row, a pencil button (**Edit**) and a power button (**Disable account** or **Re-enable account**). You don't get a power button on your own row.
 
-### Sections people see ("Keep the screens simple") - administrators only
+### Sections people see - administrators only
 A table with one row per section of the app, grouped like the menu: **Everyday**, **Clients**, **Sales**, **Editorial**, **Outreach** and **The Brain**. There's a column for **Sales** and one for **Data Manager**, plus a column for each person who has their own choice (marked "just them"). Each cell is a tick box that reads **Shown** or **Hidden**. Automations Hub and Data Health say **Not available** in the Sales column, because Sales users can't open them anyway.
 
 ## Buttons and controls
@@ -71,7 +71,7 @@ What the notetaker does with meetings on your connected calendar that have a Mee
 - **Off** - nothing happens unless you send the notetaker yourself.
 
 ### Team & access (card) / Sections people see (card)
-Open the administrator pages. **Settings** (with the back arrow) or **Back to Settings** returns you.
+Open the administrator pages. **Settings** in the breadcrumb above the title, or **Back to Settings**, returns you.
 
 ### Add team member
 Opens **Add a team member**, which creates a real login. Fill in:

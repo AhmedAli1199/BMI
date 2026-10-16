@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, MonitorSmartphone, Newspaper, Trophy, type LucideIcon } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { CalendarDays, MonitorSmartphone, Newspaper, Trophy, type LucideIcon } from "lucide-react";
 import type { OrderStatus, ProductLine } from "@/lib/sales-types";
 import { InfoHint } from "@/components/sales/info-hint";
 
@@ -65,35 +66,7 @@ export function SalesHeader({
   actions?: React.ReactNode;
   eyebrow?: React.ReactNode;
 }) {
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-5">
-      <div className="min-w-0">
-        <nav aria-label="Breadcrumb" className="mb-1.5 flex flex-wrap items-center gap-1 text-xs font-semibold text-muted-foreground">
-          {crumbs.length === 0 ? (
-            <span className="uppercase tracking-wider text-primary">Sales Orders</span>
-          ) : (
-            <>
-              {crumbs.map((c) => (
-                <span key={c.href} className="flex items-center gap-1">
-                  <Link href={c.href} className="hover:text-foreground">
-                    {c.label}
-                  </Link>
-                  <ChevronRight className="size-3.5" aria-hidden="true" />
-                </span>
-              ))}
-              <span className="text-foreground" aria-current="page">
-                {title}
-              </span>
-            </>
-          )}
-        </nav>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{title}</h1>
-        {eyebrow && <div className="mt-1">{eyebrow}</div>}
-        {description && <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </div>
-  );
+  return <PageHeader title={title} description={description} crumbs={crumbs} section="Sales" actions={actions} below={eyebrow} />;
 }
 
 /** Section heading with an optional (i) hint and right-side slot. */

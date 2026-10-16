@@ -23,7 +23,7 @@ export default async function ActivityPage() {
   const idx = data.index;
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <HubHeader title="What people asked the Brain" description="Every question from the last two weeks, what it looked up, how long it took and whether it helped. Answers marked not helpful show what to add to the help guides." />
+      <HubHeader title="Questions people asked" description="Every question from the last two weeks, what it looked up, how long it took and whether it helped. Answers marked not helpful show what to add to the help guides." />
       <div className="grid gap-3 sm:grid-cols-4">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">

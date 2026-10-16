@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarCog, Check, ChevronRight, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarCog, Check, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { Feature, IssueDetail, IssueFormat, Milestone, PitchList } from "@/lib/editorial-types";
 import { FORMAT_LABELS, KIND_LABELS, issueLabel } from "@/lib/editorial-types";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { InfoHint } from "@/components/sales/info-hint";
+import { PageHeader } from "@/components/page-header";
 import { fmtGBP } from "@/components/sales/sales-ui";
 import { brandColor } from "@/components/rate-card/brand-style";
 import { countdownColor, daysLabel, fmtDay } from "@/components/editorial/editorial-ui";
@@ -31,26 +32,23 @@ export function IssuePage({ issue, pitch }: { issue: IssueDetail; pitch: PitchLi
 
   return (
     <>
-      <div className="flex flex-col gap-3 border-b border-border/80 pb-5">
-        <span className="masthead-rule w-16" style={{ background: brandColor(issue.brand) }} aria-hidden="true" />
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-xs font-semibold text-muted-foreground">
-          <Link href={`/editorial?year=${issue.year}`} className="hover:text-foreground">Editorial plan</Link><ChevronRight className="size-3.5" aria-hidden="true" />
-          <Link href={`/editorial?year=${issue.year}&brand=${issue.brand}`} className="hover:text-foreground">{issue.brand_name}</Link><ChevronRight className="size-3.5" aria-hidden="true" />
-          <span className="text-foreground" aria-current="page">{issueLabel(issue)}</span>
-        </nav>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">{issue.brand_name}: {issueLabel(issue)}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{[issue.title_name, KIND_LABELS[issue.kind], issue.period_label, issue.format && FORMAT_LABELS[issue.format]].filter(Boolean).join(" · ")}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title={`${issue.brand_name}: ${issueLabel(issue)}`}
+        crumbs={[
+          { label: "Editorial plan", href: `/editorial?year=${issue.year}` },
+          { label: issue.brand_name, href: `/editorial?year=${issue.year}&brand=${issue.brand}` },
+        ]}
+        below={<span className="masthead-rule block w-16" style={{ background: brandColor(issue.brand) }} aria-hidden="true" />}
+        description={[issue.title_name, KIND_LABELS[issue.kind], issue.period_label, issue.format && FORMAT_LABELS[issue.format]].filter(Boolean).join(" · ")}
+        actions={
+          <>
             {issue.prev_issue && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/editorial/issues/${issue.prev_issue.id}`} />}><ArrowLeft className="size-3.5" /> {issue.prev_issue.name}</Button>}
             {issue.next_issue && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/editorial/issues/${issue.next_issue.id}`} />}>{issue.next_issue.name} <ArrowRight className="size-3.5" /></Button>}
             <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/editions/${issue.id}`} />}><FileText className="size-3.5" /> Bookings in the order register</Button>
             <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/proposals/new?edition=${issue.id}`} />}>Pitch this issue</Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {issue.needs_check && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }}>

@@ -13,8 +13,7 @@ Three related tools for keeping on top of your clients:
 
 ## What you see
 **Calendar & tasks**
-- The heading "Calendar & Reminders", the tabs **Calendar & tasks** and **Reminders**, the title, a search box ("Search regarding, details, names...") and **Log or schedule**.
-- Title chips (**All Titles** and one per database).
+- The title "Calendar & Reminders", the tabs **Calendar & tasks** and **Reminders**, a search box ("Search regarding, details, names...") and **Log or schedule**.
 - A filter bar: **Open**, **Overdue** (with a red count), **Done** and **All**; **Type**: all, call, meeting, **To-do**; **Priority**: all, high, normal, low; and **Mine only**.
 - The grid: **Done** tick box, **Type**, **Date** (red with "Overdue" when the date has passed and it isn't done), **Time**, **Priority**, **Regarding / Details**, **Contact**, **Company**, **Duration**, **Location**, a paperclip if it has attachments, and **Scheduled For** (who organised it). Done items are faded; overdue ones have a red tint.
 - "Showing <n> activities" at the bottom, and "Times in London / BST".
@@ -48,8 +47,8 @@ Narrow the grid. Things scheduled with **Log or schedule** are "normal" priority
 ### Mine only / Showing mine only
 Shows only activities you scheduled here, or that Act! records as organised by you (matched on your name). For salespeople it starts switched on; click it to see everyone's.
 
-### Title chips (All Titles and each title)
-Show one database's activities, or all you can see.
+### Which title (the switcher at the top of the app)
+To see one database's activities, or all you can see, use the **All Titles** switcher at the top of the app.
 
 ### Column headings
 Click **Type**, **Date**, **Priority**, **Regarding / Details**, **Contact**, **Company** or **Duration** to sort what's on screen; click again to reverse.
@@ -114,7 +113,7 @@ A: Tick **Make this private** before saving.
 - **Save or Schedule is greyed out**: pick a contact or company first. On the **Note** tab, type the note. On **Schedule**, a start date and time is needed.
 - **"Couldn't save that - try again"**: something went wrong saving. Try again; if you picked a contact and then cleared it, pick them again.
 - **Mine only shows nothing**: activities brought over from Act! only count as yours if the organiser's name matches your name in BMI Brain exactly.
-- **Something I scheduled isn't on Calendar & tasks**: check the filters (**Open** hides done items) and the title chips. The grid shows up to 100 activities at a time, newest first; use the search box or filters to find older ones.
+- **Something I scheduled isn't on Calendar & tasks**: check the filters (**Open** hides done items) and the **All Titles** switcher at the top of the app. The grid shows up to 100 activities at a time, newest first; use the search box or filters to find older ones.
 - **Repeats doesn't create the next one**: the repeat is saved on the activity but further copies are not added automatically yet.
 - **I didn't get a reminder email**: check **Email me as well** was ticked (the row says "email too"). The in-app notification under the bell always comes.
 - **I can't see a colleague's reminders**: reminders are personal. Ask them, or schedule a shared activity instead.

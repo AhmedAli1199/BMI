@@ -18,7 +18,7 @@ Mail merge is Act!'s Write > Mail Merge. You write one message with merge fields
 - A progress bar and four counts: **Sent**, **Waiting**, **Failed**, **Skipped**.
 - A table of every person: **Contact**, **Email**, **Status** (sent, queued, failed or skipped, with the reason).
 
-**Your mail merges** (Sent mail merges): your emails and logged letters, newest first, with "<sent>/<total> sent" or "<n> letters" and the status.
+**Sent mail merges**: your emails and logged letters, newest first, with "<sent>/<total> sent" or "<n> letters" and the status.
 
 **Email templates**: a filter sidebar, a search box, **New template**, and a card per template with its brand, title, what it's for, subject, the start of the message, who wrote it and how often it's been used.
 
@@ -68,7 +68,7 @@ Sends one copy (as the person in the preview) to your own mailbox, with "[TEST]"
 Makes and downloads the Word file or spreadsheet straight away.
 
 ### See earlier mail merges
-Opens Your mail merges.
+Opens Sent mail merges.
 
 ### Cancel the rest, Resume sending, Retry <n> failed
 On the progress page. **Cancel the rest** stops anything not yet sent. **Resume sending** restarts a paused mailing (after you reconnect Outlook). **Retry <n> failed** tries the failed ones again.
@@ -76,8 +76,8 @@ On the progress page. **Cancel the rest** stops anything not yet sent. **Resume 
 ### Letters for the <n> without email
 On the progress page: a Word file of the same message as letters for everyone skipped for having no email address.
 
-### Mail merges, Mail merge, New mail merge
-Links back to Your mail merges and to a new mail merge.
+### Sent mail merges, Mail merge, New mail merge
+Links back to Sent mail merges and Mail merge, and to a new mail merge.
 
 ### Email templates: search and filters
 Search by name, words in the email or who wrote it. Filter by **Brand**, **What it's for**, **Needs a check** and **Whose** (**Only mine**). A yellow note says how many templates were brought over from Act! and still need reading through.
@@ -99,7 +99,7 @@ Fill in the details, write the email and insert merge fields from three groups: 
 - With **Record history** on, each sent email adds an "E-mail Sent" entry to that person's history; letters add "Letter Sent". Labels and merge data are not recorded.
 - Brand figures come from each brand's settings in the editorial plan; issue details come from the issue you choose. A mailing that uses them with nothing to fill them is refused with a plain reason.
 - Templates you don't share are only visible to you. Shared ones can be used by everyone, but only the person who wrote them (or an administrator or data manager) can change or delete them. Saving a template marks it as checked. Each send records that the template was used.
-- Your mail merges lists only your own mailings.
+- Sent mail merges lists only your own mailings.
 
 ## Common questions
 **Q: How do I email everyone in a group?**

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronRight, EyeOff, Settings as SettingsIcon, Sparkles, Users } from "lucide-react";
+import { ChevronRight, EyeOff, Settings as SettingsIcon, Users } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canManageUsers, canUseAutomations, isAdmin } from "@/lib/access";
@@ -35,19 +36,11 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="border-b border-border/80 pb-5">
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Sparkles className="size-3.5" />
-          <span>Settings</span>
-        </div>
-        <h1 className="editorial-title text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          How the app behaves for you
-        </h1>
-        <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
-          These are personal to your account — changing one only changes what you see, and takes
-          effect immediately, no page reload needed.
-        </p>
-      </div>
+      <PageHeader
+        section="Settings"
+        title="Settings"
+        description="These are personal to your account. Changing one only changes what you see, and takes effect straight away."
+      />
 
       {!session && (
         <Card className="editorial-card border-amber-500/30 bg-amber-500/5">

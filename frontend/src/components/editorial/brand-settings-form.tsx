@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { DeadlineRule, EditorialSettings, RegularSection } from "@/lib/editorial-types";
 import { saveEditorialSettings } from "@/lib/editorial-actions";
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { InfoHint } from "@/components/sales/info-hint";
-import { brandColor } from "@/components/rate-card/brand-style";
 import { friendlyError } from "@/lib/errors";
 
 const selectCls = "h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -40,7 +39,7 @@ const FACTS: [string, string, string][] = [
   ["latest_issue", "Latest issue link", "https://issuu.com/…"],
 ];
 
-export function BrandSettingsForm({ settings, brandName, canEdit }: { settings: EditorialSettings; brandName: string; canEdit: boolean }) {
+export function BrandSettingsForm({ settings, canEdit }: { settings: EditorialSettings; canEdit: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [rules, setRules] = useState<DeadlineRule[]>(settings.deadline_rules);
@@ -63,16 +62,6 @@ export function BrandSettingsForm({ settings, brandName, canEdit }: { settings: 
 
   return (
     <>
-      <div className="flex flex-col gap-3 border-b border-border/80 pb-5">
-        <span className="masthead-rule w-16" style={{ background: brandColor(settings.brand) }} aria-hidden="true" />
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-          <Link href={`/editorial?brand=${settings.brand}`} className="hover:text-foreground">Editorial plan</Link><ChevronRight className="size-3.5" aria-hidden="true" />
-          <span className="text-foreground" aria-current="page">{brandName} settings</span>
-        </nav>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">{brandName}: deadlines and regular sections</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">Tell the Brain how this brand&apos;s deadlines usually work. When you add an issue with a publication date, its deadlines are filled in for you - you can always change them on the issue.</p>
-      </div>
-
       <section aria-labelledby="ru-h" className="rounded-xl border border-border/80 bg-card shadow-2xs">
         <header className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
           <h2 id="ru-h" className="text-sm font-bold">Usual deadlines</h2>

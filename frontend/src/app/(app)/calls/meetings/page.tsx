@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { CalendarDays } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { CalendarSetup as Setup, SharedMeeting } from "@/lib/calls-types";
 import { CallsTabs } from "@/components/calls/calls-tabs";
@@ -9,6 +8,7 @@ import { AutoRefresh } from "@/components/calls/auto-refresh";
 import { SendNotetaker } from "@/components/calls/send-notetaker";
 import { NotetakerCheck } from "@/components/calls/notetaker-check";
 import { getSession } from "@/lib/session";
+import { PageHeader } from "@/components/page-header";
 
 /** The shared calendar: everyone's connected Google and Outlook meetings in one place, and what the notetaker will do with each. */
 export default async function MeetingsPage() {
@@ -21,16 +21,12 @@ export default async function MeetingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <AutoRefresh seconds={live ? 6 : 60} />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary"><CalendarDays className="size-3.5" /><span>Calls</span></div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">Call notes</h1>
-        <p className="mt-1 max-w-2xl text-xs text-muted-foreground sm:text-sm">
-          Everyone&apos;s meetings in one shared calendar. BMI Notetaker joins the ones with a Meet or Teams link and writes up the notes - skip any you don&apos;t want recorded.
-        </p>
-      </div>
-      {session?.role === "admin" && <NotetakerCheck />}
-      </div>
+      <PageHeader
+        title="Call notes"
+        section="Everyday"
+        description="Everyone's meetings in one shared calendar. BMI Notetaker joins the ones with a Meet or Teams link and writes up the notes - skip any you don't want recorded."
+        actions={session?.role === "admin" ? <NotetakerCheck /> : undefined}
+      />
       <CallsTabs active="meetings" />
       <SendNotetaker />
       {setup && <Suspense><CalendarSetup setup={setup} /></Suspense>}

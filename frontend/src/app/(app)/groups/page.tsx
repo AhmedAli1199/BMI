@@ -4,13 +4,12 @@ import { backendFetch } from "@/lib/backend";
 import type { GroupListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
-import { listPublications } from "@/lib/actions";
-import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
+import { resolveScope } from "@/lib/access";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
-import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 
 const PAGE_SIZE = 50;
 
@@ -21,16 +20,9 @@ export default async function GroupsPage({
 }) {
   const { q, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  const [rawSourceDb, session, allPublications] = await Promise.all([
-    getPublicationFilter(),
-    getSession(),
-    listPublications(),
-  ]);
+  const [rawSourceDb, session] = await Promise.all([getPublicationFilter(), getSession()]);
   const scope = resolveScope(session, rawSourceDb);
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
-  const publications = session?.role === "admin"
-    ? allPublications
-    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -46,22 +38,20 @@ export default async function GroupsPage({
 
   return (
     <div className="flex w-full flex-col gap-5 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Groups</h1>
-          <p className="text-sm text-muted-foreground">
-            {data.total.toLocaleString()} segments, lists and tags for contacts
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <form action="/groups" className="w-72">
-            <Input name="q" placeholder="Search group name..." defaultValue={q ?? ""} />
-          </form>
-          <GroupFormDialog defaultSourceDb={source_db} />
-        </div>
-      </div>
+      <PageHeader
+        title="Groups"
+        section="Clients"
+        description={`${data.total.toLocaleString()} groups, lists and tags for contacts`}
+        actions={
+          <>
+            <form action="/groups" className="w-72">
+              <Input name="q" placeholder="Search group name..." defaultValue={q ?? ""} />
+            </form>
+            <GroupFormDialog defaultSourceDb={source_db} />
+          </>
+        }
+      />
 
-      <PublicationQuickFilter current={source_db} publications={publications} />
 
       {/* Act!'s groups are hierarchical (62 top-level groups + 183
           sub-groups in OnBoard alone) - a single indented list makes that

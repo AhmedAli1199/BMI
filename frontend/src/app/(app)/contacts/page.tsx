@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { Download, Mail, Search, SlidersHorizontal, Upload, Users, X } from "lucide-react";
+import { Download, Mail, Search, SlidersHorizontal, Upload, X } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
-import { listPublications } from "@/lib/actions";
-import { accessLabel, allowedSourceDbSlugs, resolveScope } from "@/lib/access";
+import { accessLabel, resolveScope } from "@/lib/access";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
+import { PageHeader } from "@/components/page-header";
+import { InfoHint } from "@/components/sales/info-hint";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
-import { PublicationQuickFilter } from "@/components/publication-quick-filter";
 import { AdvancedSearch } from "@/components/contacts/advanced-search";
 import { parseConds } from "@/lib/search-conditions";
 import { BulkUpdateDialog } from "@/components/contacts/bulk-update-dialog";
@@ -50,17 +50,13 @@ export default async function ContactsPage({
   const match = sp.match === "any" ? "any" : "all";
   const activeLookups = Object.values(lookup).filter(Boolean).length + (conds.length ? 1 : 0);
   const page = Math.max(1, Number(pageParam) || 1);
-  const [rawSourceDb, session, allPublications, fields] = await Promise.all([
+  const [rawSourceDb, session, fields] = await Promise.all([
     getPublicationFilter(),
     getSession(),
-    listPublications(),
     backendFetch<ContactField[]>("/api/contacts/fields").catch(() => [] as ContactField[]),
   ]);
   const scope = resolveScope(session, rawSourceDb);
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
-  const publications = session?.role === "admin"
-    ? allPublications
-    : allPublications.filter((p) => allowedSourceDbSlugs(session).includes(p.slug));
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
@@ -124,56 +120,23 @@ export default async function ContactsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
-      {/* Editorial Title & Quick Actions Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-primary uppercase tracking-wider mb-1">
-            <Users className="size-3.5" />
-            <span>Contacts</span>
-          </div>
-          <h1 className="editorial-title text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Contacts
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {data.total.toLocaleString()} {q || activeLookups ? "contacts match this lookup" : "contacts across all titles"}
-          </p>
-          {scope.group_name && (
-            <p className="mt-0.5 text-[11px] font-medium text-primary">
+      <PageHeader
+        section="Clients"
+        title="Contacts"
+        description={`${data.total.toLocaleString()} ${q || activeLookups ? "contacts match this lookup" : "contacts across all titles"}`}
+        below={scope.group_name ? (
+            <p className="text-[11px] font-medium text-primary">
               Showing {accessLabel({ source_db, group_id: scope.group_id, group_name: scope.group_name })} only
             </p>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+          ) : undefined}
+        actions={<>
           <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/contacts/import" />} title="Add contacts from an Excel sheet, CSV or PDF">
             <Upload className="size-3.5" />
             Import
           </Button>
-          <CopyEmailsButton scope={{ ...filterParams, label: lookupLabel }} />
-          <BulkUpdateDialog scope={{ ...filterParams, label: lookupLabel }} fields={fields} count={data.total} />
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<a href={`/api/files/contacts/export?${exportParams}`} download />}
-            title="Download this lookup as an Excel sheet (up to 50,000 rows)"
-          >
-            <Download className="size-3.5" />
-            Export
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/mail-merge?${mergeParams}`} />}
-            title="Write to everyone in this lookup"
-          >
-            <Mail className="size-3.5" />
-            Mail merge
-          </Button>
           <ContactFormDialog defaultSourceDb={source_db} />
-        </div>
-      </div>
+        </>}
+      />
 
       {/* Lookup: Act!'s "Lookup > Company / City / Country / Title". Plain
           GET form, so every lookup is a shareable, bookmarkable URL. */}
@@ -200,6 +163,11 @@ export default async function ContactsPage({
               <SlidersHorizontal className="size-3.5" />
               Look up
             </Button>
+            <InfoHint>
+              The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several
+              words in any order. The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy
+              their emails or mail-merge them.
+            </InfoHint>
             {(q || activeLookups > 0) && (
               <Button
                 variant="ghost"
@@ -214,20 +182,35 @@ export default async function ContactsPage({
           </div>
           <AdvancedSearch fields={fields} initial={conds} match={match} />
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several words in any order.
-          The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy their emails or mail-merge them.
-        </p>
       </form>
 
-      {/* Publication Segmentation Strip - same global filter as the header
-          switcher (lib/publication.ts); setting it here also applies to
-          Companies, Groups and the Dashboard until changed back. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PublicationQuickFilter current={source_db} publications={publications} />
-        <span className="text-xs text-muted-foreground">
-          Tip: Click any contact to open their full record
+      {/* What you can do with everyone this lookup found. The title filter is the switcher in the top bar. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs font-semibold text-muted-foreground">
+          With {data.total === 1 ? "this contact" : `these ${data.total.toLocaleString("en-GB")} contacts`}:
         </span>
+        <CopyEmailsButton scope={{ ...filterParams, label: lookupLabel }} />
+        <BulkUpdateDialog scope={{ ...filterParams, label: lookupLabel }} fields={fields} count={data.total} />
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<a href={`/api/files/contacts/export?${exportParams}`} download />}
+          title="Download this lookup as an Excel sheet (up to 50,000 rows)"
+        >
+          <Download className="size-3.5" />
+          Export
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<Link href={`/mail-merge?${mergeParams}`} />}
+          title="Write to everyone in this lookup"
+        >
+          <Mail className="size-3.5" />
+          Mail merge
+        </Button>
       </div>
 
       <InteractiveContactTable

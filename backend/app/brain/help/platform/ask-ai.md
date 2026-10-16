@@ -21,7 +21,7 @@ sources: ["frontend/src/app/(app)/brain/page.tsx", "frontend/src/app/(app)/brain
 ### The Chat with the Brain page
 The same chat, full size, with your conversations listed on the left and **New conversation** above them. Administrators also see **What it's been asked**.
 
-### What people asked the Brain (administrators only)
+### Questions people asked (administrators only)
 - Four tiles for the last 14 days: **Answers (14 days)**, **Helpful / not**, **Average time to answer** and **Served from the cache** (how much of what it reads each time was already cached - cheaper and quicker; higher is better).
 - A line saying how many pieces of notes and history it can search, whether it can search by meaning or only by exact words, and when that was last updated.
 - Every question from the last two weeks: who asked, when, the page, what it looked up, how long it took, how much was cached, the rating, "Didn't answer" when it couldn't, and a **Feedback** link when someone pressed **This didn't help**.
