@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, CheckCircle2, Download, FileText, Loader2, Mail, MoreHorizontal, Pencil, Printer, Repeat, Send, Trash2, Undo2 } from "lucide-react";
+import { celebrate } from "@/lib/celebrate";
 import { toast } from "sonner";
 import type { Deal, DealEmailDraft } from "@/lib/deals-types";
 import { deleteDeal, getDealEmailDraft, markDealSent, rebookDeal, requestDealChange, sendDeal, setDealStatus } from "@/lib/deals-actions";
@@ -34,8 +35,8 @@ export function DealActions({ d }: { d: Deal }) {
   const mustAsk = !!d.locked && !d.can_approve;
   const canChange = d.can_edit && !mustAsk;
 
-  const run = (fn: () => Promise<unknown>, ok: string, fail: string) => start(async () => {
-    try { await fn(); toast.success(ok); router.refresh(); } catch (e) { toast.error(friendlyError(e, fail)); }
+  const run = (fn: () => Promise<unknown>, ok: string, fail: string, cheer?: string) => start(async () => {
+    try { await fn(); toast.success(ok); if (cheer) celebrate(cheer); router.refresh(); } catch (e) { toast.error(friendlyError(e, fail)); }
   });
 
   function openSend() {
@@ -67,7 +68,7 @@ export function DealActions({ d }: { d: Deal }) {
         </Button>
       )}
       {canChange && d.status === "pencilled" && (
-        <Button size="sm" className="gap-1.5" disabled={pending} onClick={() => run(() => setDealStatus(d.id, "confirmed"), "Booking confirmed", "Couldn't confirm it")}><CheckCircle2 className="size-3.5" /> Confirm</Button>
+        <Button size="sm" className="gap-1.5" disabled={pending} onClick={() => run(() => setDealStatus(d.id, "confirmed"), "Booking confirmed", "Couldn't confirm it", `Booking ${d.number} is confirmed.`)}><CheckCircle2 className="size-3.5" /> Confirm</Button>
       )}
       {d.status !== "cancelled" && (
         <Button size="sm" variant={d.status === "confirmed" && !d.sent_at && !d.check?.blocks_sending ? "default" : "outline"} className="gap-1.5"
@@ -84,7 +85,7 @@ export function DealActions({ d }: { d: Deal }) {
             <Download className="size-3.5" /> Download as Word
           </DropdownMenuItem>
           {d.can_edit && d.status !== "cancelled" && !d.check?.blocks_sending && (
-            <DropdownMenuItem onClick={() => run(() => markDealSent(d.id, d.contact_email), "Noted as sent", "Couldn't save that")}><FileText className="size-3.5" /> I sent it another way</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => run(() => markDealSent(d.id, d.contact_email), "Noted as sent", "Couldn't save that", "Confirmation noted as sent.")}><FileText className="size-3.5" /> I sent it another way</DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={rebook}><Repeat className="size-3.5" /> Rebook for next year</DropdownMenuItem>
           {canChange && d.status === "confirmed" && !anyInvoiced && (
@@ -160,7 +161,7 @@ export function DealActions({ d }: { d: Deal }) {
               const split = (s: string) => s.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
               try {
                 await sendDeal(d.id, { to: split(to), cc: split(cc), subject, body });
-                toast.success("Sent and noted on the client"); setSend(null); router.refresh();
+                toast.success("Sent and noted on the client"); celebrate(`Confirmation sent to ${split(to)[0] ?? "the client"}.`); setSend(null); router.refresh();
               } catch (e) { toast.error(friendlyError(e, "Couldn't send it")); }
             })}>{pending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Send</Button>
           </DialogFooter>

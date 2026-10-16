@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, EyeOff, Settings as SettingsIcon, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { TourAgainButton } from "@/components/brain/tour-again-button";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { canManageUsers, canUseAutomations, isAdmin } from "@/lib/access";
@@ -40,6 +41,7 @@ export default async function SettingsPage() {
         section="Settings"
         title="Settings"
         description="These are personal to your account. Changing one only changes what you see, and takes effect straight away."
+        actions={session ? <TourAgainButton tour={`welcome-${["sales", "data_manager", "admin"].includes(session.role) ? session.role : "sales"}`} /> : undefined}
       />
 
       {!session && (

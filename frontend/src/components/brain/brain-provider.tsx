@@ -9,6 +9,7 @@ import { brainConversations, deleteBrainConversation } from "@/lib/brain-actions
 import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { BrainBuddy } from "@/components/brain/brain-buddy";
+import { BrainCoach } from "@/components/brain/brain-coach";
 import { BrainChat, type ChatHandle, type Seed } from "@/components/brain/brain-chat";
 
 type Ask = Seed;
@@ -20,7 +21,7 @@ export const useBrain = () => useContext(Ctx);
 /** The assistant beside every page: the "Ask AI" button, the side panel (the page stays usable, so
  * "Show me" can point at it), ⌘/Ctrl + J to open and close. The panel is left out of screenshots and
  * can't be pointed at itself (data-feedback-ui), like the Feedback panel. */
-export function BrainProvider({ userName, children }: { userName?: string; children: React.ReactNode }) {
+export function BrainProvider({ userName, role, children }: { userName?: string; role?: string; children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [open, setOpen] = useState(false);
   const [conversation, setConversation] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export function BrainProvider({ userName, children }: { userName?: string; child
   return (
     <Ctx.Provider value={{ ask, open }}>
       {children}
+      {!print && <BrainCoach role={role} panelOpen={open} />}
       {!print && !open && !pathname.startsWith("/brain") && <AskButton onClick={() => ask()} />}
       {!print && open && (
         <aside data-brain-panel="" data-feedback-ui="" aria-label="Ask the Brain"

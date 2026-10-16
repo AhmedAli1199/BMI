@@ -1,4 +1,5 @@
 import type { SessionAccess, SessionPayload } from "@/lib/session";
+import { sourceLabel } from "@/lib/sources";
 
 /** The one place role -> "what can they do" is decided, mirroring
  * backend/app/roles.py's CAN_* sets exactly - keep these two in sync by
@@ -99,5 +100,6 @@ export function canAccessRecord(
 }
 
 export function accessLabel(a: SessionAccess): string {
-  return a.group_name ? `${a.source_db} / ${a.group_name}` : a.source_db;
+  const db = sourceLabel(a.source_db);
+  return a.group_name ? `${db} / ${a.group_name}` : db;
 }

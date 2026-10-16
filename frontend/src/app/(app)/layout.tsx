@@ -67,11 +67,13 @@ export default async function AppLayout({
             BMI Publishing
           </span>
           <Separator orientation="vertical" className="hidden h-5 bg-sidebar-border md:block" />
+          <div data-tour="titles" className="contents">
           <PublicationSwitcher
             current={publicationFilter}
             publications={publications}
             locked={session?.role !== "admin" && publications.length <= 1}
           />
+          </div>
           {session && (
             <LogInteractionDialog
               global
@@ -90,7 +92,7 @@ export default async function AppLayout({
           )}
         </header>
         {session ? (
-          <BrainProvider userName={session.name}>
+          <BrainProvider userName={session.name} role={session.role}>
             <div className="flex flex-1 flex-col overflow-y-auto">
               {children}
               {/* room at the bottom so the floating Ask the Brain and Feedback buttons never cover the end of a list */}

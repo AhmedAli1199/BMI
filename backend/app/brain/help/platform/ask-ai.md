@@ -26,6 +26,12 @@ The same chat, full size, with your conversations listed on the left and **New c
 - A line saying how many pieces of notes and history it can search, whether it can search by meaning or only by exact words, and when that was last updated.
 - Every question from the last two weeks: who asked, when, the page, what it looked up, how long it took, how much was cached, the rating, "Didn't answer" when it couldn't, and a **Feedback** link when someone pressed **This didn't help**.
 
+### Tips, the welcome tour and celebrations
+- **Tips**: now and then the Brain pops up above the **Ask the Brain** button with one thing worth doing on the page you're on - for example "This booking was confirmed 4 days ago, but the confirmation hasn't gone to the client yet" (with **Show me**), "3 of your confirmed bookings haven't had their confirmation sent yet" (**See them**), a booking deadline coming up in the next week (**Open the edition**), reminders that are due (**See them**) or suggestions waiting in the Review Queue (**Open the Review Queue**). Only one at a time, never while the chat or the tour is open, and only about things you can already see. **Not now** hides it for a week; **Got it** hides that one for good; the X closes it like Not now.
+- **The welcome tour**: the first time you open Home, the Brain points at the few things that matter for your role (salespeople: Today, Bookings, Calendar & Reminders, the title switcher, Ask the Brain; data managers: Review Queue, Invoicing, Automations, Data Health; administrators: Settings, Automations, Review Queue). **Next** and **Back** move through it, **Skip the tour** ends it, **Done** finishes it, and Escape closes it. Steps for sections you can't see are left out. **Take the tour again** on the Settings page plays it again.
+- **Celebrations**: a short cheer when you confirm a booking, send a confirmation (or note it as sent) or clear the Review Queue. It disappears after a few seconds.
+- Both tips and celebrations can be switched off in **Settings**, under **The Brain** (**Tips from the Brain** and **Small celebrations**).
+
 ## Buttons and controls
 ### Ask the Brain (button) / Ctrl+J
 Opens the panel. **Ctrl+J** opens or closes it from any page.

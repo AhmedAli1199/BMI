@@ -75,6 +75,28 @@ PREFERENCE_DEFS: list[PreferenceDef] = [
         ],
         default="auto",
     ),
+    PreferenceDef(
+        key="brain_tips",
+        label="Tips from the Brain",
+        description="Now and then the Brain points out something worth doing on the page you're on - a confirmation not sent yet, a deadline coming up. One at a time, and you can dismiss each.",
+        group="The Brain",
+        options=[
+            PreferenceOption(value="on", label="On", description="Show a tip when there's something useful."),
+            PreferenceOption(value="off", label="Off", description="No tips."),
+        ],
+        default="on",
+    ),
+    PreferenceDef(
+        key="brain_celebrations",
+        label="Small celebrations",
+        description="A quick cheer from the Brain when you confirm a booking, send a confirmation or clear your Review Queue.",
+        group="The Brain",
+        options=[
+            PreferenceOption(value="on", label="On", description="Show them."),
+            PreferenceOption(value="off", label="Off", description="Just the usual message."),
+        ],
+        default="on",
+    ),
 ]
 
 _BY_KEY: dict[str, PreferenceDef] = {p.key: p for p in PREFERENCE_DEFS}

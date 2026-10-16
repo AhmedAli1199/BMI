@@ -16,6 +16,7 @@ import {
   UserCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { QueueClearWatcher } from "@/components/brain/queue-clear-watcher";
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
 import { cleanNoteBody } from "@/lib/notes";
@@ -126,6 +127,7 @@ export default async function ReviewQueuePage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      {!activeKind && <QueueClearWatcher pending={totalPending} />}
       <PageHeader
         section="The Brain"
         title={activeDef ? activeDef.label : "Review Queue"}

@@ -245,7 +245,7 @@ export function AppSidebar({
                 open to sales too, scoped to their own data server-side - see lib/access.ts). */}
             {canUseAutomations(session) && show("automations_hub") && (
               <Collapsible open={hubOpen} onOpenChange={setHubOpen} render={<SidebarMenuItem />}>
-                <CollapsibleTrigger render={<SidebarMenuButton isActive={inHub && !hubOpen} className={NAV_ITEM} />}>
+                <CollapsibleTrigger data-tour="automations" render={<SidebarMenuButton isActive={inHub && !hubOpen} className={NAV_ITEM} />}>
                   <Workflow className={iconCls(inHub)} />
                   <span>Automations</span>
                   {!hubOpen && hubPending > 0 && (

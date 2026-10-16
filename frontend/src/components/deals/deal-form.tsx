@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, CalendarPlus, Copy, Gift, Loader2, Plus, Trash2, X } from "lucide-react";
+import { celebrate } from "@/lib/celebrate";
 import { toast } from "sonner";
 import type { SalesRate, SalesRep, SalesTitle } from "@/lib/sales-types";
 import { INVOICE_PLANS, type HandoffRoutes, type DealInput, type DealIssue, type DealLine, type DealPlacement, type DealPreview } from "@/lib/deals-types";
@@ -172,6 +173,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
         const d = dealId ? await updateDeal(dealId, input) : await createDeal(input);
         d.notes?.forEach((n) => toast.info(n));
         toast.success(dealId ? "Booking saved" : `Booking ${d.number} created`);
+        if (!dealId && input.status === "confirmed") celebrate(`Booking ${d.number} is confirmed. Next: send the client their confirmation.`);
         router.push(`/sales/deals/${d.id}`);
       } catch (e) { toast.error(friendlyError(e, "Couldn't save the booking")); }
     });

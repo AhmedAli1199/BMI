@@ -16,7 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.routes.messaging import current_user
@@ -385,3 +385,37 @@ def activity(days: int = 14, db: Session = Depends(get_db), user: User = Depends
         "answers": n, "helpful": sum(1 for i in items if i["rating"] == 1), "not_helpful": sum(1 for i in items if i["rating"] == -1),
         "avg_seconds": round(tot_ms / n / 1000, 1) if n else None,
         "cache_hit_pct": round(100 * tot_cached / tot_in) if tot_in else None}}
+
+
+# --- The Brain as a coach: tips, the welcome tour, celebrations (app/brain/coach.py) ---------------------------------
+
+class DismissIn(BaseModel):
+    tip_id: str = Field(min_length=1, max_length=120)
+    forever: bool = False
+
+
+class TourIn(BaseModel):
+    tour: str = Field(min_length=1, max_length=40)
+    done: bool = True
+
+
+@router.get("/coach")
+def coach_state(path: str = "/", db: Session = Depends(get_db), user: User = Depends(current_user), identity: Identity = Depends(get_identity)) -> dict:
+    """Whether tips and celebrations are on, which tours are finished, and at most one tip for this page."""
+    from app.brain import coach
+    return coach.state(db, identity, user, path[:300])
+
+
+@router.post("/coach/dismiss")
+def coach_dismiss(p: DismissIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    from app.brain import coach
+    coach.dismiss(db, user, p.tip_id, p.forever)
+    return {"ok": True}
+
+
+@router.post("/coach/tour")
+def coach_tour(p: TourIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
+    """Marks a welcome tour finished (or, with done=false, unfinished so it plays again)."""
+    from app.brain import coach
+    coach.tour_done(db, user, p.tour, p.done)
+    return {"ok": True}
