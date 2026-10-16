@@ -31,11 +31,11 @@ export default async function EmailSignalsPage() {
           Automations
         </Link>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Email signals (temporary viewer)
+          Email signals
         </h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          {rows.length} signal{rows.length === 1 ? "" : "s"} extracted so far. Throwaway page - just
-          for judging extraction quality before SALES-012/013 get built.
+          {rows.length} {rows.length === 1 ? "thing" : "things"} the Brain has picked out of client emails so far - budgets,
+          renewal dates, promised call-backs and the like - with how sure it was of each.
         </p>
       </div>
 

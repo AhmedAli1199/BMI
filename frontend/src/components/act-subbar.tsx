@@ -123,6 +123,7 @@ export function ActSubbar({
               disabled={!firstHref}
               title="First Record"
               className="size-6 cursor-pointer disabled:pointer-events-none"
+              nativeButton={!firstHref}
               render={firstHref ? <Link href={firstHref} /> : undefined}
             >
               <ChevronsLeft className="size-3.5" />
@@ -133,6 +134,7 @@ export function ActSubbar({
               disabled={!prevHref}
               title="Previous Record"
               className="size-6 cursor-pointer disabled:pointer-events-none"
+              nativeButton={!prevHref}
               render={prevHref ? <Link href={prevHref} /> : undefined}
             >
               <ChevronLeft className="size-3.5" />
@@ -150,6 +152,7 @@ export function ActSubbar({
               disabled={!nextHref}
               title="Next Record"
               className="size-6 cursor-pointer disabled:pointer-events-none"
+              nativeButton={!nextHref}
               render={nextHref ? <Link href={nextHref} /> : undefined}
             >
               <ChevronRight className="size-3.5" />
@@ -160,6 +163,7 @@ export function ActSubbar({
               disabled={!lastHref}
               title="Last Record"
               className="size-6 cursor-pointer disabled:pointer-events-none"
+              nativeButton={!lastHref}
               render={lastHref ? <Link href={lastHref} /> : undefined}
             >
               <ChevronsRight className="size-3.5" />

@@ -39,8 +39,8 @@ Open it from the menu: **Automations** (under The Brain) > **Overview**, one pag
 - **Usage over time**: calls, failures, tokens and cost per day or per hour, newest first.
 - **By automation**: the same figures for each purpose and provider.
 
-**Email signals (temporary viewer)** (/automations/signals)
-- A plain table of the latest 200 facts the email scan has picked out of sales emails: **Contact**, **Type**, **Due date**, **Summary**, **Confidence**, **Status** and **Created**. It's a temporary page for checking how well the email scan reads emails. Nothing in the menu links to it.
+**Email signals** (/automations/signals)
+- A plain table of the latest 200 facts the email scan has picked out of sales emails: **Contact**, **Type**, **Due date**, **Summary**, **Confidence**, **Status** and **Created**. It shows what the Brain has picked out of client emails so far, and how sure it was of each.
 
 ## Buttons and controls
 ### Review <number> pending / Open Review Queue

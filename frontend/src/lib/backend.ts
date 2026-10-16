@@ -72,8 +72,11 @@ export async function backendFetch<T>(path: string, init?: RequestInit): Promise
       // ("This signal no longer exists - it may have been superseded by a
       // newer message on the same thread.") reaches the user unmangled.
       const fullMessage = `Backend request failed: ${res.status} ${path}${rawBody ? ` - ${rawBody}` : ""}`;
-      console.error(fullMessage);
-      let userMessage = `Something went wrong (${res.status}). Please try again.`;
+      // A "not allowed" is often expected (a page checking whether this person may do something), so it isn't logged
+      // as an error - that would put a warning badge on the page in development for something that's working.
+      if (res.status === 401 || res.status === 403) console.info(fullMessage);
+      else console.error(fullMessage);
+      let userMessage = "Something went wrong. Please try again.";
       try {
         const parsed = JSON.parse(rawBody);
         if (typeof parsed?.detail === "string" && parsed.detail.trim()) {

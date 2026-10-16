@@ -91,7 +91,11 @@ export default async function AppLayout({
         </header>
         {session ? (
           <BrainProvider userName={session.name}>
-            <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
+            <div className="flex flex-1 flex-col overflow-y-auto">
+              {children}
+              {/* room at the bottom so the floating Ask the Brain and Feedback buttons never cover the end of a list */}
+              <div aria-hidden="true" className="h-24 shrink-0 print:hidden" />
+            </div>
             <FeedbackWidget />
           </BrainProvider>
         ) : (

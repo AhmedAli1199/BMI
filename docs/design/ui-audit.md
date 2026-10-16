@@ -2,7 +2,7 @@
 
 Every page opened as an administrator at 1440 x 900 on the demo data (51 pages: 44 lists and screens plus one of each
 detail page). Screenshots: `audit/sheet_00.jpg` … `sheet_12.jpg` (four pages each, labelled with the address).
-Nothing has been changed yet - this is the list to agree before the clean-up.
+**Round 1 done (17 Oct):** rename, Brain character, sidebar, Calendar & Reminders, Sales overview tabs, empty states, the small fixes. Left for round 2: one page header everywhere (big five #3), company and contact pages (#2), Automation settings split, Contacts header buttons, duplicate title filters, tips/tour/celebrations.
 
 ## The big five
 

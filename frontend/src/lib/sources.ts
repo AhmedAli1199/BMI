@@ -3,13 +3,17 @@
  * through as "onboard" or "sellingtravel". */
 export const SOURCE_LABELS: Record<string, string> = {
   onboard: "OnBoard Hospitality",
+  onboardhospitality: "OnBoard Hospitality",
   prospects: "Prospects",
   sellingtravel: "Selling Travel",
   manual: "Added in CRM",
 };
 
 export function sourceLabel(source_db: string): string {
-  return SOURCE_LABELS[source_db] ?? source_db;
+  if (SOURCE_LABELS[source_db]) return SOURCE_LABELS[source_db];
+  // a database we don't have a name for yet: at least don't show it as a raw lower-case key
+  const words = (source_db || "").replace(/[-_]+/g, " ").trim();
+  return words ? words.replace(/\b\w/g, (c) => c.toUpperCase()) : "Unknown";
 }
 
 /** Outlined badge colour per source database, using the same masthead
@@ -18,6 +22,7 @@ export function sourceLabel(source_db: string): string {
  * border + text, matching BMI's own print/web housestyle. */
 const SOURCE_BADGE_STYLES: Record<string, string> = {
   onboard: "border-[#0099e5] text-[#0077b3]",
+  onboardhospitality: "border-[#0099e5] text-[#0077b3]",
   sellingtravel: "border-[#1e7a52] text-[#1e7a52]",
   prospects: "border-[#b8791a] text-[#96620f]",
 };

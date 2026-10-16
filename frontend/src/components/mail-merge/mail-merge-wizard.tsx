@@ -439,7 +439,7 @@ export function MailMergeWizard({
         {/* ---------------- Step 1: Output ---------------- */}
         {step === 0 && (
           <section className="flex flex-col gap-4">
-            <StepTitle title="What do you want to create?" hint="Act!'s “Output to”. You can change this at any point." />
+            <StepTitle title="What do you want to create?" hint="Pick what you want to make. You can change this at any point." />
             <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Output">
               {OUTPUTS.map((o) => {
                 const Icon = o.icon;
@@ -940,7 +940,7 @@ export function MailMergeWizard({
         {/* ---------------- Step 4: Options ---------------- */}
         {step === 3 && (
           <section className="flex flex-col gap-5">
-            <StepTitle title="Options" hint="Act!'s e-mail and printer options." />
+            <StepTitle title="Options" hint="How it's sent or printed." />
 
             {(output === "email" || output === "word") && (
               <fieldset className="flex flex-col gap-2 rounded-lg border border-border p-4">
