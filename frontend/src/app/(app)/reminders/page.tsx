@@ -3,6 +3,7 @@ import { AlarmClock, BellRing, Building2, User } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { Reminder } from "@/lib/messaging-types";
 import { ReminderRowActions } from "@/components/reminder-row-actions";
+import { EmptyState } from "@/components/empty-state";
 
 /** Request time - module-level so render stays pure. */
 function nowMs() {
@@ -92,9 +93,9 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
       </nav>
 
       {reminders.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
-          {status === "open" ? "No upcoming reminders." : "Nothing here yet."}
-        </div>
+        <EmptyState title={status === "open" ? "No upcoming reminders" : "Nothing here yet"}>
+          Press <strong>Remind me</strong> on any contact or company, and it shows up here when it&apos;s due.
+        </EmptyState>
       ) : (
         <>
           {overdue.length > 0 && (

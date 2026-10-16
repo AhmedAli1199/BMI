@@ -4,6 +4,7 @@ import { backendFetch } from "@/lib/backend";
 import type { MailMergeSummary } from "@/lib/messaging-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 
 const LABEL: Record<string, string> = {
   queued: "Starting",
@@ -34,9 +35,7 @@ export default async function MailMergeHistoryPage() {
       </div>
 
       {merges.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
-          No mail merges yet.
-        </div>
+        <EmptyState title="No mail merges yet">Press <strong>New mail merge</strong> to send your first one.</EmptyState>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border bg-card shadow-2xs">
           {merges.map((m) => {

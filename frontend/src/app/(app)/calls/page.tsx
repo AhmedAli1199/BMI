@@ -6,6 +6,7 @@ import { SendNotetaker } from "@/components/calls/send-notetaker";
 import { CallStatus } from "@/components/calls/call-status";
 import { AutoRefresh } from "@/components/calls/auto-refresh";
 import { CallsTabs } from "@/components/calls/calls-tabs";
+import { EmptyState } from "@/components/empty-state";
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -38,7 +39,7 @@ export default async function CallsPage() {
       <section aria-labelledby="calls-h" className="overflow-x-auto rounded-xl border border-border/80 bg-card shadow-2xs">
         <h2 id="calls-h" className="border-b border-border/70 px-4 py-3 text-sm font-bold">Recent calls</h2>
         {calls.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">No calls yet. Paste a meeting link above to send the notetaker.</p>
+          <EmptyState compact title="No calls yet">Paste a meeting link above to send the notetaker.</EmptyState>
         ) : (
           <table className="w-full min-w-[40rem] text-sm">
             <thead>

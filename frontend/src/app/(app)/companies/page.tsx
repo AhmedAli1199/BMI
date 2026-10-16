@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
 import { CompanyFormDialog } from "@/components/company-form-dialog";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
+import { EmptyState } from "@/components/empty-state";
 
 const PAGE_SIZE = 50;
 
@@ -123,8 +124,8 @@ export default async function CompaniesPage({
             ))}
             {data.items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                  No companies match this view.
+                <TableCell colSpan={4} className="p-0">
+                  <EmptyState compact mood="puzzled" title="No companies match">Try another title, or clear the search.</EmptyState>
                 </TableCell>
               </TableRow>
             )}

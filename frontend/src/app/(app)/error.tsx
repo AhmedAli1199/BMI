@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BrainBuddy } from "@/components/brain/brain-buddy";
 
 /** Catches any error thrown while rendering a page inside the app shell
  * (a backend request failing, a bad response shape, etc.) - without this,
@@ -27,9 +27,7 @@ export default function AppError({
     <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-4 p-4 pt-24 text-center sm:p-6">
       <Card className="editorial-card w-full">
         <CardContent className="flex flex-col items-center gap-3 py-10">
-          <span className="brand-icon size-12 rounded-full! border-destructive text-destructive">
-            <AlertTriangle className="size-5" />
-          </span>
+          <BrainBuddy mood="puzzled" size={96} />
           <p className="text-base font-bold text-foreground">This page hit a snag.</p>
           <p className="max-w-xs text-sm text-muted-foreground">
             Something went wrong loading this page. Try again, or head back to the dashboard.

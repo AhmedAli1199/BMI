@@ -237,12 +237,4 @@ export function PaceBar({ value, compare, max }: { value: number; compare: numbe
   );
 }
 
-export function EmptyState({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children?: React.ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border/80 bg-card/50 px-6 py-12 text-center">
-      <Icon className="size-7 text-muted-foreground/60" aria-hidden="true" />
-      <div className="text-sm font-semibold text-foreground">{title}</div>
-      {children && <div className="max-w-md text-xs text-muted-foreground">{children}</div>}
-    </div>
-  );
-}
+export { EmptyState } from "@/components/empty-state";

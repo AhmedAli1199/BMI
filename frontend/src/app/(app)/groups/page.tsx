@@ -6,10 +6,11 @@ import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
 import { listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GroupFormDialog } from "@/components/group-form-dialog";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
+import { EmptyState } from "@/components/empty-state";
 
 const PAGE_SIZE = 50;
 
@@ -100,11 +101,7 @@ export default async function GroupsPage({
           </div>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No groups yet — create one to start segmenting contacts.
-          </CardContent>
-        </Card>
+        <EmptyState title="No groups yet">Press <strong>New group</strong> to put contacts together, for example everyone to invite to an event.</EmptyState>
       )}
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">

@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { BrainBuddy } from "@/components/brain/brain-buddy";
 
 export function LoginForm() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export function LoginForm() {
 
     if (!res.ok) {
       setLoading(false);
-      setError("Invalid email or password");
+      setError("That email and password don't match. Check them and try again.");
       return;
     }
 
@@ -44,9 +45,10 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>BMI Sales Brain</CardTitle>
-        <CardDescription>Sign in to continue</CardDescription>
+      <CardHeader className="items-center text-center">
+        <BrainBuddy mood="waving" size={92} className="mx-auto mb-1" />
+        <CardTitle className="text-xl">BMI Brain</CardTitle>
+        <CardDescription>Sign in to carry on where you left off</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

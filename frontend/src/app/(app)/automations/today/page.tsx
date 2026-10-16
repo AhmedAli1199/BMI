@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, CalendarClock, PartyPopper, Users } from "lucide-react";
+import { ArrowLeft, CalendarClock, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import type { ReviewKind, TodayItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ReviewItemCard } from "@/components/review-item-card";
+import { BrainBuddy } from "@/components/brain/brain-buddy";
 
 /** SALES-013 (Morning Follow-Up Queue) - see backend's
  * app/automations/morning_queue.py for why this page has no producer of
@@ -95,9 +96,7 @@ export default async function TodayPage({
       {items.length === 0 ? (
         <Card className="editorial-card relative overflow-hidden">
           <CardContent className="relative flex flex-col items-center gap-2 py-16 text-center">
-            <span className="brand-icon size-14 rounded-full! border-[var(--ok)] text-[var(--ok)]">
-              <PartyPopper className="size-6" />
-            </span>
+            <BrainBuddy mood="celebrating" size={96} />
             <p className="mt-1 text-base font-bold text-foreground">Nothing due right now.</p>
             <p className="max-w-xs text-sm text-muted-foreground">
               {view === "mine"

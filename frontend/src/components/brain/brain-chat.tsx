@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ArrowUp, Check, CheckCircle2, Copy, Crosshair, ExternalLink, Loader2, MapPin, Mic, ScanLine, Sparkles, Square, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { ArrowUp, Check, CheckCircle2, Copy, Crosshair, ExternalLink, Loader2, MapPin, Mic, ScanLine, Square, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { toast } from "sonner";
 import type { FeedbackElement } from "@/lib/feedback-types";
 import type { BrainContext, BrainMessage } from "@/lib/brain-types";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AnnotateDialog } from "@/components/feedback/annotate-dialog";
 import { AreaOverlay, PickOverlay } from "@/components/feedback/capture-overlay";
+import { BrainBuddy } from "@/components/brain/brain-buddy";
 import { BrainMarkdown } from "@/components/brain/brain-markdown";
 
 export type Shot = { key: string; data: string; width: number; height: number; label: string; canvas?: HTMLCanvasElement };
@@ -168,7 +169,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
         {empty && (
           <div className="flex flex-col gap-3">
             <div className="flex items-start gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary"><Sparkles className="size-4" aria-hidden="true" /></span>
+              <BrainBuddy mood={off ? "sleepy" : "waving"} size={60} className="shrink-0" />
               <div className="text-sm">
                 <p className="font-semibold">Hi{userName ? ` ${userName.split(" ")[0]}` : ""}, what would you like to know?</p>
                 <p className="mt-0.5 text-muted-foreground">
@@ -193,7 +194,9 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
           : <AnswerTurn key={t.id} t={t} last={i === turns.length - 1 && !pending} onAsk={(q) => void send(q, [], [])}
               onChange={(n) => setTurns((xs) => xs.map((x) => (x.id === n.id ? { ...x, ...n } : x)))} />)}
         {pending && (
-          <div className="flex flex-col gap-2">
+          <div className="flex items-start gap-2.5">
+            {!pending.text && <BrainBuddy mood="thinking" head size={26} className="brain-busy mt-0.5 shrink-0" />}
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
             {pending.steps.length > 0 && (
               <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
                 {pending.steps.map((s, i) => (
@@ -204,7 +207,8 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
               </ul>
             )}
             {pending.text ? <BrainMarkdown text={pending.text} streaming />
-              : !pending.steps.length && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Thinking…</p>}
+              : !pending.steps.length && <p className="text-sm text-muted-foreground">Thinking…</p>}
+          </div>
           </div>
         )}
       </div>

@@ -6,7 +6,6 @@ import {
   Calendar as CalendarIcon,
   PhoneCall,
   CheckSquare,
-  Clock,
   MapPin,
   Paperclip,
   Lock,
@@ -15,7 +14,6 @@ import {
   ArrowDown,
   User,
   Building2,
-  ExternalLink,
 } from "lucide-react";
 import {
   Table,
@@ -25,10 +23,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { ActivityDoneToggle } from "@/components/activity-done-toggle";
 import { ActivityDetailDialog } from "@/components/activity-detail-dialog";
 import type { ActivityOut } from "@/lib/types";
+import { EmptyState } from "@/components/empty-state";
 
 type SortField = "date" | "priority" | "type" | "subject" | "contact" | "company" | "duration";
 type SortDirection = "asc" | "desc";
@@ -118,7 +116,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
     });
   }, [items, sortField, sortDirection]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
+  const sortIcon = (field: SortField) => {
     if (sortField !== field) {
       return <ArrowUpDown className="ml-1 size-3 opacity-40 group-hover:opacity-100" />;
     }
@@ -131,11 +129,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border/80 p-12 text-center text-sm text-muted-foreground bg-card">
-        <CheckSquare className="mx-auto mb-2 size-8 opacity-40" />
-        <p className="font-semibold text-foreground">No activities found</p>
-        <p className="text-xs mt-1">There are no calls, meetings or to-dos matching your current filters.</p>
-      </div>
+      <EmptyState title="Nothing to show">No calls, meetings or to-dos match these filters. Try another view, or press <strong>Log or schedule</strong> to add one.</EmptyState>
     );
   }
 
@@ -151,7 +145,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Type</span>
-                <SortIcon field="type" />
+                {sortIcon("type")}
               </div>
             </TableHead>
             <TableHead
@@ -160,7 +154,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Date</span>
-                <SortIcon field="date" />
+                {sortIcon("date")}
               </div>
             </TableHead>
             <TableHead className="w-20 py-3">Time</TableHead>
@@ -170,7 +164,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Priority</span>
-                <SortIcon field="priority" />
+                {sortIcon("priority")}
               </div>
             </TableHead>
             <TableHead
@@ -179,7 +173,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Regarding / Details</span>
-                <SortIcon field="subject" />
+                {sortIcon("subject")}
               </div>
             </TableHead>
             <TableHead
@@ -188,7 +182,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Contact</span>
-                <SortIcon field="contact" />
+                {sortIcon("contact")}
               </div>
             </TableHead>
             <TableHead
@@ -197,7 +191,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Company</span>
-                <SortIcon field="company" />
+                {sortIcon("company")}
               </div>
             </TableHead>
             <TableHead
@@ -206,7 +200,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             >
               <div className="flex items-center">
                 <span>Duration</span>
-                <SortIcon field="duration" />
+                {sortIcon("duration")}
               </div>
             </TableHead>
             <TableHead className="w-28 py-3">Location</TableHead>

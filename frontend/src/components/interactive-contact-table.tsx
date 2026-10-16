@@ -21,6 +21,7 @@ import type { ContactField } from "@/lib/contact-tools-types";
 import { lookupContactIds } from "@/lib/messaging-actions";
 import { sourceLabel, sourceBadgeStyle as publicationBadgeStyle } from "@/lib/sources";
 import { friendlyError } from "@/lib/errors";
+import { EmptyState } from "@/components/empty-state";
 
 type SortKey = "name" | "first_name" | "company" | "city" | "country" | "title" | "email" | "added";
 
@@ -268,8 +269,8 @@ export function InteractiveContactTable({
 
             {items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                  No contacts match this lookup. Try fewer filters.
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState compact mood="puzzled" title="No contacts match">Try fewer filters, or another title.</EmptyState>
                 </TableCell>
               </TableRow>
             )}
