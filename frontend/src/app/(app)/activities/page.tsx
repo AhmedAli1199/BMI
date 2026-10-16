@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { CalendarDays, Search, Plus, Filter, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Search, Plus, Clock } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getPublicationFilter } from "@/lib/publication";
 import { listActivities, listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, resolveScope } from "@/lib/access";
 import { PublicationQuickFilter } from "@/components/publication-quick-filter";
+import { CalendarRemindersHeader } from "@/components/calendar-reminders-header";
 import { InteractiveActivityTable } from "@/components/interactive-activity-table";
 import { LogInteractionDialog } from "@/components/log-interaction-dialog";
 import { Input } from "@/components/ui/input";
@@ -109,22 +110,7 @@ export default async function ActivitiesPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
-      {/* Header & Quick Action */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border/80 pb-4">
-        <div>
-          <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-            <CalendarDays className="size-3.5" />
-            <span>Calendar &amp; Task List</span>
-          </div>
-          <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Calendar &amp; Tasks
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            High-density schedule and activities data grid across all contacts, companies and cadences.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
+      <CalendarRemindersHeader active="calendar" actions={<>
           {/* Quick Search */}
           <form action="/activities" className="relative w-64 sm:w-72">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
@@ -151,8 +137,7 @@ export default async function ActivitiesPage({
               </Button>
             }
           />
-        </div>
-      </div>
+        </>} />
 
       {/* Publication Segmentation Strip */}
       <div className="flex flex-wrap items-center justify-between gap-3">

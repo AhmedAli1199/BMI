@@ -6,7 +6,7 @@ sources: ["frontend/src/app/(app)/editorial/page.tsx", "frontend/src/components/
 ---
 
 ## What this screen is for
-The **Editorial plan** (in the sidebar under Sales) is the year's schedule for every brand: each magazine issue, guide or special, event and awards night, with its deadlines and the features planned for it. Every issue on the plan is the same thing as an edition in the order register, so its bookings and its plan live in one place. Proposals, renewal emails and email templates read the plan to pitch the right issue with the right dates.
+The **Editorial plan** (in the menu under Editorial) is the year's schedule for every brand: each magazine issue, guide or special, event and awards night, with its deadlines and the features planned for it. Every issue on the plan is the same thing as an edition in the order register, so its bookings and its plan live in one place. Proposals, renewal emails and email templates read the plan to pitch the right issue with the right dates.
 
 ## What you see
 - **Header:** the title "Editorial plan", the **Add an issue or event** button (only if you can change at least one brand) and the year buttons (hidden on the Deadlines view).

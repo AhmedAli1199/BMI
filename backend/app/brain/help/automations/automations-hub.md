@@ -8,7 +8,7 @@ sources: ["frontend/src/app/(app)/automations/page.tsx", "frontend/src/app/(app)
 ## What this screen is for
 The Automations Hub is where administrators and data managers keep an eye on the Brain's background helpers. Each helper (a "scanner") reads mailboxes, the CRM or the order register on a timetable and puts suggestions in the Review Queue. Nothing it suggests is done until a person approves it. The Hub shows how much is waiting, how quickly the team deals with it, whether each scanner is switched on and working, and what the requests to the Brain cost.
 
-Open it from the sidebar: **Automations Hub** > **Overview**, one page per group of automations, and **Scanners & Settings**. Salespeople don't see the Hub. Their **Today** list and **Review Queue** are separate sidebar items.
+Open it from the menu: **Automations** (under The Brain) > **Overview**, one page per group of automations, and **Scanners & Settings**. Salespeople don't see the Hub. Their **Today** list and **Review Queue** are separate sidebar items.
 
 ## What you see
 **Overview (Automations Hub)**

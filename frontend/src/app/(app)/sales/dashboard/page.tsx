@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarClock } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
+import { PageTabs } from "@/components/page-tabs";
+import { hiddenSections } from "@/lib/hidden-sections";
 import type { PaceRow, PaceState, SalesDashboard, YearBasis } from "@/lib/sales-types";
-import { fmtPercent, pctChange } from "@/lib/automation-format";
-import { Delta, KpiTile } from "@/components/automations/hub-ui";
+import { fmtPercent } from "@/lib/automation-format";
+import { KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { WeeklyChart } from "@/components/sales/weekly-chart";
 import { EmptyState, PaceBar, SalesHeader, SectionTitle, YearBasisSwitch, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
@@ -39,7 +41,7 @@ function gapText(r: PaceRow) {
 export default async function SalesDashboardPage({ searchParams }: { searchParams: Promise<{ basis?: string }> }) {
   const { basis: rawBasis } = await searchParams;
   const basis = rawBasis === "calendar" || rawBasis === "financial" ? `?basis=${rawBasis}` : "";
-  const d = await backendFetch<SalesDashboard>(`/api/sales/dashboard${basis}`);
+  const [d, hidden] = await Promise.all([backendFetch<SalesDashboard>(`/api/sales/dashboard${basis}`), hiddenSections()]);
   const ytd = d.year_to_date;
   const behind = d.pace.filter((p) => p.state === "behind").length;
   const ahead = d.pace.filter((p) => p.state === "ahead").length;
@@ -50,14 +52,19 @@ export default async function SalesDashboardPage({ searchParams }: { searchParam
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
-        title="Sales dashboard"
-        description="How every issue and event is selling against the same point last cycle, the weekly flow of bookings, and what the team has been doing. Every figure is a sum over the order register - click through to the bookings behind it."
+        title="Sales overview"
+        description="How every issue and event is selling against the same point last cycle, the weekly flow of bookings, and what the team has been doing. Click through to the bookings behind any figure."
         actions={
           ytd ? (
             <YearBasisSwitch current={ytd.basis} startMonth={ytd.fy_start_month} href={(b: YearBasis) => `/sales/dashboard?basis=${b}`} />
           ) : undefined
         }
       />
+
+      <PageTabs label="Sales overview" tabs={[
+        ...(!hidden.includes("sales_overview") || false ? [{ label: "This year", href: "/sales", active: false }] : []),
+        ...(!hidden.includes("sales_dashboard") || true ? [{ label: "Selling now", href: "/sales/dashboard", active: true }] : []),
+      ]} />
 
       {d.unattributed.orders > 0 && (
         <div role="status" className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-card p-4 text-sm shadow-2xs">
@@ -72,42 +79,8 @@ export default async function SalesDashboardPage({ searchParams }: { searchParam
         </div>
       )}
 
-      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {ytd ? (
-          <KpiTile
-            label={`Booked for ${ytd.label} so far`}
-            value={fmtGBP(ytd.booked_gbp, { compact: true })}
-            delta={<Delta change={pctChange(ytd.booked_gbp, ytd.last_year_same_point_gbp)} goodWhenUp />}
-            footer={
-              <span className="flex items-center gap-1">
-                {fmtGBP(ytd.last_year_same_point_gbp, { compact: true })} by this date in {ytd.previous_label}
-                <InfoHint>
-                  Live bookings for editions in the {ytd.basis === "financial" ? "financial year" : "year"} {ytd.label}, against {ytd.previous_label}&apos;s editions
-                  counting only what had been booked by today&apos;s date a year ago. {ytd.previous_label} finished on{" "}
-                  {fmtGBP(ytd.last_year_total_gbp, { compact: true })}.
-                </InfoHint>
-              </span>
-            }
-          />
-        ) : (
-          <KpiTile label="Editions selling" value={d.pace.length.toLocaleString("en-GB")} footer="Open, publishing in the next few months" />
-        )}
-        {ytd && (
-          <KpiTile
-            label={`Invoiced in ${ytd.label} so far`}
-            value={fmtGBP(ytd.invoiced_gbp, { compact: true })}
-            delta={<Delta change={pctChange(ytd.invoiced_gbp, ytd.invoiced_last_year_same_point_gbp)} goodWhenUp />}
-            footer={
-              <span className="flex items-center gap-1">
-                {fmtGBP(ytd.invoiced_last_year_same_point_gbp, { compact: true })} by this date in {ytd.previous_label}
-                <InfoHint>
-                  Money actually billed: invoices dated in {ytd.label}, whatever issue they were for, against invoices dated by today&apos;s date a
-                  year ago. A booking counts here only once it&apos;s invoiced.
-                </InfoHint>
-              </span>
-            }
-          />
-        )}
+      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-3">
+        <KpiTile label="Editions selling" value={d.pace.length.toLocaleString("en-GB")} footer="Open, publishing in the next few months" />
         <KpiTile
           label="Editions behind last cycle"
           value={behind.toLocaleString("en-GB")}

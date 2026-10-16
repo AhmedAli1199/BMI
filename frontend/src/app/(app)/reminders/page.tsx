@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { AlarmClock, BellRing, Building2, User } from "lucide-react";
+import { AlarmClock, Building2, User } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { Reminder } from "@/lib/messaging-types";
 import { ReminderRowActions } from "@/components/reminder-row-actions";
+import { CalendarRemindersHeader } from "@/components/calendar-reminders-header";
 import { EmptyState } from "@/components/empty-state";
 
 /** Request time - module-level so render stays pure. */
@@ -64,18 +65,8 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6">
-      <div className="border-b border-border/80 pb-4">
-        <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-          <BellRing className="size-3.5" />
-          <span>Reminders</span>
-        </div>
-        <h1 className="editorial-title text-2xl font-bold tracking-tight sm:text-3xl">My reminders</h1>
-        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Set one from any contact or company with <strong>Remind me</strong>. When it&apos;s due you get a notification
-          under the bell - and an email, if you asked for one.
-        </p>
-      </div>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
+      <CalendarRemindersHeader active="reminders" />
 
       <nav className="flex gap-1" aria-label="Filter reminders">
         {TABS.map((t) => (

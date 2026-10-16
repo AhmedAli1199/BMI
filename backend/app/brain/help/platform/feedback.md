@@ -6,7 +6,7 @@ sources: ["frontend/src/app/(app)/feedback/page.tsx", "frontend/src/components/f
 ---
 
 ## What this screen is for
-Every page has a **Feedback** button at the bottom right. Use it to tell the team something's broken, something's confusing, an idea, or something that looks wrong - and point at exactly what you mean. Everything sent lands on the **Feedback** board (Feedback in the menu), where everyone at BMI can see it, add their vote, comment and follow where it's up to. Administrators and data managers move each one along and mark it fixed.
+Every page has a **Feedback** button at the bottom right. Use it to tell the team something's broken, something's confusing, an idea, or something that looks wrong - and point at exactly what you mean. Everything sent lands on the **Feedback** board (the speech-bubble button next to your name at the bottom of the menu), where everyone at BMI can see it, add their vote, comment and follow where it's up to. Administrators and data managers move each one along and mark it fixed.
 
 ## What you see
 ### The Feedback button and panel

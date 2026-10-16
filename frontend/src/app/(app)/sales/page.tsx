@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, FileWarning, Layers, RefreshCcw } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
+import { PageTabs } from "@/components/page-tabs";
+import { hiddenSections } from "@/lib/hidden-sections";
 import type { SalesMeta, SalesOverview, YearBasis } from "@/lib/sales-types";
 import { fmtPercent, pctChange } from "@/lib/automation-format";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,7 @@ import {
 
 export default async function SalesOverviewPage({ searchParams }: { searchParams: Promise<{ year?: string; basis?: string }> }) {
   const { year: rawYear, basis: rawBasis } = await searchParams;
-  const meta = await backendFetch<SalesMeta>("/api/sales/meta");
+  const [meta, hidden] = await Promise.all([backendFetch<SalesMeta>("/api/sales/meta"), hiddenSections()]);
   const basis: YearBasis = rawBasis === "calendar" || rawBasis === "financial" ? rawBasis : meta.year_basis;
   const yearParam = Number(rawYear) ? `&year=${Number(rawYear)}` : "";
   const ov = await backendFetch<SalesOverview>(`/api/sales/overview?basis=${basis}${yearParam}`);
@@ -49,7 +51,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
-        title="Sales Orders"
+        title="Sales overview"
         description="BMI's order book - every booking across every title, issue and event, in one place instead of fifteen spreadsheets."
         actions={
           <>
@@ -68,6 +70,11 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
           </>
         }
       />
+
+      <PageTabs label="Sales overview" tabs={[
+        ...(!hidden.includes("sales_overview") || true ? [{ label: "This year", href: "/sales", active: true }] : []),
+        ...(!hidden.includes("sales_dashboard") || false ? [{ label: "Selling now", href: "/sales/dashboard", active: false }] : []),
+      ]} />
 
       <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiTile

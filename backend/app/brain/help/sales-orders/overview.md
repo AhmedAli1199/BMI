@@ -49,20 +49,23 @@ Opens All items filtered to that person (including bookings they share) for the 
 ### Renewals / Invoicing / All editions cards
 Shortcuts to those pages.
 
-### The left-menu "Sales Orders" items
-The Sales Orders menu opens when you click it. An amber number next to it (and next to Invoicing) is the count of bookings overdue for an invoice. Administrators can hide items from the menu for a role or a person; hiding only tidies the menu.
-- **Overview** - this page (this guide).
-- **Dashboard** - how each issue and event is selling against last cycle (see the "Sales dashboard and weekly summary" guide).
-- **Weekly summary** - the Monday brief and alerts, administrators and data managers only (see the "Sales dashboard and weekly summary" guide).
-- **Editions** - every issue, month and event, and each edition's own page (see the "Editions and the edition page" guide).
-- **All items** - every booked item across every title and year (see the "All items and renewals" guide).
-- **Renewals** - last year's advertisers who haven't rebooked (see the "All items and renewals" guide).
-- **Proposals** - building and sending proposals to clients (see the "Proposals" guide).
+### This year / Selling now (tabs)
+**This year** is this page. **Selling now** shows how each issue and event that is still selling compares with last cycle, the weekly bookings and team activity (see the "Sales overview: Selling now, and the weekly summary" guide).
+
+### The Sales items in the menu
+Everything for sales is under **Sales** in the menu. An amber number next to **Invoicing** is the count of bookings overdue for an invoice. Administrators can hide items from the menu for a role or a person; hiding only tidies the menu.
+- **Overview** - this page, with its two tabs.
 - **Bookings** - the bookings and order confirmations you create for clients (see the "Bookings list", "Booking page" and "New booking and change booking form" guides).
+- **Proposals** - building and sending proposals to clients (see the "Proposals" guide).
 - **Rate card** - prices and products for each title (see the "Rate card" guide).
+- **Editions** - every issue, month and event, and each edition's own page (see the "Editions and the edition page" guide).
 - **Invoicing** - what still needs an invoice and invoice checks (see the "Invoicing" guide).
-- **Costs & profit** - costs and profit across all editions, administrators and data managers only (see the "Costs, profit and commission" guide).
 - **Commissions** (salespeople see **My commission**) - commission statements (see the "Costs, profit and commission" guide).
+- **More** opens the rest:
+  - **All items** - every booked item across every title and year (see the "All items and renewals" guide).
+  - **Renewals** - last year's advertisers who haven't rebooked (see the "All items and renewals" guide).
+  - **Weekly summary** - the Monday brief and alerts, administrators and data managers only.
+  - **Costs & profit** - costs and profit across all editions, administrators and data managers only (see the "Costs, profit and commission" guide).
 
 ## How it works
 - **Booked** counts only bookings with the status Booked. Cancelled, contra (free swaps) and moved bookings are never counted. Pencilled bookings are not counted either.
@@ -105,5 +108,5 @@ A: Click **<number> from <last year> not back yet** on the Advertisers tile, or 
 - **"Coming up" says "Nothing publishing in the next 10 weeks."** Only open editions with a date in the next ten weeks or so are listed. A closed edition, or one with no date, doesn't appear.
 - **A title shows "new" in the comparison column.** It had nothing booked at the same point last year, so there's nothing to compare it with.
 - **A salesperson is missing from By salesperson.** Only people credited on live bookings for the year appear. Bookings with no salesperson credited don't show here - the Dashboard flags them.
-- **I can't see the Sales Orders menu, or an item in it.** An administrator may have hidden that item for your role or for you. Ask an administrator to check "Sections people see" in Settings.
+- **I can't see Sales in the menu, or an item in it.** An administrator may have hidden that item for your role or for you. Ask an administrator to check "Sections people see" in Settings.
 - **Weekly summary and Costs & profit aren't in my menu.** They are only for administrators and data managers.

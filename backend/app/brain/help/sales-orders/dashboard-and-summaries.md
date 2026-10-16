@@ -1,20 +1,19 @@
 ---
-title: Sales dashboard and weekly summary
+title: Sales overview - Selling now, and the weekly summary
 screens: ["/sales/dashboard", "/sales/summaries"]
 summary: How every issue and event is selling against the same point last cycle, the weekly flow of bookings and team activity, plus the Monday management brief and the behind-last-cycle alerts.
 sources: ["frontend/src/app/(app)/sales/dashboard/page.tsx", "frontend/src/app/(app)/sales/summaries/page.tsx", "frontend/src/components/sales/weekly-chart.tsx", "frontend/src/components/run-job-button.tsx", "backend/app/api/routes/sales.py", "backend/app/sales/analytics.py", "backend/app/automations/management_reports.py", "backend/app/api/routes/management.py"]
 ---
 
 ## What this screen is for
-**Sales dashboard** (Dashboard in the menu) shows how every issue and event that is still selling compares with its equivalent from last cycle, how many bookings came in each week, and what each person has done recently. **Weekly summary & alerts** (Weekly summary in the menu) is the one-page Monday brief for leadership and the early-warning alerts for editions running behind. Both use the same figures as the overview, so they never disagree. This is a picture of what's happening, not a league table or a target tool: people are always listed alphabetically.
+**Selling now** (the second tab of **Overview** under Sales in the menu) shows how every issue and event that is still selling compares with its equivalent from last cycle, how many bookings came in each week, and what each person has done recently. **Weekly summary & alerts** (**More** > **Weekly summary** in the menu) is the one-page Monday brief for leadership and the early-warning alerts for editions running behind. Both use the same figures as the overview, so they never disagree. This is a picture of what's happening, not a league table or a target tool: people are always listed alphabetically.
 
 ## What you see
-### Sales dashboard
-- **Header** with the **Financial year / Calendar year** switch.
+### Selling now
+- **Header** "Sales overview" with the **Financial year / Calendar year** switch, and the tabs **This year** and **Selling now**.
 - **Uncredited bookings warning** (only when there are some): "<number> bookings (<amount>) in <year> aren't credited to any salesperson". These don't appear in the per-person figures.
-- **Four figure tiles**
-  - **Booked for <year> so far** - live bookings for this year's editions, against what last year's editions had booked by this date a year ago. The hint shows how last year finished.
-  - **Invoiced in <year> so far** - invoices dated in the year so far, against invoices dated by this date a year ago.
+- **Three figure tiles** (the year's booked and invoiced totals are on the **This year** tab)
+  - **Editions selling** - open editions publishing in the next few months.
   - **Editions behind last cycle** - how many selling editions are behind, and how many are ahead.
   - **Booked, last 12 weeks** - the value booked in the last twelve weeks, against the same weeks last year.
 - **Edition tracker** - one row per edition still selling: its name and date ("Publishes" or "Runs"), bookings, **Booked**, **Last cycle, same point** (with a link to last cycle's edition), **Gap** in pounds and per cent, a progress bar and a **Status**:
@@ -27,14 +26,14 @@ sources: ["frontend/src/app/(app)/sales/dashboard/page.tsx", "frontend/src/app/(
 - **Team activity** - for the last 30 days, alphabetically: **Bookings** and **Booked value** credited to each person, **Follow-ups actioned** (items they dealt with in their queue) and **Waiting in queue**. "no login" means the salesperson isn't linked to a login yet, so their queue can't be counted.
 
 ### Weekly summary & alerts
-- **Header** with **Run now** and **Open the dashboard →**.
+- **Header** with **Run now** and **Open Selling now →**.
 - **The brief** for the chosen week ("Week of <date>"), saying when it was written and whether the headline was written by the Brain or put together from the figures. Its sections are: the headline, **Revenue**, **Activity**, **By salesperson** (a table), **Editions to watch**, **Alerts this week**, **Sold-work delivery** and **Needs a decision**. Most lines link to the records behind them.
 - **Recent alerts** - the latest 20 behind-last-cycle alerts, each linking to its edition, with its own **Run now** button.
 - **Earlier weeks** - previous briefs (shown once there is more than one).
 
 ## Buttons and controls
-### Financial year / Calendar year (dashboard)
-Changes which year the first two tiles and the uncredited warning use. Financial years run July to June. The edition tracker, weekly chart and team activity don't depend on it.
+### Financial year / Calendar year (Selling now)
+Changes which year the uncredited warning uses. Financial years run July to June. The edition tracker, weekly chart and team activity don't depend on it.
 
 ### Edition names in the tracker
 Open the edition page. The smaller link under **Last cycle, same point** opens last cycle's equivalent edition.
@@ -45,14 +44,14 @@ Open All items filtered to that person. This shows all their bookings, not just 
 ### Run now (next to the brief)
 Writes this week's brief straight away, without waiting for Monday. If this week's brief already exists it is rewritten with the latest figures, and nobody is notified again. Administrators and data managers only.
 
-### Open the dashboard →
-Opens the Sales dashboard.
+### Open Selling now →
+Opens the Selling now tab of the Sales overview.
 
 ### Run now (next to Recent alerts)
 Runs the behind-last-cycle check straight away. Any new alerts are sent to the recipients as notifications. Administrators and data managers only.
 
 ### Links in the brief
-Names in **By salesperson** open All items filtered to that person's bookings from the last 7 days. The two commission figures open that person's commission statement for the month. Edition lines open the edition, and "Needs a decision" lines open the page where the work waits (Invoicing, the Review Queue or the dashboard).
+Names in **By salesperson** open All items filtered to that person's bookings from the last 7 days. The two commission figures open that person's commission statement for the month. Edition lines open the edition, and "Needs a decision" lines open the page where the work waits (Invoicing, the Review Queue or Selling now).
 
 ### Week of <date> (Earlier weeks)
 Shows that week's brief.
@@ -71,7 +70,7 @@ Shows that week's brief.
 
 ## Common questions
 **Q: Which editions should I worry about?**
-A: Open **Dashboard** and look at the top of the **Edition tracker** - editions marked **Behind** come first, with the gap in pounds and per cent.
+A: Open **Overview** > **Selling now** and look at the top of the **Edition tracker** - editions marked **Behind** come first, with the gap in pounds and per cent.
 
 **Q: Why does an edition say "Too early to compare"?**
 A: Either there's no matching edition from last cycle, or last cycle had less than the minimum booked by this point (£2,000 and 3 bookings by default). The reason is shown under the status.

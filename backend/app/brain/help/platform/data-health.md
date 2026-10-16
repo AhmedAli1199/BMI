@@ -6,7 +6,7 @@ sources: ["frontend/src/app/(app)/data-health/page.tsx", "frontend/src/lib/autom
 ---
 
 ## What this screen is for
-**Data Health** (under BMI Brain in the menu) shows what's dragging down the quality of the contact database in one place: records missing key details, and clean-up suggestions from the automations that are still waiting for someone to decide. Each line has a **Fix** link that takes you to where you can sort it out. It's for administrators and data managers.
+**Data Health** (under The Brain in the menu) shows what's dragging down the quality of the contact database in one place: records missing key details, and clean-up suggestions from the automations that are still waiting for someone to decide. Each line has a **Fix** link that takes you to where you can sort it out. It's for administrators and data managers.
 
 ## What you see
 - **Header** - how many contacts and companies the figures cover.

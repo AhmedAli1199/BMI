@@ -31,7 +31,7 @@ export default async function SummariesPage({ searchParams }: { searchParams: Pr
           <>
             <RunJobButton jobId="weekly_management_summary" />
             <Link href="/sales/dashboard" className="text-xs font-semibold text-primary hover:underline">
-              Open the dashboard →
+              Open Selling now →
             </Link>
           </>
         }

@@ -164,7 +164,7 @@ export function AppSidebar({
                 <NavItem href="/automations/today" label="Today" icon={CalendarClock} active={pathname.startsWith("/automations/today")} />
               )}
               {(show("calendar") || show("reminders")) && (
-                <NavItem href="/activities" label="Calendar & Reminders" icon={CalendarDays}
+                <NavItem href={show("calendar") ? "/activities" : "/reminders"} label="Calendar & Reminders" icon={CalendarDays}
                   active={pathname.startsWith("/activities") || pathname.startsWith("/reminders")} />
               )}
               {show("calls") && <NavItem href="/calls" label="Call notes" icon={Mic} active={pathname.startsWith("/calls")} />}
@@ -263,7 +263,7 @@ export function AppSidebar({
                       <HubSubItem key={w.id} href={`/automations/${w.id}`} label={w.label} active={pathname === `/automations/${w.id}`}
                         badge={w.pending > 0 ? w.pending.toLocaleString("en-GB") : undefined} />
                     ))}
-                    <HubSubItem href="/automations/engine" label="Automations & settings"
+                    <HubSubItem href="/automations/engine" label="Scanners & Settings"
                       active={pathname === "/automations/engine" || pathname === "/automations/settings"}
                       badge={scanners && scanners.total > 0 ? `${scanners.active}/${scanners.total}` : undefined} badgeTone="neutral" />
                   </SidebarMenuSub>
@@ -271,7 +271,7 @@ export function AppSidebar({
               </Collapsible>
             )}
             {canUseAutomations(session) && show("data_health") && (
-              <NavItem href="/data-health" label="Data health" icon={HeartPulse} active={pathname === "/data-health"} />
+              <NavItem href="/data-health" label="Data Health" icon={HeartPulse} active={pathname === "/data-health"} />
             )}
           </NavGroup>
         )}

@@ -6,7 +6,7 @@ sources: ["frontend/src/app/(app)/page.tsx", "frontend/src/components/publicatio
 ---
 
 ## What this screen is for
-The home page (**Dashboard** in the menu, or the BMI name at the top of the menu) gives you a quick picture of the contact database: how many contacts, companies and groups you have, what BMI Brain's automations have found for review, and who has been active recently. It's also a quick place to add a contact, company or group. It only ever counts what you're allowed to see. The sales figures are on the Sales overview and Sales dashboard, not here.
+The home page (**Home** in the menu, or the BMI name at the top of the menu) gives you a quick picture of the contact database: how many contacts, companies and groups you have, what BMI Brain's automations have found for review, and who has been active recently. It's also a quick place to add a contact, company or group. It only ever counts what you're allowed to see. The sales figures are on the Sales overview, not here.
 
 ## What you see
 From top to bottom:
@@ -84,7 +84,7 @@ A: It's what BMI Brain's automations have suggested recently (for example possib
 A: Administrators only. On all titles, press the **Add database** tile, fill in the name, description, colour and icon, and press **Add database**. Then give people access to it under **Settings** > **Team & access**.
 
 **Q: Where are the sales figures?**
-A: Not on this page. Open **Sales Orders** in the menu for the sales overview and the Sales dashboard.
+A: Not on this page. Open **Overview** under Sales in the menu for the sales figures.
 
 ## If something doesn't work
 - **It says "No database access yet".** Your account hasn't been given any database. Ask an administrator to add one under **Settings** > **Team & access**.

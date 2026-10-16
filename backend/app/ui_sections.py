@@ -29,16 +29,15 @@ class SectionDef:
 
 
 SECTIONS: list[SectionDef] = [
-    SectionDef("contacts", "Contacts", "Platform", "The contact list and contact pages."),
-    SectionDef("companies", "Companies", "Platform", "The company list and company pages."),
-    SectionDef("groups", "Groups", "Platform", "Contact groups and lists."),
-    SectionDef("calendar", "Calendar & Tasks", "Platform", "Meetings, calls and tasks."),
-    SectionDef("reminders", "Reminders", "Platform", "Personal reminders."),
-    SectionDef("calls", "Call notes", "Platform", "Calls the notetaker joined, with their notes and transcripts."),
-    SectionDef("mail_merge", "Mail merge", "Platform", "Sending one email to many contacts."),
-    SectionDef("email_templates", "Email templates", "Platform", "The shared library of email templates."),
-    SectionDef("sales_overview", "Sales overview", "Sales", "The sales headline figures and booking pace."),
-    SectionDef("sales_dashboard", "Sales dashboard", "Sales", "How each issue is selling against last cycle."),
+    SectionDef("today", "Today", "Everyday", "Each person's list of things to do today."),
+    SectionDef("calendar", "Calendar & tasks", "Everyday", "Meetings, calls and tasks."),
+    SectionDef("reminders", "Reminders", "Everyday", "Personal reminders."),
+    SectionDef("calls", "Call notes", "Everyday", "Calls the notetaker joined, with their notes and transcripts."),
+    SectionDef("contacts", "Contacts", "Clients", "The contact list and contact pages."),
+    SectionDef("companies", "Companies", "Clients", "The company list and company pages."),
+    SectionDef("groups", "Groups", "Clients", "Contact groups and lists."),
+    SectionDef("sales_overview", "Sales overview: This year", "Sales", "The sales headline figures and booking pace."),
+    SectionDef("sales_dashboard", "Sales overview: Selling now", "Sales", "How each issue is selling against last cycle."),
     SectionDef("editions", "Editions", "Sales", "Every issue, month and event with its bookings."),
     SectionDef("bookings", "All items", "Sales", "Every booked item, in every issue."),
     SectionDef("renewals", "Renewals", "Sales", "Last year's advertisers who haven't rebooked."),
@@ -47,11 +46,12 @@ SECTIONS: list[SectionDef] = [
     SectionDef("rate_card", "Rate card", "Sales", "Prices for every brand."),
     SectionDef("invoicing", "Invoicing", "Sales", "Bookings waiting for an invoice."),
     SectionDef("commissions", "Commission", "Sales", "Commission statements (people only ever see their own)."),
-    SectionDef("editorial", "Editorial plan", "Sales", "Issue dates, deadlines and features."),
-    SectionDef("today", "Today", "BMI Brain", "Each person's list of things to do today."),
-    SectionDef("review_queue", "Review Queue", "BMI Brain", "Suggestions waiting for someone to check."),
-    SectionDef("automations_hub", "Automations Hub", "BMI Brain", "Automation status and results (data managers only)."),
-    SectionDef("data_health", "Data Health", "BMI Brain", "Duplicate and incomplete records (data managers only)."),
+    SectionDef("editorial", "Editorial plan", "Editorial", "Issue dates, deadlines and features."),
+    SectionDef("mail_merge", "Mail merge", "Outreach", "Sending one email to many contacts."),
+    SectionDef("email_templates", "Email templates", "Outreach", "The shared library of email templates."),
+    SectionDef("review_queue", "Review Queue", "The Brain", "Suggestions waiting for someone to check."),
+    SectionDef("automations_hub", "Automations Hub", "The Brain", "Automation status and results (data managers only)."),
+    SectionDef("data_health", "Data Health", "The Brain", "Duplicate and incomplete records (data managers only)."),
 ]
 KEYS = {s.key for s in SECTIONS}
 

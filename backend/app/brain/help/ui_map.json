@@ -7,6 +7,8 @@
     "app/(app)/activities/page.tsx",
     "components/activity-detail-dialog.tsx",
     "components/activity-done-toggle.tsx",
+    "components/calendar-reminders-header.tsx",
+    "components/empty-state.tsx",
     "components/entity-picker.tsx",
     "components/interactive-activity-table.tsx",
     "components/log-interaction-dialog.tsx",
@@ -146,6 +148,7 @@
     "components/calls/call-status.tsx",
     "components/calls/calls-tabs.tsx",
     "components/calls/send-notetaker.tsx",
+    "components/empty-state.tsx",
     "components/entity-picker.tsx",
     "components/sales/info-hint.tsx"
    ]
@@ -188,6 +191,7 @@
     "app/(app)/companies/page.tsx",
     "components/clickable-table-row.tsx",
     "components/company-form-dialog.tsx",
+    "components/empty-state.tsx",
     "components/entity-avatar.tsx",
     "components/publication-quick-filter.tsx",
     "lib/publication-style.tsx"
@@ -254,6 +258,7 @@
     "components/contacts/advanced-search.tsx",
     "components/contacts/bulk-update-dialog.tsx",
     "components/contacts/copy-emails-button.tsx",
+    "components/empty-state.tsx",
     "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
     "components/interactive-contact-table.tsx",
@@ -338,6 +343,7 @@
    "page": "app/(app)/groups/page.tsx",
    "files": [
     "app/(app)/groups/page.tsx",
+    "components/empty-state.tsx",
     "components/group-form-dialog.tsx",
     "components/publication-quick-filter.tsx",
     "lib/publication-style.tsx"
@@ -355,7 +361,8 @@
    "route": "/mail-merge/history",
    "page": "app/(app)/mail-merge/history/page.tsx",
    "files": [
-    "app/(app)/mail-merge/history/page.tsx"
+    "app/(app)/mail-merge/history/page.tsx",
+    "components/empty-state.tsx"
    ]
   },
   {
@@ -429,6 +436,8 @@
    "page": "app/(app)/reminders/page.tsx",
    "files": [
     "app/(app)/reminders/page.tsx",
+    "components/calendar-reminders-header.tsx",
+    "components/empty-state.tsx",
     "components/reminder-row-actions.tsx"
    ]
   },
@@ -509,6 +518,7 @@
    "files": [
     "app/(app)/sales/dashboard/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-tabs.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/sales-ui.tsx",
     "components/sales/weekly-chart.tsx"
@@ -652,6 +662,7 @@
    "files": [
     "app/(app)/sales/page.tsx",
     "components/automations/hub-ui.tsx",
+    "components/page-tabs.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/pace-chart.tsx",
     "components/sales/sales-ui.tsx"
@@ -837,43 +848,43 @@
  "elements": [
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:148",
+   "src": "app/(app)/activities/page.tsx:134",
    "kind": "button",
    "label": "Log or schedule"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:169",
+   "src": "app/(app)/activities/page.tsx:154",
    "kind": "link",
    "label": "Open"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:179",
+   "src": "app/(app)/activities/page.tsx:164",
    "kind": "link",
    "label": "Overdue"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:194",
+   "src": "app/(app)/activities/page.tsx:179",
    "kind": "link",
    "label": "Done"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:204",
+   "src": "app/(app)/activities/page.tsx:189",
    "kind": "link",
    "label": "All"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:224",
+   "src": "app/(app)/activities/page.tsx:209",
    "kind": "link",
    "label": "To-do"
   },
   {
    "file": "app/(app)/activities/page.tsx",
-   "src": "app/(app)/activities/page.tsx:265",
+   "src": "app/(app)/activities/page.tsx:250",
    "kind": "link",
    "label": "Showing mine only"
   },
@@ -1131,19 +1142,19 @@
   },
   {
    "file": "app/(app)/automations/today/page.tsx",
-   "src": "app/(app)/automations/today/page.tsx:58",
+   "src": "app/(app)/automations/today/page.tsx:59",
    "kind": "link",
    "label": "Automations"
   },
   {
    "file": "app/(app)/automations/today/page.tsx",
-   "src": "app/(app)/automations/today/page.tsx:80",
+   "src": "app/(app)/automations/today/page.tsx:81",
    "kind": "link",
    "label": "My list"
   },
   {
    "file": "app/(app)/automations/today/page.tsx",
-   "src": "app/(app)/automations/today/page.tsx:86",
+   "src": "app/(app)/automations/today/page.tsx:87",
    "kind": "link",
    "label": "Everyone"
   },
@@ -1179,31 +1190,31 @@
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:39",
+   "src": "app/(app)/calls/page.tsx:40",
    "kind": "heading",
    "label": "Recent calls"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:46",
+   "src": "app/(app)/calls/page.tsx:47",
    "kind": "column",
    "label": "Call"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:46",
+   "src": "app/(app)/calls/page.tsx:47",
    "kind": "column",
    "label": "With"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:47",
+   "src": "app/(app)/calls/page.tsx:48",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/calls/page.tsx",
-   "src": "app/(app)/calls/page.tsx:47",
+   "src": "app/(app)/calls/page.tsx:48",
    "kind": "column",
    "label": "When"
   },
@@ -1275,13 +1286,13 @@
   },
   {
    "file": "app/(app)/companies/page.tsx",
-   "src": "app/(app)/companies/page.tsx:141",
+   "src": "app/(app)/companies/page.tsx:142",
    "kind": "link",
    "label": "Previous"
   },
   {
    "file": "app/(app)/companies/page.tsx",
-   "src": "app/(app)/companies/page.tsx:149",
+   "src": "app/(app)/companies/page.tsx:150",
    "kind": "link",
    "label": "Next"
   },
@@ -1414,13 +1425,13 @@
   },
   {
    "file": "app/(app)/groups/page.tsx",
-   "src": "app/(app)/groups/page.tsx:116",
+   "src": "app/(app)/groups/page.tsx:113",
    "kind": "link",
    "label": "Previous"
   },
   {
    "file": "app/(app)/groups/page.tsx",
-   "src": "app/(app)/groups/page.tsx:124",
+   "src": "app/(app)/groups/page.tsx:121",
    "kind": "link",
    "label": "Next"
   },
@@ -1450,13 +1461,13 @@
   },
   {
    "file": "app/(app)/mail-merge/history/page.tsx",
-   "src": "app/(app)/mail-merge/history/page.tsx:21",
+   "src": "app/(app)/mail-merge/history/page.tsx:22",
    "kind": "link",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/mail-merge/history/page.tsx",
-   "src": "app/(app)/mail-merge/history/page.tsx:30",
+   "src": "app/(app)/mail-merge/history/page.tsx:31",
    "kind": "button",
    "label": "New mail merge"
   },
@@ -1540,13 +1551,13 @@
   },
   {
    "file": "app/(app)/reminders/page.tsx",
-   "src": "app/(app)/reminders/page.tsx:102",
+   "src": "app/(app)/reminders/page.tsx:94",
    "kind": "heading",
    "label": "Due now ( … )"
   },
   {
    "file": "app/(app)/reminders/page.tsx",
-   "src": "app/(app)/reminders/page.tsx:111",
+   "src": "app/(app)/reminders/page.tsx:103",
    "kind": "heading",
    "label": "Later"
   },
@@ -1614,87 +1625,73 @@
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:84",
-   "kind": "hint",
-   "label": "",
-   "hint": "Live bookings for editions in the financial year … , against … 's editions counting only what had been booked by today's date a year ago. … finished on … ."
-  },
-  {
-   "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:103",
-   "kind": "hint",
-   "label": "",
-   "hint": "Money actually billed: invoices dated in … , whatever issue they were for, against invoices dated by today's date a year ago. A booking counts here only once it's invoiced."
-  },
-  {
-   "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:137",
+   "src": "app/(app)/sales/dashboard/page.tsx:110",
    "kind": "column",
    "label": "Edition"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:138",
+   "src": "app/(app)/sales/dashboard/page.tsx:111",
    "kind": "column",
    "label": "Booked"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:139",
+   "src": "app/(app)/sales/dashboard/page.tsx:112",
    "kind": "column",
    "label": "Last cycle, same point"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:140",
+   "src": "app/(app)/sales/dashboard/page.tsx:113",
    "kind": "column",
    "label": "Gap"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:141",
+   "src": "app/(app)/sales/dashboard/page.tsx:114",
    "kind": "column",
    "label": "Progress"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:142",
+   "src": "app/(app)/sales/dashboard/page.tsx:115",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:204",
+   "src": "app/(app)/sales/dashboard/page.tsx:177",
    "kind": "column",
    "label": "Salesperson"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:205",
+   "src": "app/(app)/sales/dashboard/page.tsx:178",
    "kind": "column",
    "label": "Bookings"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:206",
+   "src": "app/(app)/sales/dashboard/page.tsx:179",
    "kind": "column",
    "label": "Booked value"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:207",
+   "src": "app/(app)/sales/dashboard/page.tsx:180",
    "kind": "column",
    "label": "Follow-ups actioned"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:208",
+   "src": "app/(app)/sales/dashboard/page.tsx:181",
    "kind": "column",
    "label": "Waiting in queue"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:236",
+   "src": "app/(app)/sales/dashboard/page.tsx:209",
    "kind": "hint",
    "label": "",
    "hint": "Only activity the system actually records appears here. Nothing is estimated."
@@ -1952,63 +1949,63 @@
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:63",
+   "src": "app/(app)/sales/page.tsx:65",
    "kind": "button",
    "label": "Bookings"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:80",
+   "src": "app/(app)/sales/page.tsx:87",
    "kind": "hint",
    "label": "",
    "hint": "- cancelled, contra and moved bookings aren't counted."
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:98",
+   "src": "app/(app)/sales/page.tsx:105",
    "kind": "hint",
    "label": "",
    "hint": "Money actually billed: invoices dated in … , whatever issue or event they were for - so a booking only counts here once it's invoiced. “Booked” (left) counts every booking for this year's editions, invoiced or not. The percentage is how much of this year's booked value has been invoiced so far."
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:110",
+   "src": "app/(app)/sales/page.tsx:117",
    "kind": "link",
    "label": "not invoiced yet →"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:121",
+   "src": "app/(app)/sales/page.tsx:128",
    "kind": "link",
    "label": "from … not back yet"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:157",
+   "src": "app/(app)/sales/page.tsx:164",
    "kind": "column",
    "label": "Title"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:158",
+   "src": "app/(app)/sales/page.tsx:165",
    "kind": "column",
    "label": "Booked"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:159",
+   "src": "app/(app)/sales/page.tsx:166",
    "kind": "column",
    "label": "vs same point"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:160",
+   "src": "app/(app)/sales/page.tsx:167",
    "kind": "column",
    "label": "Progress"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:209",
+   "src": "app/(app)/sales/page.tsx:216",
    "kind": "link",
    "label": "bookings"
   },
@@ -2187,7 +2184,7 @@
    "file": "app/(app)/sales/summaries/page.tsx",
    "src": "app/(app)/sales/summaries/page.tsx:33",
    "kind": "link",
-   "label": "Open the dashboard →"
+   "label": "Open Selling now →"
   },
   {
    "file": "app/(app)/sales/summaries/page.tsx",
@@ -2269,25 +2266,25 @@
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:48",
+   "src": "app/login/login-form.tsx:50",
    "kind": "heading",
-   "label": "BMI Sales Brain"
+   "label": "BMI Brain"
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:54",
+   "src": "app/login/login-form.tsx:56",
    "kind": "field",
    "label": "Email"
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:65",
+   "src": "app/login/login-form.tsx:67",
    "kind": "field",
    "label": "Password"
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:76",
+   "src": "app/login/login-form.tsx:78",
    "kind": "button",
    "label": "Signing in"
   },
@@ -5518,7 +5515,7 @@
   },
   {
    "file": "components/interactive-contact-table.tsx",
-   "src": "components/interactive-contact-table.tsx:149",
+   "src": "components/interactive-contact-table.tsx:150",
    "kind": "button",
    "label": "Selecting"
   },
