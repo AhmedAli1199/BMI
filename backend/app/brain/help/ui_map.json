@@ -1125,9 +1125,15 @@
   },
   {
    "file": "app/(app)/automations/settings/page.tsx",
-   "src": "app/(app)/automations/settings/page.tsx:35",
+   "src": "app/(app)/automations/settings/page.tsx:44",
    "kind": "link",
    "label": "View Brain usage & cost →"
+  },
+  {
+   "file": "app/(app)/automations/settings/page.tsx",
+   "src": "app/(app)/automations/settings/page.tsx:68",
+   "kind": "link",
+   "label": "All areas"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",

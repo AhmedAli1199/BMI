@@ -73,6 +73,14 @@ def _ago(t: datetime | None, now: datetime) -> str | None:
     return f"{mins // 1440} days ago"
 
 
+def settings_link(group: str | None) -> str:
+    """The Automation settings page opened on this area (same slug as the page's ?area=)."""
+    if not group:
+        return "/automations/settings"
+    slug = "-".join(w for w in "".join(c if c.isalnum() else " " for c in group.lower()).split())
+    return f"/automations/settings?area={slug}"
+
+
 def setting_view(db: Session, d) -> dict:
     from app.core.config import settings
     value = runtime_settings.effective_value(db, d.key)
@@ -165,6 +173,6 @@ def detail(db: Session, job_id: str, now: datetime | None = None) -> dict | None
         "cards": [{**c, "about": reg[c["kind"]].description if c["kind"] in reg else None,
                    "buttons": [a.label for a in reg[c["kind"]].actions] if c["kind"] in reg else [],
                    "last_30_days": handled.get(c["kind"], {})} for c in base["cards"]],
-        "settings_link": "/automations/settings",
+        "settings_link": settings_link(group),
         "problem_note": "Technical details of a failed run are on Automations > Scanners." if base["problems_this_week"] else None,
     }

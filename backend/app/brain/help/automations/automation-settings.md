@@ -10,7 +10,8 @@ Automation settings holds every setting for the background automations: which on
 
 ## What you see
 - A breadcrumb back to **Automations Hub** and **Scanners & Settings**, and **View Brain usage & cost →** on the right.
-- One card per group of settings, for example "Deliverability & Out-of-Office".
+- On the left, the list of areas (for example "Deliverability & Out-of-Office"), each with how many settings it has, and **All areas** at the bottom. Click an area to see just its settings; **All areas** shows every one on one page.
+- One card for the area you picked.
 - Each setting has its name, an (i) to hover over for a description, and a **Customized** badge when it differs from its starting value. Then:
   - a tick box saying **Enabled** or **Disabled**, or
   - a number or text box with a **Save** button.
