@@ -177,7 +177,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
               </div>
             </div>
             {intro?.guide && <p className="text-xs text-muted-foreground">You&apos;re on: <span className="font-medium text-foreground">{intro.guide}</span></p>}
-            {off && <p className="rounded-lg border border-border px-3 py-2 text-xs" style={{ color: "var(--warn)" }}>The assistant isn&apos;t switched on yet. An administrator needs to add the Gemini key.</p>}
+            {off && <p className="rounded-lg border border-border px-3 py-2 text-xs" style={{ color: "var(--warn)" }}>The Brain isn&apos;t switched on yet. An administrator can switch it on.</p>}
             {!!intro?.questions.length && !off && (
               <div className="flex flex-col gap-1.5">
                 {intro.questions.map((q) => (

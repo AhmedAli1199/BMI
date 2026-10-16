@@ -10,7 +10,7 @@ Every page has a **Feedback** button at the bottom right. Use it to tell the tea
 
 ## What you see
 ### The Feedback button and panel
-- The **Feedback** button sits at the bottom right of every page (the **Ask AI** button sits just above it). A number on it shows how much open feedback there already is about this page. It steps aside while a pop-up or side panel is open, and doesn't appear on print pages.
+- The **Feedback** button sits at the bottom right of every page (the **Ask the Brain** button sits just above it). A number on it shows how much open feedback there already is about this page. It steps aside while a pop-up or side panel is open, and doesn't appear on print pages.
 - Pressing it opens the **Feedback** panel:
   - Four kinds to choose from: **Something's broken**, **I don't understand this**, **I wish it could…** and **Looks wrong**.
   - A box to type in, with a microphone button to say it instead.
@@ -93,7 +93,7 @@ Opens the full details in a side panel:
 - **Open** means New or Looking at it. The count tiles always show the whole board, whatever filters you've chosen.
 - You can delete your own feedback while it's still New. After that, only administrators and data managers can.
 - If GitHub is switched on, each new piece becomes a GitHub issue labelled with its kind, with the screenshots. Edits, comments and status changes are passed on, and **Fixed** or **Won't do** closes the issue.
-- When you press **This didn't help** on an Ask AI answer, the question and answer arrive here as an **I don't understand this** piece of feedback.
+- When you press **This didn't help** on an Ask the Brain answer, the question and answer arrive here as an **I don't understand this** piece of feedback.
 
 ## Common questions
 **Q: How do I report a button that isn't working?**
@@ -128,6 +128,6 @@ A: Yes. Open it on the board and press the pencil. You can also add more detail 
 - **I can't change the status.** Only administrators and data managers can.
 - **I can't delete my feedback.** You can only delete your own while it's still New. Ask an administrator or data manager.
 - **I can't see the browser and errors section.** Only the sender, administrators and data managers see it.
-- **The Feedback button has disappeared.** It steps aside while a pop-up, side panel or the Ask AI panel is open, and isn't shown on print pages. Close the pop-up and it comes back.
+- **The Feedback button has disappeared.** It steps aside while a pop-up, side panel or the Ask the Brain panel is open, and isn't shown on print pages. Close the pop-up and it comes back.
 - **The microphone doesn't work.** Your browser may not allow recording, or the microphone is blocked. Type it instead.
 - **There's no GitHub link.** GitHub isn't switched on, or this one hasn't been sent yet. Administrators and data managers can press **Try again** if it failed.

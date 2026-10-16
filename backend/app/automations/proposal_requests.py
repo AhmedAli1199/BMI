@@ -144,7 +144,7 @@ def classify(db: Session, msg: ParsedMessage) -> dict | None:
             return None
         return {"is_request": True, "confidence": 0.4, "request_type": "general", "magazine": None, "wants": None, "budget": None,
                 "timing": None, "agency": False, "client_company": None, "contact_name": msg.from_name, "contact_email": msg.from_address,
-                "sector": None, "summary": f"Mentions {hits} things like prices or a media pack - not checked by AI.", "unchecked": True}
+                "sector": None, "summary": f"Mentions {hits} things like prices or a media pack - not checked by the Brain.", "unchecked": True}
     user = (f"Magazines and events: {'; '.join(titles)}\n\nFrom: {msg.from_name or ''} <{msg.from_address}>\nSubject: {msg.subject}\n\n"
             f"{(msg.body_text or '')[:6000]}")
     out = extract_json(_PROMPT, user, max_tokens=500, purpose="proposal_requests.classify")
@@ -281,7 +281,7 @@ def _details(db: Session, info: dict, msg: ParsedMessage, title: SalesTitle | No
     if info.get("summary"):
         d.append({"label": "In short", "value": info["summary"]})
     if info.get("unchecked"):
-        d.append({"label": "Worth knowing", "value": "The AI isn't switched on, so this was picked up from the words it uses. Check it really is a request."})
+        d.append({"label": "Worth knowing", "value": "The Brain isn't switched on, so this was picked up from the words it uses. Check it really is a request."})
     return d
 
 

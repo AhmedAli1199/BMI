@@ -43,7 +43,7 @@ export default async function AutomationSettingsPage() {
           href="/automations/llm-usage"
           className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary hover:underline"
         >
-          View LLM usage &amp; cost &rarr;
+          View Brain usage &amp; cost &rarr;
         </Link>
       </div>
 

@@ -899,7 +899,7 @@
    "file": "app/(app)/automations/engine/page.tsx",
    "src": "app/(app)/automations/engine/page.tsx:42",
    "kind": "button",
-   "label": "AI usage & cost"
+   "label": "Brain usage & cost"
   },
   {
    "file": "app/(app)/automations/engine/page.tsx",
@@ -1079,7 +1079,7 @@
    "file": "app/(app)/automations/settings/page.tsx",
    "src": "app/(app)/automations/settings/page.tsx:42",
    "kind": "link",
-   "label": "View LLM usage & cost →"
+   "label": "View Brain usage & cost →"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
@@ -7454,7 +7454,7 @@
    "file": "components/sales/proposal-ai-revise.tsx",
    "src": "components/sales/proposal-ai-revise.tsx:106",
    "kind": "heading",
-   "label": "Change it with AI"
+   "label": "Change it with the Brain"
   },
   {
    "file": "components/sales/proposal-ai-revise.tsx",

@@ -135,7 +135,7 @@ class NoteOut(BaseModel):
     # created_by is always automation-authored (every UI-driven note-add
     # sets created_by_user_id from the logged-in session; no automation
     # ever does) - the frontend uses that combination to label a note
-    # "AI / Automation" instead of the misleading blanket "Act! Manual" it
+    # "BMI Brain" instead of the misleading blanket "Act! Manual" it
     # used to show for every single note regardless of real origin.
     source_db: str
 

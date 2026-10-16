@@ -9,7 +9,7 @@ sources: ["frontend/src/app/(app)/automations/settings/page.tsx", "frontend/src/
 Automations > Settings ("Tune every scan") holds every setting for the background automations: which ones are switched on, which inboxes they read, how far back they look, how many cards they make per run, and the business rules for bookings and reports. Open it from **Scanners & Settings** > **Automation settings**.
 
 ## What you see
-- A back link, **Scanners & Settings**, and **View LLM usage & cost →**.
+- A back link, **Scanners & Settings**, and **View Brain usage & cost →**.
 - One card per group of settings, for example "Deliverability & Out-of-Office".
 - Each setting has its name, an (i) to hover over for a description, and a **Customized** badge when it differs from its starting value. Then:
   - a tick box saying **Enabled** or **Disabled**, or
@@ -26,8 +26,8 @@ For number and text settings. It becomes clickable once you change the value. Li
 ### Reset to default (<value>)
 Shown next to a **Customized** setting. It puts the starting value back.
 
-### View LLM usage & cost →
-Opens the AI usage & cost page.
+### View Brain usage & cost →
+Opens the Brain usage & cost page.
 
 Below, "Starts at" is the value the Brain ships with. Your server can set a different starting value, so trust the **Reset to default** label if they differ. Times are UTC.
 
@@ -54,7 +54,7 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Mailbox monitoring active | Switches on the scan for bounces, out-of-office replies and "has left" replies. | Off |
 | Monitored inboxes | Which inboxes that scan reads, separated by commas. | Empty |
 | Initial scan lookback (minutes) | How far back the first read of a new inbox goes. 1440 = one day. | 1440 |
-| Max out-of-office analyses per cycle | Most auto-replies the AI checks per run. The rest wait for the next run. | 25 |
+| Max out-of-office analyses per cycle | Most auto-replies the Brain checks per run. The rest wait for the next run. | 25 |
 
 ### Duplicate Resolution
 | Setting | What it changes | Starts at |
@@ -78,7 +78,7 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Spot proposal requests | Every 10 minutes, reads the inboxes below for emails asking for prices, a media pack or a proposal, and drafts a reply for that salesperson. | Off |
 | Inboxes to read | Salespeople's addresses, separated by commas. Each card goes only to the inbox's owner. | Empty |
 | First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
-| Most emails checked by AI per run | Cap on AI checks per run. The rest wait. | 30 |
+| Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
 | Weekly check of example links | Every Monday, checks the links in the proposal examples library and flags broken ones. | On |
 
 ### Email Summaries & Commercial Signals
@@ -90,7 +90,7 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Minimum message length | Skips messages shorter than this many characters ("Thanks!"). | 40 |
 | Initial lookback window (minutes) | How far back the first read goes. | 1440 |
 | Internal BMI email domains | Addresses treated as colleagues, so internal emails are skipped. | bmipublishing.co.uk, onboardhospitality.com, sellingtravel.com |
-| Signal confidence threshold (0.0–1.0) | How sure the AI must be before it keeps a budget, renewal or call-back. | 0.5 |
+| Signal confidence threshold (0.0–1.0) | How sure the Brain must be before it keeps a budget, renewal or call-back. | 0.5 |
 | Thread quiescence window (hours) | Hours of quiet before a conversation counts as finished and gets its summary note. | 24 |
 
 ### Inbound Lead Capture
@@ -101,7 +101,7 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Max thread participants | Skips group emails with more people than this. | 3 |
 | Minimum email length | Skips very short messages. | 30 |
 | Initial lookback (minutes) | How far back the first read goes. | 1440 |
-| Max inquiries analyzed per run | Most emails the AI checks per run. | 40 |
+| Max inquiries analyzed per run | Most emails the Brain checks per run. | 40 |
 
 ### Notifications & Alerts
 | Setting | What it changes | Starts at |
@@ -131,12 +131,12 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Deal value ranking weight (0.0–1.0) | How much a linked opportunity's value counts. | 0.15 |
 | Maximum deal value threshold (£) | Opportunities worth this or more count as top value. | 10,000 |
 
-### LLM usage & cost
+### Brain usage & cost
 | Setting | What it changes | Starts at |
 |---|---|---|
-| Max retries per call | How many times an AI call is retried after a temporary error. 0 = no retries. | 3 |
+| Max retries per call | How many times a request to the Brain is retried after a temporary error. 0 = no retries. | 3 |
 | Retry base delay (seconds) | Wait before the first retry. It doubles each time. | 2 |
-| Min delay between calls in one scan (seconds) | A gap between AI calls, so the provider doesn't refuse a burst. | 1.1 |
+| Min delay between calls in one scan (seconds) | A gap between requests to the Brain, so the provider doesn't refuse a burst. | 1.1 |
 | Gemini input cost ($ / 1M tokens), Gemini output cost ($ / 1M tokens) | Prices used for the cost page only. They never change what the automations do. | 0.75 / 3.75 |
 | OpenAI input cost ($ / 1M tokens), OpenAI output cost ($ / 1M tokens) | The same, for OpenAI. | 0.15 / 0.60 |
 | Per-model cost overrides (JSON) | An exact price per named model, checked before the prices above. Leave the format as it is. | One Gemini model at 0.75 / 3.75 |
@@ -168,10 +168,10 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Renewal lead time (days) | Days before the anniversary of last year's booking. | 60 |
 | Max renewals drafted per run | Most renewal cards per run. | 25 |
 
-### Ask AI
+### The Brain
 | Setting | What it changes | Starts at |
 |---|---|---|
-| Ask AI search index | Every 15 minutes, adds new notes, history, activities and call notes to what Ask AI can search. It only reads. | On |
+| Brain search index | Every 15 minutes, adds new notes, history, activities and call notes to what Ask the Brain can search. It only reads. | On |
 
 ### Call notes
 | Setting | What it changes | Starts at |

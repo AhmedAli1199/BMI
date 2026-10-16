@@ -16,7 +16,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 ## Buttons and controls
 ### Bounce & OOO mailbox scan (CRM Data Hygiene)
 - **When**: every 15 minutes. **Switch**: **Mailbox monitoring active**, with the inboxes in **Monitored inboxes**.
-- **Reads**: new mail in those inboxes since the last run. Rule checks pick out bounce notices and auto-replies, and AI confirms the doubtful ones. At most **Max out-of-office analyses per cycle** auto-replies are checked per run.
+- **Reads**: new mail in those inboxes since the last run. Rule checks pick out bounce notices and auto-replies, and the Brain confirms the doubtful ones. At most **Max out-of-office analyses per cycle** auto-replies are checked per run.
 - **Makes** one of four cards. There is only one waiting auto-reply card per person at a time.
 - **Ambiguous Delivery Bounces** (the address belongs to a contact; marked Hard or Soft bounce):
   - **Confirm & unsubscribe** marks the contact unsubscribed and adds a "Bounce" note.
@@ -43,7 +43,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Keep as separate contacts** changes nothing.
 
 ### Business card and returned-copy uploads (Business Cards & Photos)
-- **When**: someone uses **Upload business card(s)** or **Upload returned copy label(s)**. There is no schedule, and it needs the AI photo reader.
+- **When**: someone uses **Upload business card(s)** or **Upload returned copy label(s)**. There is no schedule, and it needs the Brain to read photos.
 - **New Business Card Leads** (nobody matches):
   - **Create contact** (optional **Groups to add (comma-separated)**) adds the person with their email, phone and company, joins them to the groups (only approved group names), and notes "Card collected at <show>".
   - **Skip** changes nothing.
@@ -58,14 +58,14 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 
 ### Inbound contact capture scan (Lead & Contact Capture)
 - **When**: every 30 minutes. **Switch**: **Inbound lead capture active**, with **Enquiry mailboxes (mailbox:database)**.
-- **Reads**: new emails from senders who aren't in the CRM. It skips group emails, bounces, auto-replies, newsletters, very short emails and BMI colleagues. AI decides whether it's a real new enquiry and reads the signature.
+- **Reads**: new emails from senders who aren't in the CRM. It skips group emails, bounces, auto-replies, newsletters, very short emails and BMI colleagues. The Brain decides whether it's a real new enquiry and reads the signature.
 - **Makes**: **Inbound Lead Capture**, one per sender at a time, with a guessed company and suggested groups.
 - **Create contact** asks for **Full name**, and optionally **Job title**, **Company**, **Phone**, **Mobile**, **Groups to add (comma-separated)** and **Subscribe to newsletter**. A shared inbox also asks **Which BMI title does this belong to?**. It adds the contact (and the company if new), the groups, and an "Inbound enquiry" note with the email.
 - **Not a lead, ignore** changes nothing.
 
 ### Email exchange summary scan (feeds Sales & Follow-ups)
 - **When**: every 4 hours. **Switch**: **Email exchange logging active**, with **Monitored rep inboxes**.
-- **Reads**: one-to-one conversations between a salesperson and a known contact. AI picks out budgets, renewal dates, promised call-backs, personal occasions, and "no thanks" with the reason.
+- **Reads**: one-to-one conversations between a salesperson and a known contact. The Brain picks out budgets, renewal dates, promised call-backs, personal occasions, and "no thanks" with the reason.
 - **Makes**: no cards itself. Once a conversation has been quiet for **Thread quiescence window (hours)**, it writes an "Email exchange summary" note on the contact by itself, without review. What it picks out feeds the next four automations.
 
 ### Budget window / renewal trigger scan (Sales & Follow-ups)
@@ -90,7 +90,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 
 ### Proposal requests (Sales & Follow-ups)
 - **When**: every 10 minutes. **Switch**: **Spot proposal requests**, with **Inboxes to read**.
-- **Reads**: emails that mention prices, rates, a media pack or a proposal. AI checks they really are requests, up to **Most emails checked by AI per run**. Prices come from the rate card and issues from the editorial plan, never from the AI.
+- **Reads**: emails that mention prices, rates, a media pack or a proposal. The Brain checks they really are requests, up to **Most emails the Brain checks per run**. Prices come from the rate card and issues from the editorial plan, never from the Brain.
 - **Makes**: **Proposal requests**, only for the inbox's owner.
 - **Send reply from my Outlook** opens **Review the draft**. It replies in the same thread from your Outlook and notes it on the client.
 - **I'll reply myself** closes the card.
@@ -123,7 +123,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Mail merge sender**: every minute, sends queued mail merges from each sender's Outlook. **Mail merge sending**.
 - **Xero invoice sync**: hourly at :20, copies invoices from Xero. Read-only. **Xero invoice sync**.
 - **Shared calendar**: every 3 minutes, reads calendars and books the notetaker. **Shared calendar and automatic notetaker**.
-- **Assistant search index**: every 15 minutes, updates what Ask AI can search. **Ask AI search index**.
+- **Brain search index**: every 15 minutes, updates what Ask the Brain can search. **Brain search index**.
 - **Advertising deadline reminders**: daily 07:15, sends bell notes to publishers and salespeople. **Advertising deadline reminders**.
 - **Behind-last-cycle alerts**: weekdays 07:15. **Weekly management summary**: Mondays 07:00. Both go to the recipients in Management Reporting.
 - **Proposal example links**: Mondays 06:30, flags broken example links. **Weekly check of example links**.
@@ -132,7 +132,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - Most scanners are off until an administrator switches them on. **Run now** works even when one is off.
 - Card limits per run stop a first run flooding the queue. The rest come on later runs.
 - Things done without a person: the email summary note, exact client-name links, clear Xero invoice links (if **Fill in clear matches automatically** is on), notifications and reminders.
-- AI never supplies prices, dates or figures in drafts. Those come from the rate card, the editorial plan or the order register.
+- The Brain never supplies prices, dates or figures in drafts. Those come from the rate card, the editorial plan or the order register.
 
 ## Common questions
 **Q: Why didn't the Brain notice a client's budget email?**

@@ -65,7 +65,7 @@ Record your note instead of typing it. Press **Stop** when you've finished; it's
 Saves what you typed in step 2.
 
 ### Work out my style
-Reads your samples and note and fills in the profile below. Nothing changes in your drafts yet. If the AI isn't switched on, the standard profile is filled in instead for you to change by hand.
+Reads your samples and note and fills in the profile below. Nothing changes in your drafts yet. If the Brain isn't switched on, the standard profile is filled in instead for you to change by hand.
 
 ### Your profile fields
 - **In a few words, how you write**, **Tone**, **Length** (short, medium, long) and **Usually sent** (as an email or as a Word document).

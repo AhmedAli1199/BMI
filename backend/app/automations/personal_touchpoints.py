@@ -207,7 +207,7 @@ def scan_personal_touchpoints() -> None:
                     "details": [
                         {"key": "occasion", "label": "Occasion", "value": signal.summary},
                         {"key": "due_date", "label": "Due date", "value": signal.due_date.isoformat() if signal.due_date else "(none stated)"},
-                        {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
+                        {"key": "draft_source", "label": "Draft", "value": "Drafted by the Brain" if was_ai else "From the template (the Brain isn't switched on)"},
                     ],
                     "original_text": draft,
                     "source_context": signal.source_snippet,

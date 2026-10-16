@@ -61,11 +61,11 @@ export function BrainProvider({ userName, children }: { userName?: string; child
       {children}
       {!print && !open && !pathname.startsWith("/brain") && <AskButton onClick={() => ask()} />}
       {!print && open && (
-        <aside data-brain-panel="" data-feedback-ui="" aria-label="Ask AI"
+        <aside data-brain-panel="" data-feedback-ui="" aria-label="Ask the Brain"
           className={`fixed inset-y-0 right-0 z-[2147481500] flex w-full flex-col border-l border-border bg-popover text-popover-foreground shadow-2xl sm:w-[26rem] print:hidden`}>
           <header className="flex items-center gap-1 border-b border-border/70 px-3 py-2.5">
             <Sparkles className="size-4 text-primary" aria-hidden="true" />
-            <h2 className="mr-auto pl-1 text-sm font-semibold">Ask AI</h2>
+            <h2 className="mr-auto pl-1 text-sm font-semibold">Ask the Brain</h2>
             <Button size="icon-sm" variant="ghost" aria-label="Your conversations" aria-pressed={!!history} title="Your conversations" onClick={() => void showHistory()}><History className="size-4" /></Button>
             <Button size="icon-sm" variant="ghost" aria-label="New conversation" title="New conversation" onClick={() => { setConversation(null); setHistory(null); setSeed(null); setChatKey((k) => k + 1); }}><MessageSquarePlus className="size-4" /></Button>
             <Button size="icon-sm" variant="ghost" aria-label="Open on its own page" title="Open on its own page" nativeButton={false}
@@ -121,9 +121,9 @@ function AskButton({ onClick }: { onClick: () => void }) {
   }, []);
   if (covered) return null;
   return (
-    <button type="button" data-feedback-ui="" onClick={onClick} title="Ask AI how anything works (Ctrl+J)"
+    <button type="button" data-feedback-ui="" onClick={onClick} title="Ask the Brain how anything works (Ctrl+J)"
       className="fixed bottom-14 right-4 z-[2147481000] flex items-center gap-1.5 rounded-full border border-primary/30 bg-background py-2 pl-3 pr-3.5 text-xs font-semibold text-primary shadow-lg transition hover:translate-y-[-1px] hover:shadow-xl print:hidden">
-      <Sparkles className="size-4" aria-hidden="true" /> Ask AI
+      <Sparkles className="size-4" aria-hidden="true" /> Ask the Brain
     </button>
   );
 }

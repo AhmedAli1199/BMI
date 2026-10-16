@@ -10,7 +10,7 @@ import type { NoteOut } from "@/lib/types";
  * codebase ever sets created_by_user_id on a Note it writes. */
 export function noteSourceLabel(note: NoteOut): string {
   if (note.source_db !== "manual") return "Act! Import";
-  return note.created_by?.name || "AI / Automation";
+  return note.created_by?.name || "BMI Brain";
 }
 
 const HTML_ENTITIES: Record<string, string> = {

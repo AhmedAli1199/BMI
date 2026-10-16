@@ -39,7 +39,7 @@ export default async function SummariesPage({ searchParams }: { searchParams: Pr
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section aria-labelledby="brief-heading" className="lg:col-span-2">
-          <SectionTitle id="brief-heading" hint="Every section always appears. Only the headline may be written by AI, and it is discarded if it contains any figure that isn't in the source data; the rest is assembled directly from the numbers.">
+          <SectionTitle id="brief-heading" hint="Every section always appears. Only the headline may be written by the Brain, and it is discarded if it contains any figure that isn't in the source data; the rest is assembled directly from the numbers.">
             {current ? `Week of ${fmtDate(current.week_of)}` : "Latest brief"}
           </SectionTitle>
           {!current ? (
@@ -49,7 +49,7 @@ export default async function SummariesPage({ searchParams }: { searchParams: Pr
           ) : (
             <article className="flex flex-col gap-5 rounded-xl border border-border/80 bg-card p-5 shadow-2xs">
               <p className="text-xs text-muted-foreground">
-                Written {dateTime(current.generated_at)} · {current.source === "ai" ? "headline written by AI, figures from the register" : "assembled from the figures directly"}
+                Written {dateTime(current.generated_at)} · {current.source === "ai" ? "headline written by the Brain, figures from the register" : "assembled from the figures directly"}
               </p>
               {current.sections.map((s) => (
                 <section key={s.key} aria-labelledby={`sec-${s.key}`}>

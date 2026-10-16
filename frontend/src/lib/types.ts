@@ -41,7 +41,7 @@ export type NoteOut = {
   // One of the real Act! source databases, or "manual" for anything
   // written directly in this CRM (by a person via the UI, or by an
   // automation) - see noteSourceLabel() in act-tab-workstation.tsx for
-  // how "manual" is split into a real name vs. "AI / Automation".
+  // how "manual" is split into a real name vs. "BMI Brain".
   source_db: string;
 };
 export type HistoryOut = {

@@ -36,7 +36,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
     Workstream(
         id="business-cards",
         label="Business Cards & Photos",
-        tagline="Trade-show cards and returned-copy labels, read by AI and matched against the CRM.",
+        tagline="Trade-show cards and returned-copy labels, read by the Brain and matched against the CRM.",
         kinds=("business_card_new", "business_card_existing", "returned_copy"),
     ),
     Workstream(

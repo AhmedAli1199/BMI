@@ -471,7 +471,7 @@ export function AppSidebar({
                     <Sparkles
                       className={`mr-1.5 size-4 ${pathname.startsWith("/brain") ? "text-primary" : "text-sidebar-foreground/70"}`}
                     />
-                    <span>Ask AI</span>
+                    <span>Chat with the Brain</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {/* The job/settings/cost control panel - stays

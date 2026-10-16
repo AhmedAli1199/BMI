@@ -256,7 +256,7 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
                 onChange={(id) => changeIssue(id)} emptyLabel="No particular issue" />
             </label>
           )}
-          {issueChanged && !sent && <p className="mt-2 text-xs text-muted-foreground">Press <strong>Start again</strong>, or ask the AI below, to bring the new issue&apos;s details into the text.</p>}
+          {issueChanged && !sent && <p className="mt-2 text-xs text-muted-foreground">Press <strong>Start again</strong>, or ask the Brain below, to bring the new issue&apos;s details into the text.</p>}
         </section>
         <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold">History with BMI <InfoHint>From the order register. The draft wording only uses these figures.</InfoHint></h2>

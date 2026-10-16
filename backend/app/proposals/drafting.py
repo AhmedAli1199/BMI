@@ -194,7 +194,7 @@ def revise_sections(ctx: dict, lines: list[dict], campaign_name: str, sections: 
     """(new sections, what changed). Raises RevisionRefused with a plain reason when it can't be done safely."""
     from app.automations import llm
     if not llm.is_configured():
-        raise RevisionRefused("The AI isn't switched on for this account, so changes can't be made from an instruction. Edit the sections directly instead.")
+        raise RevisionRefused("The Brain isn't switched on for this account, so changes can't be made from an instruction. Edit the sections directly instead.")
     facts = facts_text(ctx, lines, campaign_name)
     current = "\n\n".join(f"[{s.get('kind', 'custom')}] {s.get('heading', '')}\n{s.get('body', '')}" for s in sections)
     user = (f"INSTRUCTION FROM THE SALESPERSON:\n{instruction}\n\nCURRENT PROPOSAL (kind in brackets, then heading, then text):\n{current}\n\n"
@@ -203,7 +203,7 @@ def revise_sections(ctx: dict, lines: list[dict], campaign_name: str, sections: 
     out = llm.extract_json(REVISE_SYSTEM, user, max_tokens=3000, purpose="proposal_revise")
     raw = out.get("sections") if isinstance(out, dict) else None
     if not isinstance(raw, list) or not raw:
-        raise RevisionRefused("The AI didn't come back with a usable version. Try again, or say what to change in a different way.")
+        raise RevisionRefused("The Brain didn't come back with a usable version. Try again, or say what to change in a different way.")
     allowed = numbers_in(facts) | numbers_in(current) | numbers_in(instruction)
     new: list[dict] = []
     for s in raw[:MAX_SECTIONS]:
@@ -219,7 +219,7 @@ def revise_sections(ctx: dict, lines: list[dict], campaign_name: str, sections: 
                                   f"({', '.join(sorted(bad)[:4])}), so nothing was changed. Put the figure in your instruction if it's right.")
         new.append({"id": str(uuid.uuid4()), "kind": kind, "heading": heading, "body": body})
     if not new:
-        raise RevisionRefused("The AI didn't come back with a usable version. Try again, or say what to change in a different way.")
+        raise RevisionRefused("The Brain didn't come back with a usable version. Try again, or say what to change in a different way.")
     inv = [s for s in new if s["kind"] == "investment"]
     if not inv:  # the price table hangs off the investment section, so it can't disappear
         old = next((s for s in sections if s.get("kind") == "investment"), None)

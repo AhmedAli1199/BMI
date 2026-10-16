@@ -28,7 +28,7 @@ def _run() -> None:
 
 
 register_job(ScheduledJob(
-    id="brain_index", label="Assistant search index",
-    description="Every 15 minutes: adds new and changed notes, history, activities and call notes to what the Ask AI assistant can search.",
+    id="brain_index", label="Brain search index",
+    description="Every 15 minutes: adds new and changed notes, history, activities and call notes to what the Brain can search.",
     cron="*/15 * * * *", func=_run, enabled_flag="automations_brain_index_enabled",
 ))

@@ -356,7 +356,7 @@ def _renewal_details(order: SalesOrder, last_label: str, total: float, count: in
         {"key": "link", "label": "Previous ad online", "value": facts["link"] or facts["link_note"]},
         {"key": "to", "label": "Suggested recipient", "value": (f"{facts['suggested_to_name']} <{facts['suggested_to']}>".strip()
                                                                if facts["suggested_to"] else "No contact with an email at this company yet")},
-        {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
+        {"key": "draft_source", "label": "Draft", "value": "Drafted by the Brain" if was_ai else "From the template (the Brain isn't switched on)"},
     ]
 
 

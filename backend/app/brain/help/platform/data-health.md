@@ -48,7 +48,7 @@ Choosing one database narrows every figure to it. Choose all titles to see every
 - The backlog lines count suggestions still waiting in the Review Queue. Approving or rejecting one there takes it off this page.
 - The percentage on every backlog line is worked out against the total number of contacts, so a backlog line usually shows **Watch** unless it's very large.
 - 2% is the bar for "under control" rather than perfect: with tens of thousands of records moved over from Act!, zero isn't realistic.
-- Sales users can't open this page. An administrator can also hide it from Data Managers (or one person) under **Settings** > **Sections people see**. When it's hidden for someone, Ask AI won't answer questions about it for them either.
+- Sales users can't open this page. An administrator can also hide it from Data Managers (or one person) under **Settings** > **Sections people see**. When it's hidden for someone, Ask the Brain won't answer questions about it for them either.
 
 ## Common questions
 **Q: How do I clear the possible duplicate contacts?**
@@ -75,4 +75,4 @@ A: From BMI Brain's clean-up automations: they read bounces and out-of-office re
 - **There's no Fix link on a line.** That line has nothing to fix.
 - **Fix opened the whole contact list, not just the missing ones.** That's how it works for now: use the search or advanced search to narrow it down.
 - **A number didn't go down after I fixed something.** Reload the page - the figures are worked out each time it opens. Backlog lines only go down once the suggestion is approved or rejected in the Review Queue.
-- **Ask AI says "You don't have permission to view that."** Data Health is hidden for you or your role can't open it.
+- **Ask the Brain says "You don't have permission to view that."** Data Health is hidden for you or your role can't open it.

@@ -102,7 +102,7 @@ def _connections(env: ToolEnv) -> list[dict]:
                 "value": runtime_settings.get_str(env.db, "automation_mailbox") or "not set", "where": "/automations/settings"})
     out.append({"setting": "Outlook sign-in for everyone", "value": "set up" if outlook.is_configured() else "not set up", "where": "/settings"})
     out.append({"setting": "Google Calendar sign-in", "value": "set up" if cp.google_configured() else "not set up", "where": "/calls/meetings"})
-    out.append({"setting": "AI (Gemini)", "value": "set up" if settings.gemini_api_key else "not set up", "where": "(server settings)"})
+    out.append({"setting": "The Brain", "value": "switched on" if settings.gemini_api_key else "not switched on", "where": "(server settings)"})
     return out
 
 

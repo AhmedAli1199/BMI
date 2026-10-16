@@ -171,7 +171,7 @@ def _pdf(data: bytes, sheet: str | None) -> Parsed:
     ai_rows = _ai_rows(text)
     if not ai_rows:
         raise ImportFileError("We couldn't find a table or a list of contacts in that PDF. Try exporting the list to Excel or CSV instead.")
-    notes.append("There was no table in this PDF, so the contact details were picked out of its text by the AI. Check every row in the review step.")
+    notes.append("There was no table in this PDF, so the contact details were picked out of its text by the Brain. Check every row in the review step.")
     return Parsed(ai_rows, [{"name": "PDF", "rows": len(ai_rows)}], "PDF", notes, ai_read=True)
 
 

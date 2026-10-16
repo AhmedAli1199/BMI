@@ -68,15 +68,15 @@ export default async function LlmUsagePage({
         </Link>
         <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
           <Sparkles className="size-3.5" />
-          <span>LLM usage &amp; cost</span>
+          <span>Brain usage &amp; cost</span>
         </div>
         <h1 className="editorial-title text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          What the AI calls are costing
+          What the Brain costs
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Every real Gemini/OpenAI call any automation makes is logged here - tokens used and an
-          estimated dollar cost from the price-per-1M-tokens settings in effect at the time. Estimates,
-          not an invoice - cross-check against the provider&apos;s own billing page for exact figures.
+          Every time an automation or the chat asks the Brain, it's logged here with how much text it read and wrote and an
+          estimated cost in dollars from the prices set at the time. Estimates, not an invoice - check the provider&apos;s
+          own bill for exact figures.
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export default async function LlmUsagePage({
         </Card>
         <Card className="editorial-card">
           <CardContent className="flex flex-col gap-1 p-4">
-            <span className="text-xs font-semibold text-muted-foreground">Total calls</span>
+            <span className="text-xs font-semibold text-muted-foreground">Times used</span>
             <span className="text-xl font-bold text-foreground">{summary.total_calls.toLocaleString()}</span>
           </CardContent>
         </Card>
@@ -134,7 +134,7 @@ export default async function LlmUsagePage({
         </Card>
         <Card className="editorial-card">
           <CardContent className="flex flex-col gap-1 p-4">
-            <span className="text-xs font-semibold text-muted-foreground">Total tokens</span>
+            <span className="text-xs font-semibold text-muted-foreground">Text read and written (tokens)</span>
             <span className="text-xl font-bold text-foreground">
               {(summary.total_prompt_tokens + summary.total_completion_tokens).toLocaleString()}
             </span>
@@ -148,13 +148,13 @@ export default async function LlmUsagePage({
         </CardHeader>
         <CardContent className="p-0">
           {summary.buckets.length === 0 ? (
-            <p className="p-4 text-xs text-muted-foreground">No LLM calls recorded in this range.</p>
+            <p className="p-4 text-xs text-muted-foreground">The Brain wasn't used in this range.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Period</TableHead>
-                  <TableHead className="text-right">Calls</TableHead>
+                  <TableHead className="text-right">Times used</TableHead>
                   <TableHead className="text-right">Failures</TableHead>
                   <TableHead className="text-right">Tokens</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
@@ -184,14 +184,14 @@ export default async function LlmUsagePage({
         </CardHeader>
         <CardContent className="p-0">
           {summary.by_purpose.length === 0 ? (
-            <p className="p-4 text-xs text-muted-foreground">No LLM calls recorded in this range.</p>
+            <p className="p-4 text-xs text-muted-foreground">The Brain wasn't used in this range.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Purpose</TableHead>
                   <TableHead>Provider</TableHead>
-                  <TableHead className="text-right">Calls</TableHead>
+                  <TableHead className="text-right">Times used</TableHead>
                   <TableHead className="text-right">Failures</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                 </TableRow>

@@ -123,7 +123,7 @@ def _redraft_followup(db: Session, item: ReviewQueueItem, extra_instructions: st
 register(ReviewKind(
     kind="followup_due",
     label="Overdue Follow-ups",
-    description="Scheduled client calls and follow-ups with AI-assisted email drafts ready for review.",
+    description="Scheduled client calls and follow-ups with email drafts written by the Brain ready for review.",
     actions=[
         ReviewAction(
             id="mark_sent", label="Approve & log to CRM", style="primary", outcome="approved",
@@ -258,7 +258,7 @@ def scan_for_due_followups() -> None:
                         {"key": "due", "label": "Due", "value": activity.start_at.strftime("%d %b %Y")},
                         {"key": "type", "label": "Type", "value": activity.activity_type or "-"},
                         {"key": "priority", "label": "Priority", "value": activity.priority},
-                        {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
+                        {"key": "draft_source", "label": "Draft", "value": "Drafted by the Brain" if was_ai else "From the template (the Brain isn't switched on)"},
                     ],
                     "original_text": draft,
                     "related_entities": (

@@ -306,7 +306,7 @@ def process_business_card_photo(
     if len(image_bytes) > MAX_IMAGE_BYTES:
         return {"cards_found": 0, "queued": 0, "error": "Image too large (max 8MB)."}
     if not is_vision_configured():
-        return {"cards_found": 0, "queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - card reading needs it."}
+        return {"cards_found": 0, "queued": 0, "error": "Reading cards needs the Brain, and it isn't switched on yet."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
     result = extract_json_from_image(_CARD_EXTRACTION_PROMPT, data_url, purpose="business_card.extraction")

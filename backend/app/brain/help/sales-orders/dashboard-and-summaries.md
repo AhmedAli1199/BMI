@@ -28,7 +28,7 @@ sources: ["frontend/src/app/(app)/sales/dashboard/page.tsx", "frontend/src/app/(
 
 ### Weekly summary & alerts
 - **Header** with **Run now** and **Open the dashboard →**.
-- **The brief** for the chosen week ("Week of <date>"), saying when it was written and whether the headline was written by AI or put together from the figures. Its sections are: the headline, **Revenue**, **Activity**, **By salesperson** (a table), **Editions to watch**, **Alerts this week**, **Sold-work delivery** and **Needs a decision**. Most lines link to the records behind them.
+- **The brief** for the chosen week ("Week of <date>"), saying when it was written and whether the headline was written by the Brain or put together from the figures. Its sections are: the headline, **Revenue**, **Activity**, **By salesperson** (a table), **Editions to watch**, **Alerts this week**, **Sold-work delivery** and **Needs a decision**. Most lines link to the records behind them.
 - **Recent alerts** - the latest 20 behind-last-cycle alerts, each linking to its edition, with its own **Run now** button.
 - **Earlier weeks** - previous briefs (shown once there is more than one).
 
@@ -65,7 +65,7 @@ Shows that week's brief.
 - **Weekly bookings** use the booking date. Each week is compared with the week exactly 52 weeks earlier, so weekdays line up. Only live bookings count.
 - **Uncredited bookings:** live bookings worth more than £0 in the current year with no salesperson credited. Open the booking and pick a salesperson to fix it.
 - **The weekly brief** is written on Monday mornings at about 7am, but only once "Weekly management summary" is switched on in the automation settings (it's off by default). The recipients get a notification (and an email once the automation mailbox is set up), plus a Teams message if Teams is set up. Recipients are the people listed in the settings, or all administrators if nobody is listed.
-- **Only the headline may be written by AI.** If it contains any figure that isn't in the source data, it's thrown away and a headline is put together from the numbers instead. The AI never sees individual people.
+- **Only the headline may be written by the Brain.** If it contains any figure that isn't in the source data, it's thrown away and a headline is put together from the numbers instead. The Brain never sees individual people.
 - **By salesperson in the brief** shows bookings taken in the last 7 days (each person's credited share), commission earned this week, and commission so far this month. Commission is earned when an issue publishes or an event runs, so it can differ from what was booked that week.
 - **Alerts** are checked on weekday mornings once "Behind-last-cycle alerts" is switched on (off by default). An edition is alerted when the tracker would call it Behind. The same edition isn't alerted again for 14 days.
 

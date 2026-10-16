@@ -103,7 +103,7 @@ export function ProposalAiRevise({ proposalId, sections, onApplied, onBeforeAppl
 
   return (
     <section aria-labelledby="ai-h" className="print-hide rounded-xl border border-primary/30 bg-primary/5 p-3">
-      <h3 id="ai-h" className="flex items-center gap-1.5 text-sm font-bold"><Sparkles className="size-4 text-primary" aria-hidden="true" /> Change it with AI</h3>
+      <h3 id="ai-h" className="flex items-center gap-1.5 text-sm font-bold"><Sparkles className="size-4 text-primary" aria-hidden="true" /> Change it with the Brain</h3>
       <p className="mt-0.5 text-xs text-muted-foreground">Say or type what you&apos;d like different: headings, tone, length, new or removed sections. Prices and figures still only come from the rate card and booking history.</p>
       <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} disabled={busy === "revise"}
         placeholder="e.g. Make the introduction warmer and shorter, add a section about the Awards, and end with a clear call to book by the deadline"

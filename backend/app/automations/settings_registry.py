@@ -145,8 +145,8 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Proposal Requests", type="int", min=1,
     ),
     AutomationSettingDef(
-        key="proposal_request_llm_max_per_run", label="Most emails checked by AI per run",
-        description="Only emails that mention prices, rates, a media pack, a proposal and so on are checked by the AI; this caps how many in one run. The rest wait for the next run.",
+        key="proposal_request_llm_max_per_run", label="Most emails the Brain checks per run",
+        description="Only emails that mention prices, rates, a media pack, a proposal and so on are checked by the Brain; this caps how many in one run. The rest wait for the next run.",
         group="Proposal Requests", type="int", min=1,
     ),
     AutomationSettingDef(
@@ -186,7 +186,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="email_summary_confidence_threshold", label="Signal confidence threshold (0.0–1.0)",
-        description="Minimum AI confidence required to capture commercial signals (budget dates, rates, and callbacks).",
+        description="How sure the Brain must be to capture commercial signals (budget dates, rates, and callbacks).",
         group="Email Summaries & Commercial Signals", type="float", min=0.0, max=1.0,
     ),
     AutomationSettingDef(
@@ -299,37 +299,37 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     AutomationSettingDef(
         key="llm_max_retries", label="Max retries per call",
         description="How many times a Gemini/OpenAI call retries on a transient/rate-limit error before giving up. 0 disables retries.",
-        group="LLM usage & cost", type="int", min=0, max=10,
+        group="Brain usage & cost", type="int", min=0, max=10,
     ),
     AutomationSettingDef(
         key="llm_retry_base_delay_seconds", label="Retry base delay (seconds)",
         description="Starting delay before the first retry - doubles each attempt (exponential backoff).",
-        group="LLM usage & cost", type="float", min=0.1,
+        group="Brain usage & cost", type="float", min=0.1,
     ),
     AutomationSettingDef(
         key="llm_call_min_interval_seconds", label="Min delay between calls in one scan (seconds)",
         description="Spreads out a burst of LLM calls within a single scan run's loop, so it doesn't trip a provider's per-minute rate limit.",
-        group="LLM usage & cost", type="float", min=0.0,
+        group="Brain usage & cost", type="float", min=0.0,
     ),
     AutomationSettingDef(
         key="llm_cost_gemini_input_per_1m", label="Gemini input cost ($ / 1M tokens)",
         description="List price for Gemini prompt tokens - update when the provider changes pricing. Only affects the cost dashboard, never automation behavior.",
-        group="LLM usage & cost", type="float", min=0.0,
+        group="Brain usage & cost", type="float", min=0.0,
     ),
     AutomationSettingDef(
         key="llm_cost_gemini_output_per_1m", label="Gemini output cost ($ / 1M tokens)",
         description="List price for Gemini completion tokens.",
-        group="LLM usage & cost", type="float", min=0.0,
+        group="Brain usage & cost", type="float", min=0.0,
     ),
     AutomationSettingDef(
         key="llm_cost_openai_input_per_1m", label="OpenAI input cost ($ / 1M tokens)",
         description="List price for OpenAI prompt tokens.",
-        group="LLM usage & cost", type="float", min=0.0,
+        group="Brain usage & cost", type="float", min=0.0,
     ),
     AutomationSettingDef(
         key="llm_cost_openai_output_per_1m", label="OpenAI output cost ($ / 1M tokens)",
         description="List price for OpenAI completion tokens.",
-        group="LLM usage & cost", type="float", min=0.0,
+        group="Brain usage & cost", type="float", min=0.0,
     ),
     AutomationSettingDef(
         key="llm_cost_overrides_json", label="Per-model cost overrides (JSON)",
@@ -340,7 +340,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
             "without a code change - the provider-level fields above are only the fallback for a model with no "
             "entry here."
         ),
-        group="LLM usage & cost", type="text",
+        group="Brain usage & cost", type="text",
     ),
     # ---- Sales Order Register ----
     AutomationSettingDef(
@@ -374,9 +374,9 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
-        key="automations_brain_index_enabled", label="Ask AI search index",
-        description="Every 15 minutes: adds new and changed notes, history, activities and call notes to what the Ask AI assistant can search. It only reads.",
-        group="Ask AI", type="bool",
+        key="automations_brain_index_enabled", label="Brain search index",
+        description="Every 15 minutes: adds new and changed notes, history, activities and call notes to what the Brain can search. It only reads.",
+        group="The Brain", type="bool",
     ),
     AutomationSettingDef(
         key="automations_calendar_sync_enabled", label="Shared calendar and automatic notetaker",
@@ -480,7 +480,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="sor_renewal_max_per_run", label="Max renewals drafted per run",
-        description="Upper limit on renewal drafts created in one run (each may use one AI call).",
+        description="Upper limit on renewal drafts created in one run (each may ask the Brain once).",
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(

@@ -154,7 +154,7 @@ def process_returned_copy_photo(
     if len(image_bytes) > MAX_IMAGE_BYTES:
         return {"labels_found": 0, "queued": 0, "error": "Image too large (max 8MB)."}
     if not is_vision_configured():
-        return {"labels_found": 0, "queued": 0, "error": "Vision AI isn't configured (no API key for the selected provider) - label reading needs it."}
+        return {"labels_found": 0, "queued": 0, "error": "Reading labels needs the Brain, and it isn't switched on yet."}
 
     data_url = encode_image_data_url(image_bytes, content_type)
     result = extract_json_from_image(_LABEL_EXTRACTION_PROMPT, data_url, purpose="returned_copy.label_extraction")

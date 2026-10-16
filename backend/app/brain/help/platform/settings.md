@@ -109,7 +109,7 @@ Saves the table. "You have unsaved changes" shows until you do. People see the c
 - One login per salesperson: linking initials to a login moves that salesperson's waiting renewals and follow-ups onto that person's Today list straight away.
 - The Accounts permission: once at least one active person has it, only they can pass booking checks and approve changes to checked bookings. While **Accounts are away** is switched on (Automations Hub settings, under Sales Order Register), administrators can stand in and also get Accounts' notifications.
 - Sections: hiding a section takes it out of that person's menu. Administrators always see everything. It doesn't stop someone opening a page from a link, and their role and database access still decide what they can see and do.
-- Sections also limit **Ask AI**: if a section is hidden for someone, the assistant won't look it up, explain it or answer questions about it for them. It replies "You don't have permission to view that." The same happens for areas their role can't open (for example the team page and section settings for anyone who isn't an administrator, and Xero for Sales users).
+- Sections also limit **Ask the Brain**: if a section is hidden for someone, the Brain won't look it up, explain it or answer questions about it for them. It replies "You don't have permission to view that." The same happens for areas their role can't open (for example the team page and section settings for anyone who isn't an administrator, and Xero for Sales users).
 - Xero is read-only. Invoices sync every hour and each booking shows whether its invoice is paid, unpaid or overdue.
 - Automatic emails (reminders, alerts, new bookings to Accounts) come from the automation mailbox. Until that mailbox is connected, they appear under the bell only.
 
@@ -152,5 +152,5 @@ A: In **Settings**, under **Appearance**, open the **Theme** picker and choose *
 - **Their initials are greyed out ("linked to another login").** Those initials are already linked to someone else. Edit that person, set them to **Not a salesperson**, save, then try again.
 - **A new role hasn't taken effect.** Role changes apply the next time they sign in. Ask them to sign out and back in.
 - **Someone still sees a hidden section.** They see the change the next time a page loads. Administrators always see everything, and a person with their own column follows that column, not their role's.
-- **Ask AI says "You don't have permission to view that."** That section is hidden for you, or your role can't open it. Ask an administrator if you need it.
+- **Ask the Brain says "You don't have permission to view that."** That section is hidden for you, or your role can't open it. Ask an administrator if you need it.
 - **A setting won't save.** Check you're signed in. If it still fails, the message on screen will say so - try again in a moment.

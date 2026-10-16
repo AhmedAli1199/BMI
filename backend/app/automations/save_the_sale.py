@@ -208,7 +208,7 @@ def queue_for_signal(db: Session, signal: EmailSignal) -> ReviewQueueItem | None
             details.append({"key": "others", "label": "Other options", "value": " · ".join(a["label"] for a in alts[1:])})
     else:
         details.append({"key": "offer", "label": "Suggested offer", "value": "None - the reply just acknowledges and asks"})
-    details.append({"key": "draft_source", "label": "Draft", "value": "From the template, polished by AI" if was_ai else "From the template"})
+    details.append({"key": "draft_source", "label": "Draft", "value": "From the template, polished by the Brain" if was_ai else "From the template"})
     item = ReviewQueueItem(
         id=uuid.uuid4(), kind=KIND, source_db=contact.source_db, entity_type="contact", entity_id=contact.id,
         payload={

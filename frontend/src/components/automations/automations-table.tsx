@@ -269,7 +269,7 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
           </Link>
         </Section>
 
-        <Section title="Reviewers & AI cost">
+        <Section title="Reviewers & Brain cost">
           {detail.top_reviewers.length > 0 ? (
             <ul className="flex flex-col gap-1 text-xs">
               {detail.top_reviewers.map((r) => (
@@ -284,11 +284,11 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
           )}
           <div className="mt-1 border-t border-border/70 pt-2 text-xs">
             {detail.ai_cost_usd === null ? (
-              <span className="text-muted-foreground">No AI calls - rule-based.</span>
+              <span className="text-muted-foreground">Doesn't use the Brain - it follows fixed rules.</span>
             ) : (
               <>
                 <span className="font-semibold text-foreground tabular-nums">${detail.ai_cost_usd.toFixed(2)}</span>
-                <span className="text-muted-foreground"> across {fmtCount(detail.ai_calls ?? 0)} AI calls</span>
+                <span className="text-muted-foreground"> across {fmtCount(detail.ai_calls ?? 0)} times it asked the Brain</span>
                 {detail.ai_cost_shared_with.length > 0 && (
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Shared with {detail.ai_cost_shared_with.join(", ")} (same scanner).

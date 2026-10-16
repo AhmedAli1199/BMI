@@ -26,7 +26,7 @@ Proposals are where a salesperson puts together an offer for a client. You pick 
 - **How it goes to the client**: **As an email** or **As a Word document**.
 - Campaign name (Word header) and Word template.
 - **Products and prices**: every line, its issues, options and totals.
-- **Wording**: the **Change it with AI** box, then the whole proposal as one page with a formatting toolbar.
+- **Wording**: the **Change it with the Brain** box, then the whole proposal as one page with a formatting toolbar.
 - The buttons along the bottom.
 - On the right: **The issue** (date, advertising deadline, theme, features, with a link that opens the issue in a new tab), **History with BMI** (the client's past bookings and total from the order register) and a note saying whether the wording was drafted by the Brain or is standard text.
 
@@ -50,7 +50,7 @@ Onboard Hospitality, Selling Travel or The Business Travel Magazine. It follows 
 Goes in the header of the Word document, for example "Delta Air Lines 2026/27".
 
 ### What sort of proposal
-A single issue, Several issues, A year's programme, Digital (website, newsletters, social), Awards or event sponsorship, or A mixed package. It shapes the standard wording and what the AI is told.
+A single issue, Several issues, A year's programme, Digital (website, newsletters, social), Awards or event sponsorship, or A mixed package. It shapes the standard wording and what the Brain is told.
 
 ### % off the whole proposal
 Taken off each option's total, after any % off a line and any rate card offer.
@@ -90,7 +90,7 @@ The Investment heading always shows the package table under it automatically.
 ### Clicking a shaded box
 Opens a side panel showing what it will say. For a price list, **Choose the products to show** (it changes to **Done choosing** while the list is open) (nothing ticked shows the main print, sponsored and newsletter prices). For coming issues, **Choose the title**. For examples, **Choose the examples** with a sector filter (nothing ticked lets the Brain pick, the client's sector first) and an **Add or change examples** link that opens the library in a new tab. The panel also has **Move up**, **Move down**, **Remove** and **Done**.
 
-### Change it with AI
+### Change it with the Brain
 Type or say what you want different (headings, tone, length, sections added or removed) and press **Apply**. **Speak** records up to two minutes and writes it down for you; press **Stop recording** when done. The example chips fill the box with a suggestion. Ready-made parts keep their place; only the wording around them is rewritten. After a change, **Undo** puts it back how it was. Only on drafts.
 
 ### Preview / Edit
@@ -100,7 +100,7 @@ Type or say what you want different (headings, tone, length, sections added or r
 Writes every section again from scratch, using the current issue and products. Your edits to the wording are replaced (it asks first). Use it after changing the issue. Drafts only.
 
 ### Change the issue
-In the right-hand panel. Choose a different issue or **No particular issue**. The wording isn't rewritten, so press **Start again** or ask the AI to bring the new issue's details in.
+In the right-hand panel. Choose a different issue or **No particular issue**. The wording isn't rewritten, so press **Start again** or ask the Brain to bring the new issue's details in.
 
 ### Open <client>
 Opens the company's page.
@@ -128,7 +128,7 @@ Shown once a proposal is sent. Opens a new booking already filled in from the pr
 - A line's total = quantity (or number of issues) x price, less its % off. Each option's total = its lines plus the lines in every option, less the % off the whole proposal. The headline total on the list is the first option's.
 - Rate card offers (such as "book 3, save 20%") are applied by themselves when you save, per option and per title. They show as green lines and as negative amounts in the Word file. Expired offers are skipped.
 - All prices are before VAT.
-- The Brain drafts five sections: Introduction, Your history with us, What we propose, Investment, Next steps. If the AI wording includes any figure it wasn't given (from the client's history, the rate card or your lines), that section is replaced with standard wording. If the AI isn't switched on, standard wording is used.
+- The Brain drafts five sections: Introduction, Your history with us, What we propose, Investment, Next steps. If the Brain wording includes any figure it wasn't given (from the client's history, the rate card or your lines), that section is replaced with standard wording. If the Brain isn't switched on, standard wording is used.
 - If you've set up **How you write**, new proposals follow it: sent the way you usually send, your ready-made parts added before Next steps, written in your tone.
 - When a proposal is sent or logged, a "Proposal sent" note is added to the company with the products and total, a follow-up reminder is set for you (it also emails you), and the proposal locks. The Brain also notes which ready-made parts you removed, so it can learn your style.
 - Sending from Outlook needs your Outlook connected, and the whole email (with pictures and any Word file) must be under 3 MB.
@@ -145,7 +145,7 @@ A: 1. Add the products. 2. In each line's **Option** box, type "Option A" or "Op
 A: Not on a rate card line. Either take a **% off** that line, use **% off the whole proposal**, or remove it and use **Add my own line** with the agreed price.
 
 **Q: I changed the issue but the text still mentions the old one.**
-A: Changing the issue doesn't rewrite your text. Press **Start again** (this replaces your edits), or type "use the new issue's details" in **Change it with AI** and press **Apply**.
+A: Changing the issue doesn't rewrite your text. Press **Start again** (this replaces your edits), or type "use the new issue's details" in **Change it with the Brain** and press **Apply**.
 
 **Q: How do I add a table or picture?**
 A: Click where you want it, then use **Insert a table** or **Insert a picture** on the toolbar. Click inside a table to use **Add a row** or **Add a column**.
@@ -156,8 +156,8 @@ A: Open the sent proposal and press **They said yes: make the booking** (or the 
 **Q: I emailed the Word file myself. How do I record it?**
 A: Press **I've sent it myself**, pick **Emailed the downloaded file**, set the follow-up days and press **Log it**.
 
-**Q: Can I undo an AI change?**
-A: Yes. Straight after the change, press **Undo** in the "Change it with AI" box.
+**Q: Can I undo a change made by the Brain?**
+A: Yes. Straight after the change, press **Undo** in the "Change it with the Brain" box.
 
 **Q: Where can I see proposals I sent?**
 A: On the Proposals list (Status shows "Sent <date>") and as a "Proposal sent" note on the client's company page.
@@ -175,8 +175,8 @@ A: No. It's locked once sent. You can still download the Word file, or start a n
 - **Send is greyed out**: your Outlook isn't connected (connect it in Settings > Email), or the To box is empty.
 - **"This is over 3 MB with its pictures"**: make the pictures smaller, or download the Word file and attach it yourself.
 - **"Outlook didn't accept the email, so nothing was sent or logged"**: try again in a moment.
-- **Change it with AI says the AI isn't switched on**: edit the text directly instead.
-- **"The new version mentioned figures we can't check"**: the AI tried to add numbers it wasn't given, so nothing was changed. Say it another way.
+- **Change it with the Brain says the Brain isn't switched on**: edit the text directly instead.
+- **"The new version mentioned figures we can't check"**: the Brain tried to add numbers it wasn't given, so nothing was changed. Say it another way.
 - **I can't find a colleague's proposal**: salespeople only see their own. Ask an admin or data manager.
 - **Buttons are missing and I can't type**: the proposal has been sent, so it's locked.
 - **A shaded box says "Couldn't show this block just now"**: try **Preview** again in a moment.

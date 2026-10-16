@@ -112,7 +112,7 @@ def _get_gemini_client():
 def is_configured() -> bool:
     """Whether a real AI draft is available right now, under whichever
     provider will actually serve it - callers use this to decide whether
-    to label a draft "AI-drafted" vs "templated" in the review queue, not
+    to label a draft "Drafted by the Brain" vs "templated" in the review queue, not
     to decide whether to call draft_text() (that's always safe to call
     either way)."""
     return _get_gemini_client() is not None or _get_openai_client() is not None

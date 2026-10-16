@@ -159,10 +159,10 @@ export function WritingProfile({ initial }: { initial: WritingProfileState }) {
               const r = await buildStyleProfile();
               apply(r);
               setDirty(true);
-              toast.success(r.built_by === "ai" ? "Done - check it below, then press Use this profile" : "The AI isn't switched on, so the standard profile is filled in - change it below");
+              toast.success(r.built_by === "ai" ? "Done - check it below, then press Use this profile" : "The Brain isn't switched on, so the standard profile is filled in - change it below");
             } catch (e) { toast.error(friendlyError(e, "Couldn't work out your style")); }
           })}>{busy === "build" ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />} Work out my style</Button>
-          {!st.ai_on && <p className="mt-2 text-xs text-muted-foreground">The AI isn&apos;t switched on for this account, so you&apos;ll fill the profile in yourself below - it works just the same.</p>}
+          {!st.ai_on && <p className="mt-2 text-xs text-muted-foreground">The Brain isn&apos;t switched on for this account, so you&apos;ll fill the profile in yourself below - it works just the same.</p>}
         </Step>
 
         <section className={card} aria-labelledby="prof-h">

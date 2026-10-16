@@ -263,7 +263,7 @@ def scan_signal_triggers() -> None:
                         {"key": "extracted", "label": "From the email thread", "value": signal.summary},
                         *([{"key": "package_offered", "label": "Package discussed", "value": signal.package_offered}] if signal.package_offered else []),
                         *([{"key": "rate_offered", "label": "Rate discussed", "value": signal.rate_offered}] if signal.rate_offered else []),
-                        {"key": "draft_source", "label": "Draft", "value": "AI-drafted" if was_ai else "Templated (no AI configured)"},
+                        {"key": "draft_source", "label": "Draft", "value": "Drafted by the Brain" if was_ai else "From the template (the Brain isn't switched on)"},
                     ],
                     # Rendered by the generic review card as an expandable
                     # "Original message" section - what "Draft follow-up"

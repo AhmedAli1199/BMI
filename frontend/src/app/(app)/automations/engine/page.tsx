@@ -41,7 +41,7 @@ export default async function ScannersPage() {
           <>
             <Button variant="outline" size="sm" nativeButton={false} className="gap-1.5 font-semibold" render={<Link href="/automations/llm-usage" />}>
               <Coins className="size-3.5" aria-hidden="true" />
-              AI usage &amp; cost
+              Brain usage &amp; cost
             </Button>
             <Button variant="outline" size="sm" nativeButton={false} className="gap-1.5 font-semibold" render={<Link href="/automations/settings" />}>
               <Settings2 className="size-3.5" aria-hidden="true" />

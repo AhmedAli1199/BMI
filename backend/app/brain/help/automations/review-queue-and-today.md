@@ -128,7 +128,7 @@ A: Today only shows follow-ups, commercial signals, touchpoints and renewals tha
 **Q: Can a manager see everyone's list?**
 A: Yes. Administrators and data managers press **Everyone** on Today.
 
-**Q: The AI draft is too long. How do I change it?**
+**Q: The Brain's draft is too long. How do I change it?**
 A: In **Review the draft**, type "make it shorter" in **Ask for a revision (optional)** and press **Regenerate**. You can also edit the text yourself.
 
 ## If something doesn't work

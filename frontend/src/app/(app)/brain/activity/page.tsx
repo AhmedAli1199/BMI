@@ -18,12 +18,12 @@ export default async function ActivityPage() {
     { label: "Helpful / not", value: `${s.helpful} / ${s.not_helpful}` },
     { label: "Average time to answer", value: s.avg_seconds != null ? `${s.avg_seconds}s` : "-" },
     { label: "Served from the cache", value: s.cache_hit_pct != null ? `${s.cache_hit_pct}%` : "-",
-      hint: "How much of what the assistant reads each time was already cached by Google - cached text costs about a tenth and is quicker. Higher is better." },
+      hint: "How much of what the Brain reads each time was already cached by Google - cached text costs about a tenth and is quicker. Higher is better." },
   ];
   const idx = data.index;
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <HubHeader title="What the assistant's been asked" description="Every question from the last two weeks, what it looked up, how long it took and whether it helped. Answers marked not helpful show what to add to the help guides." />
+      <HubHeader title="What people asked the Brain" description="Every question from the last two weeks, what it looked up, how long it took and whether it helped. Answers marked not helpful show what to add to the help guides." />
       <div className="grid gap-3 sm:grid-cols-4">
         {tiles.map((t) => (
           <div key={t.label} className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
@@ -39,7 +39,7 @@ export default async function ActivityPage() {
           {idx.last_indexed && <> · last updated {new Date(idx.last_indexed).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</>}
           <InfoHint>{idx.meaning_search
             ? "Every 15 minutes new and changed notes, history, activities and call notes are added. Searching by meaning finds a note even when it uses different words."
-            : "Searching by meaning needs the pgvector extension on the database. Until it's added, the assistant finds notes by their exact words, which still works well for names, rates and dates."}</InfoHint>
+            : "Searching by meaning isn't switched on for this database yet. Until it is, the Brain finds notes by their exact words, which still works well for names, rates and dates."}</InfoHint>
         </p>
       )}
       {data.items.length === 0 ? (
