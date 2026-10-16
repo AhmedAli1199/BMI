@@ -15,16 +15,17 @@ ANTIGRAVITY EXECUTION BLUEPRINT - VIDEO 01: MAKING A NEW BOOKING
 Title ............ Making a new booking
 Series ........... BMI Brain - Sales Orders, lesson 1 of 17
 Audience ......... Salespeople (role: Sales)
-Goal ............. The viewer can record a confirmed booking: client, contact, one item from the rate card,
-                   two issues, and knows what the booking page shows next.
-Length ........... 2:40 (14 steps)
+Goal ............. The viewer can record a booking the client has agreed: client, contact, one item from the
+                   rate card, two issues, then confirm it. Confirming is the salesperson's sign-off that the
+                   client said yes; Accounts only check it later, before it's invoiced.
+Length ........... 2:44 (14 steps)
 Tone ............. Calm, plain, step by step. Teaching only - no selling, no praise of the product.
 Voice (TTS) ...... British English, neutral, ~150 words a minute. Say "pounds" in full for money.
 App URL .......... http://localhost:3000 (production build: npm run build && npm start)
 Viewport ......... 1440 x 900, deviceScaleFactor 2, light theme, browser zoom 100%, sidebar open
 Sign-in .......... sally.parker@tutorial.bmi / BMI-tutorial-2026
 Before each take . cd backend && DATABASE_URL=.../bmi_demo python -m scripts.seed_tutorials --yes
-Ends on .......... The new booking's page (the next lesson, "The accounts check", starts from it)
+Ends on .......... The new booking's page (the next lesson, "Sending the confirmation", starts from it)
 
 Golden rules for this video
 - The voiceover only names what is visible and highlighted at that moment.
@@ -125,7 +126,7 @@ STEP 00 · 0:00-0:08 · Chapter card
   Camera: static, 1.0x.
   Cursor: hidden.
   Callout: ARCHETYPE D - Kinetic chapter card. Badge pill: [clapperboard] "Lesson 1" (primary navy).
-    Headline: "Making a new booking". Sub-line: "Sales Orders · 2 minutes 40". Card in 1.2 s, holds, out 0.4 s.
+    Headline: "Making a new booking". Sub-line: "Sales Orders · 2 minutes 45". Card in 1.2 s, holds, out 0.4 s.
   QA:
     await page.goto("/sales/deals");
     await expect(page.getByRole("heading", { name: "Bookings", level: 1 })).toBeVisible();
@@ -290,44 +291,49 @@ STEP 09 · 1:42-1:54 · When to invoice
     await expect(field("When to invoice")).toHaveValue("asap");
     await expect(field("When to invoice").locator("option:checked")).toHaveText("As soon as allowed");
 
-STEP 10 · 1:54-2:04 · Confirm
-  Voiceover: "Back at the top, click Confirm the booking. It's saved, and it gets its own page and number."
+STEP 10 · 1:54-2:06 · Confirm
+  Voiceover: "When the client has said yes, click Confirm the booking. Confirming is your sign-off that it's agreed
+    with the client. It's saved, with its own number."
   Setup: scroll to the top smoothly over 900 ms: await page.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" }))
   Target: "Confirm the booking" - page.getByRole("button", { name: "Confirm the booking" }) - (1137,364,254x32),
-    TOP-RIGHT. (Leave "Pencil it in" alone - it's lesson 4.)
+    TOP-RIGHT. (Leave "Pencil it in" alone - it's lesson 3.)
   Camera: 1.0x for the scroll, then 1.4x on (1264,380) over 700 ms; after the click, back to 1.0x as Screen C
     loads.
   Cursor: glide to (1264,380), hover 300 ms, click.
   State change: the form is replaced by the booking page (Screen C); toast "Booking 24NN created" slides in at
     the bottom right.
   Callout: ARCHETYPE B - Editorial split-screen on Screen C as it arrives; window slides 22% right.
-    Badge pill: [circle-check] "Saved" (emerald). Headline: "Booking created and numbered".
+    Badge pill: [circle-check] "Confirmed by you" (emerald). Headline: "The client has said yes".
   QA:
     await page.getByRole("button", { name: "Confirm the booking" }).click();
     await page.waitForURL(/\/sales\/deals\/[0-9a-f-]{36}$/);
     await expect(page.locator("[data-sonner-toast]")).toContainText(/Booking \d+ created/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Booking \d+: Gate Gourmet$/);
 
-STEP 11 · 2:04-2:16 · Waiting for the accounts check
-  Voiceover: "It's marked Confirmed. Before it can be invoiced, Accounts check the client, the addresses and the
-    items. The message at the top shows it's waiting for that check."
-  Target: badge "Confirmed" (304,211,83x22) TOP-LEFT, then the amber banner (304,253,1088x46) TOP-CENTRE.
-  Camera: 1.4x on the badge (centre 345,222), then slide right along the banner to (700,276) over 1.2 s, at 1.3x.
-  Cursor: glide to (345,222) and hover; then trace along under the banner to (800,290).
-  State change: none - reading the new state. Banner glows softly.
+STEP 11 · 2:06-2:20 · Confirmed, and yours to send
+  Voiceover: "It's marked Confirmed, and Email the confirmation is ready, so you can send it to the client now.
+    The message underneath is for Accounts: they check it before it's invoiced, not before you send it."
+  Target: badge "Confirmed" (304,211,83x22) TOP-LEFT; button "Email the confirmation" (1047,142,176x28)
+    TOP-RIGHT; then the amber banner (304,253,1088x46) TOP-CENTRE.
+  Camera: 1.4x on the badge (centre 345,222); at 2:09 pan to the button (centre 1135,156); at 2:14 pull to 1.2x
+    on the banner (centre 700,276), each move 800 ms.
+  Cursor: glide to (345,222) and hover; glide to (1135,156) and hover (button darkens, NO click - sending is
+    lesson 2); then trace along under the banner to (800,290).
+  State change: none - reading the new state. The button glows, then the banner glows softly.
   Callout: ARCHETYPE A - Floating glass pill, anchored BELOW the banner, arrow up.
-    Badge pill: [shield-check] "Accounts check" (amber). Text: "Samantha in Accounts does this next".
+    Badge pill: [receipt] "For invoicing" (amber). Text: "Accounts check it before it's invoiced".
   QA:
     await expect(page.getByText("Confirmed", { exact: true })).toBeVisible();
     await expect(page.getByText("The confirmation hasn't been sent yet")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Email the confirmation" })).toBeEnabled();
     await expect(page.getByText("Waiting for the accounts check.")).toBeVisible();
 
-STEP 12 · 2:16-2:32 · The schedule
+STEP 12 · 2:20-2:36 · The schedule
   Voiceover: "The Schedule lists both issues. Issue 108 runs this quarter, so it's ready to invoice now. Issue
     109 is due in January."
   Target: "Schedule" card (305,418 - 1391,620), CENTRE; rows at y 496-546 (OBH 108) and 546-583 (OBH 109); the
     Invoice column "Ready to invoice / Due 16 Oct 2026" (1190,504) and "Due 1 Jan 2027" (1190,557), CENTRE-RIGHT.
-  Camera: 1.2x on the card (centre 848,510); at 2:24 push to 1.5x on the Invoice column (centre 1230,535).
+  Camera: 1.2x on the card (centre 848,510); at 2:28 push to 1.5x on the Invoice column (centre 1230,535).
   Cursor: glide along row 1 to (1236,512), pause; then down to (1232,565), pause.
   State change: none - reading. Row 1 then row 2 highlight in turn.
   Callout: ARCHETYPE C - 3D pop-out of the Schedule card; "2 items £5,980" counts up from £0 in 700 ms.
@@ -339,13 +345,13 @@ STEP 12 · 2:16-2:32 · The schedule
     await expect(page.locator("table").getByText("Ready to invoice")).toBeVisible();
     await expect(page.getByText("Due 1 Jan 2027")).toBeVisible();
 
-STEP 13 · 2:32-2:40 · End card
-  Voiceover: "That's a new booking made. Next, see what happens in the accounts check."
+STEP 13 · 2:36-2:44 · End card
+  Voiceover: "That's a new booking made. Next, sending the confirmation to the client."
   Target: none (full frame). Behind: Screen C, blurred 12 px.
   Camera: slow pull back 1.0x -> 0.95x.
   Cursor: hidden.
   Callout: ARCHETYPE D - Kinetic chapter card. Badge pill: [arrow-right] "Next lesson" (primary navy).
-    Headline: "The accounts check". Sub-line: "Lesson 2 · Accounts".
+    Headline: "Sending the confirmation". Sub-line: "Lesson 2 · Sales".
   QA:
     await expect(page.getByText("Hand-offs to editorial and production")).toBeVisible();
     await expect(page.getByText("Goes after the accounts check")).toBeVisible();
@@ -359,7 +365,7 @@ What they've booked · Title · OnBoard Hospitality (OBH) · From the rate card 
 Full page (210 x 297 mm, 3 mm bleed) - £2,990 · Price each (£) · Rate card price (£) · Booking total · At rate card ·
 Total · Before VAT. · Runs in (1) / Runs in (2) · Another · Issue 108 · 10 Dec 2026 · book by 2 Dec 2026 ·
 Issue 109 · 18 Mar 2027 · book by 10 Mar 2027 · deadline passed · When to invoice · As soon as allowed ·
-Confirm the booking · Pencil it in · Booking 24NN created · Confirmed · The confirmation hasn't been sent yet ·
+Confirm the booking · Pencil it in · Booking 24NN created · Confirmed · Email the confirmation · The confirmation hasn't been sent yet ·
 Waiting for the accounts check. · Schedule · 1 ready to invoice · Ready to invoice · Due 1 Jan 2027 ·
 Hand-offs to editorial and production
 ````
