@@ -30,7 +30,11 @@ log = logging.getLogger(__name__)
 
 WINDOW_BACK = timedelta(days=1)
 WINDOW_AHEAD = timedelta(days=14)
-BOOK_AHEAD = timedelta(minutes=20)      # bots are booked this long before the start
+BOOK_AHEAD = timedelta(minutes=20)      # people are told this long before the start that the notetaker will join
+# The bot itself is sent "join now" once its join time is less than one job run away (the job runs every 3 minutes),
+# exactly like pasting a link by hand. It used to be booked 20 minutes early with a join time, which relies on the
+# bot service's own scheduler to wake it up later - when that scheduler isn't running, booked bots never join.
+SEND_WINDOW = timedelta(minutes=3)
 LATE_JOIN = timedelta(minutes=30)       # a meeting added late is still joined up to this long after it started
 SYNC_EVERY = timedelta(minutes=4)
 PREF_KEY = "calendar_recording"         # users.preferences: auto | remind | off
@@ -258,14 +262,20 @@ def plan(db: Session, at: datetime | None = None) -> dict:
             if not notetaker.configured():
                 m.last_error = "The notetaker isn't connected yet."
                 continue
-            match_crm(db, m, domains)
             join_at = max(m.start_at - timedelta(minutes=runtime_settings.get_int(db, "calendar_join_minutes_before")), at)
+            if not m.notified_at:
+                _notify(db, m, f"BMI Notetaker will join “{m.title or 'your meeting'}”",
+                        f"It joins at {join_at:%H:%M} UTC and the notes come to Call notes afterwards. Open Meetings to skip it.")
+                m.notified_at = at
+            if join_at - at > SEND_WINDOW:
+                continue   # not yet: it's sent on the job run just before its join time
+            match_crm(db, m, domains)
             call = CallRecording(id=uuid.uuid4(), user_id=owner(db, m), contact_id=m.contact_id, company_id=m.company_id,
                                  calendar_meeting_id=m.id, meeting_url=m.join_url, title=m.title, status="scheduled", status_label="Scheduled")
             db.add(call)
             db.flush()
             try:
-                res = notetaker.send_bot(meeting_url=m.join_url, external_id=f"cal:{m.id}", title=m.title, join_at=join_at,
+                res = notetaker.send_bot(meeting_url=m.join_url, external_id=f"cal:{m.id}", title=m.title,
                                          end_at=max(m.end_at, join_at + timedelta(minutes=15)),
                                          metadata={"bmi_call_id": str(call.id), "bmi_calendar_meeting_id": str(m.id)})
             except notetaker.NotetakerError as e:
@@ -277,10 +287,6 @@ def plan(db: Session, at: datetime | None = None) -> dict:
             call.status, call.status_label = res.get("status", "scheduled"), res.get("status_label") or "Scheduled"
             m.call_id, m.last_error = call.id, None
             out["booked"] += 1
-            if not m.notified_at:
-                _notify(db, m, f"BMI Notetaker will join “{m.title or 'your meeting'}”",
-                        f"It joins at {m.start_at:%H:%M} UTC and the notes come to Call notes afterwards. Open Meetings to skip it.")
-                m.notified_at = at
         elif not d.record and live and call.status == "scheduled":
             try:
                 if call.notetaker_id:
@@ -346,10 +352,10 @@ def outcome(m: CalendarMeeting, call: CallRecording | None, d: Decision, at: dat
             return say("live", "Recorded - writing up the notes now")
         if s == "scheduled":
             if ended:
-                return say("bad", "Not recorded - the notetaker was booked but never joined. The notetaker service didn't report back, so check its console.")
+                return say("bad", "Not recorded - the notetaker was sent but never joined. The notetaker service didn't report back, so check its console.")
             if started:
-                return say("warn", "The notetaker is booked and should be joining now")
-            return say("ok", "Will be recorded - the notetaker is booked")
+                return say("warn", "The notetaker has been sent and should be joining now")
+            return say("ok", "Will be recorded - the notetaker is on its way")
         return say("live", call.status_label or "The notetaker is in the call")
 
     if call and call.status == "cancelled" and not d.record:
@@ -371,7 +377,7 @@ def outcome(m: CalendarMeeting, call: CallRecording | None, d: Decision, at: dat
         return say("bad" if started else "warn", f"{'Not recording yet' if started else 'Will try to record'} - {err}")
     if started:
         return say("warn", "Should be recording - sending the notetaker now")
-    return say("ok", "Will be recorded - the notetaker gets booked 20 minutes before it starts")
+    return say("ok", "Will be recorded - the notetaker is sent just before it starts")
 
 
 # ---- Starting over ------------------------------------------------------------------------------

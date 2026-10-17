@@ -79,7 +79,7 @@ After you confirm, removes every meeting on the list and calls off notetakers th
 
 ## How it works
 - The calendars are read every few minutes. The same meeting in several people's calendars (same link and start time) shows once, with everyone from BMI who's in it. A moved meeting shows at its new time.
-- The notetaker is booked about 20 minutes before a meeting and joins a minute or so early (an administrator can change this in Automations > Call notes). A meeting added late is still joined up to 30 minutes after it started.
+- About 20 minutes before a meeting, everyone at BMI in it gets a notice that the notetaker will join. The notetaker itself is sent a minute or two before the start, the same way as pasting a link by hand, and asks to join a minute or so early (an administrator can change this in Automations > Call notes). A meeting added late is still joined up to 30 minutes after it started.
 - A meeting is recorded if someone from BMI who is going has "joins automatically", or someone pressed **Record**. It's not recorded if it was skipped, cancelled, all-day, has no Meet or Teams link (Zoom isn't supported yet), everyone from BMI declined, everyone marked it private, or only BMI people are in it, unless an administrator has switched private or internal meetings on in Automations > Call notes.
 - Private meetings show to others only as "Private meeting".
 - Administrators and data managers see everyone's meetings and calls. Everyone else sees their own meetings, calls they sent, and calls of meetings they were in.

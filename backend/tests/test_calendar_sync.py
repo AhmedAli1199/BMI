@@ -123,18 +123,23 @@ def test_plan_books_once_and_calls_off(db_session, people, monkeypatch):
     start = NOW + timedelta(minutes=10)
     cs.sync_connection(db_session, cm, NOW, [ev("ms-1", start, me="organizer")])
     cs.sync_connection(db_session, cg, NOW, [ev("g-1", start)])
-    assert cs.plan(db_session, NOW)["booked"] == 1
-    assert cs.plan(db_session, NOW)["booked"] == 0   # not twice
-    assert len(sent) == 1 and sent[0]["join_at"] == start - timedelta(minutes=1)
+    # 10 minutes out: people are told, but the bot isn't sent yet
+    assert cs.plan(db_session, NOW)["booked"] == 0 and sent == []
+    assert meetings(db_session)[0].notified_at == NOW
+    # on the job run just before its join time it's sent "join now" - no join time for the bot service to wake it up
+    soon = NOW + timedelta(minutes=7)
+    assert cs.plan(db_session, soon)["booked"] == 1
+    assert cs.plan(db_session, soon)["booked"] == 0   # not twice
+    assert len(sent) == 1 and "join_at" not in sent[0] and sent[0]["end_at"] >= start
     m = meetings(db_session)[0]
     call = db_session.get(CallRecording, m.call_id)
     assert call.user_id == matt.id and call.calendar_meeting_id == m.id   # the organiser owns the notes
     # someone presses Skip before it starts: the bot is called off
     m.record_override = "skip"
-    assert cs.plan(db_session, NOW)["called_off"] == 1 and stopped == ["nt_1"]
+    assert cs.plan(db_session, soon)["called_off"] == 1 and stopped == ["nt_1"]
     # far-off meetings aren't booked yet
     cs.sync_connection(db_session, cm, NOW, [ev("ms-1", start, me="organizer"), ev("ms-2", NOW + timedelta(days=2))])
-    assert cs.plan(db_session, NOW)["booked"] == 0
+    assert cs.plan(db_session, soon)["booked"] == 0
 
 
 def test_cancelled_after_booking_calls_off(db_session, people, monkeypatch):
@@ -144,7 +149,7 @@ def test_cancelled_after_booking_calls_off(db_session, people, monkeypatch):
     stopped = []
     monkeypatch.setattr(notetaker, "send_bot", lambda **kw: {"id": "nt_9", "status": "scheduled"})
     monkeypatch.setattr(notetaker, "stop_bot", lambda nid: stopped.append(nid))
-    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", NOW + timedelta(minutes=5))])
+    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", NOW + timedelta(minutes=3))])
     cs.plan(db_session, NOW)
     cs.sync_connection(db_session, cm, NOW, [])   # the meeting is deleted
     cs.plan(db_session, NOW)
@@ -187,7 +192,7 @@ def test_start_over_keeps_connections_and_recorded_calls(db_session, people, mon
     stopped = []
     monkeypatch.setattr(notetaker, "send_bot", lambda **kw: {"id": "nt_1", "status": "scheduled"})
     monkeypatch.setattr(notetaker, "stop_bot", lambda nid: stopped.append(nid))
-    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", NOW + timedelta(minutes=5)),
+    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", NOW + timedelta(minutes=3)),
                                              ev("ms-2", NOW - timedelta(hours=3), link="https://meet.google.com/xyz-abcd-efg")])
     cs.plan(db_session, NOW)
     old = meetings(db_session)[0]
