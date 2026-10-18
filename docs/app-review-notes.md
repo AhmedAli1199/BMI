@@ -2,12 +2,16 @@
 
 Found while writing the assistant's help guides for every area (15 Oct), by reading the code. Not fixed yet - check each before acting. Sales Orders notes are in docs/sales-orders-review-notes.md.
 
-## Security - look at these first
-- creating and changing user accounts (POST/PATCH /users) has no administrator check on the server; only the page is admin-only.
-- anyone signed in can change another person's preferences (PATCH /users/{id}/preferences).
-- Bulk update history shows everyone's bulk edits and anyone can undo anyone's (no role/database check).
-- exporting a ticked selection doesn't re-check database access on the ids sent.
-- no Delete buttons on contact/company pages, but group/contact/company delete routes have no role check.
+## Security - fixed 18 Oct (tests/test_permissions.py)
+- ~~Team accounts: no server-side admin check~~ - admins only (`app/core/guards.py`).
+- ~~Anyone can change another person's preferences~~ - your own only (admins any).
+- ~~Bulk update history / undo open to all~~ - your own (admins all); undo skips contacts you can't see.
+- ~~Exporting a ticked selection didn't re-check access~~ - leaves out contacts you can't see.
+- ~~Delete routes for contacts, companies, groups had no role check~~ - admins and data managers only.
+- ~~Switched-off accounts stayed signed in; role/database changes waited for the next sign-in~~ - the backend checks the account on every call (role as it is now), and the frontend proxy refreshes the session every minute (signs out a switched-off account).
+- ~~Hidden sections still opened from a link~~ - `components/section-gate.tsx`.
+- ~~Data Health counts not limited to a data manager's databases~~.
+- Sales: ~~Rebook with no permission check / on cancelled bookings~~, ~~anyone could add/close/reopen an edition~~ (salespeople can still edit its notes), ~~new booking from someone else's proposal~~, ~~editing a sent proposal on the server~~ (notes only), ~~Put back shown to people who can't edit prices~~.
 
 ## Editorial plan
 - Moving an issue's publication date into another year doesn't update its year, so it drops off both years' planners.

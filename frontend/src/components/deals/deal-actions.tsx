@@ -87,7 +87,9 @@ export function DealActions({ d }: { d: Deal }) {
           {d.can_edit && d.status !== "cancelled" && !d.check?.blocks_sending && (
             <DropdownMenuItem onClick={() => run(() => markDealSent(d.id, d.contact_email), "Noted as sent", "Couldn't save that", "Confirmation noted as sent.")}><FileText className="size-3.5" /> I sent it another way</DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={rebook}><Repeat className="size-3.5" /> Rebook for next year</DropdownMenuItem>
+          {d.can_edit && d.status !== "cancelled" && (
+            <DropdownMenuItem onClick={rebook}><Repeat className="size-3.5" /> Rebook for next year</DropdownMenuItem>
+          )}
           {canChange && d.status === "confirmed" && !anyInvoiced && (
             <DropdownMenuItem onClick={() => run(() => setDealStatus(d.id, "pencilled"), "Back to pencilled", "Couldn't change it")}><Undo2 className="size-3.5" /> Back to pencilled</DropdownMenuItem>
           )}

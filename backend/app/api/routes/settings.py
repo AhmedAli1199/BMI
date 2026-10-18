@@ -12,6 +12,7 @@ from app.api.schemas import (
     UserPreferencesOut,
     UserPreferencesUpdate,
 )
+from app.core.guards import need_self_or_admin
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import User
@@ -104,7 +105,8 @@ def _try_parse_uuid(user_id: str) -> uuid.UUID | None:
 
 
 @router.get("/users/{user_id}/preferences", response_model=UserPreferencesOut)
-def get_user_preferences(user_id: str, db: Session = Depends(get_db)) -> UserPreferencesOut:
+def get_user_preferences(user_id: str, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> UserPreferencesOut:
+    need_self_or_admin(identity, user_id, "You can only see your own settings.")
     # user_id is a plain str, not uuid.UUID, specifically so a non-UUID
     # value (the frontend's "local-dev" bypass session, which has no real
     # user row) falls through to registry defaults below instead of a 422
@@ -118,8 +120,10 @@ def get_user_preferences(user_id: str, db: Session = Depends(get_db)) -> UserPre
 
 @router.patch("/users/{user_id}/preferences", response_model=UserPreferencesOut)
 def update_user_preferences(
-    user_id: str, payload: UserPreferencesUpdate, db: Session = Depends(get_db)
+    user_id: str, payload: UserPreferencesUpdate, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> UserPreferencesOut:
+    need_self_or_admin(identity, user_id)
     parsed = _try_parse_uuid(user_id)
     user = db.get(User, parsed) if parsed else None
     if not user:

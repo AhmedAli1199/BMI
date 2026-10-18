@@ -23,6 +23,15 @@ function getSecret() {
   return new TextEncoder().encode(secret);
 }
 
+/** The session cookie's settings (sign-in and the proxy's refresh). */
+export const sessionCookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: 60 * 60 * 24 * 30,
+};
+
 export async function createSessionToken(payload: SessionPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })

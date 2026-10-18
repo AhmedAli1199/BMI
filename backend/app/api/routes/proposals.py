@@ -321,6 +321,8 @@ def get_proposal(pid: uuid.UUID, db: Session = Depends(get_db), user: User = Dep
 def update_proposal(pid: uuid.UUID, payload: ProposalPatch, db: Session = Depends(get_db), user: User = Depends(current_user),
                     identity: Identity = Depends(get_identity)) -> ProposalOut:
     p = _get(db, pid, user, identity)
+    if p.status == "sent" and payload.model_fields_set - {"notes"}:
+        raise HTTPException(409, "This proposal has been sent, so it can't be changed. You can still add notes.")
     if payload.campaign_name is not None and payload.campaign_name.strip():
         p.campaign_name = payload.campaign_name.strip()
     if payload.template is not None:

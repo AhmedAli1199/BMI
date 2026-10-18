@@ -11,6 +11,7 @@ import { GroupFormDialog } from "@/components/group-form-dialog";
 import { DeleteEntityButton } from "@/components/delete-entity-button";
 import { deleteGroup } from "@/lib/actions";
 import { PageHeader } from "@/components/page-header";
+import { canUseAutomations } from "@/lib/access";
 
 export default async function GroupDetailPage({
   params,
@@ -69,13 +70,13 @@ export default async function GroupDetailPage({
               Mail merge
             </Button>
             <GroupFormDialog existing={group} />
-            <DeleteEntityButton
+            {canUseAutomations(session) && <DeleteEntityButton
               entityLabel={group.name}
               id={group.id}
               action={deleteGroup}
               redirectTo="/groups"
               description="This can't be undone. Contacts in this group are not deleted - only their membership in this group is removed. Any sub-groups nested under it are kept, just detached (no longer nested here)."
-            />
+            />}
           </>
         }
       />

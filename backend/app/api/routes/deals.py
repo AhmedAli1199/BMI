@@ -443,6 +443,8 @@ def prefill(company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = 
     me = _my_rep(db, identity)
     out["rep_id"] = str(me.id) if me else None
     p = db.get(Proposal, proposal_id) if proposal_id else None
+    if p and not _staff(identity) and p.created_by_user_id != identity.user_uuid:
+        p = None   # someone else's proposal: start a blank booking instead
     if p:
         company_id, contact_id = company_id or p.company_id, contact_id or p.contact_id
         out["proposal_id"] = str(p.id)
@@ -964,6 +966,9 @@ def rebook(deal_id: uuid.UUID, year: int | None = None, db: Session = Depends(ge
     """Next year's order for the same client: a pencilled copy with each item moved to next year's matching issue and
     next year's rate card price. Nothing is confirmed until the salesperson confirms it."""
     src = _get(db, deal_id)
+    _need_edit(db, identity, src)
+    if src.status == "cancelled":
+        raise HTTPException(409, "A cancelled booking can't be rebooked. Start a new booking for this client instead.")
     eds = [db.get(SalesEdition, uuid.UUID(str(p["edition_id"]))) for ln in src.lines or [] for p in ln.get("placements") or [] if p.get("edition_id")]
     years = [e.year for e in eds if e]
     target = year or ((max(years) + 1) if years else date.today().year + 1)

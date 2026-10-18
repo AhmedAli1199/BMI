@@ -221,6 +221,11 @@ def get_data_health(
     contact_channel.py) figures aren't group-scoped, matching /stats."""
     contact_filter = [Contact.source_db == source_db] if source_db else []
     company_filter = [Company.source_db == source_db] if source_db else []
+    # only the records this person may see (a data manager's own databases), same as /stats
+    from app.core.visibility import company_clause, contact_clause, review_item_clause
+    for lst, clause in ((contact_filter, contact_clause(db)), (company_filter, company_clause(db))):
+        if clause is not None:
+            lst.append(clause)
 
     total_contacts = db.scalar(select(func.count()).select_from(Contact).where(*contact_filter)) or 0
     total_companies = db.scalar(select(func.count()).select_from(Company).where(*company_filter)) or 0
@@ -245,6 +250,9 @@ def get_data_health(
     ) or 0
 
     hygiene_filter = [ReviewQueueItem.source_db == source_db] if source_db else []
+    seen_items = review_item_clause(db)
+    if seen_items is not None:
+        hygiene_filter.append(seen_items)
     hygiene_rows = dict(
         db.execute(
             select(ReviewQueueItem.kind, func.count())

@@ -7,11 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import RoleDefOut, UserAccessOut, UserCreate, UserOut, UserUpdate
+from app.core.guards import admin_only
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models import Group, Publication, SalesRep, User, UserAccess
 from app.roles import ALL_ROLES, ROLE_DEFS
 
+# Managing the team is for administrators (Settings > Team & access is admin-only on screen too).
 router = APIRouter(tags=["users"])
 
 
@@ -69,13 +71,13 @@ def list_roles() -> list[RoleDefOut]:
     return [RoleDefOut(value=r.value, label=r.label, description=r.description) for r in ROLE_DEFS]
 
 
-@router.get("/users", response_model=list[UserOut])
+@router.get("/users", response_model=list[UserOut], dependencies=[Depends(admin_only)])
 def list_users(db: Session = Depends(get_db)) -> list[UserOut]:
     users = db.execute(select(User).order_by(User.name.asc())).scalars().all()
     return [_user_out(db, u) for u in users]
 
 
-@router.post("/users", response_model=UserOut, status_code=201)
+@router.post("/users", response_model=UserOut, status_code=201, dependencies=[Depends(admin_only)])
 def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     if payload.role not in ALL_ROLES:
         raise HTTPException(status_code=400, detail=f"Unknown role: {payload.role!r} - choose one of {ALL_ROLES}")
@@ -101,7 +103,7 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     return _user_out(db, user)
 
 
-@router.patch("/users/{user_id}", response_model=UserOut)
+@router.patch("/users/{user_id}", response_model=UserOut, dependencies=[Depends(admin_only)])
 def update_user(user_id: uuid.UUID, payload: UserUpdate, db: Session = Depends(get_db)) -> UserOut:
     user = db.get(User, user_id)
     if not user:

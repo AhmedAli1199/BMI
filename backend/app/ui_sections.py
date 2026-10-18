@@ -1,9 +1,10 @@
 """Sections of the app an administrator can hide from other roles, so the
 screens stay uncluttered for people who don't need everything.
 
-This is about tidiness, not security: hiding a section takes it out of the
-navigation for that role. What a person may actually read or change is still
-decided by their role and database access (app/roles.py, UserAccess).
+Hiding a section takes it out of the menu, stops its pages opening for that
+person (frontend section-gate.tsx) and the Brain answering about it. Which
+data a person may read or change is still decided by their role and database
+access (app/roles.py, UserAccess).
 Administrators always see every section.
 
 The frontend sidebar uses these same keys (frontend/src/lib/sections.ts).

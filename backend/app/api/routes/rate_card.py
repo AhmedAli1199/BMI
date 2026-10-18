@@ -748,8 +748,10 @@ FIELD_WORDS = {"price_gbp": "price", "price_type": "how it's priced", "unit": "w
 
 
 @router.get("/history", response_model=list[HistoryRow])
-def history(brand: str, year: int | None = None, db: Session = Depends(get_db)) -> list[HistoryRow]:
+def history(brand: str, year: int | None = None, db: Session = Depends(get_db),
+            identity: Identity = Depends(get_identity)) -> list[HistoryRow]:
     b = _brand_or_404(brand)
+    may_edit = B.can_edit_brand(db, identity, b, prices=True)   # Put back only for people who can change prices
     titles = _titles(db, b)
     rate_q = select(SalesRate).where(SalesRate.title_id.in_(list(titles))) if titles else None
     if rate_q is not None and year:
@@ -774,7 +776,7 @@ def history(brand: str, year: int | None = None, db: Session = Depends(get_db)) 
             what = f"Offer: {o.label}" if o else "An offer"
         out.append(HistoryRow(id=c.id, entity_type=c.entity_type, entity_id=c.entity_id, what=what, field=FIELD_WORDS.get(c.field, c.field),
                               old_value=c.old_value, new_value=c.new_value, by=users.get(c.changed_by_user_id), at=c.changed_at,
-                              can_put_back=c.entity_type == "sales_rate" and c.field in UNDOABLE and c.entity_id in rates))
+                              can_put_back=may_edit and c.entity_type == "sales_rate" and c.field in UNDOABLE and c.entity_id in rates))
     return out
 
 

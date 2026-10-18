@@ -24,11 +24,19 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 
-from fastapi import Header
+from fastapi import Depends, Header, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
 
 from app.roles import ROLE_ADMIN
 
 logger = logging.getLogger("app.core.identity")
+
+# Sent with the 401 for a switched-off or removed account, so the frontend signs the person out
+# (rather than treating it as an ordinary "not allowed").
+SIGNED_OUT_HEADER = "X-BMI-Signed-Out"
 
 
 @dataclass(frozen=True)
@@ -81,6 +89,7 @@ def get_identity(
     x_user_id: str | None = Header(default=None, alias="X-BMI-User-Id"),
     x_user_role: str | None = Header(default=None, alias="X-BMI-User-Role"),
     x_user_access: str | None = Header(default=None, alias="X-BMI-User-Access"),
+    db: Session = Depends(get_db),
 ) -> Identity:
     access: list[tuple[str, str | None]] = []
     if x_user_access:
@@ -95,4 +104,18 @@ def get_identity(
         except (ValueError, TypeError, KeyError):
             logger.warning("identity: ignoring malformed X-BMI-User-Access header")
 
-    return Identity(user_id=x_user_id or None, role=x_user_role or None, access=access)
+    identity = Identity(user_id=x_user_id or None, role=x_user_role or None, access=access)
+    # The session the browser holds can be up to 30 days old: check the account is still switched on, and use
+    # its role as it is now (a changed role applies straight away). Database access is already read fresh from
+    # the saved grants (visibility.grants). Ids that aren't real users (the local-dev sign-in) are left as they are.
+    uid = identity.user_uuid
+    if uid is not None:
+        from app.models import User
+
+        row = db.execute(select(User.role, User.is_active).where(User.id == uid)).first()
+        if row is None or not row.is_active:
+            raise HTTPException(status_code=401, detail="Your account has been switched off. Ask an administrator if you need it back.",
+                                headers={SIGNED_OUT_HEADER: "1"})
+        if row.role != identity.role:
+            identity = Identity(user_id=identity.user_id, role=row.role, access=access)
+    return identity

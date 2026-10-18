@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.core.identity import Identity, get_identity
+from app.core.guards import need_staff
 from app.api.schemas import (
     ContactListItem,
     GroupCreate,
@@ -211,7 +213,9 @@ def update_group(group_id: uuid.UUID, payload: GroupUpdate, db: Session = Depend
 
 
 @router.delete("/{group_id}", status_code=204, response_model=None)
-def delete_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_group(group_id: uuid.UUID, db: Session = Depends(get_db),
+                 identity: Identity = Depends(get_identity)) -> None:
+    need_staff(identity, "Only administrators and data managers can delete groups.")
     group = db.get(Group, group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")

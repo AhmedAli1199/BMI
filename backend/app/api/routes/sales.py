@@ -1106,7 +1106,9 @@ def get_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> Edition
 
 
 @router.post("/editions", response_model=EditionSummary, status_code=201)
-def create_edition(payload: EditionCreate, db: Session = Depends(get_db)) -> EditionSummary:
+def create_edition(payload: EditionCreate, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> EditionSummary:
+    if not _is_staff(identity):
+        raise HTTPException(status_code=403, detail="Only admins and data managers can add editions.")
     title = db.get(SalesTitle, payload.title_id)
     if not title:
         raise HTTPException(status_code=422, detail="Unknown title")
@@ -1126,9 +1128,12 @@ def create_edition(payload: EditionCreate, db: Session = Depends(get_db)) -> Edi
 
 
 @router.patch("/editions/{edition_id}", response_model=EditionSummary)
-def update_edition(edition_id: uuid.UUID, payload: EditionPatch, db: Session = Depends(get_db)) -> EditionSummary:
+def update_edition(edition_id: uuid.UUID, payload: EditionPatch, db: Session = Depends(get_db),
+                   identity: Identity = Depends(get_identity)) -> EditionSummary:
     ed = _get_edition(db, edition_id)
     data = payload.model_dump(exclude_unset=True)
+    if not _is_staff(identity) and set(data) - {"notes"}:   # salespeople can keep the edition's notes, nothing else
+        raise HTTPException(status_code=403, detail="Only admins and data managers can change, close or reopen an edition.")
     if "status" in data and data["status"] not in ("open", "closed"):
         raise HTTPException(status_code=422, detail="Status must be open or closed")
     for k, v in data.items():

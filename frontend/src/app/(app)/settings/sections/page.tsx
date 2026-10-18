@@ -31,8 +31,8 @@ export default async function SectionsSettingsPage() {
         description={
           <>
             Untick a section to take it out of the menu for that role, or give one person their own choice. Administrators always see
-            everything. Hiding a section only tidies the menu: it doesn&apos;t change what anyone is allowed to see or do, which is
-            still set under Team &amp; access.
+            everything. A hidden section leaves the menu, its pages won&apos;t open for that person and the Brain won&apos;t answer
+            about it. Which databases someone can see is still set under Team &amp; access.
           </>
         }
       />

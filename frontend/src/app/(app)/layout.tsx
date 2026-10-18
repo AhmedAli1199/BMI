@@ -15,6 +15,7 @@ import { allowedSourceDbSlugs, canUseAutomations } from "@/lib/access";
 import { backendFetch } from "@/lib/backend";
 import type { ScheduledJob, WorkstreamSummary } from "@/lib/types";
 import type { SectionKey, SectionsInfo } from "@/lib/sections";
+import { SectionGate } from "@/components/section-gate";
 
 export default async function AppLayout({
   children,
@@ -94,7 +95,7 @@ export default async function AppLayout({
         {session ? (
           <BrainProvider userName={session.name} role={session.role}>
             <div className="flex flex-1 flex-col overflow-y-auto">
-              {children}
+              <SectionGate hidden={hiddenSections}>{children}</SectionGate>
               {/* room at the bottom so the floating Ask the Brain and Feedback buttons never cover the end of a list */}
               <div aria-hidden="true" className="h-24 shrink-0 print:hidden" />
             </div>

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.guards import need_staff
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
     AddressOut,
@@ -160,7 +161,16 @@ def export_selected_contacts(payload: _ExportSelection, db: Session = Depends(ge
 
     from app.services.contact_export import contacts_xlsx
 
-    buf = contacts_xlsx(db, list(dict.fromkeys(payload.ids)))
+    from app.core.visibility import contact_clause
+
+    ids = list(dict.fromkeys(payload.ids))
+    seen = contact_clause(db)  # only contacts this person may see, whatever ids were sent
+    if seen is not None:
+        ok: set[uuid.UUID] = set()
+        for i in range(0, len(ids), 5000):
+            ok |= set(db.scalars(select(Contact.id).where(Contact.id.in_(ids[i:i + 5000]), seen)))
+        ids = [i for i in ids if i in ok]
+    buf = contacts_xlsx(db, ids)
     name = (payload.title or "BMI contacts selection").replace('"', "")
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f'attachment; filename="{name}.xlsx"'})
@@ -584,7 +594,9 @@ def reassign_contact(contact_id: uuid.UUID, successor_id: uuid.UUID, db: Session
 
 
 @router.delete("/{contact_id}", status_code=204, response_model=None)
-def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db),
+                   identity: Identity = Depends(get_identity)) -> None:
+    need_staff(identity, "Only administrators and data managers can delete contacts.")
     contact = db.get(Contact, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")

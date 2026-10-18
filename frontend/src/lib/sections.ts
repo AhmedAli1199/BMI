@@ -1,6 +1,7 @@
 /** Sections an administrator can hide from other roles (keys match
- * backend/app/ui_sections.py). Hiding only tidies the navigation; what a
- * person may open or change is still decided by their role and access. */
+ * backend/app/ui_sections.py). A hidden section leaves the menu and its pages
+ * don't open (components/section-gate.tsx, lib/section-routes.ts); which data a
+ * person may see is still decided by their role and access. */
 export type SectionKey =
   | "contacts"
   | "companies"

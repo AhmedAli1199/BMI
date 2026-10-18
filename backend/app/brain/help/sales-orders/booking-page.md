@@ -38,7 +38,7 @@ Opens the printable confirmation in a new tab (see below).
 ### ... (More) menu
 - **Download as Word**: the confirmation as a Word file, named like "Order confirmation <number> <client>.docx". Anyone can download it.
 - **I sent it another way**: notes it as sent to the contact's email and adds a note to the client's company, without emailing anything.
-- **Rebook for next year**: makes a new pencilled booking for the same client, with each item moved to next year's matching issue at next year's rate card price. Notes say what couldn't be matched or what prices changed. It opens the new booking. Nothing is confirmed until you confirm it.
+- **Rebook for next year**: makes a new pencilled booking for the same client, with each item moved to next year's matching issue at next year's rate card price. Notes say what couldn't be matched or what prices changed. It opens the new booking. Nothing is confirmed until you confirm it. Shown to people who can change the booking, and not on cancelled bookings.
 - **Back to pencilled**: confirmed bookings with nothing invoiced. It stops counting and is taken out of the accounts check.
 - **Reopen**: cancelled bookings. Brings it back as pencilled.
 - **Cancel the booking** / **Ask accounts to cancel it**: opens a dialog. Type **Why** (required) and choose **Keep items that have already run or been invoiced** (ticked by default: they were delivered, so they stay booked). Press **Cancel the booking** (or **Send to accounts** on a locked booking), or **Keep the booking** to back out.

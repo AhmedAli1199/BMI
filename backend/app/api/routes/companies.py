@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.guards import need_staff
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
     ActivityOut,
@@ -381,7 +382,9 @@ def list_company_field_changes(company_id: uuid.UUID, db: Session = Depends(get_
 
 
 @router.delete("/{company_id}", status_code=204, response_model=None)
-def delete_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_company(company_id: uuid.UUID, db: Session = Depends(get_db),
+                   identity: Identity = Depends(get_identity)) -> None:
+    need_staff(identity, "Only administrators and data managers can delete companies.")
     company = db.get(Company, company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE, createSessionToken } from "@/lib/session";
+import { SESSION_COOKIE, sessionCookieOptions, createSessionToken } from "@/lib/session";
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? "http://localhost:8000";
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
@@ -40,12 +40,6 @@ export async function POST(request: Request) {
   });
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   return response;
 }

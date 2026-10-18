@@ -6,8 +6,11 @@ import type { EditionSummary, SalesMeta } from "@/lib/sales-types";
 import { NewEditionDialog } from "@/components/sales/new-edition-dialog";
 import { EditionsExplorer } from "@/components/sales/editions-explorer";
 import { SalesHeader, YearSwitch } from "@/components/sales/sales-ui";
+import { getSession } from "@/lib/session";
+import { canUseAutomations } from "@/lib/access";
 
 export default async function EditionsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const staff = canUseAutomations(await getSession());
   const sp = await searchParams;
   const meta = await backendFetch<SalesMeta>("/api/sales/meta");
   const year = Number(sp.year) || new Date().getFullYear();
@@ -33,7 +36,7 @@ export default async function EditionsPage({ searchParams }: { searchParams: Pro
             <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href="/sales/compare" />}>
               <GitCompare className="size-3.5" aria-hidden="true" /> Compare editions
             </Button>
-            <NewEditionDialog titles={meta.titles} year={year} defaultTitleId={titleIds.length === 1 ? titleIds[0] : undefined} />
+            {staff && <NewEditionDialog titles={meta.titles} year={year} defaultTitleId={titleIds.length === 1 ? titleIds[0] : undefined} />}
           </>
         }
       />

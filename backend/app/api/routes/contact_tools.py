@@ -16,9 +16,10 @@ from app.api.routes.messaging import current_user
 from app.contacts import fields as F
 from app.contacts.scope import Scope, resolve
 from app.core.identity import Identity, get_identity
+from app.core.visibility import contact_clause
 from app.db.session import get_db
 from app.models import BulkEdit, Contact, Email, User
-from app.roles import CAN_USE_AUTOMATIONS
+from app.roles import CAN_USE_AUTOMATIONS, ROLE_ADMIN
 from app.services.field_audit import record_field_changes
 
 router = APIRouter(prefix="/contacts", tags=["contact tools"])
@@ -299,8 +300,12 @@ def _edit_out(db: Session, e: BulkEdit) -> BulkEditOut:
 
 
 @router.get("/bulk-update/history", response_model=list[BulkEditOut])
-def bulk_history(db: Session = Depends(get_db)) -> list[BulkEditOut]:
-    return [_edit_out(db, e) for e in db.scalars(select(BulkEdit).order_by(BulkEdit.created_at.desc()).limit(30))]
+def bulk_history(db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> list[BulkEditOut]:
+    """Administrators see everyone's bulk updates; everyone else sees their own."""
+    q = select(BulkEdit).order_by(BulkEdit.created_at.desc()).limit(30)
+    if identity.is_known and not identity.is_admin:
+        q = q.where(BulkEdit.user_id == identity.user_uuid)
+    return [_edit_out(db, e) for e in db.scalars(q)]
 
 
 class UndoOut(BaseModel):
@@ -309,11 +314,22 @@ class UndoOut(BaseModel):
 
 
 @router.post("/bulk-update/{edit_id}/undo", response_model=UndoOut)
-def bulk_undo(edit_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user)) -> UndoOut:
-    """Puts the old values back - but leaves alone anyone whose value has been changed again since."""
+def bulk_undo(edit_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user),
+              identity: Identity = Depends(get_identity)) -> UndoOut:
+    """Puts the old values back - but leaves alone anyone whose value has been changed again since, and
+    anyone the person can no longer see. Only the person who made the update, or an administrator, can undo it."""
     e = db.get(BulkEdit, edit_id)
     if not e:
         raise HTTPException(404, "Update not found")
+    if user.role != ROLE_ADMIN and e.user_id != user.id:
+        raise HTTPException(403, "Only the person who made this update, or an administrator, can undo it.")
+    clause = contact_clause(db, identity)
+    visible: set[str] | None = None
+    if clause is not None:
+        ids = [uuid.UUID(cid) for cid in e.before]
+        visible = set()
+        for i in range(0, len(ids), 5000):
+            visible |= {str(x) for x in db.scalars(select(Contact.id).where(Contact.id.in_(ids[i:i + 5000]), clause))}
     if e.status == "undone":
         raise HTTPException(409, "This update has already been undone.")
     f = F.get_field(db, e.field_key)
@@ -321,7 +337,7 @@ def bulk_undo(edit_id: uuid.UUID, db: Session = Depends(get_db), user: User = De
         raise HTTPException(409, "That field no longer exists.")
     restored = skipped = 0
     for cid, pair in e.before.items():
-        c = db.get(Contact, uuid.UUID(cid))
+        c = db.get(Contact, uuid.UUID(cid)) if visible is None or cid in visible else None
         if not c:
             skipped += 1
             continue
