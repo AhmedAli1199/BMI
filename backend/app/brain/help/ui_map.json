@@ -1077,49 +1077,49 @@
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:175",
+   "src": "app/(app)/automations/review/page.tsx:177",
    "kind": "link",
    "label": "All"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:264",
+   "src": "app/(app)/automations/review/page.tsx:266",
    "kind": "link",
    "label": "(selected)"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:296",
+   "src": "app/(app)/automations/review/page.tsx:298",
    "kind": "link",
    "label": ": … remove this filter"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:305",
+   "src": "app/(app)/automations/review/page.tsx:307",
    "kind": "link",
    "label": "Clear all filters"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:339",
+   "src": "app/(app)/automations/review/page.tsx:341",
    "kind": "link",
    "label": "Clear"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:384",
+   "src": "app/(app)/automations/review/page.tsx:386",
    "kind": "link",
    "label": "Clear"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:426",
+   "src": "app/(app)/automations/review/page.tsx:428",
    "kind": "link",
    "label": "View every automation →"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:485",
+   "src": "app/(app)/automations/review/page.tsx:488",
    "kind": "link",
    "label": "Open … record"
   },
@@ -1317,7 +1317,7 @@
   },
   {
    "file": "app/(app)/contacts/[id]/page.tsx",
-   "src": "app/(app)/contacts/[id]/page.tsx:96",
+   "src": "app/(app)/contacts/[id]/page.tsx:97",
    "kind": "button",
    "label": "Write"
   },
@@ -1421,19 +1421,19 @@
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:52",
+   "src": "app/(app)/groups/[id]/page.tsx:53",
    "kind": "button",
    "label": "Export"
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:62",
+   "src": "app/(app)/groups/[id]/page.tsx:63",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:85",
+   "src": "app/(app)/groups/[id]/page.tsx:86",
    "kind": "heading",
    "label": "Members ( … )"
   },
@@ -1878,7 +1878,7 @@
   },
   {
    "file": "app/(app)/sales/editions/page.tsx",
-   "src": "app/(app)/sales/editions/page.tsx:33",
+   "src": "app/(app)/sales/editions/page.tsx:36",
    "kind": "button",
    "label": "Compare editions"
   },
@@ -3813,85 +3813,85 @@
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:90",
+   "src": "components/deals/deal-actions.tsx:91",
    "kind": "menu item",
    "label": "Rebook for next year"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:92",
+   "src": "components/deals/deal-actions.tsx:94",
    "kind": "menu item",
    "label": "Back to pencilled"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:95",
+   "src": "components/deals/deal-actions.tsx:97",
    "kind": "menu item",
    "label": "Reopen"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:99",
+   "src": "components/deals/deal-actions.tsx:101",
    "kind": "menu item",
    "label": "Ask accounts to cancel it"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:102",
+   "src": "components/deals/deal-actions.tsx:104",
    "kind": "menu item",
    "label": "Delete"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:118",
+   "src": "components/deals/deal-actions.tsx:120",
    "kind": "field",
    "label": "Why"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:119",
+   "src": "components/deals/deal-actions.tsx:121",
    "kind": "field",
    "label": "Keep items that have already run or been invoiced Usually right: they were delivered, so they stay booked."
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:125",
+   "src": "components/deals/deal-actions.tsx:127",
    "kind": "button",
    "label": "Send to accounts"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:144",
+   "src": "components/deals/deal-actions.tsx:146",
    "kind": "dialog",
    "label": "Email the"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:152",
+   "src": "components/deals/deal-actions.tsx:154",
    "kind": "field",
    "label": "To"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:153",
+   "src": "components/deals/deal-actions.tsx:155",
    "kind": "field",
    "label": "Copy to (optional)"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:155",
+   "src": "components/deals/deal-actions.tsx:157",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:156",
+   "src": "components/deals/deal-actions.tsx:158",
    "kind": "field",
    "label": "Message"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:160",
+   "src": "components/deals/deal-actions.tsx:162",
    "kind": "button",
    "label": "Send"
   },
@@ -6712,97 +6712,97 @@
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:403",
+   "src": "components/review-item-card.tsx:411",
    "kind": "link",
    "label": "View … record"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:553",
+   "src": "components/review-item-card.tsx:561",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:557",
+   "src": "components/review-item-card.tsx:565",
    "kind": "button",
    "label": "Working"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:721",
+   "src": "components/review-item-card.tsx:729",
    "kind": "link",
    "label": "View company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:734",
+   "src": "components/review-item-card.tsx:742",
    "kind": "button",
    "label": "Remove company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:765",
+   "src": "components/review-item-card.tsx:773",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:940",
+   "src": "components/review-item-card.tsx:948",
    "kind": "button",
    "label": "Clear groups"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:964",
+   "src": "components/review-item-card.tsx:972",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1093",
+   "src": "components/review-item-card.tsx:1101",
    "kind": "field",
    "label": "Which one do you want to keep?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1111",
+   "src": "components/review-item-card.tsx:1119",
    "kind": "link",
    "label": "View"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1141",
+   "src": "components/review-item-card.tsx:1149",
    "kind": "field",
    "label": "Contact"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1222",
+   "src": "components/review-item-card.tsx:1230",
    "kind": "field",
    "label": "Which BMI title does this belong to?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1260",
+   "src": "components/review-item-card.tsx:1268",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1276",
+   "src": "components/review-item-card.tsx:1284",
    "kind": "field",
    "label": "Note"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1288",
+   "src": "components/review-item-card.tsx:1296",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1291",
+   "src": "components/review-item-card.tsx:1299",
    "kind": "button",
    "label": "Working"
   },

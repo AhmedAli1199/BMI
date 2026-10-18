@@ -87,7 +87,7 @@ def review_queue_status(env: ToolEnv, card: str = "") -> dict:
     stmt = _queue_scope(env, select(ReviewQueueItem.kind, func.count(), func.min(ReviewQueueItem.created_at))
                         .where(ReviewQueueItem.status == "pending").group_by(ReviewQueueItem.kind))
     done = dict(env.db.execute(_queue_scope(env, select(ReviewQueueItem.kind, func.count())
-                                            .where(ReviewQueueItem.status.in_(("approved", "rejected")),
+                                            .where(ReviewQueueItem.status.in_(("approved", "rejected", "snoozed")),
                                                    ReviewQueueItem.reviewed_at >= now - timedelta(days=7))
                                             .group_by(ReviewQueueItem.kind))).all())
     rows = []

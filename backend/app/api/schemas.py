@@ -262,6 +262,7 @@ class ContactDetail(BaseModel):
     last_attempt_date: datetime | None = None
     last_letter_date: datetime | None = None
     is_unsubscribed: bool = False
+    has_left: bool = False
     custom_fields: dict
     company: CompanySummary | None = None
     addresses: list[AddressOut] = []
@@ -530,6 +531,8 @@ class ReviewActionOut(BaseModel):
     extra_fields: list[dict]
     confirm_message: str | None = None
     requires_related_entity_choice: bool = False
+    # A card closed with this button can go back to Pending (see reopen_review_item).
+    reopenable: bool = False
 
 
 class ReviewKindOut(BaseModel):
@@ -618,6 +621,7 @@ class ReviewQueueCounts(BaseModel):
     pending: int
     approved: int = 0
     rejected: int = 0
+    snoozed: int = 0
 
 
 class ReviewQueueInsightBucket(BaseModel):

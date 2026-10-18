@@ -259,7 +259,7 @@ def crm_contact(env: ToolEnv, person: str) -> dict:
         "groups": [g.name for g in groups],
         "last_contacted": {"meeting": _d(c.last_meet_date), "spoke": _d(c.last_reach_date), "email": _d(c.last_email_date),
                            "letter": _d(c.last_letter_date)},
-        "unsubscribed": c.is_unsubscribed or c.is_email_opted_out or None, "email_bounced": c.has_bounced or None,
+        "unsubscribed": c.is_unsubscribed or c.is_email_opted_out or None, "email_bounced": c.has_bounced or None, "left_company": c.has_left or None,
         "next_activity": {"when": _d(nxt.start_at), "what": nxt.activity_type, "subject": nxt.subject} if nxt else None,
         "latest_notes": brain_search.search(db, env.identity, "", contact_id=c.id, limit=4),
     }

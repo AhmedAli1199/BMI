@@ -113,7 +113,7 @@ register(ReviewKind(
     description="Notes the notetaker wrote after a call, ready to save onto the contact's history.",
     actions=[
         ReviewAction(id="save", label="Save to history", style="primary", outcome="approved"),
-        ReviewAction(id="dismiss", label="Not needed", style="secondary", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Not needed", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle,
     audience="sales",

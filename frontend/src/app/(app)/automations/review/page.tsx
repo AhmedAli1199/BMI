@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/page-header";
 import { QueueClearWatcher } from "@/components/brain/queue-clear-watcher";
 import { backendFetch } from "@/lib/backend";
 import { styleForKind } from "@/lib/automation-style";
+import { reviewRecordLink } from "@/lib/automation-format";
 import { cleanNoteBody } from "@/lib/notes";
 import type { Page, ReviewFacet, ReviewKind, ReviewQueueCounts, ReviewQueueInsights, ReviewQueueItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,7 @@ const STATUS_TABS = [
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
+  { value: "snoozed", label: "Snoozed" },
 ] as const;
 
 const SORT_OPTIONS = [
@@ -441,8 +443,8 @@ export default async function ReviewQueuePage({
 /** Read-only row for an already-resolved (approved/rejected) item - the
  * audit trail view. Deliberately much lighter than ReviewItemCard (no
  * action buttons - the decision is already made), plus a Reopen button
- * on rejected items only, since that's the only status it's safe to undo
- * from here (see reopen-review-item-button.tsx). */
+ * on rejected items whose button changed nothing (action.reopenable) -
+ * the only ones it's safe to put back (see reopen-review-item-button.tsx). */
 /** The audit-trail view for an already-resolved (approved/rejected) item.
  * Reads back three things the flat summary row used to lose entirely:
  * who resolved it (reviewed_by - now actually recorded, see backend's
@@ -458,6 +460,7 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
   // Outcomes the system records itself (not buttons a person can press).
   const SYSTEM_OUTCOMES: Record<string, string> = { linked_elsewhere: "Linked by hand" };
   const entity = item.entity_summary;
+  const recordLink = reviewRecordLink(item);
   const hasSourceMaterial = Boolean(item.payload.original_text || item.payload.source_context);
   const hasDetails = Boolean(item.payload.details && item.payload.details.length > 0);
 
@@ -473,7 +476,7 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
             <div className="min-w-0">
               <p className="text-sm font-bold text-foreground">{item.payload.summary || "Review item"}</p>
               <p className="text-xs text-muted-foreground">
-                <span className={item.status === "approved" ? "font-semibold text-emerald-600" : "font-semibold text-rose-600"}>
+                <span className={item.status === "approved" ? "font-semibold text-emerald-600" : item.status === "snoozed" ? "font-semibold text-muted-foreground" : "font-semibold text-rose-600"}>
                   {item.status === "approved" ? <Check className="mr-0.5 inline size-3" /> : null}
                   {action?.label || (item.resolved_action && SYSTEM_OUTCOMES[item.resolved_action]) || item.resolved_action || item.status}
                 </span>
@@ -481,18 +484,20 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
                 {item.reviewed_at ? ` · ${new Date(item.reviewed_at).toLocaleString()}` : ""}
                 {item.review_note ? ` · "${item.review_note}"` : ""}
               </p>
-              {item.entity_type && item.entity_id && (
+              {recordLink && (
                 <Link
-                  href={`/${item.entity_type === "contact" ? "contacts" : "companies"}/${item.entity_id}`}
+                  href={recordLink.href}
+                  target="_blank"
+                  rel="noreferrer"
                   className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                 >
-                  Open {item.entity_type} record
+                  Open {recordLink.label} record
                   <ExternalLink className="size-3" />
                 </Link>
               )}
             </div>
           </div>
-          {item.status === "rejected" && <ReopenReviewItemButton itemId={item.id} />}
+          {item.status === "rejected" && action?.reopenable && <ReopenReviewItemButton itemId={item.id} />}
         </div>
 
         {/* Contact/company identity strip - enough to confirm who this is

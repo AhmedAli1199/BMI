@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 from sqlalchemy.orm import Session
 
@@ -90,30 +91,30 @@ def _handle_returned_copy(db: Session, item: ReviewQueueItem, action_id: str, in
             addresses = db.query(Address).filter(Address.contact_id == entity.id).order_by(Address.is_primary.desc()).all()
             address = addresses[0] if addresses else None
             item.entity_type, item.entity_id = "contact", entity.id
-            item.payload["matched_entity_type"] = "contact"
-            item.payload["matched_entity_id"] = str(entity.id)
+            item.payload = {**item.payload, "matched_entity_type": "contact", "matched_entity_id": str(entity.id)}
 
     if not entity:
-        raise ValueError("No matched contact/company found on this record to update or retire.")
-    label = item.payload.get("label") or {}
+        raise ValueError("Pick the contact this label was for first.")
 
     if action_id == "correct_address":
+        # The post came back, so the address on the label (= the one on file) is the wrong one: never copy it
+        # back. The reviewer types the new address on the card.
+        new = {k: (input_data.get(f"new_{k}") or "").strip() or None
+               for k in ("line1", "line2", "city", "state", "postal_code", "country")}
+        if not new["line1"]:
+            raise ValueError("Type the new address - the one on the label is the one the post couldn't deliver to.")
         entity_type = item.payload.get("matched_entity_type") or "contact"
         if address:
-            address.line1 = label.get("address_line1") or address.line1
-            address.line2 = label.get("address_line2") or address.line2
-            address.city = label.get("city") or address.city
-            address.state = label.get("state") or address.state
-            address.postal_code = label.get("postal_code") or address.postal_code
-            address.country = label.get("country") or address.country
+            address.line3 = None  # part of the old address
+            for k, v in new.items():
+                if k == "country" and not v:
+                    continue  # left blank: still the same country
+                setattr(address, k, v)
         else:
             db.add(Address(
                 id=uuid.uuid4(), source_db=entity.source_db, source_act_id=str(uuid.uuid4()),
                 **{f"{entity_type}_id": entity.id},
-                type_label="Business", is_primary=True,
-                line1=label.get("address_line1"), line2=label.get("address_line2"),
-                city=label.get("city"), state=label.get("state"),
-                postal_code=label.get("postal_code"), country=label.get("country"),
+                type_label="Business", is_primary=True, **new,
             ))
 
     elif action_id == "retire":
@@ -134,12 +135,19 @@ register(ReviewKind(
     label="Returned Print Copies",
     description="Undeliverable printed copies returned from the post room to update addresses or retire stale subscriber records.",
     actions=[
-        ReviewAction(id="correct_address", label="Update address", style="primary", outcome="approved"),
+        ReviewAction(id="correct_address", label="Update address", style="primary", outcome="approved", extra_fields=[
+            ExtraField(key="new_line1", label="New street address", placeholder="e.g. 13 The Avenue"),
+            ExtraField(key="new_line2", label="Address line 2", required=False),
+            ExtraField(key="new_city", label="Town / city", required=False),
+            ExtraField(key="new_state", label="County", required=False),
+            ExtraField(key="new_postal_code", label="Postcode", required=False),
+            ExtraField(key="new_country", label="Country (leave blank if it hasn't changed)", required=False),
+        ]),
         ReviewAction(
             id="retire", label="Retire (moved/closed)", style="secondary", outcome="approved",
             extra_fields=[ExtraField(key="note", label="Reason", placeholder="e.g. company moved", required=False)],
         ),
-        ReviewAction(id="dismiss", label="Dismiss (no match)", style="secondary", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Dismiss (no match)", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_returned_copy,
 ))
@@ -215,7 +223,7 @@ def process_returned_copy_photo(
         formatted_address = ", ".join(filter(None, address_parts)) or "-"
 
         details = [
-            {"key": "address", "label": "Address on label", "value": formatted_address},
+            {"key": "address", "label": "Address on label (couldn't be delivered)", "value": formatted_address},
         ]
         if label.get("company"):
             details.append({"key": "company", "label": "Company on label", "value": label["company"]})
@@ -228,6 +236,10 @@ def process_returned_copy_photo(
 
         if not matched:
             display_name = label.get("name") or label.get("company") or "Unknown recipient"
+            search_for = label.get("name") or label.get("company")
+            if search_for:
+                details.append({"key": "search", "label": "Look for them", "value": f"Search contacts for \"{search_for}\"",
+                                "href": f"/contacts?q={quote(search_for)}"})
             db.add(ReviewQueueItem(
                 id=uuid.uuid4(), kind="returned_copy", source_db=source_db, entity_type=None, entity_id=None,
                 payload={
@@ -236,6 +248,8 @@ def process_returned_copy_photo(
                     "label": label,
                     "matched_entity_type": None,
                     "matched_entity_id": None,
+                    # No match: the reviewer picks the contact on the card for these buttons.
+                    "pick_contact_for": ["correct_address", "retire"],
                     "confidence": None,
                     "source_db": source_db,
                 },

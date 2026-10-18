@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
 import { cleanNoteBody } from "@/lib/notes";
 import { styleForKind } from "@/lib/automation-style";
+import { reviewRecordLink } from "@/lib/automation-format";
 import { resolveReviewItem, searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
 import { DraftReviewDialog } from "@/components/draft-review-dialog";
 import type { CompanyListItem, GroupListItem, ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
@@ -66,6 +67,12 @@ const STYLE_CLASSES: Record<ReviewAction["style"], string> = {
 /** Confidence reads as a color, not just a number - a reviewer scanning a
  * long queue should be able to tell "safe bet" from "coin flip" at a
  * glance, before reading a single word of the summary. */
+/** A button that needs a contact chosen - always (requires_contact_picker), or only on this card because the
+ * automation couldn't match the record itself (payload.pick_contact_for, e.g. an unmatched returned-copy label). */
+function needsContactPicker(action: ReviewAction, payload: ReviewQueueItem["payload"]): boolean {
+  return action.requires_contact_picker || (payload.pick_contact_for ?? []).includes(action.id);
+}
+
 function confidenceTone(confidence: number): { dot: string; text: string } {
   if (confidence >= 0.75) return { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" };
   if (confidence >= 0.45) return { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" };
@@ -296,7 +303,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   function actionNeedsInput(action: ReviewAction): boolean {
     return (
       action.requires_note ||
-      action.requires_contact_picker ||
+      needsContactPicker(action, payload) ||
       action.requires_related_entity_choice ||
       action.extra_fields.length > 0
     );
@@ -304,7 +311,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
   function canSubmit(action: ReviewAction): boolean {
     if (action.requires_note && !note.trim()) return false;
-    if (action.requires_contact_picker && !contact) return false;
+    if (needsContactPicker(action, payload) && !contact) return false;
     if (action.requires_related_entity_choice && !chosenEntityId) return false;
     for (const f of action.extra_fields) {
       if (f.required && !(fields[f.key] ?? "").trim()) return false;
@@ -374,6 +381,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
   }
 
   const confidence = payload.confidence != null ? confidenceTone(payload.confidence) : null;
+  const recordLink = reviewRecordLink(item);
 
   return (
     <Card className={`editorial-card overflow-hidden transition-shadow hover:shadow-xs`}>
@@ -399,14 +407,14 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
               <span className="text-[11px] text-muted-foreground">{timeAgo(item.created_at)}</span>
             </div>
             <p className="mt-1 text-sm font-bold text-foreground">{payload.summary || "Needs review"}</p>
-            {item.entity_type && item.entity_id && (
+            {recordLink && (
               <Link
-                href={`/${item.entity_type === "contact" ? "contacts" : "companies"}/${item.entity_id}`}
+                href={recordLink.href}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
               >
-                View {item.entity_type} record
+                View {recordLink.label} record
                 <ExternalLink className="size-3" />
               </Link>
             )}
@@ -1136,7 +1144,7 @@ function ExpandedActionForm({
         </div>
       )}
 
-      {action.requires_contact_picker && (
+      {needsContactPicker(action, payload) && (
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs">Contact</Label>
           <EntityPicker

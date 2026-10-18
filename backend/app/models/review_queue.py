@@ -12,12 +12,13 @@ from app.models.base import UUIDPk
 # (bounce handling, AI follow-up drafts, contact hygiene fixes, etc. - see
 # docs/build-spec.txt). One row = one thing an automation wants to do but
 # won't do on its own.
-REVIEW_QUEUE_STATUSES = ("pending", "approved", "rejected")
+# "snoozed": closed for now by a "remind me later" button - neither approved nor refused.
+REVIEW_QUEUE_STATUSES = ("pending", "approved", "rejected", "snoozed")
 
 
 class ReviewQueueItem(Base, UUIDPk):
     __tablename__ = "review_queue"
-    __table_args__ = (CheckConstraint("status IN ('pending', 'approved', 'rejected')", name="ck_review_queue_status"),)
+    __table_args__ = (CheckConstraint("status IN ('pending', 'approved', 'rejected', 'snoozed')", name="ck_review_queue_status"),)
 
     # Which automation created this, e.g. "bounce_handling", "ai_followup_draft".
     kind: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
@@ -46,7 +47,7 @@ class ReviewQueueItem(Base, UUIDPk):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
     # The specific action a human clicked (e.g. "confirm_hard_bounce",
     # "use_fallback") - see app/automations/registry.py. `status` is the
-    # coarse approved/rejected bucket every action declares itself into
+    # coarse approved/rejected/snoozed bucket every action declares itself into
     # (for simple counts/filters); resolved_action is the precise thing
     # that actually happened, which is what a reviewer or auditor actually
     # wants to read back later ("what did we do about this one?").

@@ -246,7 +246,7 @@ register(ReviewKind(
             ExtraField(key="client_name", label="Client name, if different from the form", required=False),
             ExtraField(key="quantity", label="How many, if different from the form", placeholder="1", required=False),
         ]),
-        ReviewAction(id="not_booking", label="Not a booking", style="secondary", outcome="rejected", requires_note=True),
+        ReviewAction(id="not_booking", label="Not a booking", style="secondary", outcome="rejected", reopenable=True, requires_note=True),
     ],
     handler=_handle,
     audience="sales",

@@ -45,8 +45,9 @@ def _related_contact_ids(item: ReviewQueueItem) -> list[uuid.UUID]:
 def _apply_successor(db: Session, item: ReviewQueueItem, successor: Contact, source_label: str) -> None:
     for contact_id in _related_contact_ids(item):
         record = db.get(Contact, contact_id)
-        if not record:
+        if not record or record.id == successor.id:
             continue  # deleted/merged since this was queued - skip, don't fail the whole batch over it
+        record.has_left = True
         _add_note(
             db, record, "Departure",
             f"Superseded by {successor.full_name or successor.first_name} ({source_label}), "
@@ -60,7 +61,7 @@ def _handle_departure(db: Session, item: ReviewQueueItem, action_id: str, input_
         candidate = item.payload.get("candidate") or {}
         contact_id = candidate.get("contact_id")
         if not contact_id:
-            raise ValueError("No researched candidate is attached to this item - use \"Pick someone else\" instead.")
+            raise ValueError("No researched candidate is attached to this item - use \"Assign different contact\" instead.")
         successor = db.get(Contact, contact_id)
         if not successor:
             raise ValueError("The researched candidate no longer exists in the CRM.")
@@ -83,6 +84,7 @@ def _handle_departure(db: Session, item: ReviewQueueItem, action_id: str, input_
             record = db.get(Contact, contact_id)
             if not record:
                 continue
+            record.has_left = True
             _add_note(
                 db, record, "Departure",
                 f"No confirmed successor - falling back to general company address ({fallback_email}), "
@@ -103,14 +105,17 @@ register(ReviewKind(
     actions=[
         ReviewAction(
             id="confirm_successor", label="Confirm successor", style="primary", outcome="approved",
-            confirm_message="This updates the contact record across all active publication titles. Continue?",
+            confirm_message=(
+                "This marks the person who left as \"Left the company\" on each of their records and adds a note "
+                "naming the successor on each one. Their notes and history stay where they are. Continue?"
+            ),
         ),
         ReviewAction(id="pick_different_successor", label="Assign different contact", style="secondary", outcome="approved", requires_contact_picker=True),
         ReviewAction(
             id="use_fallback", label="Use general company address", style="secondary", outcome="approved",
             extra_fields=[ExtraField(key="fallback_email", label="General company email", placeholder="info@company.com")],
         ),
-        ReviewAction(id="dismiss_false_alarm", label="Dismiss (contact remains)", style="secondary", outcome="rejected", confirm_message="Dismiss this departure signal?"),
+        ReviewAction(id="dismiss_false_alarm", label="Dismiss (contact remains)", style="secondary", outcome="rejected", reopenable=True, confirm_message="Dismiss this departure signal?"),
     ],
     handler=_handle_departure,
 ))

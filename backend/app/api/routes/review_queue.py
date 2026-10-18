@@ -258,6 +258,7 @@ def list_kinds(identity: Identity = Depends(get_identity), db: Session = Depends
                     ],
                     confirm_message=a.confirm_message,
                     requires_related_entity_choice=a.requires_related_entity_choice,
+                    reopenable=a.reopenable,
                 )
                 for a in k.actions
             ],
@@ -291,6 +292,7 @@ def list_counts(db: Session = Depends(get_db), identity: Identity = Depends(get_
             pending=by_kind.get(k.kind, {}).get("pending", 0),
             approved=by_kind.get(k.kind, {}).get("approved", 0),
             rejected=by_kind.get(k.kind, {}).get("rejected", 0),
+            snoozed=by_kind.get(k.kind, {}).get("snoozed", 0),
         )
         for k in all_kinds()
         if visible_kinds is None or k.kind in visible_kinds
@@ -641,22 +643,26 @@ def reopen_review_item(
 ) -> ReviewQueueItemOut:
     """Puts a rejected item back into the pending queue - the safety net
     for "I dismissed a batch of these too quickly and want a second look
-    at one." Deliberately rejected-only: an *approved* item's handler
-    already made a real CRM write (a merge, an unsubscribe, a new
-    contact), and reopening it wouldn't undo that - it would just let
-    someone approve it again and potentially run the write a second time.
-    A rejected item's handler never writes anything (see e.g.
-    dedupe.py's "not_duplicate": pass), so putting it back to pending is
-    completely safe - nothing to undo, nothing that could double-apply."""
+    at one." Only for a card closed with a button that changed nothing
+    (ReviewAction.reopenable, e.g. dedupe.py's "Keep as separate
+    contacts"): putting it back is then completely safe - nothing to undo,
+    nothing that could double-apply. Refused for everything else: an
+    approved card already made its change, a snoozed card already set its
+    new date, some rejected buttons write too ("No invoice needed" adds a
+    note, "Needs a fix" tells the salesperson), and a card the system
+    closed itself has no button to press again."""
     item = db.get(ReviewQueueItem, item_id)
     if not item or not _is_visible(item, identity, db):
         raise HTTPException(status_code=404, detail="Review item not found")
-    if item.status != "rejected":
+    if item.status == "pending":
+        raise HTTPException(status_code=400, detail="This card is already waiting for review.")
+    action = get_action(item.kind, item.resolved_action) if item.resolved_action else None
+    if item.status != "rejected" or not action or not action.reopenable:
         raise HTTPException(
             status_code=400,
             detail=(
-                "Only a rejected item can be reopened - an approved one already made its CRM "
-                "change, and reopening it wouldn't undo that."
+                "This card can't be reopened, because what was decided on it has already been carried out. "
+                "Make any further change on the record itself."
             ),
         )
 

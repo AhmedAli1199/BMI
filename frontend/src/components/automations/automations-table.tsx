@@ -331,8 +331,8 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
 }
 
 function StatusPill({ status }: { status: string }) {
-  const color = status === "approved" ? "var(--ok)" : status === "rejected" ? "var(--muted-foreground)" : "var(--warn)";
-  const label = status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Pending";
+  const color = status === "approved" ? "var(--ok)" : status === "rejected" || status === "snoozed" ? "var(--muted-foreground)" : "var(--warn)";
+  const label = status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : status === "snoozed" ? "Snoozed" : "Pending";
   return (
     <span
       className="w-[70px] shrink-0 rounded-full border px-2 py-px text-center text-[10.5px] font-semibold"

@@ -535,7 +535,7 @@ register(ReviewKind(
                      extra_fields=[ExtraField(key="to", label="Send to", placeholder="name@company.com", required=False)]),
         ReviewAction(id="proposal", label="Make a full proposal", style="secondary", outcome="approved"),
         ReviewAction(id="replied", label="I'll reply myself", style="secondary", outcome="approved"),
-        ReviewAction(id="not_request", label="Not a proposal request", style="secondary", outcome="rejected"),
+        ReviewAction(id="not_request", label="Not a proposal request", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle,
     redraft=_redraft,

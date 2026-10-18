@@ -29,18 +29,18 @@ This guide explains every automation behind the Review Queue and the Scanners & 
   - **Create as new contact** asks for **Full name** and optional **Email**. It adds the replacement at the same company, with notes on both.
   - **Temporary leave, ignore** changes nothing.
 - **Executive Role Departures** (an auto-reply says the person has left):
-  - **Confirm successor** uses the researched candidate. After a confirm step, it adds a "Departure" note to every record of the person who left, and one to the successor.
-  - **Assign different contact** lets you pick the successor yourself.
-  - **Use general company address** asks for **General company email** and notes it as a stand-in on their records.
+  - **Confirm successor** uses the researched candidate. After a confirm step, it marks every record of the person who left as "Left the company" and adds a "Departure" note naming the successor to each, plus one to the successor.
+  - **Assign different contact** lets you pick the successor yourself, then does the same.
+  - **Use general company address** asks for **General company email**, marks the person's records as "Left the company" and notes the address as a stand-in on them.
   - **Dismiss (contact remains)** asks you to confirm, then changes nothing.
-  Departures only add notes. They don't change anyone's email or mark them as left.
+  Departures don't change anyone's email or move their notes and history (use **Mark as departed** on the contact for that). "Left the company" can be searched, exported and changed in bulk like the other yes/no fields.
 
 ### Duplicate contact scan (CRM Data Hygiene)
 - **When**: Sundays 03:00. **Switch**: **Duplicate detection active**.
 - **Reads**: a batch of contacts each week (**Contacts evaluated per run**), comparing names within the same database. Each pair is scored on company, email, phone, postcode and shared activities. A name match alone never scores 100%.
 - **Makes**: **Duplicate Contact Resolution** cards scoring above **Match sensitivity threshold (0.0–1.0)**, up to **Max duplicate pairs queued per run**.
 - **Merge records**: pick **Which one do you want to keep?**, then confirm. Notes, history, activities, opportunities, emails, phones, addresses and groups move to the one you keep. The other is marked as merged, not deleted. This can't be undone from the screen.
-- **Keep as separate contacts** changes nothing.
+- **Keep as separate contacts** changes no records, and the scan remembers it: that pair isn't suggested again.
 
 ### Business card and returned-copy uploads (Business Cards & Photos)
 - **When**: someone uses **Upload business card(s)** or **Upload returned copy label(s)**. There is no schedule, and it needs the Brain to read photos.
@@ -52,15 +52,16 @@ This guide explains every automation behind the Review Queue and the Scanners & 
   - **Log event meeting (keep existing)** only adds a note.
   - **Skip** changes nothing.
 - **Returned Print Copies** (a label matched to a contact or company):
-  - **Update address** writes the address read from the label onto the record.
+  - **Update address** asks for the new address (**New street address**, and optionally **Address line 2**, **Town / city**, **County**, **Postcode** and **Country (leave blank if it hasn't changed)**) and saves it over the old one. The address on the label is the one the post couldn't deliver to, so it's never copied back.
   - **Retire (moved/closed)** (optional **Reason**) marks the record retired.
   - **Dismiss (no match)** changes nothing.
+  - When a label matches nobody, **Update address** and **Retire (moved/closed)** also ask you to pick the **Contact** it was for. The card's **Look for them** link searches the contacts in a new tab.
 
 ### Inbound contact capture scan (Lead & Contact Capture)
 - **When**: every 30 minutes. **Switch**: **Inbound lead capture active**, with **Enquiry mailboxes (mailbox:database)**.
 - **Reads**: new emails from senders who aren't in the CRM. It skips group emails, bounces, auto-replies, newsletters, very short emails and BMI colleagues. The Brain decides whether it's a real new enquiry and reads the signature.
 - **Makes**: **Inbound Lead Capture**, one per sender at a time, with a guessed company and suggested groups.
-- **Create contact** asks for **Full name**, and optionally **Job title**, **Company**, **Phone**, **Mobile**, **Groups to add (comma-separated)** and **Subscribe to newsletter**. A shared inbox also asks **Which BMI title does this belong to?**. It adds the contact (and the company if new), the groups, and an "Inbound enquiry" note with the email.
+- **Create contact** asks for **Full name**, and optionally **Job title**, **Company**, **Phone**, **Mobile**, **Groups to add (comma-separated)** and **Subscribe to newsletter**. A shared inbox also asks **Which BMI title does this belong to?**. It adds the contact (and the company if new) in the database the mailbox is set up for (the part after the colon in **Enquiry mailboxes (mailbox:database)**), the groups, and an "Inbound enquiry" note with the email. For a shared inbox (set up as "mailbox:*") the contact goes in the database you choose on the card.
 - **Not a lead, ignore** changes nothing.
 
 ### Email exchange summary scan (feeds Sales & Follow-ups)
@@ -86,7 +87,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Makes**: **Overdue Follow-ups** with a drafted email. These also show on **Today**.
 - **Approve & log to CRM** saves the draft to the record's history and marks the activity done.
 - **Defer to next working day** moves the activity to tomorrow (Monday if it's Friday).
-- **Dismiss** leaves the activity as it is.
+- **Dismiss** leaves the activity as it is, and the scan doesn't bring it back - unless the activity is moved to a new date.
 
 ### Proposal requests (Sales & Follow-ups)
 - **When**: every 10 minutes. **Switch**: **Spot proposal requests**, with **Inboxes to read**.
@@ -158,5 +159,5 @@ A: The scan keeps one waiting card per person, however many auto-replies arrive.
 - **"No researched candidate is attached to this item"**: use **Assign different contact** instead of **Confirm successor**.
 - **"This call isn't linked to a contact yet."**: link it on the call's page, then press **Save to history**.
 - **"Connect your Outlook first"**: connect it in Settings > Email, or use **I'll reply myself**.
-- **A dismissed duplicate or follow-up came back**: the scans only skip pairs and activities that already have a waiting card. A dismissed duplicate pair can be suggested again on a later sweep. A dismissed follow-up comes back while its activity is still not done. Mark the activity done, or move its date.
-- **Unmatched returned-copy label**: there's no way to pick a contact on these cards. Fix the address on the record by hand, then press **Dismiss (no match)**.
+- **A dismissed follow-up came back**: its activity was moved to a new date since, so it's a new follow-up. Mark the activity done if no follow-up is needed.
+- **"Pick the contact this label was for first."**: the label matched nobody. Pick the **Contact** in the form (use **Look for them** to search), then confirm.

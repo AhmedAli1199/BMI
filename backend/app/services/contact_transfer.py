@@ -28,9 +28,9 @@ def reassign_contact_records(
 ) -> None:
     """Moves every Note/HistoryEntry from `source` to `destination` (a
     bulk UPDATE, not a copy - the record genuinely now belongs to the new
-    contact), and leaves a short explanatory note on both sides so anyone
-    reading either record later understands why the history moved.
-    Caller commits."""
+    contact), marks `source` as having left the company (has_left), and
+    leaves a short explanatory note on both sides so anyone reading either
+    record later understands why the history moved. Caller commits."""
     source_label = source.full_name or source.first_name or "the previous contact"
     destination_label = destination.full_name or destination.first_name or "the new contact"
 
@@ -45,11 +45,12 @@ def reassign_contact_records(
         .values(entity_id=destination.id)
     )
 
+    source.has_left = True
     now = datetime.now(timezone.utc)
     db.add(Note(
         id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
         entity_type="contact", entity_id=source.id, note_type="Departure",
-        body=f"Notes and history moved to {destination_label} ({reason}).",
+        body=f"Left the company. Notes and history moved to {destination_label} ({reason}).",
         act_created_at=now,
     ))
     db.add(Note(

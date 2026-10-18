@@ -90,7 +90,7 @@ Act!'s "duplicate contact": a new person at the same company. Type **First name*
 **Edit Record** makes the card editable: names, company, title, department, phone, mobile, e-mail, address, ID/Status (the category), Referred By and Birthdate. **Save Changes** saves; **Cancel** throws the edits away. The copy icon next to a phone or email copies it.
 
 ### Mark as departed
-For someone who has left. Search for who replaced them and press **Move notes and history**. Every note and history entry moves to that person, and both records get a short "Departure" note. The old record itself stays. Scheduled activities don't move.
+For someone who has left. Search for who replaced them and press **Move notes and history**. Every note and history entry moves to that person, and both records get a short "Departure" note. The old record itself stays, marked "Left the company" (a yes/no field you can search, export and change in bulk). Scheduled activities don't move.
 
 ### Company Profile
 Opens the person's company.

@@ -67,8 +67,8 @@ export function ReassignContactButton({ contactId, contactName }: { contactId: s
             <DialogTitle>Move {contactName}&apos;s notes to a successor</DialogTitle>
             <DialogDescription>
               Every note and history entry on this record moves to whoever you pick below - this record itself
-              stays, but its history won&apos;t be here anymore. Both records get a short note explaining the
-              handover.
+              stays, marked &quot;Left the company&quot;, but its history won&apos;t be here anymore. Both records get a
+              short note explaining the handover.
             </DialogDescription>
           </DialogHeader>
 

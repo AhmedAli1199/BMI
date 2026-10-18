@@ -9,7 +9,7 @@ sources: ["frontend/src/components/review-item-card.tsx", "frontend/src/app/(app
 The Review Queue (Automations > Review queue) is where the Brain puts things that need a person's decision. These Sales Orders cards cover checking bookings, invoicing, change requests, matching Xero invoices and similar jobs. They belong to the "Revenue & Orders" group. Each card shows everything you need to decide, with links to every record it mentions, and one button for each decision.
 
 ## What you see
-- **Tabs**: **Pending** (the working queue), **Approved** and **Rejected** (what was decided). A button counts as approved or rejected depending on the action. For example, **Remind me on…** counts as rejected, even though nothing was refused.
+- **Tabs**: **Pending** (the working queue), **Approved**, **Rejected** and **Snoozed** (what was decided). A button counts as approved, rejected or snoozed depending on the action. **Remind me on…**, **Not yet - next week**, **Remind me next week**, **Look again next week** and **Not yet - remind me later** count as snoozed, not rejected.
 - **A chip for each kind of card**, with a count. Click one to see only that kind.
 - **Filter by:** filters for the chosen kind, such as Salesperson, Title or Due, with counts.
 - **Sort**: kinds with a date offer **Latest <date> first**, **Oldest <date> first** and **Recently added**.

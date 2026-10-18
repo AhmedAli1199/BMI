@@ -187,7 +187,7 @@ register(ReviewKind(
                 "items that don't match their booking, pencilled items, unsent confirmations and packages still to allocate.",
     actions=[
         ReviewAction(id="done", label="All checked", style="primary", outcome="approved"),
-        ReviewAction(id="later", label="Look again next week", style="secondary", outcome="rejected"),
+        ReviewAction(id="later", label="Look again next week", style="secondary", outcome="snoozed"),
     ],
     handler=_handle,
     audience="admin",

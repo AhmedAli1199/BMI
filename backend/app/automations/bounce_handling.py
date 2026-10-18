@@ -148,7 +148,7 @@ register(ReviewKind(
     description="Delivery failures requiring human confirmation before updating subscriber deliverability status.",
     actions=[
         ReviewAction(id="confirm_hard_bounce", label="Confirm & unsubscribe", style="primary", outcome="approved", requires_note=False),
-        ReviewAction(id="not_a_bounce", label="Not a bounce, ignore", style="secondary", outcome="rejected"),
+        ReviewAction(id="not_a_bounce", label="Not a bounce, ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_bounce_uncertain,
 ))
@@ -159,7 +159,7 @@ register(ReviewKind(
     description="Delivery failures for addresses not currently indexed in the active contact database.",
     actions=[
         ReviewAction(id="match_contact", label="Match to a contact", style="primary", outcome="approved", requires_contact_picker=True),
-        ReviewAction(id="ignore", label="Ignore", style="secondary", outcome="rejected"),
+        ReviewAction(id="ignore", label="Ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_bounce_unmatched,
 ))
@@ -177,7 +177,7 @@ register(ReviewKind(
                 ExtraField(key="email", label="Email", placeholder="jane@company.com", required=False),
             ],
         ),
-        ReviewAction(id="temporary_ignore", label="Temporary leave, ignore", style="secondary", outcome="rejected"),
+        ReviewAction(id="temporary_ignore", label="Temporary leave, ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_ooo_ambiguous,
 ))

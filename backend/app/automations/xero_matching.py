@@ -263,7 +263,7 @@ register(ReviewKind(
                  "side by side, so you can link it in one click."),
     actions=[
         ReviewAction(id="link", label="Yes, link this invoice", style="primary", outcome="approved"),
-        ReviewAction(id="none", label="None of these", style="secondary", outcome="rejected"),
+        ReviewAction(id="none", label="None of these", style="secondary", outcome="rejected", reopenable=True),
         ReviewAction(id="not_booking", label="Not a booking", style="secondary", outcome="rejected"),
     ],
     handler=_handle,
