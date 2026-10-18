@@ -34,8 +34,13 @@ def test_load_act_templates_once_with_brand_facts(client, db_session):
     assert pitch["kind"] == "pitch" and pitch["uses_issue"] and "<Salutation>" not in pitch["body"] and "{{print_run}}" in pitch["body"]
     s = client.get("/api/editorial/brands/stm/settings", headers=h).json()
     assert s["facts"]["print_run"] == "12,808"
-    # saving a template marks it checked
-    r = client.put(f"/api/mail/templates/{pitch['id']}", headers=h, json={**{k: pitch[k] for k in ("name", "subject", "body", "brand", "kind")}})
+    # mail merge's "Update template" sends only the wording: brand, kind and note stay, and it still needs a check
+    r = client.put(f"/api/mail/templates/{pitch['id']}", headers=h,
+                   json={"name": pitch["name"], "subject": "New subject", "body": "New body", "shared": True}).json()
+    assert (r["subject"], r["body"], r["brand"], r["kind"], r["description"]) == ("New subject", "New body", "stm", "pitch", pitch["description"])
+    assert r["needs_check"] is True
+    # saving it in the template library marks it checked
+    r = client.put(f"/api/mail/templates/{pitch['id']}", headers=h, json={**{k: pitch[k] for k in ("name", "subject", "body", "brand", "kind")}, "needs_check": False})
     assert r.json()["needs_check"] is False
     assert client.post("/api/mail/templates/load-act", headers=identity_headers(make_user(db_session, role="sales"))).status_code == 403
 

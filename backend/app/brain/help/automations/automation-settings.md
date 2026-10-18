@@ -22,10 +22,10 @@ Automation settings holds every setting for the background automations: which on
 Saves straight away. You'll see "<setting> updated".
 
 ### Save
-For number and text settings. It becomes clickable once you change the value. Lists of addresses are separated by commas.
+For number and text settings. It becomes clickable once you change the value. Lists of addresses are separated by commas. A number box that is empty or holds something that isn't a usable number can't be saved: a short note under it says what to fix ("Enter a number.", "Enter a whole number.", or the lowest or highest number allowed).
 
 ### Reset to default (<value>)
-Shown next to a **Customized** setting. It puts the starting value back.
+Shown next to a **Customized** setting. It puts the starting value back. The brackets show that value: On or Off for a tick box, the number for a number setting, or the text in quotes.
 
 ### View Brain usage & cost →
 Opens the Brain usage & cost page.

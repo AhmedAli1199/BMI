@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.models import EditionFeature, EditorialSetting, SalesEdition, SalesTitle
 from app.sales.brands import get_brand
-from app.sales.editorial import compute_deadlines
+from app.sales.editorial import compute_deadlines, rule_milestones
 
 SEED_YEAR = 2026
 
@@ -214,8 +214,7 @@ def load_seed(db: Session, brand_key: str, year: int = SEED_YEAR) -> dict:
                 worked_out = worked_out or (given is None and value is not None)
                 setattr(ed, col, value)
         if not ed.milestones:
-            extra = [{"label": r["label"], "date": auto[r["key"]].isoformat()} for r in rules
-                     if r["key"] not in ("editorial", "advertising", "copy") and auto.get(r["key"])]
+            extra = rule_milestones(rules, auto)
             ed.milestones = item.milestones + extra
             worked_out = worked_out or bool(extra)
         ed.theme = ed.theme or item.theme

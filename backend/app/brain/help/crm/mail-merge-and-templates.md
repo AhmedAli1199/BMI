@@ -37,7 +37,7 @@ Where the contacts come from. Mail merge opens with this already set from wherev
 
 ### Step 3, Message: Template, Update template, Save as new template
 - **Template**: start from a saved template, or **— Start from blank —**.
-- **Update template** (only on your own templates) saves your changes over it.
+- **Update template** (only on your own templates) saves your new subject and message over it. Its brand, what it's for and note stay as they were.
 - **Save as new template**: give it a **Template name**, choose **Share with the team**, and press **Save template**.
 
 ### Brand, Title, The issue or event it's about, The feature you're pitching
@@ -98,7 +98,7 @@ Fill in the details, write the email and insert merge fields from three groups: 
 - People with no email, who unsubscribed or whose email bounced are skipped and listed as "Skipped" with the reason, unless you ticked **Include unsubscribed and bounced contacts** (then only people with no email are skipped). Labels leave out anyone without an address.
 - With **Record history** on, each sent email adds an "E-mail Sent" entry to that person's history; letters add "Letter Sent". Labels and merge data are not recorded.
 - Brand figures come from each brand's settings in the editorial plan; issue details come from the issue you choose. A mailing that uses them with nothing to fill them is refused with a plain reason.
-- Templates you don't share are only visible to you. Shared ones can be used by everyone, but only the person who wrote them (or an administrator or data manager) can change or delete them. Saving a template marks it as checked. Each send records that the template was used.
+- Templates you don't share are only visible to you. Shared ones can be used by everyone, but only the person who wrote them (or an administrator or data manager) can change or delete them. Saving a template in the template library marks it as checked (updating it from a mail merge doesn't). Each send records that the template was used.
 - Sent mail merges lists only your own mailings.
 
 ## Common questions

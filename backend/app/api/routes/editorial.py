@@ -23,7 +23,7 @@ from app.models import EditionFeature, EditorialSetting, SalesEdition, SalesOrde
 from app.sales import brands as B
 from app.sales import editorial_seed as seed
 from app.sales.analytics import BOOKED
-from app.sales.editorial import STANDARD, compute_deadlines, describe_rule, shift_year
+from app.sales.editorial import STANDARD, compute_deadlines, describe_rule, follow_new_date, reapply_rules, rule_milestones, shift_year
 from app.services.field_audit import record_field_changes
 
 router = APIRouter(prefix="/editorial", tags=["editorial plan"])
@@ -38,6 +38,7 @@ FEATURE_STATUSES = ("planned", "confirmed", "dropped")
 class Milestone(BaseModel):
     label: str = Field(min_length=1, max_length=120)
     date: date
+    rule: str | None = Field(default=None, max_length=40)  # the brand rule that made it, if any - kept when the issue is saved
 
 
 class IssueOut(BaseModel):
@@ -362,8 +363,7 @@ def add_issue(p: IssueIn, db: Session = Depends(get_db), identity: Identity = De
         raise HTTPException(409, f"There's already “{name}” in {t.name} {p.year}.")
     st = _settings(db, brand.key)
     auto = compute_deadlines(st.deadline_rules, p.edition_date) if p.use_rules and p.kind in ("issue", "guide") else {}
-    milestones = [m.model_dump(mode="json") for m in p.milestones] + [
-        {"label": r["label"], "date": auto[r["key"]].isoformat()} for r in st.deadline_rules if r["key"] not in STANDARD and auto.get(r["key"])]
+    milestones = [m.model_dump(mode="json", exclude_none=True) for m in p.milestones] + rule_milestones(st.deadline_rules, auto)
     e = SalesEdition(id=uuid.uuid4(), title_id=t.id, year=p.year, name=name, kind=p.kind, status="open", format=p.format,
                      period_label=(p.period_label or "").strip() or None, edition_date=p.edition_date, date_set_in_plan=bool(p.edition_date),
                      editorial_deadline=p.editorial_deadline or auto.get("editorial"), ad_deadline=p.ad_deadline or auto.get("advertising"),
@@ -390,14 +390,19 @@ def edit_issue(eid: uuid.UUID, p: IssuePatch, db: Session = Depends(get_db), ide
         raise HTTPException(422, "Choose a format.")
     if "name" in data:
         data["name"] = data["name"].strip()
-        if db.scalar(select(SalesEdition.id).where(SalesEdition.title_id == e.title_id, SalesEdition.year == e.year, SalesEdition.id != e.id,
-                                                   func.lower(SalesEdition.name) == data["name"].lower())):
-            raise HTTPException(409, f"There's already “{data['name']}” in {t.name} {e.year}.")
+    old_pub = e.edition_date
+    moved = "edition_date" in data and data["edition_date"] != old_pub
+    year = data["edition_date"].year if moved and data["edition_date"] else e.year  # the planners file issues by year
+    name = data.get("name", e.name)
+    if ("name" in data or year != e.year) and db.scalar(select(SalesEdition.id).where(
+            SalesEdition.title_id == e.title_id, SalesEdition.year == year, SalesEdition.id != e.id, func.lower(SalesEdition.name) == name.lower())):
+        raise HTTPException(409, f"There's already “{name}” in {t.name} {year}.")
+    typed = {c for c in STANDARD.values() if c in data and data[c] != getattr(e, c)}  # deadlines the person changed in this save
     before = {k: getattr(e, k) for k in AUDIT_FIELDS}
     for k, v in data.items():
         if k == "milestones":
             e.milestones = [m if isinstance(m, dict) else m.model_dump(mode="json") for m in v or []]
-            e.milestones = [{"label": m["label"], "date": str(m["date"])} for m in e.milestones]
+            e.milestones = [{"label": m["label"], "date": str(m["date"]), **({"rule": m["rule"]} if m.get("rule") else {})} for m in e.milestones]
         elif k == "needs_check":
             e.plan_needs_check = bool(v)
         elif k in ("theme", "distribution", "period_label") and isinstance(v, str):
@@ -406,6 +411,9 @@ def edit_issue(eid: uuid.UUID, p: IssuePatch, db: Session = Depends(get_db), ide
             setattr(e, k, v)
     if "edition_date" in data:
         e.date_set_in_plan = True
+    e.year = year
+    if moved and e.kind in ("issue", "guide"):
+        follow_new_date(e, _settings(db, brand.key).deadline_rules, old_pub, typed)
     if any(k in data for k in ("edition_date", "editorial_deadline", "ad_deadline", "copy_deadline")) and "needs_check" not in data:
         e.plan_needs_check = False  # a person just set the dates
     record_field_changes(db, entity_type="sales_edition", entity_id=e.id, before=before, updates={k: getattr(e, k) for k in AUDIT_FIELDS},
@@ -427,13 +435,7 @@ def apply_rules(eid: uuid.UUID, db: Session = Depends(get_db), identity: Identit
     st = _settings(db, brand.key)
     if not st.deadline_rules:
         raise HTTPException(422, "This brand has no deadline rules yet - add them in the brand's settings.")
-    auto = compute_deadlines(st.deadline_rules, e.edition_date)
-    for key, col in STANDARD.items():
-        if key in auto:
-            setattr(e, col, auto[key])
-    custom_labels = {r["label"] for r in st.deadline_rules if r["key"] not in STANDARD}
-    kept = [m for m in (e.milestones or []) if m.get("label") not in custom_labels]
-    e.milestones = kept + [{"label": r["label"], "date": auto[r["key"]].isoformat()} for r in st.deadline_rules if r["key"] not in STANDARD and r["key"] in auto]
+    reapply_rules(e, st.deadline_rules)
     e.plan_needs_check = False
     db.commit()
     return issue(e.id, db, identity)
@@ -644,7 +646,7 @@ def next_year_apply(p: NextYearIn, db: Session = Depends(get_db), identity: Iden
         ne = SalesEdition(id=uuid.uuid4(), title_id=e.title_id, year=p.from_year + 1, name=name, kind=e.kind, status="open", format=e.format,
                           period_label=e.period_label, edition_date=new_date, date_set_in_plan=True, editorial_deadline=mv(e.editorial_deadline),
                           ad_deadline=mv(e.ad_deadline), copy_deadline=mv(e.copy_deadline),
-                          milestones=[{"label": m["label"], "date": mv(date.fromisoformat(m["date"])).isoformat()} for m in (e.milestones or []) if m.get("date")],
+                          milestones=[{**m, "date": mv(date.fromisoformat(m["date"])).isoformat()} for m in (e.milestones or []) if m.get("date")],
                           distribution=e.distribution, plan_needs_check=True)
         db.add(ne)
         db.flush()

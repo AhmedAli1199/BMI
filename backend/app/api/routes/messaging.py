@@ -289,7 +289,7 @@ class TemplateIn(BaseModel):
     title_id: uuid.UUID | None = None
     kind: str = Field(default="general", pattern="^(pitch|follow_up|event|launch|renewal|new_prospect|existing|join_project|save_sale|general)$")
     description: str | None = Field(default=None, max_length=300)
-    needs_check: bool | None = None   # None = leave as it is (saving a loaded template marks it checked unless told otherwise)
+    needs_check: bool | None = None   # on an update, left out = leave as it is (the library editor sends False: saved there = checked)
 
 
 class TemplateOut(BaseModel):
@@ -367,9 +367,11 @@ def _editable_template(db: Session, tid: uuid.UUID, user: User) -> MailTemplate:
 def update_template(template_id: uuid.UUID, payload: TemplateIn, db: Session = Depends(get_db),
                     user: User = Depends(current_user)):
     t = _editable_template(db, template_id, user)
-    for k, v in payload.model_dump(exclude={"needs_check"}).items():
+    # only the fields sent change: mail merge's "Update template" sends just the wording, so brand, kind and note stay
+    for k, v in payload.model_dump(exclude_unset=True, exclude={"needs_check"}).items():
         setattr(t, k, v)
-    t.needs_check = bool(payload.needs_check) if payload.needs_check is not None else False  # saved by a person = checked
+    if payload.needs_check is not None:
+        t.needs_check = payload.needs_check
     db.commit()
     return _template_out(db, t, user)
 
