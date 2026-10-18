@@ -21,12 +21,14 @@ const STATE: Record<string, [string, string]> = {
 export function DealHandoffs({ deal }: { deal: Deal }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [busy, setBusy] = useState<string | null>(null);
   const rows = (deal.handoffs ?? []).filter((h) => h.teams.length > 0);
   if (!rows.length || deal.status === "cancelled") return null;
-  const send = (lines: string[]) => start(async () => {
-    try { const d = await sendHandoffs(deal.id, lines); toast.success((d.notes_after_save ?? [])[0] ?? "Done"); router.refresh(); }
+  // Only that item, only that team: teams it already went to aren't sent it again.
+  const send = (line: string, team: string) => { setBusy(`${line}:${team}`); start(async () => {
+    try { const d = await sendHandoffs(deal.id, [line], [team]); toast.success((d.notes_after_save ?? [])[0] ?? "Done"); router.refresh(); }
     catch (e) { toast.error(friendlyError(e, "Couldn't send it")); }
-  });
+  }); };
   return (
     <section className="rounded-xl border border-border/80 bg-card shadow-2xs" aria-labelledby="ho-h">
       <h2 id="ho-h" className="flex items-center gap-1.5 border-b border-border/70 px-4 py-3 text-sm font-bold"><Users className="size-4" aria-hidden="true" /> Hand-offs to editorial and production</h2>
@@ -42,14 +44,15 @@ export function DealHandoffs({ deal }: { deal: Deal }) {
                   <span className="font-semibold capitalize">{t.team}</span>: {t.to.length ? t.to.join(", ") : "nobody set"} ·{" "}
                   <span style={{ color: STATE[t.state][1] }} className="font-medium">{STATE[t.state][0]}{t.state === "sent" && t.sent_at ? ` ${fmtDate(t.sent_at.slice(0, 10))}` : ""}</span>
                   {t.error && <span className="text-muted-foreground"> - {t.error}</span>}
+                  {deal.handoffs_ready && t.to.length > 0 && t.state !== "waiting_format" && (
+                    <Button size="sm" variant="ghost" className="ml-1 h-6 gap-1 px-1.5 text-xs" disabled={pending}
+                      aria-label={`${t.state === "sent" ? "Send again" : "Send"} to ${t.team}`} onClick={() => send(h.line, t.team)}>
+                      {pending && busy === `${h.line}:${t.team}` ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />} {t.state === "sent" ? "Send again" : "Send"}
+                    </Button>
+                  )}
                 </p>
               ))}
             </div>
-            {deal.check?.state === "checked" && h.teams.some((t) => t.to.length && t.state !== "waiting_format") && (
-              <Button size="sm" variant="ghost" className="gap-1.5" disabled={pending} onClick={() => send([h.line])}>
-                {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} {h.teams.every((t) => t.state === "sent") ? "Send again" : "Send"}
-              </Button>
-            )}
           </li>
         ))}
       </ul>

@@ -148,6 +148,8 @@ export type Deal = Omit<DealInput, "status"> & {
   invoice_plan_label?: string;
   xero_contact?: { id: string; name: string | null } | null;
   handoffs?: HandoffStatus[];
+  /** Hand-offs can go now: confirmed, and checked by accounts (or the check is switched off). */
+  handoffs_ready?: boolean;
   pending_change?: { id: string; cancel: boolean; reason: string | null; requested_by: string | null; requested_at: string | null; details: { label: string; value: string; href?: string }[] } | null;
   notes_after_save?: string[];
 };

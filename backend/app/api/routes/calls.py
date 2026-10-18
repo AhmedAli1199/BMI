@@ -139,6 +139,7 @@ def update_call(call_id: uuid.UUID, body: LinkIn, db: Session = Depends(get_db),
             setattr(c, k, data[k])
     if "title" in data:
         c.title = (data["title"] or "").strip() or None
+    call_notes.refresh_card(db, c)   # its waiting Review Queue card shows who it's linked to now
     db.commit()
     return _view(db, c, full=True)
 

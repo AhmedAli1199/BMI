@@ -91,7 +91,10 @@ def _handle_followup(db: Session, item: ReviewQueueItem, action_id: str, input_d
             db, entity_type=entity_type, entity_id=entity_id,
             subject=activity.subject or "Follow-up sent", body=body,
         )
-        activity.is_cleared = True
+        if not activity.is_cleared:
+            activity.is_cleared = True
+            from app.services.activity_repeats import schedule_next
+            schedule_next(db, activity)
 
     elif action_id == "snooze":
         # "Defer" per SALES-013's spec (next working day, not a fixed

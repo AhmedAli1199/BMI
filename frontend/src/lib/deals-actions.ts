@@ -128,9 +128,9 @@ export async function reportUnbookedAd(input: { edition_id: string; client_name:
   return r;
 }
 
-/** Send (again) the hand-off emails to editorial / production for some lines (empty = all). */
-export async function sendHandoffs(id: string, lines: string[] = []): Promise<Deal & { notes_after_save?: string[] }> {
-  const d = await backendFetch<Deal & { notes?: string[] }>(`/api/sales/deals/${id}/handoffs/send`, { method: "POST", headers: json, body: JSON.stringify({ lines }) });
+/** Send (again) the hand-off emails to editorial / production for some lines and teams (empty = whatever is due). */
+export async function sendHandoffs(id: string, lines: string[] = [], teams: string[] = []): Promise<Deal & { notes_after_save?: string[] }> {
+  const d = await backendFetch<Deal & { notes?: string[] }>(`/api/sales/deals/${id}/handoffs/send`, { method: "POST", headers: json, body: JSON.stringify({ lines, teams }) });
   refresh(d);
   return { ...d, notes_after_save: d.notes };
 }

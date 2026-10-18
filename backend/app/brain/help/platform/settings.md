@@ -72,6 +72,8 @@ What the notetaker does with meetings on your connected calendar that have a Mee
 - **Just remind me** - a reminder before each meeting, with a button to send the notetaker.
 - **Off** - nothing happens unless you send the notetaker yourself.
 
+When several BMI people are in the same meeting: if one of you organised it, the organiser's choice decides. Otherwise it's recorded only if someone chose **Join automatically** and nobody chose **Off**; if you disagree, it isn't recorded and you get a reminder with a button to send the notetaker instead.
+
 ### Team & access (card) / Sections people see (card)
 Open the administrator pages. **Settings** in the breadcrumb above the title, or **Back to Settings**, returns you.
 
@@ -135,7 +137,7 @@ A: Administrators only. 1. In **Settings**, open **Sections people see**. 2. Unt
 A: Press the pencil on their row, type a new password in **Reset password** (or press the shuffle button), copy it with the copy button, press **Save changes**, then give it to them securely, not over chat.
 
 **Q: How do I stop the notetaker joining my meetings?**
-A: In **Settings**, under **Call notes**, pick **Just remind me** (you get a reminder with a button to send it) or **Off**.
+A: In **Settings**, under **Call notes**, pick **Just remind me** (you get a reminder with a button to send it) or **Off**. **Off** also stops it joining meetings you share with colleagues, unless one of them organised it.
 
 **Q: Why aren't my Xero invoice statuses up to date?**
 A: They sync every hour. An administrator or data manager can press **Sync now** in **Settings** under **Integrations** to fetch them straight away.

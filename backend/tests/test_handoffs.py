@@ -114,3 +114,43 @@ def test_format_can_be_added_on_a_locked_booking(w, client, monkeypatch):
     r = client.put(f"/api/sales/deals/{d['id']}/lines/a/handoff", json={"handoff": {"team": "editorial", "editorial_to": "ed@bmi.example",
                                                                                      "format": "How to sell"}}, headers=sally_h)
     assert r.status_code == 200 and len(sent) == 1 and "How to sell" in sent[0][1]
+
+
+def test_send_again_goes_to_the_chosen_team_only_and_changes_are_passed_on_once(w, client, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "orders_accounts_check", False)   # the check is off: hand-offs go on confirm
+    sent = []
+    monkeypatch.setattr(notify, "automation_mailbox_ready", lambda db: True)
+    monkeypatch.setattr(notify, "send_automation_email", lambda db, to, subject, body, attachments=None: sent.append((to, subject, body)))
+    h = w["h"]
+    ed = w["ed"]("selling-travel", "Feb issue", date.today() + timedelta(days=60))
+    ed2 = w["ed"]("selling-travel", "Mar issue", date.today() + timedelta(days=90))
+    body = {"client_name": "Visit Malta", "rep_id": str(w["reps"]["SP"].id), "status": "confirmed",
+            "lines": [{"key": "pkg", "description": "Sponsored content with banner", "unit_price": 3000, "placements": [{"edition_id": str(ed.id)}],
+                       "handoff": {"team": "both", "editorial_to": "ed@bmi.example", "production_to": "prod@bmi.example", "format": "Profile"}},
+                      {"key": "ad", "description": "Full page", "unit_price": 1000, "placements": [{"edition_id": str(ed.id)}],
+                       "handoff": {"team": "production", "production_to": "prod@bmi.example"}}]}
+    d = client.post("/api/sales/deals", json=body, headers=h).json()
+    assert d["handoffs_ready"] is True and d["check"] is None      # the booking page shows Send without a check
+    assert sorted(s[0][0] for s in sent) == ["ed@bmi.example", "prod@bmi.example"]
+    # Send again for one item and one team: only production get it, only that item
+    sent.clear()
+    r = client.post(f"/api/sales/deals/{d['id']}/handoffs/send", json={"lines": ["pkg"], "teams": ["production"]}, headers=h)
+    assert r.status_code == 200 and len(sent) == 1 and sent[0][0] == ["prod@bmi.example"]
+    assert "Sponsored content with banner" in sent[0][2] and "Full page" not in sent[0][2]
+    # Saving with nothing changed sends nothing
+    sent.clear()
+    assert client.put(f"/api/sales/deals/{d['id']}", json=body, headers=h).status_code == 200
+    assert not sent
+    # The sponsored item moves issue: both its teams are told once, marked as a change; the advert isn't re-sent
+    body["lines"][0]["placements"] = [{"edition_id": str(ed2.id)}]
+    assert client.put(f"/api/sales/deals/{d['id']}", json=body, headers=h).status_code == 200
+    assert sorted(s[0][0] for s in sent) == ["ed@bmi.example", "prod@bmi.example"]
+    assert all(s[1].startswith("Change to a booking") and "Changed:" in s[2] and "Full page" not in s[2] for s in sent)
+    sent.clear()
+    assert client.put(f"/api/sales/deals/{d['id']}", json=body, headers=h).status_code == 200
+    assert not sent                                                  # once only
+    # A new address on its own isn't a change
+    body["lines"][1]["handoff"]["production_to"] = "steve@bmi.example"
+    assert client.put(f"/api/sales/deals/{d['id']}", json=body, headers=h).status_code == 200
+    assert not sent

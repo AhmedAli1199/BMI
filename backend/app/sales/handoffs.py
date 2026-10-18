@@ -12,7 +12,8 @@ When: when accounts pass the booking check (or when the booking is confirmed, if
 Sponsored content whose format the client hasn't decided yet ("to be decided") waits for editorial until the
 salesperson fills it in. Each team gets one email per booking from the automation mailbox: the client, the items,
 the dates of every activity, the copy contact, and a ready-written email asking the client for their copy or
-artwork. Each item is sent once; "Send again" re-sends after a change.
+artwork. Each item is sent once; if its details change afterwards (issue, dates, format, activities), the team
+gets one email marked as a change. "Send again" re-sends one item to one team.
 """
 from __future__ import annotations
 
@@ -206,7 +207,7 @@ def _email_html(db: Session, d: SalesDeal, team: str, items: list[tuple[dict, di
     link = f"{settings.app_base_url.rstrip('/')}/sales/deals/{d.id}"
     rows = []
     for ln, r, f in items:
-        bits = [f"<b>{_esc(ln.get('description') or ln.get('size') or 'Item')}</b>"]
+        bits = [f"{'<b>Changed:</b> ' if f.get('changed') else ''}<b>{_esc(ln.get('description') or ln.get('size') or 'Item')}</b>"]
         if r.get("format"):
             bits.append(f"Format: {_esc(r['format'])}")
         if ln.get("detail"):
@@ -218,8 +219,16 @@ def _email_html(db: Session, d: SalesDeal, team: str, items: list[tuple[dict, di
         rows.append("<li>" + "<br>".join(bits) + "</li>")
     draft = chase_email(d, team, items, (rep.name if rep else "The BMI team"))
     team_word = "editorial" if team == "editorial" else "production"
-    subject = f"New booking for {team_word}: {d.client_name} (booking {d.number})"
-    body = (f"<p>A booking that needs {team_word} has been confirmed and checked by accounts.</p>"
+    changed = [f for _, _, f in items if f.get("changed")]
+    if changed and len(changed) == len(items):
+        subject = f"Change to a booking for {team_word}: {d.client_name} (booking {d.number})"
+        intro = ("<p>A booking you've already been sent has changed. Please check the details below "
+                 "(changed items are marked) and update your plans.</p>")
+    else:
+        subject = f"New booking for {team_word}: {d.client_name} (booking {d.number})"
+        intro = f"<p>A booking that needs {team_word} has been confirmed and checked by accounts.</p>" + (
+            "<p>Some items you've already been sent have changed - they're marked.</p>" if changed else "")
+    body = (intro +
             f"<p><b>Client:</b> {_esc(d.client_name)}<br><b>Their contact for copy and artwork:</b> {_esc(name)}{' &lt;' + _esc(email) + '&gt;' if email else ''}"
             f"<br><b>Salesperson:</b> {_esc(rep.name if rep else 'House account')}{' (' + _esc(rep_user.email) + ')' if rep_user else ''}</p>"
             f"<ul>{''.join(rows)}</ul>"
@@ -230,9 +239,17 @@ def _email_html(db: Session, d: SalesDeal, team: str, items: list[tuple[dict, di
     return subject, body
 
 
-def process(db: Session, d: SalesDeal, only_lines: set[str] | None = None, force: bool = False) -> dict:
-    """Send what's due: each team once per booking, for lines not sent yet (or `only_lines` with force = Send again).
-    Never raises: failures are recorded on the booking and shown with a Send again button."""
+def _changed(ln: dict, team: str, prev: dict) -> bool:
+    """A line that already went to this team and whose details (description, issue, run or copy dates, format,
+    activities) have changed since. Compared with the addresses it went to, so a new address alone isn't a change."""
+    return bool(prev.get("sig")) and _line_sig(ln, team, prev.get("to") or []) != prev["sig"]
+
+
+def process(db: Session, d: SalesDeal, only_lines: set[str] | None = None, force: bool = False,
+            only_teams: set[str] | None = None) -> dict:
+    """Send what's due: each team once per booking, for lines not sent yet, plus an update (marked as a change) for
+    lines already sent whose details have changed. `force` (Send again) re-sends `only_lines` / `only_teams` even if
+    they already went. Never raises: failures are recorded on the booking and shown with a Send again button."""
     from app.services.notify import automation_mailbox_ready, send_automation_email
 
     result = {"sent": 0, "failed": 0}
@@ -247,12 +264,18 @@ def process(db: Session, d: SalesDeal, only_lines: set[str] | None = None, force
             continue
         r = resolve(db, d, ln, table)
         for t in TEAMS:
+            if only_teams is not None and t not in only_teams:
+                continue
             if r["team"] not in (t, "both") or not r[t] or (t == "editorial" and r["waiting"]):
                 continue
             prev = (log.get(key) or {}).get(t) or {}
-            if prev.get("at") and not prev.get("error") and not force:
+            went = bool(prev.get("at") and not prev.get("error"))
+            changed = went and _changed(ln, t, prev)
+            if went and not force and not changed:
                 continue
-            by_team[t].append((ln, r, _line_facts(db, ln)))
+            facts = _line_facts(db, ln)
+            facts["changed"] = changed or bool(prev.get("changed") and prev.get("error"))
+            by_team[t].append((ln, r, facts))
     if not any(by_team.values()):
         return result
     can_send = automation_mailbox_ready(db)
@@ -271,9 +294,15 @@ def process(db: Session, d: SalesDeal, only_lines: set[str] | None = None, force
             except Exception:
                 logger.exception("hand-off email for booking %s (%s) failed", d.number, t)
                 error = "The email didn't go. Try Send again in a minute."
-        for ln, r, _ in items:
+        for ln, r, f in items:
             entry = dict(log.get(ln.get("key")) or {})
-            entry[t] = {"to": r[t], "at": now if not error else None, "error": error, "sig": _line_sig(ln, t, r[t])}
+            prev = entry.get(t) or {}
+            if error and prev.get("at") and not prev.get("error"):
+                # An update that didn't go: keep what was sent before (so it's tried again on the next save) and say why.
+                entry[t] = {**prev, "error": error, "changed": f["changed"]}
+            else:
+                entry[t] = {"to": r[t], "at": now if not error else None, "error": error, "sig": _line_sig(ln, t, r[t]),
+                            **({"changed": True} if error and f["changed"] else {})}
             log[ln.get("key")] = entry
         result["failed" if error else "sent"] += 1
     d.handoff_log = log

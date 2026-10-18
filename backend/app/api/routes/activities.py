@@ -11,6 +11,7 @@ from app.api.schemas import ActivitiesPage, ActivityCreate, ActivityOut, Activit
 from app.api.routes._creators import creator_summary, resolve_creators
 from app.db.session import get_db
 from app.models import Activity, Company, Contact, User
+from app.services import activity_repeats
 
 from app.core.visibility import company_clause, contact_clause  # noqa: E402
 
@@ -170,8 +171,11 @@ def update_activity(activity_id: uuid.UUID, payload: ActivityUpdate, db: Session
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
 
+    was_cleared = activity.is_cleared
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(activity, field, value)
+    if activity.is_cleared and not was_cleared:
+        activity_repeats.schedule_next(db, activity)   # a repeating activity: the next one is scheduled
     db.commit()
 
     contacts, companies = _resolve_names(db, [activity])
