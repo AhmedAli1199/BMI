@@ -222,3 +222,35 @@ def test_notetaker_check_and_start_over_are_admin_only(client, db_session, peopl
     monkeypatch.setattr(cs, "sync_all", lambda db, force=False: 0)
     r = client.post("/api/calendar/start-over", headers=identity_headers(admin))
     assert r.status_code == 200 and r.json()["meetings"] == 0
+
+
+def test_one_persons_automatic_recording_doesnt_record_everyone(db_session, people):
+    matt, sam, cm, cg = people
+    start = NOW + timedelta(hours=2)
+    cs.sync_connection(db_session, cm, NOW, [ev("ms-1", start, me="organizer")])
+    cs.sync_connection(db_session, cg, NOW, [ev("g-1", start)])
+    m = meetings(db_session)[0]
+
+    def rule(matt_pref, sam_pref):
+        matt.preferences, sam.preferences = {cs.PREF_KEY: matt_pref}, {cs.PREF_KEY: sam_pref}
+        db_session.flush()
+        return cs.should_record(db_session, m)
+
+    # Matt organised it: his choice decides
+    assert not rule("off", "auto").record
+    assert rule("auto", "off").record
+    d = rule("remind", "auto")
+    assert not d.record and d.remind
+    # A client's invite, two of us in it: recorded only if someone wants it and nobody said no
+    m.organizer_email = "sarah@caribbean.example"
+    for a in cs.attending(db_session, m):
+        a.response = "accepted"
+    assert rule("auto", "remind").record
+    assert rule("auto", "auto").record
+    d = rule("auto", "off")
+    assert not d.record and d.remind                     # they disagree: not recorded, a reminder instead
+    d = rule("off", "off")
+    assert not d.record and not d.remind
+    # only Sam is in it: her calendar, her choice
+    cs.sync_connection(db_session, cm, NOW, [])
+    assert rule("off", "auto").record and not rule("auto", "off").record

@@ -321,7 +321,7 @@ def _out(db: Session, d: SalesDeal, identity: Identity) -> dict:
         "check": _check_out(db, d),
         "locked": acc.locked(db, d), "can_approve": _approver(db, identity),
         "unlocked": _unlocked_out(db, d),
-        "handoffs": handoffs.status(db, d),
+        "handoffs": handoffs.status(db, d), "handoffs_ready": handoffs.ready(db, d),
         "xero_contact": {"id": d.xero_contact_id, "name": d.xero_contact_name} if d.xero_contact_id else None,
         "invoice_on": d.invoice_on.isoformat() if d.invoice_on else None,
         "invoice_plan_label": inv.PLANS.get(d.invoice_plan or "asap", d.invoice_plan),
@@ -773,8 +773,13 @@ def apply_status(db: Session, d: SalesDeal, status: str, reason: str | None, kee
     else:
         if status == "confirmed" and not d.confirmed_at:
             d.confirmed_at = datetime.now(timezone.utc)
+        reopening = d.status == "cancelled"
         d.status, d.cancelled_reason = status, None
         for o in items:
+            # Reopening a cancelled booking brings back only the items the cancellation cancelled. Items kept booked
+            # (already ran or invoiced) and items cancelled on their own stay as they are.
+            if reopening and not (o.status == "cancelled" and (o.status_reason or "").startswith(f"Booking {d.number} cancelled")):
+                continue
             o.status, o.status_reason = dl.ITEM_STATUS[status], None
     d.updated_at = datetime.now(timezone.utc)
     if status != "cancelled":
@@ -836,6 +841,7 @@ def unbooked_ad(p: UnbookedAdIn, db: Session = Depends(get_db), identity: Identi
 
 class HandoffSendIn(BaseModel):
     lines: list[str] = Field(default_factory=list, max_length=60)   # empty = every line
+    teams: list[str] = Field(default_factory=list, max_length=2)    # empty = every team on those lines
 
 
 @router.post("/{deal_id}/handoffs/send")
@@ -846,7 +852,9 @@ def send_handoffs(deal_id: uuid.UUID, p: HandoffSendIn, db: Session = Depends(ge
         raise HTTPException(403, "Only the salesperson on this booking, accounts or a manager can send this.")
     if not handoffs.ready(db, d):
         raise HTTPException(409, "Hand-offs go once the booking is confirmed and accounts have checked it.")
-    r = handoffs.process(db, d, only_lines=set(p.lines) if p.lines else None, force=True)
+    teams = {t for t in p.teams if t in handoffs.TEAMS} or None
+    # Send again re-sends only what was chosen (that item, that team). With nothing chosen, send whatever is due.
+    r = handoffs.process(db, d, only_lines=set(p.lines) if p.lines else None, only_teams=teams, force=bool(p.lines))
     db.commit()
     out = _out(db, d, identity)
     out["notes"] = ([f"Sent to {r['sent']} team{'s' if r['sent'] != 1 else ''}."] if r["sent"] else []) + (

@@ -241,3 +241,27 @@ def test_accounts_check_holds_the_confirmation_until_it_looks_right(w, client):
     assert db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").count() == 0
     client.put(f"/api/sales/deals/{d['id']}", json={**body, "client_name": "Cellet Travel Ltd"}, headers=w["h"])
     assert db.query(ReviewQueueItem).filter_by(kind="order_check", status="pending").count() == 1
+
+
+def test_reopening_a_cancelled_booking_leaves_kept_items_booked(w, client):
+    past = w["ed"]("selling-travel", "Ran already", date.today() - timedelta(days=10))
+    later = w["ed"]("selling-travel", "Still to come", date.today() + timedelta(days=30))
+    body = {"client_name": "Visit Malta", "rep_id": str(w["reps"]["SP"].id), "status": "confirmed",
+            "lines": [{"description": "Full page", "unit_price": 2000, "placements": [{"edition_id": str(past.id)}]},
+                      {"description": "Half page", "unit_price": 1000, "placements": [{"edition_id": str(later.id)}]}]}
+    d = client.post("/api/sales/deals", json=body, headers=w["h"]).json()
+
+    def status():
+        w["db"].expire_all()
+        return {o.description: o.status for o in w["db"].query(SalesOrder).filter_by(deal_id=uuid.UUID(d["id"]))}
+
+    r = client.post(f"/api/sales/deals/{d['id']}/status", json={"status": "cancelled", "reason": "Budget cut"}, headers=w["h"])
+    assert r.status_code == 200, r.text
+    assert status() == {"Full page": "booked", "Half page": "cancelled"}
+    # Reopen: only the item the cancellation cancelled comes back; the one that already ran stays booked
+    r = client.post(f"/api/sales/deals/{d['id']}/status", json={"status": "pencilled"}, headers=w["h"])
+    assert r.status_code == 200, r.text
+    assert status() == {"Full page": "booked", "Half page": "pencilled"}
+    # and confirming it from there books the rest as usual
+    client.post(f"/api/sales/deals/{d['id']}/status", json={"status": "confirmed"}, headers=w["h"])
+    assert status() == {"Full page": "booked", "Half page": "booked"}

@@ -28,7 +28,7 @@ Three related tools for keeping on top of your clients:
 ### Log or schedule (top bar, and on Calendar & tasks)
 Opens the dialog. First pick the **Contact or company** (search both). From a contact's or company's own page the dialog is already pinned to them, so there's no picker. Then choose a tab:
 - **Log** (something that already happened): **Type** (Call, Meeting, Email, Letter) and **Result** (for a call: Call Attempted, Call Completed, Call Received or Call Left Message; Meeting Held; E-mail Sent or E-mail Not Sent; Letter Sent), **Title**, **Duration** (5 to 60 minutes), **Date / time** (now, unless you change it) and **Details**. **Save** adds it to their History.
-- **Schedule** (something coming up): **Type** (Call, Meeting, To-do), **Repeats** (Never, Daily, Weekly, Monthly), **Title**, **Location** (meetings only), **Start**, **End**, **Timeless (no specific time, just a date)** (to-dos only) and **Details**. **Schedule** adds it to Calendar & tasks and the person's Activities.
+- **Schedule** (something coming up): **Type** (Call, Meeting, To-do), **Repeats** (Never, Daily, Weekly, Monthly: when you mark it as done, the next one is added on the next date in the pattern after today; to stop it repeating, delete the next one instead of marking it done), **Title**, **Location** (meetings only), **Start**, **End**, **Timeless (no specific time, just a date)** (to-dos only) and **Details**. **Schedule** adds it to Calendar & tasks and the person's Activities.
 - **Note**: type the **Note** and press **Save**. It goes on their Notes (or the company's Notes).
 Every tab has **Make this private**. **Cancel** closes without saving.
 
@@ -82,7 +82,7 @@ Sets a reminder: a quick pick (**Tomorrow**, **In 3 days**, **1 week**, **2 week
 - An activity is linked to either a contact or a company, never both.
 - Calendar & tasks shows the activities of the contacts and companies you can see. By default it shows everyone's in those databases (as Act! did), newest first, up to 100 at a time.
 - Reminders are personal: only you see yours. Every five minutes, reminders that have come due turn into a notification under the bell, and an email too if you ticked **Email me as well**. Snoozing or changing the time re-arms the reminder so you're notified again.
-- Some reminders are set for you: saving call notes adds one per agreed action (due the next day), and sending a proposal sets a follow-up.
+- Some reminders are set for you: saving call notes adds one per agreed action, due at 9am on the day agreed in the call ("by Friday", "next week", "14 Nov"), or the next working day if no day was mentioned, and sending a proposal sets a follow-up.
 
 ## Common questions
 **Q: I've just had a call with a client. How do I record it?**
@@ -114,6 +114,6 @@ A: Tick **Make this private** before saving.
 - **"Couldn't save that - try again"**: something went wrong saving. Try again; if you picked a contact and then cleared it, pick them again.
 - **Mine only shows nothing**: activities brought over from Act! only count as yours if the organiser's name matches your name in BMI Brain exactly.
 - **Something I scheduled isn't on Calendar & tasks**: check the filters (**Open** hides done items) and the **All Titles** switcher at the top of the app. The grid shows up to 100 activities at a time, newest first; use the search box or filters to find older ones.
-- **Repeats doesn't create the next one**: the repeat is saved on the activity but further copies are not added automatically yet.
+- **I can't see next week's repeat yet**: only the next one is on the calendar. It's added when you mark the current one as done.
 - **I didn't get a reminder email**: check **Email me as well** was ticked (the row says "email too"). The in-app notification under the bell always comes.
 - **I can't see a colleague's reminders**: reminders are personal. Ask them, or schedule a shared activity instead.

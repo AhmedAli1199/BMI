@@ -40,7 +40,7 @@ Opens the printable confirmation in a new tab (see below).
 - **I sent it another way**: notes it as sent to the contact's email and adds a note to the client's company, without emailing anything.
 - **Rebook for next year**: makes a new pencilled booking for the same client, with each item moved to next year's matching issue at next year's rate card price. Notes say what couldn't be matched or what prices changed. It opens the new booking. Nothing is confirmed until you confirm it. Shown to people who can change the booking, and not on cancelled bookings.
 - **Back to pencilled**: confirmed bookings with nothing invoiced. It stops counting and is taken out of the accounts check.
-- **Reopen**: cancelled bookings. Brings it back as pencilled.
+- **Reopen**: cancelled bookings. Brings it back as pencilled. Only the items the cancellation cancelled come back as pencilled; items kept booked because they had already run or been invoiced stay booked.
 - **Cancel the booking** / **Ask accounts to cancel it**: opens a dialog. Type **Why** (required) and choose **Keep items that have already run or been invoiced** (ticked by default: they were delivered, so they stay booked). Press **Cancel the booking** (or **Send to accounts** on a locked booking), or **Keep the booking** to back out.
 - **Delete**: pencilled bookings with nothing invoiced only. Asks you to confirm, then removes the booking and its pencilled items.
 
@@ -51,7 +51,7 @@ In the still-to-be-allocated banner. Opens the booking form so you can pick issu
 - **Unlock for the salesperson** (Accounts): asks for an optional note, then lets the salesperson change it. It locks again when they save. **Lock it again** undoes that.
 - **Create the invoice in Xero (N)** (Accounts, confirmed bookings): makes a draft invoice in Xero for the items ready to invoice. **Invoice it now** does the same for one item that isn't due yet. A dialog shows the draft (**Open it in Xero**, **Done**), or lists what to fix with **Make the draft invoice**.
 - **Due <date>** in the Invoice column (Accounts): opens **Remind me to invoice on** with **Save**, **Booking's rule** (back to the booking's timing) and **Cancel**. The salesperson is told.
-- **Send** / **Send again** on a hand-off (once Accounts have checked it), and **Save and tell editorial** when a sponsored format is still to be decided.
+- **Send** / **Send again** next to each team on a hand-off (once it's confirmed and Accounts have checked it, or just confirmed if the check is off; it goes to that team only), and **Save and tell editorial** when a sponsored format is still to be decided.
 
 ### Printable confirmation page
 Shows the confirmation in BMI's layout: ORDER CONFIRMATION "(Invoice to follow)" or SCHEDULE OF WORKS, the date, BMI's address, the confirmation and invoice-to addresses, your contact and ours, the order number and their ref, the publication, insertions, the items table with cost per insertion, discount, agency commission and total, "VAT is not included", special instructions (including copy due dates and the invoice email), production contact, artwork specification, terms and footer.
@@ -74,7 +74,7 @@ Clicking an item in the Schedule opens that one item in a new tab, with its edit
 - A booking locks once Accounts have checked it or any item is invoiced. Then only Accounts change it directly; everyone else's changes and cancellations go to Accounts for approval.
 - If the "Confirmation waits for the check" setting is on, a booking can't be emailed or marked as sent until Accounts have checked it. This setting is off by default.
 - When to invoice follows the booking's rule and the date each item runs, unless Accounts set their own date. Quarters follow BMI's financial year, which starts on 1 July.
-- Hand-offs go out once the booking is confirmed and Accounts have checked it (or when it's confirmed, if the check is off). Each item is sent once.
+- Hand-offs go out once the booking is confirmed and Accounts have checked it (or when it's confirmed, if the check is off). Each item is sent once, plus one update if it changes after it has gone.
 - Rebooking moves each item to next year's issue of the same kind nearest the same date, and uses next year's rate card price if the price was the rate card one.
 
 ## Common questions

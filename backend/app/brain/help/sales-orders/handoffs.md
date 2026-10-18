@@ -41,7 +41,7 @@ Where else the item runs: choose **Online**, **Newsletter**, **Social media**, *
 Appears under an item that's **Waiting for the format**. Type the format in the box and press it. Editorial get the email straight away. This works even when the booking is locked, because it doesn't change the invoice. The salesperson on the booking, whoever made it, Accounts or a manager can do it.
 
 ### Send / Send again (booking page)
-On each item once the booking has been checked by Accounts. **Send** sends that item's hand-off now (for example after an address was added or an email didn't go). **Send again** appears when everything for that item has gone, to re-send it after a change. The salesperson on the booking, whoever made it, Accounts or a manager can press it. The message afterwards says how many teams it went to, or "Nothing to send: no team or address for these items."
+Next to each team under an item, once hand-offs can go: the booking is confirmed and Accounts have checked it (or, if the accounts check is switched off, as soon as it's confirmed). **Send** sends that item to that team now (for example after an address was added or an email didn't go). **Send again** shows once it has gone to that team, and re-sends it to that team only. Other items, and other teams on the same item, aren't sent anything. The salesperson on the booking, whoever made it, Accounts or a manager can press it. The message afterwards says how many teams it went to, or "Nothing to send: no team or address for these items."
 
 ### Hand-offs (Bookings list)
 Administrators only. Opens **Who gets the hand-offs**: a row for **Every magazine** (used when a magazine has no row of its own) and one for each magazine, each with an **Editorial** and a **Production** address box. Separate several addresses with commas. **Save** keeps them; **Cancel** closes. Everyone else can't change these addresses.
@@ -71,7 +71,8 @@ Administrators only. Opens **Who gets the hand-offs**: a row for **Every magazin
   - each item with its format, details, issue, run date and copy due date, plus its other activities and dates;
   - the copy and artwork notes and a link to the booking;
   - a ready-written email for the team to copy and send to the client. For editorial it asks for their brief, copy, images and logo by the copy date. For production it asks for their artwork.
-- **Each item goes once.** Later saves send only new items, or items that have just become ready (an address or format added). Changing an item that has already gone doesn't re-send it; use **Send again**.
+- **Each item goes once.** Later saves send only new items, or items that have just become ready (an address or format added).
+- **Changes are passed on once.** If an item that has already gone changes (its description or details, issue, run or copy due date, format, or where else it appears), the team gets one more email, titled "Change to a booking for ...", with the changed items marked. A new address on its own doesn't count as a change; use **Send** or **Send again** for that.
 - **Sending never blocks the booking.** If the email fails, the item shows **Didn't go** with the reason, and you can press **Send**.
 
 ## Common questions
@@ -82,7 +83,7 @@ A: On the booking form, open **After it's sold** under the item, check **Hand of
 A: On the booking page, in **Hand-offs to editorial and production**, type the format in the box under the item and press **Save and tell editorial**.
 
 **Q: Production never got the email. Can I send it again?**
-A: Yes. On the booking page, press **Send** (or **Send again**) next to the item. If it shows **No address yet**, add an address on the booking first.
+A: Yes. On the booking page, press **Send** (or **Send again**) next to production under the item. Only production get it. If it shows **No address yet**, add an address on the booking first.
 
 **Q: How do I set up who gets each magazine's hand-offs?**
 A: An administrator goes to Sales Orders > Bookings, presses **Hand-offs**, fills in the editorial and production addresses for each magazine (or **Every magazine**) and presses **Save**.
@@ -98,7 +99,7 @@ A: Under **Also appears**, press **+ Online, newsletter, social…**, choose whe
 
 ## If something doesn't work
 - **"Hand-offs go once the booking is confirmed and accounts have checked it."** Confirm the booking and wait for the accounts check.
-- **No Send button.** It shows only after the booking is checked by Accounts, and only for items that have an address and aren't waiting for the format. If the accounts check is switched off, the button doesn't show at all; saving the confirmed booking sends whatever is ready.
+- **No Send button.** It shows only once the booking is confirmed and checked by Accounts (or just confirmed, if the accounts check is switched off), and only for teams that have an address and aren't waiting for the format.
 - **"The automation mailbox isn't set up yet, so the email couldn't go."** An administrator needs to set up the automation mailbox. Then press **Send**.
 - **"The email didn't go. Try Send again in a minute."** A one-off sending problem. Press **Send** again shortly.
 - **"Only the salesperson on this booking, accounts or a manager can send this."** (or "...can change this.") Ask the salesperson or Accounts.

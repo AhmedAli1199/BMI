@@ -204,9 +204,31 @@ def should_record(db: Session, m: CalendarMeeting, domains: set[str] | None = No
         return Decision(False, "Marked private")
     if not outside_people(m, domains if domains is not None else internal_domains(db)) and not runtime_settings.get_bool(db, "calendar_include_internal"):
         return Decision(False, "Only BMI people (internal meetings are off)")
-    prefs = {pref(db.get(User, a.user_id)) for a in going}
-    if "auto" in prefs:
+    return _by_preference(db, m, going)
+
+
+def _by_preference(db: Session, m: CalendarMeeting, going: list[CalendarAttendance]) -> Decision:
+    """Whose "Record my meetings" choice counts. One person's "Join automatically" mustn't record everyone:
+    - the BMI organiser decides for their own meeting (it's their call, and their review queue gets the notes);
+    - otherwise (a client's invite, or only one of us on it - then it's their calendar) the BMI people going decide
+      together: recorded only if someone chose "Join automatically" and nobody chose "Off". If they disagree,
+      it isn't recorded; anyone who chose "Just remind me" (or "Join automatically") gets a reminder with a button."""
+    users = {a.user_id: db.get(User, a.user_id) for a in going}
+    org_email = (m.organizer_email or "").lower()
+    organiser = next((a for a in going if a.response == "organizer"), None) or next(
+        (a for a in going if org_email and users[a.user_id] and (users[a.user_id].email or "").lower() == org_email), None)
+    if organiser:
+        p = pref(users[organiser.user_id])
+        if p == "auto":
+            return Decision(True, "Will be recorded")
+        if p == "remind":
+            return Decision(False, "Reminder only", remind=True)
+        return Decision(False, "Automatic recording is off for the organiser")
+    prefs = {pref(users[a.user_id]) for a in going}
+    if "auto" in prefs and "off" not in prefs:
         return Decision(True, "Will be recorded")
+    if "auto" in prefs:
+        return Decision(False, "Not everyone at BMI in it wants it recorded - reminder only", remind=True)
     if "remind" in prefs:
         return Decision(False, "Reminder only", remind=True)
     return Decision(False, "Automatic recording is off for everyone in it")

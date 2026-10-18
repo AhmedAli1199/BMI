@@ -66,7 +66,7 @@ Links the call to a contact (or clears it). Needed before **Save to history**.
 Asks the notetaker to leave the call now. The notes follow a few minutes later.
 
 ### Save to history
-Saves the notes onto the linked contact's history as a "Meeting Held" entry, and adds a reminder for you for each thing to do, due the next day. Afterwards it says "Saved to the contact's history".
+Saves the notes onto the linked contact's history as a "Meeting Held" entry, and adds a reminder for you for each thing to do, due at 9am on the day agreed in the call (for example "by Friday", "next week" or "14 Nov"), or the next working day if no day was mentioned. Its Review Queue card is closed too. Afterwards it says "Saved to the contact's history".
 
 ### meeting link
 Opens the original meeting link in a new tab.
@@ -80,11 +80,11 @@ After you confirm, removes every meeting on the list and calls off notetakers th
 ## How it works
 - The calendars are read every few minutes. The same meeting in several people's calendars (same link and start time) shows once, with everyone from BMI who's in it. A moved meeting shows at its new time.
 - About 20 minutes before a meeting, everyone at BMI in it gets a notice that the notetaker will join. The notetaker itself is sent a minute or two before the start, the same way as pasting a link by hand, and asks to join a minute or so early (an administrator can change this in Automations > Call notes). A meeting added late is still joined up to 30 minutes after it started.
-- A meeting is recorded if someone from BMI who is going has "joins automatically", or someone pressed **Record**. It's not recorded if it was skipped, cancelled, all-day, has no Meet or Teams link (Zoom isn't supported yet), everyone from BMI declined, everyone marked it private, or only BMI people are in it, unless an administrator has switched private or internal meetings on in Automations > Call notes.
+- Whose preference counts: if someone from BMI organised the meeting, theirs decides. Otherwise it's recorded if someone from BMI who is going has **The notetaker joins automatically** and nobody going has **Do nothing**; if you disagree, it isn't recorded and you're reminded instead, so anyone can press **Record**. Pressing **Record** always records it. It's not recorded if it was skipped, cancelled, all-day, has no Meet or Teams link (Zoom isn't supported yet), everyone from BMI declined, everyone marked it private, or only BMI people are in it, unless an administrator has switched private or internal meetings on in Automations > Call notes.
 - Private meetings show to others only as "Private meeting".
 - Administrators and data managers see everyone's meetings and calls. Everyone else sees their own meetings, calls they sent, and calls of meetings they were in.
 - When notes are ready, everyone from BMI who was in the meeting gets a notification, and a Call notes card goes to the Review Queue (filters: call type, their interest, whether a contact is linked; sorted by call date) with **Save to history** and **Not needed**. If the notetaker couldn't record, the person who sent it is told.
-- The contact is matched from the guests' email addresses where possible.
+- The contact is matched from the guests' email addresses where possible. If you link the contact on the call's page later, its waiting Review Queue card shows them too.
 - **Save to history** only saves once; pressing it again (here or in the Review Queue) doesn't add a second entry.
 
 ## Common questions

@@ -4368,19 +4368,19 @@
   },
   {
    "file": "components/deals/deal-handoffs.tsx",
-   "src": "components/deals/deal-handoffs.tsx:32",
+   "src": "components/deals/deal-handoffs.tsx:34",
    "kind": "heading",
    "label": "Hand-offs to editorial and production"
   },
   {
    "file": "components/deals/deal-handoffs.tsx",
-   "src": "components/deals/deal-handoffs.tsx:49",
+   "src": "components/deals/deal-handoffs.tsx:48",
    "kind": "button",
    "label": "Send again"
   },
   {
    "file": "components/deals/deal-handoffs.tsx",
-   "src": "components/deals/deal-handoffs.tsx:69",
+   "src": "components/deals/deal-handoffs.tsx:72",
    "kind": "button",
    "label": "Save and tell editorial"
   },
