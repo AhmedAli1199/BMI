@@ -1,7 +1,7 @@
 """The Brain's proposed actions (Phase 4): saved when the Brain offers to do something, run only on Confirm.
 
 Revision ID: 0065
-Revises: 0061
+Revises: 0063
 Create Date: 2026-10-18
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "0065"
-down_revision: str | None = "0061"
+down_revision: str | None = "0063"
 branch_labels = None
 depends_on = None
 

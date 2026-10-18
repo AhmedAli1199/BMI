@@ -13,6 +13,9 @@ Found while writing the assistant's help guides for every area (15 Oct), by read
 - ~~Data Health counts not limited to a data manager's databases~~.
 - Sales: ~~Rebook with no permission check / on cancelled bookings~~, ~~anyone could add/close/reopen an edition~~ (salespeople can still edit its notes), ~~new booking from someone else's proposal~~, ~~editing a sent proposal on the server~~ (notes only), ~~Put back shown to people who can't edit prices~~.
 
+## Data-changing bugs - fixed 18 Oct
+Mail merge template update, issue date moves (year + deadlines follow), renamed deadline rules (rule keys, migration 0062), empty number settings, reopening cards that already wrote (now refused), snoozes (new "snoozed" outcome, migration 0063), duplicate pairs and dismissed follow-ups coming back, follow-up card links, inbound leads' database, returned-copy addresses (asks for the new one), departures (contacts.has_left), reopened cancelled bookings, hand-off resends and change emails, Send with the accounts check off, notetaker recording rule, call-note reminder dates, call cards closing/updating, activity repeats. Struck-through items below are covered by this.
+
 ## Editorial plan
 - Moving an issue's publication date into another year doesn't update its year, so it drops off both years' planners.
 - Saving brand settings deletes brand figures other than the seven on the form (proposals can show extras like LinkedIn followers).
