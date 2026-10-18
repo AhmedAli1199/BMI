@@ -89,6 +89,7 @@ export default async function ContactDetailPage({
               {contact.job_title && contact.company && <span aria-hidden="true">·</span>}
               {contact.company && <Link href={`/companies/${contact.company.id}`} className="font-semibold text-primary hover:underline">{contact.company.name}</Link>}
               <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(contact.source_db)}`}>{sourceLabel(contact.source_db)}</Badge>
+              {contact.has_left && <Badge variant="outline" className="text-[11px] font-medium text-muted-foreground">Left the company</Badge>}
             </div>
           }
           actions={<>

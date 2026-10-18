@@ -112,6 +112,7 @@ export type ContactDetail = {
   last_attempt_date: string | null;
   last_letter_date: string | null;
   is_unsubscribed: boolean;
+  has_left: boolean;
   custom_fields: Record<string, unknown>;
   company: CompanySummary | null;
   addresses: AddressOut[];
@@ -229,12 +230,14 @@ export type ReviewAction = {
   id: string;
   label: string;
   style: "primary" | "secondary" | "destructive";
-  outcome: "approved" | "rejected";
+  outcome: "approved" | "rejected" | "snoozed";
   requires_note: boolean;
   requires_contact_picker: boolean;
   extra_fields: ReviewExtraField[];
   confirm_message: string | null;
   requires_related_entity_choice: boolean;
+  /** A card closed with this button can be put back in Pending. */
+  reopenable: boolean;
 };
 
 export type ReviewKind = {
@@ -313,6 +316,8 @@ export type ReviewPayload = {
   source_context?: string | null;
   related_entities?: ReviewRelatedEntity[];
   suggested_contact?: { id: string; label: string } | null;
+  /** Buttons that need a contact picked on this card only (the automation couldn't match the record itself). */
+  pick_contact_for?: string[];
   candidate?: ReviewCandidate | null;
   confidence?: number | null;
   /** Keyed to match ReviewAction.extra_fields[].key exactly - whatever an
@@ -373,7 +378,7 @@ export type ReviewQueueItem = {
   entity_summary: ReviewQueueEntitySummary | null;
 };
 
-export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number };
+export type ReviewQueueCounts = { kind: string; pending: number; approved: number; rejected: number; snoozed: number };
 
 export type ReviewQueueInsightBucket = { key: string; label: string; count: number };
 export type ReviewQueueInsights = { kind: string; buckets: ReviewQueueInsightBucket[] };

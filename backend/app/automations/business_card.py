@@ -278,7 +278,7 @@ register(ReviewKind(
                 ExtraField(key="groups", label="Groups to add (comma-separated)", placeholder="e.g. London, Airline Catering", required=False),
             ],
         ),
-        ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_new_contact,
 ))
@@ -290,7 +290,7 @@ register(ReviewKind(
     actions=[
         ReviewAction(id="update_contact", label="Apply updated details", style="primary", outcome="approved"),
         ReviewAction(id="log_seen", label="Log event meeting (keep existing)", style="secondary", outcome="approved"),
-        ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_existing_contact,
 ))

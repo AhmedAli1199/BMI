@@ -32,7 +32,7 @@ import uuid
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 
 from app.automations import runtime_settings
@@ -289,7 +289,7 @@ def _handle_duplicate(db: Session, item: ReviewQueueItem, action_id: str, input_
     if action_id == "merge":
         _merge_contacts(db, survivor, loser)
     elif action_id == "not_duplicate":
-        pass  # No write - reviewer says these are genuinely two different people.
+        pass  # No write - the sweep remembers this card's decision and never suggests the pair again.
     else:
         raise ValueError(f"Unknown action {action_id!r} for duplicate_contact")
 
@@ -304,7 +304,7 @@ register(ReviewKind(
             requires_related_entity_choice=True,
             confirm_message="This merges all notes, history, activities, and group memberships into the primary contact and archives the duplicate. Continue?",
         ),
-        ReviewAction(id="not_duplicate", label="Keep as separate contacts", style="secondary", outcome="rejected"),
+        ReviewAction(id="not_duplicate", label="Keep as separate contacts", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_duplicate,
 ))
@@ -340,9 +340,12 @@ def scan_for_duplicates() -> None:
         dedupe_max_per_run = runtime_settings.get_int(db, "dedupe_max_per_run")
         dedupe_confidence_floor = runtime_settings.get_float(db, "dedupe_confidence_floor")
 
+        # Pairs already waiting, and pairs someone has said are two different
+        # people ("Keep as separate contacts") - those must never come back.
         already_queued_pairs: set[frozenset[str]] = set()
         for item in db.query(ReviewQueueItem).filter(
-            ReviewQueueItem.kind == "duplicate_contact", ReviewQueueItem.status == "pending"
+            ReviewQueueItem.kind == "duplicate_contact",
+            or_(ReviewQueueItem.status == "pending", ReviewQueueItem.resolved_action == "not_duplicate"),
         ):
             ids = {e["id"] for e in item.payload.get("related_entities", []) if e.get("type") == "contact"}
             if len(ids) == 2:

@@ -169,7 +169,8 @@ def best_recipient(db: Session, company_id: uuid.UUID | None) -> tuple[str, str]
         select(email, Contact.full_name)
         .where(Contact.company_id == company_id,
                func.coalesce(Contact.is_unsubscribed, False).is_(False),
-               func.coalesce(Contact.has_bounced, False).is_(False))
+               func.coalesce(Contact.has_bounced, False).is_(False),
+               Contact.has_left.is_(False))
         .where(email.isnot(None))
         .order_by(Contact.updated_at.desc().nulls_last())
         .limit(1)

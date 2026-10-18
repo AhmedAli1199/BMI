@@ -104,7 +104,7 @@ def _handle_followup(db: Session, item: ReviewQueueItem, action_id: str, input_d
         activity.start_at = _next_working_day(datetime.now(timezone.utc))
 
     elif action_id == "dismiss":
-        pass  # No write - reviewer is telling us this one doesn't need a follow-up right now.
+        pass  # No write - the scan remembers this card's decision until the activity's date changes.
 
     else:
         raise ValueError(f"Unknown action {action_id!r} for followup_due")
@@ -133,7 +133,7 @@ register(ReviewKind(
             requires_note=False,
         ),
         ReviewAction(id="snooze", label="Defer to next working day", style="secondary", outcome="approved"),
-        ReviewAction(id="dismiss", label="Dismiss", style="secondary", outcome="rejected"),
+        ReviewAction(id="dismiss", label="Dismiss", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_followup,
     redraft=_redraft_followup,
@@ -223,6 +223,17 @@ def scan_for_due_followups() -> None:
                 )
             ).all()
         )
+        # Dismissed follow-ups stay dismissed - unless the activity has since
+        # been moved to a new date, which makes it a fresh follow-up.
+        dismissed = {
+            (entity_id, datetime.fromisoformat(due_at) if due_at else None)
+            for entity_id, due_at in db.execute(
+                select(ReviewQueueItem.entity_id, ReviewQueueItem.payload["due_at"].astext).where(
+                    ReviewQueueItem.kind == "followup_due",
+                    ReviewQueueItem.resolved_action == "dismiss",
+                )
+            ).all()
+        }
 
         candidates = db.scalars(
             select(Activity)
@@ -241,6 +252,8 @@ def scan_for_due_followups() -> None:
             if queued_count >= max_per_run:
                 break
             if activity.id in already_queued:
+                continue
+            if (activity.id, activity.start_at) in dismissed or (activity.id, None) in dismissed:
                 continue
 
             contact = db.get(Contact, activity.contact_id) if activity.contact_id else None

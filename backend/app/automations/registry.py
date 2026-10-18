@@ -47,7 +47,10 @@ from sqlalchemy.orm import Session
 from app.models import ReviewQueueItem
 
 ActionStyle = Literal["primary", "secondary", "destructive"]
-ActionOutcome = Literal["approved", "rejected"]
+# "snoozed" is for "not now, ask me again later" buttons (Remind me on…,
+# Not yet - next week): the card closes for now, but nothing was approved or
+# refused, so it mustn't count towards either in the stats.
+ActionOutcome = Literal["approved", "rejected", "snoozed"]
 
 
 @dataclass(frozen=True)
@@ -98,6 +101,12 @@ class ReviewAction:
     # anything that writes to multiple records or can't be undone from
     # the UI (a merge, a multi-record successor update).
     confirm_message: str | None = None
+    # Whether a card closed with this button can be put back in Pending
+    # ("Reopen for review"). Only safe when the button changed nothing - a
+    # button that wrote something (set a date, added a note, told someone)
+    # would just do it again if the card were reopened and pressed again.
+    # Off by default so a new button is never reopenable by accident.
+    reopenable: bool = False
 
 
 @dataclass(frozen=True)

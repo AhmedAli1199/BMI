@@ -80,6 +80,7 @@ BASE_FIELDS: list[FieldDef] = [
     _t("is_unsubscribed", "Unsubscribed", "Status", bulk=True, kind="bool"),
     _t("is_email_opted_out", "Opted out of email", "Status", bulk=True, kind="bool"),
     _t("has_bounced", "Email bounced", "Status", kind="bool"),
+    _t("has_left", "Left the company", "Status", bulk=True, kind="bool"),
     _t("is_private", "Private", "Status", bulk=True, kind="bool"),
     _t("birthdate", "Birthday", "Dates", kind="date"),
     _t("created_at", "Added to the CRM", "Dates", kind="date"),

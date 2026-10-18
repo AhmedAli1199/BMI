@@ -39,7 +39,6 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations import runtime_settings
 from app.automations.company_match import domain_of, suggest_company
 from app.automations.contact_match import find_contact_by_email
@@ -124,6 +123,9 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
         source_db = chosen
     elif not source_db:
         raise ValueError("This item is missing its source database - it may be stale.")
+    # Everything is created in the database the mailbox belongs to (from "address:db" in the mailbox settings, or
+    # the one the reviewer picked for a shared "address:*" inbox) - the same database the company and group
+    # suggestions came from - never the "manual" catch-all.
 
     company_name = (input_data.get("company_name") or "").strip()
     company = _find_or_create_company(db, source_db, company_name) if company_name else None
@@ -131,7 +133,7 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
 
     parts = name.split(maxsplit=1)
     contact = Contact(
-        id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+        id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
         first_name=parts[0], last_name=parts[1] if len(parts) > 1 else None, full_name=name,
         job_title=job_title, company_id=company.id if company else None, custom_fields={},
     )
@@ -139,7 +141,7 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
     db.flush()
 
     if sender_email:
-        db.add(Email(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+        db.add(Email(id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
                       contact_id=contact.id, type_label="Business", address=sender_email, is_primary=True))
 
     phone = (input_data.get("phone") or "").strip()
@@ -148,10 +150,10 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
     # sign-off number is usually a mobile), but only mark one primary -
     # whichever one exists when the other doesn't.
     if phone:
-        db.add(Phone(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+        db.add(Phone(id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
                       contact_id=contact.id, type_label="Business", number=phone, is_primary=not mobile))
     if mobile:
-        db.add(Phone(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+        db.add(Phone(id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
                       contact_id=contact.id, type_label="Mobile", number=mobile, is_primary=True))
 
     # Whatever the reviewer typed (pre-filled from suggestions computed
@@ -173,7 +175,7 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
             db.add(GroupMembership(id=uuid.uuid4(), group_id=newsletter_group.id, contact_id=contact.id))
 
     db.add(Note(
-        id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
+        id=uuid.uuid4(), source_db=source_db, source_act_id=str(uuid.uuid4()),
         entity_type="contact", entity_id=contact.id, note_type="Inbound enquiry",
         body=f"Captured from an inbound email to a monitored mailbox.\n\nOriginal message:\n{item.payload.get('original_text', '(not captured)')}",
         act_created_at=datetime.now(timezone.utc),
@@ -202,7 +204,7 @@ register(ReviewKind(
                 ExtraField(key="newsletter", label="Subscribe to newsletter", field_type="bool", required=False),
             ],
         ),
-        ReviewAction(id="ignore", label="Not a lead, ignore", style="secondary", outcome="rejected"),
+        ReviewAction(id="ignore", label="Not a lead, ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_create_contact,
     audience="sales",

@@ -1077,49 +1077,49 @@
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:175",
+   "src": "app/(app)/automations/review/page.tsx:177",
    "kind": "link",
    "label": "All"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:264",
+   "src": "app/(app)/automations/review/page.tsx:266",
    "kind": "link",
    "label": "(selected)"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:296",
+   "src": "app/(app)/automations/review/page.tsx:298",
    "kind": "link",
    "label": ": … remove this filter"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:305",
+   "src": "app/(app)/automations/review/page.tsx:307",
    "kind": "link",
    "label": "Clear all filters"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:339",
+   "src": "app/(app)/automations/review/page.tsx:341",
    "kind": "link",
    "label": "Clear"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:384",
+   "src": "app/(app)/automations/review/page.tsx:386",
    "kind": "link",
    "label": "Clear"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:426",
+   "src": "app/(app)/automations/review/page.tsx:428",
    "kind": "link",
    "label": "View every automation →"
   },
   {
    "file": "app/(app)/automations/review/page.tsx",
-   "src": "app/(app)/automations/review/page.tsx:485",
+   "src": "app/(app)/automations/review/page.tsx:488",
    "kind": "link",
    "label": "Open … record"
   },
@@ -1317,7 +1317,7 @@
   },
   {
    "file": "app/(app)/contacts/[id]/page.tsx",
-   "src": "app/(app)/contacts/[id]/page.tsx:96",
+   "src": "app/(app)/contacts/[id]/page.tsx:97",
    "kind": "button",
    "label": "Write"
   },
@@ -6712,97 +6712,97 @@
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:403",
+   "src": "components/review-item-card.tsx:411",
    "kind": "link",
    "label": "View … record"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:553",
+   "src": "components/review-item-card.tsx:561",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:557",
+   "src": "components/review-item-card.tsx:565",
    "kind": "button",
    "label": "Working"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:721",
+   "src": "components/review-item-card.tsx:729",
    "kind": "link",
    "label": "View company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:734",
+   "src": "components/review-item-card.tsx:742",
    "kind": "button",
    "label": "Remove company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:765",
+   "src": "components/review-item-card.tsx:773",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:940",
+   "src": "components/review-item-card.tsx:948",
    "kind": "button",
    "label": "Clear groups"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:964",
+   "src": "components/review-item-card.tsx:972",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1093",
+   "src": "components/review-item-card.tsx:1101",
    "kind": "field",
    "label": "Which one do you want to keep?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1111",
+   "src": "components/review-item-card.tsx:1119",
    "kind": "link",
    "label": "View"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1141",
+   "src": "components/review-item-card.tsx:1149",
    "kind": "field",
    "label": "Contact"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1222",
+   "src": "components/review-item-card.tsx:1230",
    "kind": "field",
    "label": "Which BMI title does this belong to?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1260",
+   "src": "components/review-item-card.tsx:1268",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1276",
+   "src": "components/review-item-card.tsx:1284",
    "kind": "field",
    "label": "Note"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1288",
+   "src": "components/review-item-card.tsx:1296",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1291",
+   "src": "components/review-item-card.tsx:1299",
    "kind": "button",
    "label": "Working"
   },

@@ -11,7 +11,7 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 ## What you see
 **Review Queue**
 - The title shows the chosen automation's name, or "Review Queue", plus how many cards are waiting.
-- Tabs: **Pending** (the working queue), **Approved** and **Rejected** (what was decided, read-only).
+- Tabs: **Pending** (the working queue), **Approved**, **Rejected** and **Snoozed** (what was decided, read-only).
 - A row of chips: **All**, then one chip per kind of card, each with its waiting count. Kinds with nothing waiting are greyed and sit at the end.
 - The sort buttons on the right.
 - When one kind is chosen, you may also see:
@@ -23,7 +23,7 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 
 **Each pending card**
 - The kind of card in capitals. Some cards also show "<number>% confidence": green at 75% or more, amber from 45%, red below. Then how long ago it arrived.
-- A one-line summary, and **View contact record** or **View company record** if it's about one.
+- A one-line summary, and **View contact record** or **View company record** if it's about one. On a follow-up card this opens the contact (or company) the calendar activity is for.
 - The details. Blue values are links.
 - **Every record this affects (<number>)**: every contact or company it would touch.
 - **Researched candidate:** for a departure, the suggested successor.
@@ -31,7 +31,7 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 - The action buttons. Every link on a card opens in a new tab, so you keep your place.
 - When you act, the card turns green with the button's name and "Recorded on the CRM. Moving to the next item…", then disappears.
 
-**Approved and Rejected rows** show what was pressed, by whom ("· no reviewer recorded" if nobody was signed in), when, and any note. They also show **Open contact record** / **Open company record**, the person's name, company, email and phone, the details and the **Original message**.
+**Approved, Rejected and Snoozed rows** show what was pressed, by whom ("· no reviewer recorded" if nobody was signed in), when, and any note. They also show **Open contact record** / **Open company record**, the person's name, company, email and phone, the details and the **Original message**.
 
 **Today**
 - The title "Today", with a count. On the Everyone view the line starts "Everyone's list."
@@ -39,8 +39,8 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 - The same cards as in the Review Queue, best first.
 
 ## Buttons and controls
-### Pending / Approved / Rejected
-These tabs switch between the cards still waiting and the ones already decided. Every button counts as an approval or a rejection. "Dismiss", "Skip" and "Remind me…" style buttons count as rejected.
+### Pending / Approved / Rejected / Snoozed
+These tabs switch between the cards still waiting and the ones already decided. Every button counts as an approval, a rejection or a snooze. "Dismiss" and "Skip" style buttons count as rejected. "Remind me on…", "Not yet - next week" and other "ask me again later" buttons count as snoozed: the card closes for now and a new one comes back on the day, and the automation figures don't count it as rejected.
 
 ### All and the kind chips
 Click a chip to show only that kind of card. **All** shows every kind. Changing kind clears the filters, the Queue Insights group and any date sort.
@@ -82,7 +82,7 @@ For follow-ups, commercial signals and touchpoints, the main button **Approve & 
 These open the record in a new tab.
 
 ### Reopen for review
-On **Rejected** rows only. It puts the card back in Pending for another look. Approved cards can't be reopened, because their change has already been made.
+On **Rejected** rows whose button changed nothing (for example **Keep as separate contacts**, **Dismiss** or **Not a lead, ignore**). It puts the card back in Pending for another look. There's no reopen for approved or snoozed cards, or for rejected buttons that did something (for example **No invoice needed** adds a note and **Needs a fix** tells the salesperson), because pressing the button again would do it twice. Make any further change on the record itself.
 
 ### View every automation →
 On an empty filtered list, it goes back to every kind.
@@ -117,7 +117,7 @@ Note that bulk actions follow **Filter by:** and search, but not the Queue Insig
 A: Press **Send from my Outlook** on the card. Check **Send to**, edit the draft, then press the send button. It goes from your mailbox and is logged on the company.
 
 **Q: I dismissed something by mistake. Can I undo it?**
-A: Open the **Rejected** tab, find the row and press **Reopen for review**.
+A: Open the **Rejected** tab, find the row and press **Reopen for review**. If the row has no such button, what you pressed has already changed something - change it on the record itself.
 
 **Q: Who approved this merge?**
 A: Open the **Approved** tab and choose the kind. Each row says who pressed which button and when.
@@ -140,4 +140,4 @@ A: In **Review the draft**, type "make it shorter" in **Ask for a revision (opti
 - **"The draft is empty"** / **"Enter the email address to send this to."**: write something, or fill in **Send to**.
 - **I can't see a kind my colleague sees**: kinds depend on your role and the Accounts permission (see How it works).
 - **Only 100 cards show**: the page shows the first 100. Use filters or search to reach the rest.
-- **"Only a rejected item can be reopened"**: approved cards have already made their change and can't be reopened.
+- **"This card can't be reopened, because what was decided on it has already been carried out."**: the button pressed on it has already changed something (or the card was closed automatically). Make any further change on the record itself.

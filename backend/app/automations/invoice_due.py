@@ -184,10 +184,10 @@ register(ReviewKind(
         ReviewAction(id="invoiced", label="Already invoiced in Xero", style="secondary", outcome="approved", extra_fields=[
             ExtraField(key="invoice_number", label="Invoice number from Xero", placeholder="INV-3050"),
         ]),
-        ReviewAction(id="remind", label="Remind me on…", style="secondary", outcome="rejected", extra_fields=[
+        ReviewAction(id="remind", label="Remind me on…", style="secondary", outcome="snoozed", extra_fields=[
             ExtraField(key="remind_on", label="Remind me on", field_type="date"),
         ]),
-        ReviewAction(id="week", label="Not yet - next week", style="secondary", outcome="rejected"),
+        ReviewAction(id="week", label="Not yet - next week", style="secondary", outcome="snoozed"),
         ReviewAction(id="no_invoice", label="No invoice needed", style="secondary", outcome="rejected", requires_note=True),
     ],
     handler=_handle,

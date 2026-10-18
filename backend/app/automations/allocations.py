@@ -167,7 +167,7 @@ register(ReviewKind(
     description="Bookings with items sold but not yet given an issue, as their 'decide by' date or the title's next booking deadline gets close.",
     actions=[
         ReviewAction(id="done", label="All allocated", style="primary", outcome="approved"),
-        ReviewAction(id="later", label="Remind me next week", style="secondary", outcome="rejected"),
+        ReviewAction(id="later", label="Remind me next week", style="secondary", outcome="snoozed"),
     ],
     handler=_handle,
     audience="sales",

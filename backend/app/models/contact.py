@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, false
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -73,6 +73,8 @@ class Contact(Base, UUIDPk, ProvenanceMixin, TimestampMixin):
     # currently has no historical bounce signal to start from.
     is_email_opted_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     has_bounced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Confirmed as having left their company (a departure card, or "Mark as departed").
+    has_left: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     engagement_score: Mapped[int | None] = mapped_column(Integer)  # Act!'s AMA_SCORE
 
     # Decoded custom fields, keyed by real label - see Company.custom_fields

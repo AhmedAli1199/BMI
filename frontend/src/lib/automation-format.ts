@@ -36,3 +36,18 @@ export function pctChange(current: number, previous: number | null): number | nu
 
 export const WORKSTREAM_IDS = ["sales", "capture", "business-cards", "hygiene", "revenue"] as const;
 export type WorkstreamId = (typeof WORKSTREAM_IDS)[number];
+
+/** Where a review card's "View … record" link goes. Contacts and companies have their own page; a follow-up card
+ * is about a calendar activity, which has none, so it opens the contact (or company) the activity is for. */
+export function reviewRecordLink(item: {
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: { related_entities?: { type: "contact" | "company"; id: string }[] };
+}): { href: string; label: string } | null {
+  if (!item.entity_type || !item.entity_id) return null;
+  if (item.entity_type === "contact") return { href: `/contacts/${item.entity_id}`, label: "contact" };
+  if (item.entity_type === "company") return { href: `/companies/${item.entity_id}`, label: "company" };
+  const linked = item.payload.related_entities?.[0];
+  if (!linked) return null;
+  return { href: `/${linked.type === "contact" ? "contacts" : "companies"}/${linked.id}`, label: linked.type };
+}
