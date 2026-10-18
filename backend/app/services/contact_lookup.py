@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 import re
 
-from sqlalchemy import exists, func, not_, or_, select, text
+from sqlalchemy import Text, cast, exists, func, literal_column, not_, or_, select, text, union
 from sqlalchemy.orm import Session
 
 from app.models import Company, Contact, Email, GroupMembership
@@ -60,32 +60,40 @@ def _group_subtree(db: Session, group_id: uuid.UUID) -> list:
     ), {"gid": str(group_id)}).scalars().all()
 
 
+# Each must match an index in alembic 0061_search_speed.py exactly, so every search word is an index lookup per table
+# (not a read of every contact). Words are split on spaces, so joining fields with a space can't make a false match.
+SEARCH_CONTACT_TEXT = ("(coalesce(contacts.full_name, '') || ' ' || coalesce(contacts.first_name, '') || ' ' || coalesce(contacts.last_name, '') || ' ' || "
+                       "coalesce(contacts.job_title, '') || ' ' || coalesce(contacts.company_name_freetext, '') || ' ' || coalesce(contacts.department, '') || ' ' || "
+                       "coalesce(contacts.category, '') || ' ' || coalesce(contacts.referred_by, ''))")
+SEARCH_ADDRESS_TEXT = ("(coalesce(addresses.line1, '') || ' ' || coalesce(addresses.line2, '') || ' ' || coalesce(addresses.line3, '') || ' ' || "
+                       "coalesce(addresses.city, '') || ' ' || coalesce(addresses.state, '') || ' ' || coalesce(addresses.postal_code, '') || ' ' || "
+                       "coalesce(addresses.country, ''))")
+
+
 def _quick_match(token: str):
     """One search word against every field a person would look in: name, job, company, email, phone
     (digits only is fine - "020 7946" finds "+44 (0)20 7946..."), address, postcode, and the
     Act! custom fields. Notes aren't searched here (too slow) - use the advanced search's
-    "Notes" field for that."""
+    "Notes" field for that. Built as one list of matching contact ids from each table, each found through its own index."""
     esc = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     like = f"%{esc}%"
     digits = re.sub(r"\D", "", token)
     phone_hit = Phone.number.ilike(like, escape="\\")
     if len(digits) >= 4:
-        phone_hit = or_(phone_hit, func.regexp_replace(Phone.number, r"\D", "", "g").like(f"%{digits}%"))
-    addr_hit = or_(*[c.ilike(like, escape="\\") for c in (Address.line1, Address.line2, Address.line3, Address.city,
-                                                           Address.state, Address.postal_code, Address.country)])
-    clauses = [c.ilike(like, escape="\\") for c in (
-        Contact.full_name, Contact.first_name, Contact.last_name, Contact.job_title, Contact.company_name_freetext,
-        Contact.department, Contact.category, Contact.referred_by)]
-    clauses += [
-        Contact.company_id.in_(select(Company.id).where(Company.name.ilike(like, escape="\\"))),
-        Contact.id.in_(select(Email.contact_id).where(Email.address.ilike(like, escape="\\"))),
-        Contact.id.in_(select(Phone.contact_id).where(phone_hit)),
-        Contact.id.in_(select(Address.contact_id).where(addr_hit)),
+        phone_hit = or_(phone_hit, func.regexp_replace(Phone.number, literal_column("'\\D'"), literal_column("''"), literal_column("'g'")).like(f"%{digits}%"))
+    parts = [
+        select(Contact.id).where(literal_column(SEARCH_CONTACT_TEXT).ilike(like, escape="\\")),
+        select(Contact.id).where(Contact.company_id.in_(select(Company.id).where(Company.name.ilike(like, escape="\\")))),
+        select(Email.contact_id).where(Email.contact_id.isnot(None), Email.address.ilike(like, escape="\\")),
+        select(Phone.contact_id).where(Phone.contact_id.isnot(None), phone_hit),
+        select(Address.contact_id).where(Address.contact_id.isnot(None), literal_column(SEARCH_ADDRESS_TEXT).ilike(like, escape="\\")),
     ]
     if len(token) >= 3:
         kv = func.jsonb_each_text(Contact.custom_fields).table_valued("key", "value").alias("kv")
-        clauses.append(exists(select(1).select_from(kv).where(kv.c.value.ilike(like, escape="\\"), not_(kv.c.key.like("\\_%", escape="\\")))).correlate(Contact))
-    return or_(*clauses)
+        parts.append(select(Contact.id).where(
+            cast(Contact.custom_fields, Text).ilike(like, escape="\\"),   # the index narrows it down; the line below checks values only
+            exists(select(1).select_from(kv).where(kv.c.value.ilike(like, escape="\\"), not_(kv.c.key.like("\\_%", escape="\\")))).correlate(Contact)))
+    return Contact.id.in_(union(*parts))
 
 
 def apply_filters(db: Session, stmt, f: LookupFilters):

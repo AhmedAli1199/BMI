@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ActivitiesPage, ActivityCreate, ActivityOut, ActivityUpdate
@@ -106,7 +106,7 @@ def list_activities(
     if company_id:
         stmt = stmt.where(Activity.company_id == company_id)
 
-    total = len(db.scalars(stmt).all())
+    total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
     # Most-recent-first, not oldest-first: the migrated backlog goes back
     # to 2009 for some records, and an ascending sort buried everything
     # actually current under 15+ years of stale, long-uncleared tasks on

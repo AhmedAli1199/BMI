@@ -12,7 +12,7 @@ import { BrainProvider } from "@/components/brain/brain-provider";
 import { getPublicationFilter } from "@/lib/publication";
 import { listPublications } from "@/lib/actions";
 import { allowedSourceDbSlugs, canUseAutomations } from "@/lib/access";
-import { backendFetch } from "@/lib/backend";
+import { CACHED, backendFetch } from "@/lib/backend";
 import type { ScheduledJob, WorkstreamSummary } from "@/lib/types";
 import type { SectionKey, SectionsInfo } from "@/lib/sections";
 import { SectionGate } from "@/components/section-gate";
@@ -40,7 +40,7 @@ export default async function AppLayout({
       : Promise.resolve(0),
     // Sections an admin has hidden for this person's role; admins always get none.
     session && session.role !== "admin"
-      ? backendFetch<SectionsInfo>("/api/ui/sections").then((r) => r.mine).catch(() => [] as SectionKey[])
+      ? backendFetch<SectionsInfo>("/api/ui/sections", CACHED.sections).then((r) => r.mine).catch(() => [] as SectionKey[])
       : Promise.resolve([] as SectionKey[]),
   ]);
   // Same rule as the dashboard's own tiles (page.tsx) - a non-admin only

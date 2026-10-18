@@ -41,6 +41,13 @@ export async function getIdentityHeaders(): Promise<Record<string, string>> {
   return identityHeaders;
 }
 
+/** Rarely-changing lists read by every page (the menu, the title switcher). Cached for a few minutes; the server
+ * actions that change them call updateTag(tag) so the change shows straight away. */
+export const CACHED: Record<"publications" | "sections", RequestInit> = {
+  publications: { next: { revalidate: 300, tags: ["publications"] } },
+  sections: { next: { revalidate: 300, tags: ["sections"] } },
+};
+
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     const identityHeaders = await getIdentityHeaders();
@@ -48,7 +55,9 @@ export async function backendFetch<T>(path: string, init?: RequestInit): Promise
     const res = await fetch(`${BACKEND_API_URL}${path}`, {
       ...init,
       headers: { "X-API-Key": BACKEND_API_KEY, ...identityHeaders, ...init?.headers },
-      cache: "no-store",
+      // Always fresh, unless the caller asks for a short cache (see CACHED) - kept per person, since the identity
+      // headers are part of what a cached response is matched on.
+      ...(init?.next ? {} : { cache: "no-store" as const }),
     });
     if (!res.ok) {
       const rawBody = await res.text().catch(() => "");

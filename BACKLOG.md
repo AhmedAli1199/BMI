@@ -11,12 +11,12 @@ delete them once actually done (and note it in the relevant commit instead).
 - [ ] Proposal library + personal style + drafting agent + learning loop + detailed (RFP) proposals. Full plan: `docs/proposal-ai-plan.md`. Build together with the AI Hub chat and SALES-023, after the remaining automations and BMI feedback items. Needs Ahmed's go-ahead.
 
 
-## Performance / scalability pass — parked (2026-09-18)
+## Performance / scalability pass — parked (2026-09-18); main items done 18 Oct (see HANDOFF)
 
 Discussed but deliberately deferred to focus on automations. Concrete,
 already-diagnosed findings to act on later, not vague "make it faster":
 
-- [ ] **`cache: "no-store"` is hardcoded on every single backend fetch**
+- [x] (18 Oct: callers can now pass `next`; publications + hidden sections cached 5 min with tags) **`cache: "no-store"` is hardcoded on every single backend fetch**
       (`frontend/src/lib/backend.ts`) — zero use of Next.js's Data Cache
       or time-based revalidation anywhere. This is almost certainly the
       actual cause of "feels slow navigating cold" more than anything
@@ -26,11 +26,11 @@ already-diagnosed findings to act on later, not vague "make it faster":
       and lean on the `revalidatePath` calls already in `lib/actions.ts`
       for precise invalidation on write — that plumbing already exists,
       it's just not paired with any cache to invalidate.
-- [ ] **Missing composite indexes** on the actual filter+sort patterns in
+- [x] (18 Oct, migration 0061) **Missing composite indexes** on the actual filter+sort patterns in
       use: `contacts(source_db, last_name, first_name)` (used by
       `list_contacts`'s `ORDER BY` at ~118k rows, currently unindexed) and
       `companies(source_db, name)`.
-- [ ] **Search can't use a normal index** — `ILIKE '%term%'` (leading
+- [x] (18 Oct: trigram indexes per table, search built as a union of index lookups) **Search can't use a normal index** — `ILIKE '%term%'` (leading
       wildcard) is structurally un-indexable by a plain btree. Fix:
       `pg_trgm` extension + a GIN trigram index on the searched columns.
       Small, standard, boring — the correct fix at this scale, not a

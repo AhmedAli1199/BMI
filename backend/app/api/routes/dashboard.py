@@ -179,16 +179,18 @@ def get_dashboard_stats(
     # Contacts counted per company must respect the same publication filter -
     # otherwise switching to one title would still rank companies by their
     # total contact count across every title.
-    contact_count_subq = (
-        select(func.count(Contact.id))
-        .where(Contact.company_id == Company.id, *contact_filter)
-        .correlate(Company)
-        .scalar_subquery()
+    # Counted once over the contacts table (grouped), not once per company - quick at 100k+ contacts.
+    per_company = (
+        select(Contact.company_id.label("company_id"), func.count().label("n"))
+        .where(Contact.company_id.isnot(None), *contact_filter)
+        .group_by(Contact.company_id)
+        .subquery()
     )
     top_companies_rows = db.execute(
-        select(Company, contact_count_subq.label("contact_count"))
+        select(Company, per_company.c.n)
+        .join(per_company, per_company.c.company_id == Company.id)
         .where(*company_filter)
-        .order_by(contact_count_subq.desc())
+        .order_by(per_company.c.n.desc(), Company.name)
         .limit(TOP_COMPANIES_LIMIT)
     ).all()
     top_companies = [

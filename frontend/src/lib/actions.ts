@@ -1,8 +1,8 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
-import { backendFetch } from "@/lib/backend";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHED, backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
 import { PUBLICATION_COOKIE } from "@/lib/publication";
 import type {
@@ -691,7 +691,7 @@ export async function updateUserPreferences(userId: string, values: Record<strin
 
 export async function listPublications(): Promise<Publication[]> {
   try {
-    return await backendFetch<Publication[]>("/api/publications");
+    return await backendFetch<Publication[]>("/api/publications", CACHED.publications);
   } catch {
     return [
       {
@@ -739,6 +739,7 @@ export async function createPublication(input: PublicationFormInput) {
   // Every page that shows the publication list/switcher/tiles needs this -
   // simplest correct thing is to revalidate everywhere it can appear
   // rather than track each one individually.
+  updateTag("publications");
   revalidatePath("/", "layout");
   return publication;
 }

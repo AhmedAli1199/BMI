@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { backendFetch } from "@/lib/backend";
 import type { SectionKey, SectionsInfo } from "@/lib/sections";
 
@@ -10,6 +10,7 @@ export async function saveHiddenSections(hidden: Record<string, SectionKey[]>, u
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hidden, users }),
   });
+  updateTag("sections");
   revalidatePath("/", "layout");
   return out;
 }
