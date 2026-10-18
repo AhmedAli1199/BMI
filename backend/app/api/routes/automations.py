@@ -266,7 +266,7 @@ def confirm_business_card_batch(batch_id: str, db: Session = Depends(get_db)) ->
     try:
         return resolve_batch(db, batch_id)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc  # our own plain sentence ("Enter a number.")
 
 
 @router.post("/returned-copies/upload")
@@ -307,11 +307,11 @@ def update_automation_setting(key: str, payload: AutomationSettingUpdate, db: Se
     tick or "Run now" click, never requiring a restart."""
     d = get_def(key)
     if not d:
-        raise HTTPException(status_code=404, detail=f"No editable automation setting {key!r}")
+        raise HTTPException(status_code=404, detail="That setting doesn't exist.")
     try:
         runtime_settings.set_override(db, key, payload.value)
     except (ValueError, TypeError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc  # our own plain sentence ("Enter a number.")
     db.commit()
     value = runtime_settings.effective_value(db, key)
     default = getattr(settings, key)
@@ -327,7 +327,7 @@ def reset_automation_setting(key: str, db: Session = Depends(get_db), _admin: Id
     default - the "reset to default" action in the UI."""
     d = get_def(key)
     if not d:
-        raise HTTPException(status_code=404, detail=f"No editable automation setting {key!r}")
+        raise HTTPException(status_code=404, detail="That setting doesn't exist.")
     runtime_settings.clear_override(db, key)
     db.commit()
     value = runtime_settings.effective_value(db, key)

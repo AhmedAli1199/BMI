@@ -22,9 +22,24 @@ import { friendlyError } from "@/lib/errors";
  * rendering any automation's actions from its registered kind. A brand-new
  * setting (app/automations/settings_registry.py) shows up here with zero
  * frontend changes. */
+/** A setting's value in words, for "Reset to default (…)": On/Off, the number as written, text in quotes. */
+function inWords(v: boolean | number | string): string {
+  if (typeof v === "boolean") return v ? "On" : "Off";
+  if (typeof v === "number") return String(v);
+  return v.trim() ? `“${v}”` : "blank";
+}
+
 export function AutomationSettingField({ setting, readOnly = false }: { setting: AutomationSetting; readOnly?: boolean }) {
   const [value, setValue] = useState(setting.value);
   const [pending, startTransition] = useTransition();
+  // Number boxes keep what's typed as text, so an emptied or half-typed box is never saved as a broken value.
+  const [numText, setNumText] = useState(String(setting.value));
+  const num = numText.trim() === "" ? NaN : Number(numText);
+  const numProblem = !Number.isFinite(num) ? "Enter a number."
+    : setting.type === "int" && !Number.isInteger(num) ? "Enter a whole number."
+    : setting.min != null && num < setting.min ? `Enter ${setting.min} or more.`
+    : setting.max != null && num > setting.max ? `Enter ${setting.max} or less.`
+    : null;
 
   function save(next: boolean | number | string = value) {
     startTransition(async () => {
@@ -42,6 +57,7 @@ export function AutomationSettingField({ setting, readOnly = false }: { setting:
       try {
         await resetAutomationSetting(setting.key);
         setValue(setting.default);
+        setNumText(String(setting.default));
         toast.success(`${setting.label} reset to default`);
       } catch (e) {
         toast.error(friendlyError(e, "Couldn't reset that setting"));
@@ -75,7 +91,7 @@ export function AutomationSettingField({ setting, readOnly = false }: { setting:
         {setting.is_overridden && !readOnly && (
           <Button size="sm" variant="outline" disabled={pending} onClick={reset}>
             <RotateCcw className="size-3.5" />
-            Reset to default ({String(setting.default)})
+            Reset to default ({inWords(setting.default)})
           </Button>
         )}
       </div>
@@ -97,23 +113,28 @@ export function AutomationSettingField({ setting, readOnly = false }: { setting:
       )}
 
       {(setting.type === "int" || setting.type === "float") && (
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            className="h-8 w-32 text-sm"
-            step={setting.type === "float" ? 0.01 : 1}
-            min={setting.min ?? undefined}
-            max={setting.max ?? undefined}
-            value={String(value)}
-            disabled={pending || readOnly}
-            onChange={(e) => setValue(e.target.valueAsNumber)}
-          />
-          {!readOnly && (
-            <Button size="sm" disabled={pending || value === setting.value} onClick={() => save()}>
-              <Save className="size-3.5" />
-              Save
-            </Button>
-          )}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              className="h-8 w-32 text-sm"
+              step={setting.type === "float" ? 0.01 : 1}
+              min={setting.min ?? undefined}
+              max={setting.max ?? undefined}
+              value={numText}
+              disabled={pending || readOnly}
+              aria-invalid={!!numProblem}
+              aria-describedby={numProblem ? `${setting.key}-hint` : undefined}
+              onChange={(e) => setNumText(e.target.value)}
+            />
+            {!readOnly && (
+              <Button size="sm" disabled={pending || !!numProblem || num === setting.value} onClick={() => save(num)}>
+                <Save className="size-3.5" />
+                Save
+              </Button>
+            )}
+          </div>
+          {numProblem && !readOnly && <p id={`${setting.key}-hint`} className="text-xs text-destructive">{numProblem}</p>}
         </div>
       )}
 

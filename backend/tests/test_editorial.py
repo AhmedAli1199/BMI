@@ -64,7 +64,7 @@ def test_tbtm_dates_from_rules_are_flagged(client, db_session, world):
     tbtm = next(b for b in pl["brands"] if b["key"] == "tbtm")
     spring = next(i for row in tbtm["rows"] for i in row["issues"] if i["name"] == "Spring issue")
     assert spring["copy_deadline"] == "2026-02-25" and spring["needs_check"]
-    assert {"label": "Sponsored content deadline", "date": "2026-02-18"} in spring["milestones"]
+    assert {"label": "Sponsored content deadline", "date": "2026-02-18", "rule": "sponsored"} in spring["milestones"]
     dinners = [i for row in tbtm["rows"] for i in row["issues"] if i["name"].startswith("Dinner Club")]
     assert len(dinners) == 4 and not dinners[0]["needs_check"]
 
@@ -87,7 +87,7 @@ def test_issue_crud_features_and_rights(client, db_session, world):
     r = client.post("/api/editorial/issues", json={"brand": "obh", "title_id": str(world["obh"].id), "year": 2027, "name": "109", "edition_date": "2027-03-18"}, headers=h)
     assert r.status_code == 201, r.text
     iss = r.json()
-    assert iss["ad_deadline"] == "2027-03-09" and iss["milestones"] == [{"label": "Press day", "date": "2027-03-15"}]
+    assert iss["ad_deadline"] == "2027-03-09" and iss["milestones"] == [{"label": "Press day", "date": "2027-03-15", "rule": "press"}]
     assert iss["settings"]["regular_sections"][0]["name"] == "Retail" and iss["can_delete"]
     assert client.post("/api/editorial/issues", json={"brand": "obh", "title_id": str(world["obh"].id), "year": 2027, "name": "109"}, headers=h).status_code == 409
     # features
@@ -106,6 +106,58 @@ def test_issue_crud_features_and_rights(client, db_session, world):
     assert client.patch(f"/api/editorial/issues/{iss['id']}", json={"theme": "x"}, headers=world["kirsty"]).status_code == 403
     assert client.post(f"/api/editorial/issues/{iss['id']}/features", json={"title": "x"}, headers=world["kirsty"]).status_code == 403
     assert client.delete(f"/api/editorial/issues/{iss['id']}", headers=h).status_code == 204
+
+
+def _rules(client, h, press_label="Press day"):
+    r = client.put("/api/editorial/brands/obh/settings", headers=h, json={"deadline_rules": [
+        {"key": "advertising", "label": "Advertising deadline", "kind": "days_before", "value": 9},
+        {"key": "editorial", "label": "Editorial deadline", "kind": "days_before", "value": 28},
+        {"key": "press", "label": press_label, "kind": "days_before", "value": 3}]})
+    assert r.status_code == 200
+
+
+def test_moving_the_date_moves_year_and_rule_deadlines_but_not_typed_ones(client, db_session, world):
+    h = world["admin"]
+    _rules(client, h)
+    iss = client.post("/api/editorial/issues", json={"brand": "obh", "title_id": str(world["obh"].id), "year": 2026, "name": "Winter",
+                                                     "edition_date": "2026-12-10", "editorial_deadline": "2026-11-01"}, headers=h).json()
+    assert iss["ad_deadline"] == "2026-12-01" and iss["editorial_deadline"] == "2026-11-01"  # editorial typed by hand
+    ms = iss["milestones"] + [{"label": "Launch party", "date": "2026-12-05"}]
+    client.patch(f"/api/editorial/issues/{iss['id']}", json={"milestones": ms}, headers=h)
+    # saving the "Change dates" form: everything is sent, only the publication date changed - into the next year
+    det = client.patch(f"/api/editorial/issues/{iss['id']}", headers=h, json={
+        "edition_date": "2027-01-14", "ad_deadline": iss["ad_deadline"], "editorial_deadline": "2026-11-01", "copy_deadline": None, "milestones": ms}).json()
+    assert det["year"] == 2027 and det["ad_deadline"] == "2027-01-05" and det["editorial_deadline"] == "2026-11-01"
+    assert det["milestones"] == [{"label": "Press day", "date": "2027-01-11", "rule": "press"}, {"label": "Launch party", "date": "2026-12-05", "rule": None}]
+    pl = client.get("/api/editorial/planner?year=2027", headers=h).json()
+    assert any(i["id"] == iss["id"] for b in pl["brands"] for row in b["rows"] for i in row["issues"])
+    # a deadline the person changes in the same save as the date is kept
+    det = client.patch(f"/api/editorial/issues/{iss['id']}", headers=h, json={"edition_date": "2027-01-21", "ad_deadline": "2027-01-08"}).json()
+    assert det["ad_deadline"] == "2027-01-08" and det["milestones"][0]["date"] == "2027-01-18"
+    # can't move into a year that already has an issue with the same name
+    client.post("/api/editorial/issues", json={"brand": "obh", "title_id": str(world["obh"].id), "year": 2028, "name": "Winter"}, headers=h)
+    assert client.patch(f"/api/editorial/issues/{iss['id']}", json={"edition_date": "2028-01-20"}, headers=h).status_code == 409
+
+
+def test_undated_issue_gets_deadlines_when_dated(client, db_session, world):
+    h = world["admin"]
+    _rules(client, h)
+    iss = client.post("/api/editorial/issues", json={"brand": "obh", "title_id": str(world["obh"].id), "year": 2027, "name": "Spring"}, headers=h).json()
+    assert iss["ad_deadline"] is None and iss["milestones"] == []
+    det = client.patch(f"/api/editorial/issues/{iss['id']}", json={"edition_date": "2027-04-15"}, headers=h).json()
+    assert det["ad_deadline"] == "2027-04-06" and det["editorial_deadline"] == "2027-03-18" and det["milestones"][0]["rule"] == "press"
+
+
+def test_renamed_rule_updates_its_key_date_instead_of_adding_one(client, db_session, world):
+    h = world["admin"]
+    _rules(client, h)
+    iss = client.post("/api/editorial/issues", json={"brand": "obh", "title_id": str(world["obh"].id), "year": 2027, "name": "Summer",
+                                                     "edition_date": "2027-06-17"}, headers=h).json()
+    client.patch(f"/api/editorial/issues/{iss['id']}", json={"milestones": iss["milestones"] + [{"label": "Launch party", "date": "2027-06-10"}]}, headers=h)
+    _rules(client, h, press_label="Press day (print)")
+    det = client.post(f"/api/editorial/issues/{iss['id']}/apply-rules", headers=h).json()
+    assert det["milestones"] == [{"label": "Launch party", "date": "2027-06-10", "rule": None},
+                                 {"label": "Press day (print)", "date": "2027-06-14", "rule": "press"}]
 
 
 def test_next_year_numbers_issues_and_moves_dates(client, db_session, world):
@@ -129,3 +181,25 @@ def test_settings_validation(client, world):
     assert client.put("/api/editorial/brands/tbtm/settings", json=bad, headers=world["admin"]).status_code == 422
     assert client.put("/api/editorial/brands/tbtm/settings", json={"deadline_rules": []}, headers=world["kirsty"]).status_code == 200
     assert client.put("/api/editorial/brands/obh/settings", json={"deadline_rules": []}, headers=world["kirsty"]).status_code == 403
+
+
+def test_migration_tags_existing_rule_key_dates(client, db_session, world):
+    import importlib.util
+    from pathlib import Path
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    _rules(client, world["admin"])
+    e = SalesEdition(id=uuid.uuid4(), title_id=world["obh"].id, year=2031, name="Old", kind="issue",
+                     milestones=[{"label": "Press day", "date": "2031-03-15"}, {"label": "Party", "date": "2031-03-01"}])
+    db_session.add(e)
+    db_session.flush()
+    spec = importlib.util.spec_from_file_location("m0062", Path(__file__).parents[1] / "alembic/versions/0062_milestone_rule_keys.py")
+    mig = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mig)
+    with Operations.context(MigrationContext.configure(db_session.connection())):
+        mig.upgrade()
+    db_session.expire_all()
+    assert db_session.get(SalesEdition, e.id).milestones == [{"label": "Press day", "date": "2031-03-15", "rule": "press"},
+                                                             {"label": "Party", "date": "2031-03-01"}]

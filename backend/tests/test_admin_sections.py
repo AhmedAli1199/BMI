@@ -12,6 +12,24 @@ def test_only_admins_change_automation_settings(client, db_session):
     assert client.put("/api/automations/settings/sales_use_financial_year", json=body, headers=admin).status_code == 200
 
 
+def test_number_settings_refuse_empty_or_broken_values_plainly(client, db_session):
+    admin = identity_headers(make_user(db_session, role="admin"))
+    url = "/api/automations/settings/mail_merge_per_minute"
+    before = client.get("/api/automations/settings", headers=admin).json()
+    for bad, msg in ((None, "Enter a number."), ("", "Enter a number."), ("abc", "Enter a number."), ("NaN", "Enter a number."),
+                     ("Infinity", "Enter a number."), (True, "Enter a number."), (2.5, "Enter a whole number."),
+                     (0, "Mail merge emails per minute must be at least 1."), (31, "Mail merge emails per minute must be at most 30.")):
+        r = client.put(url, json={"value": bad}, headers=admin)
+        assert (r.status_code, r.json()["detail"]) == (422, msg), bad
+    assert client.get("/api/automations/settings", headers=admin).json() == before  # nothing was saved
+    # a raw NaN in the request body (JSON.stringify sends null, other callers may not)
+    r = client.put("/api/automations/settings/dedupe_confidence_floor", content='{"value": NaN}', headers={**admin, "Content-Type": "application/json"})
+    assert (r.status_code, r.json()["detail"]) == (422, "Enter a number.")
+    assert client.put(url, json={"value": "12"}, headers=admin).json()["value"] == 12
+    assert client.put("/api/automations/settings/dedupe_confidence_floor", json={"value": 0.8}, headers=admin).json()["value"] == 0.8
+    assert client.put("/api/automations/settings/not_a_setting", json={"value": 1}, headers=admin).json()["detail"] == "That setting doesn't exist."
+
+
 def test_admin_hides_sections_per_role(client, db_session):
     admin = identity_headers(make_user(db_session, role="admin"))
     sales = identity_headers(make_user(db_session, role="sales"))

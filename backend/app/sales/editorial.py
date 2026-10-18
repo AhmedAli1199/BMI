@@ -38,6 +38,49 @@ def compute_deadlines(rules: list[dict], pub: date | None) -> dict[str, date]:
     return out
 
 
+def rule_milestones(rules: list[dict], auto: dict[str, date]) -> list[dict]:
+    """Key dates made by the brand's own (non-standard) rules. Each remembers its rule's key, so renaming the rule
+    later still finds it."""
+    return [{"label": r["label"], "date": auto[r["key"]].isoformat(), "rule": r["key"]}
+            for r in rules or [] if r.get("key") and r["key"] not in STANDARD and auto.get(r["key"])]
+
+
+def reapply_rules(e, rules: list[dict]) -> None:
+    """"Use the usual rules": every deadline the rules give is worked out again from the publication date. Key dates made
+    by a rule are replaced (matched by the rule's key); key dates a person added stay."""
+    auto = compute_deadlines(rules, e.edition_date)
+    for key, col in STANDARD.items():
+        if key in auto:
+            setattr(e, col, auto[key])
+    keys = {r["key"] for r in rules or [] if r.get("key")}
+    kept = [m for m in (e.milestones or []) if m.get("rule") not in keys]
+    e.milestones = kept + rule_milestones(rules, auto)
+
+
+def follow_new_date(e, rules: list[dict], old_pub: date | None, typed: set[str] = frozenset()) -> None:
+    """The publication date just moved: deadlines the usual rules made for the old date move with it. One that doesn't
+    match the old working-out was set by hand and stays, as do the standard deadlines in `typed` (just changed by a person).
+    An issue that had no date before gets its empty deadlines filled, as a new issue would."""
+    if not e.edition_date:
+        return
+    new, old = compute_deadlines(rules, e.edition_date), compute_deadlines(rules, old_pub)
+    for key, col in STANDARD.items():
+        cur = getattr(e, col)
+        if key in new and col not in typed and ((cur is None and old_pub is None) or (cur is not None and cur == old.get(key))):
+            setattr(e, col, new[key])
+    by_rule = {r["key"]: r for r in rules or [] if r.get("key") and r["key"] not in STANDARD}
+    out, seen = [], set()
+    for m in e.milestones or []:
+        k = m.get("rule")
+        if k in by_rule and k in new and old.get(k) and m.get("date") == old[k].isoformat():
+            m = {**m, "label": by_rule[k]["label"], "date": new[k].isoformat()}
+        seen.add(k)
+        out.append(m)
+    if old_pub is None:
+        out += [m for m in rule_milestones(rules, new) if m["rule"] not in seen]
+    e.milestones = out
+
+
 def describe_rule(rule: dict) -> str:
     v = rule.get("value")
     if rule.get("kind") == "days_before":

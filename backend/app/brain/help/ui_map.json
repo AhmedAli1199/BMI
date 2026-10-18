@@ -2406,25 +2406,25 @@
   },
   {
    "file": "components/automation-setting-field.tsx",
-   "src": "components/automation-setting-field.tsx:76",
+   "src": "components/automation-setting-field.tsx:92",
    "kind": "button",
    "label": "Reset to default ( … )"
   },
   {
    "file": "components/automation-setting-field.tsx",
-   "src": "components/automation-setting-field.tsx:84",
+   "src": "components/automation-setting-field.tsx:100",
    "kind": "field",
    "label": "Enabled"
   },
   {
    "file": "components/automation-setting-field.tsx",
-   "src": "components/automation-setting-field.tsx:112",
+   "src": "components/automation-setting-field.tsx:131",
    "kind": "button",
    "label": "Save"
   },
   {
    "file": "components/automation-setting-field.tsx",
-   "src": "components/automation-setting-field.tsx:130",
+   "src": "components/automation-setting-field.tsx:151",
    "kind": "button",
    "label": "Save"
   },

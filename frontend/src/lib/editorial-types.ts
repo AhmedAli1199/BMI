@@ -1,4 +1,4 @@
-export type Milestone = { label: string; date: string };
+export type Milestone = { label: string; date: string; rule?: string | null };   // rule: the brand deadline rule that made it
 export type IssueKind = "issue" | "event" | "awards" | "guide";
 export type IssueFormat = "print_digital" | "print" | "digital" | "event" | "awards";
 

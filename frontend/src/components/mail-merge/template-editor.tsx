@@ -76,7 +76,7 @@ export function TemplateEditor({ draft, fields, titles }: { draft: TemplateDraft
     start(async () => {
       try {
         await saveTemplate({ name: d.name.trim(), subject: d.subject || null, body: d.body, shared: d.shared, brand: d.brand || null, title_id: d.title_id || null,
-          kind: d.kind, description: d.description || null }, d.id);
+          kind: d.kind, description: d.description || null, needs_check: false }, d.id);   // saved here = read through and checked
         setDirty(false);
         toast.success("Template saved");
         router.push("/mail-merge/templates");

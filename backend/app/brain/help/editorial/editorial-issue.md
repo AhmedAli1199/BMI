@@ -37,14 +37,14 @@ Starts a new proposal with this issue already chosen.
 In the amber banner, for people who can change this brand. Removes the "please check" warning once you've confirmed the dates. Changing any date yourself also removes it.
 
 ### Use the usual rules
-In Key dates. Works out the advertising, editorial and copy deadlines again from the publication date and the brand's usual rules, replacing what's there, and refreshes any extra rule-based key dates. It also removes the "please check" warning. Only shown for issues and guides that have a publication date, when the brand has rules set, to people who can change the brand.
+In Key dates. Works out the advertising, editorial and copy deadlines again from the publication date and the brand's usual rules, replacing what's there, and refreshes any extra rule-based key dates (found by the rule, so a renamed rule updates its date rather than adding a second one). Key dates you added yourself stay. It also removes the "please check" warning. Only shown for issues and guides that have a publication date, when the brand has rules set, to people who can change the brand.
 
 ### Change dates
 Opens the date fields for editing: the three deadlines and the publication date (issues and guides), or just the **Event day** / **Ceremony** for events and awards. Under **Other key dates**:
 - **Add a key date** adds a line - type what it is (for example "Entries close") and pick the date. The bin beside a line (**Remove this date**) takes it off.
 - The cross removes a line.
 
-Click **Save dates** to keep the changes, or **Cancel**. Lines with no name or no date are left out. Changing the publication date does not move the deadlines on its own - use **Use the usual rules** afterwards if you want them worked out again.
+Click **Save dates** to keep the changes, or **Cancel**. Lines with no name or no date are left out. Changing the publication date moves the deadlines that came from the usual rules with it, worked out again from the new date. Deadlines you typed yourself stay as they are; use **Use the usual rules** if you want those worked out again too. Moving the date into another year moves the issue to that year's plan.
 
 ### Features: Add
 Type a feature in the box and press Enter or click **Add**. You can paste a whole list - one per line, or separated by semicolons - and each becomes its own feature. Shift+Enter starts a new line without adding. New features start as Planned.
@@ -107,8 +107,8 @@ A: Click the feature's name, tick **Open to sponsors** and click **Save**.
 
 **Q: The publication date has moved. How do I update the deadlines?**
 A:
-1. Click **Change dates**, set the new publication date and click **Save dates**.
-2. Click **Use the usual rules** to work the deadlines out again from the new date.
+1. Click **Change dates**, set the new publication date and click **Save dates**. Deadlines that came from the usual rules move with it.
+2. If you had typed any deadline yourself and want it worked out from the rules too, click **Use the usual rules**.
 
 **Q: How do I find companies to chase for this issue?**
 A: Look at **Who should we pitch?** Start with **Haven't rebooked**, then **Booked the last issue** and **Fit a feature**. Click a name to open the company in a new tab, or use **Email** or **Draft a proposal**.

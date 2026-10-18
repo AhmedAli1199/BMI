@@ -13,6 +13,8 @@ event - simpler and more predictable to just always read current state.
 """
 from __future__ import annotations
 
+import math
+
 from sqlalchemy.orm import Session
 
 from app.automations.settings_registry import get_def
@@ -68,6 +70,24 @@ def effective_value(db: Session, key: str):
     return get_str(db, key)  # csv/text - the UI edits/shows this as its raw string
 
 
+def _number(value, *, whole: bool) -> int | float:
+    """A number box's value, or a ValueError with a plain message: an emptied box arrives as None or "", and
+    NaN/infinity would break every scan that reads the setting."""
+    if value is None or isinstance(value, bool) or (isinstance(value, str) and not value.strip()):
+        raise ValueError("Enter a number.")
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        raise ValueError("Enter a number.") from None
+    if not math.isfinite(n):
+        raise ValueError("Enter a number.")
+    if whole:
+        if n != int(n):
+            raise ValueError("Enter a whole number.")
+        return int(n)
+    return n
+
+
 def set_override(db: Session, key: str, value) -> None:
     setting_def = get_def(key)
     if not setting_def:
@@ -76,18 +96,12 @@ def set_override(db: Session, key: str, value) -> None:
     # fail the request, never silently corrupt what a scan reads next run.
     if setting_def.type == "bool":
         value = bool(value)
-    elif setting_def.type == "int":
-        value = int(value)
+    elif setting_def.type in ("int", "float"):
+        value = _number(value, whole=setting_def.type == "int")
         if setting_def.min is not None and value < setting_def.min:
-            raise ValueError(f"{setting_def.label} must be at least {setting_def.min}")
+            raise ValueError(f"{setting_def.label} must be at least {setting_def.min}.")
         if setting_def.max is not None and value > setting_def.max:
-            raise ValueError(f"{setting_def.label} must be at most {setting_def.max}")
-    elif setting_def.type == "float":
-        value = float(value)
-        if setting_def.min is not None and value < setting_def.min:
-            raise ValueError(f"{setting_def.label} must be at least {setting_def.min}")
-        if setting_def.max is not None and value > setting_def.max:
-            raise ValueError(f"{setting_def.label} must be at most {setting_def.max}")
+            raise ValueError(f"{setting_def.label} must be at most {setting_def.max}.")
     else:
         value = str(value)
 
