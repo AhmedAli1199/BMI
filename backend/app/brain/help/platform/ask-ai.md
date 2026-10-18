@@ -32,6 +32,16 @@ The same chat, full size, with your conversations listed on the left and **New c
 - **Celebrations**: a short cheer when you confirm a booking, send a confirmation (or note it as sent) or clear the Review Queue. It disappears after a few seconds.
 - Both tips and celebrations can be switched off in **Settings**, under **The Brain** (**Tips from the Brain** and **Small celebrations**).
 
+### Things the Brain can do for you (cards)
+Ask the Brain to do something and it puts a card under its answer showing exactly what will happen. **Nothing happens until you press the card's button**; **Cancel** leaves everything as it was, and so does asking something else or leaving the card for a day. What it can offer:
+- **Set a reminder** - for you, optionally about a contact or company ("remind me on Friday to chase Daniel").
+- **Add a note**, or **log a call or meeting**, on a contact or company (**Save it**).
+- **Send an email** to a contact from your own Outlook - you see the whole email first (**Send it**). Needs Outlook connected in Settings; it's recorded on the contact like a mail merge email.
+- **Start a booking** - **Open the booking form** opens the new booking filled in with the client (and a proposal's products), for you to check and save.
+- **Press a Review Queue card's button** for you, when it needs no extra choices.
+- **Switch an automation on or off** - administrators only.
+The card links to the records it mentions (they open in a new tab) and, once done, says what happened. It checks your permissions again when you press the button.
+
 ## Buttons and controls
 ### Ask the Brain (button) / Ctrl+J
 Opens the panel. **Ctrl+J** opens or closes it from any page.

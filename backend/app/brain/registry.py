@@ -43,6 +43,8 @@ class ToolEnv:
     db: Session
     identity: Identity
     user: Any   # app.models.User
+    session_id: str | None = None        # this turn (action cards are collected under it - app/brain/actions.py)
+    conversation_id: str | None = None
 
 
 @dataclass
@@ -98,7 +100,8 @@ def brain_tool(label: str, read_only: bool = True):
             db = session_factory()
             try:
                 user = db.get(User, uuid.UUID(state["user_id"])) if state.get("user_id") else None
-                out = fn(ToolEnv(db=db, identity=identity, user=user), **kwargs)
+                out = fn(ToolEnv(db=db, identity=identity, user=user, session_id=tool_context.session.id,
+                                 conversation_id=state.get("conversation_id")), **kwargs)
             except ToolError as e:
                 ok, out = False, {"error": str(e)}
             except Exception:

@@ -22,7 +22,7 @@ from app.models.note import Note
 from app.models.opportunity import Opportunity
 from app.models.contact_tools import BulkEdit, ContactImport
 from app.models.feedback import Feedback, FeedbackImage
-from app.models.brain import BrainConversation, BrainImage, BrainMessage
+from app.models.brain import BrainAction, BrainConversation, BrainImage, BrainMessage
 from app.models.proposal import Proposal, ProposalExample, WritingProfile
 from app.models.publication import Publication
 from app.models.review_queue import ReviewQueueItem
@@ -65,6 +65,7 @@ __all__ = [
     "EmailThreadState",
     "FieldChange",
     "AutomationJobRun",
+    "BrainAction",
     "BrainConversation",
     "BrainImage",
     "BrainMessage",

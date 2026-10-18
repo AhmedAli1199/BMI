@@ -4,17 +4,33 @@ import type { FeedbackElement } from "@/lib/feedback-types";
 export type BrainContext = {
   page_path?: string;
   page_title?: string;
-  mode?: "chat" | "ask";
+  mode?: "chat" | "ask" | "card";
   record?: { kind: string; id: string; label?: string };
   elements?: FeedbackElement[];
   errors?: { message: string }[];
+};
+
+/** Something the Brain offered to do (Phase 4) - a card the person confirms; nothing happens before that. */
+export type BrainAction = {
+  id: string;
+  kind: string;
+  title: string;
+  lines: [string, string][];
+  links: { label: string; href: string }[];
+  confirm: string;
+  status: "pending" | "done" | "cancelled" | "failed" | "expired";
+  result: { text?: string; links?: { label: string; href: string }[] };
+  expires_at: string | null;
 };
 
 export type BrainMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-  context: { suggestions?: string[]; show?: string[]; links?: { label: string; href: string }[] } & BrainContext;
+  context: {
+    suggestions?: string[]; show?: string[]; links?: { label: string; href: string }[];
+    actions?: BrainAction[]; action_results?: BrainAction[]; error?: boolean;
+  } & BrainContext;
   rating: 1 | -1 | null;
   feedback_id: string | null;
   created_at: string | null;

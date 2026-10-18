@@ -52,3 +52,23 @@ class BrainImage(Base, UUIDPk):
     label: Mapped[str | None] = mapped_column(String(200))
     width: Mapped[int | None] = mapped_column(Integer)
     height: Mapped[int | None] = mapped_column(Integer)
+
+
+class BrainAction(Base, UUIDPk):
+    """Something the Brain offered to do (Phase 4). The Brain only ever *proposes*: the tool checks the request and
+    saves it here as "pending", the chat shows it as a card, and it runs only when the person presses Confirm
+    (app/brain/actions.py) - as them, with their permissions checked again. Cards expire after a day."""
+    __tablename__ = "brain_actions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("brain_conversations.id", ondelete="CASCADE"), index=True)
+    message_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))   # the answer that shows the card
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)               # reminder | log | email | booking | review | automation
+    args: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)      # what runs on Confirm (already checked)
+    # What the card shows: {title, lines: [[label, value]], links: [{label, href}], confirm: "Set the reminder"}
+    preview: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="pending")   # pending | done | cancelled | failed | expired
+    result: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)    # {text, links} after it ran (or why not)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

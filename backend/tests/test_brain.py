@@ -29,6 +29,10 @@ class ScriptedModel:
                 usage = types.GenerateContentResponseUsageMetadata(prompt_token_count=5000, cached_content_token_count=4000, candidates_token_count=40)
                 if any(p.function_response for p in last.parts):
                     result = next(p.function_response.response for p in last.parts if p.function_response)
+                    if "card" in result or "error" in result:
+                        yield LlmResponse(content=types.Content(role="model", parts=[types.Part(text=result.get("error") or "It's on the card for you to confirm.")]),
+                                          partial=False, usage_metadata=usage)
+                        return
                     why = (result.get("you") or {}).get("why_not") or "you can change it"
                     text = (f"Booking {result.get('number')} is {result.get('status')}. {why} Press **Change** [[show:Change]] "
                             "or **Launch rockets** [[show:Launch rockets]]. [[ask:When will it be invoiced?]] [[ask:Who checked it?]]")
@@ -36,6 +40,12 @@ class ScriptedModel:
                     yield LlmResponse(content=types.Content(role="model", parts=[types.Part(text=text)]), partial=False, usage_metadata=usage)
                     return
                 said = " ".join(p.text or "" for p in last.parts)
+                if "remind me" in said.split("\n")[0].lower():
+                    from datetime import date, timedelta
+                    yield LlmResponse(content=types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(
+                        name="propose_reminder", args={"when": f"{date.today() + timedelta(days=1)} 10:30", "note": "Call Daniel"}))]),
+                        usage_metadata=usage)
+                    return
                 m = re.search(r"booking (\d+)", said)
                 if m:
                     yield LlmResponse(content=types.Content(role="model", parts=[types.Part(function_call=types.FunctionCall(
@@ -76,10 +86,11 @@ def model(db_session, monkeypatch):
 
 
 def events(resp) -> list[tuple[str, dict]]:
+    """The AG-UI stream as (type, event) pairs."""
     out = []
     for block in resp.text.strip().split("\n\n"):
-        kind = re.search(r"^event: (\w+)", block, re.M).group(1)
-        out.append((kind, json.loads(re.search(r"^data: (.*)$", block, re.M).group(1))))
+        data = json.loads(re.search(r"^data: (.*)$", block, re.M).group(1))
+        out.append((data["type"], data))
     return out
 
 
@@ -112,12 +123,14 @@ def test_chat_streams_explains_the_booking_and_keeps_the_cache_warm(w, client, m
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/event-stream")
     ev = events(r)
     kinds = [k for k, _ in ev]
-    assert kinds[0] == "meta" and "step" in kinds and "text" in kinds and kinds[-1] == "done"
-    assert dict(ev)["step"]["label"] == "Looking at the booking"
-    done = ev[-1][1]["message"]
+    assert kinds[0] == "RUN_STARTED" and "STEP_STARTED" in kinds and "TEXT_MESSAGE_CONTENT" in kinds and kinds[-1] == "RUN_FINISHED"
+    assert dict(ev)["STEP_STARTED"]["stepName"] == "Looking at the booking"
+    assert kinds.index("STEP_FINISHED") < kinds.index("TEXT_MESSAGE_START") < kinds.index("TEXT_MESSAGE_END")
+    assert ev[-1][1]["outcome"]["type"] == "success"
+    done = ev[-1][1]["result"]["message"]
     assert done["text"].startswith(f"Booking {d['number']} is confirmed")
     assert "[[ask:" not in done["text"] and done["context"]["suggestions"] == ["When will it be invoiced?", "Who checked it?"]
-    conv_id = ev[0][1]["conversation_id"]
+    conv_id = ev[0][1]["threadId"]
     a = db.query(BrainMessage).filter_by(role="assistant").one()
     assert a.trace["steps"][0]["tool"] == "sales_order_explain" and a.trace["steps"][0]["ok"]
     assert a.trace["cached_tokens"] == 8000 and a.trace["llm_calls"] == 2
@@ -127,7 +140,7 @@ def test_chat_streams_explains_the_booking_and_keeps_the_cache_warm(w, client, m
     # second turn: same fixed instructions, and the first question replayed exactly as the model first saw it
     model.requests.clear()
     r2 = client.post("/api/brain/chat", json={"conversation_id": conv_id, "message": "Thanks! How do I start a new one?"}, headers=h)
-    assert events(r2)[-1][1]["message"]["text"] == "Press **New booking** to start."
+    assert events(r2)[-1][1]["result"]["message"]["text"] == "Press **New booking** to start."
     req = model.requests[0]
     first_turn = req.contents[0].parts[0].text
     assert first_turn == q.model_text                     # replayed byte for byte
@@ -164,7 +177,7 @@ def test_tools_run_as_the_person_and_never_raise(w, model):
 def test_rating_and_this_didnt_help_become_feedback(w, client, model):
     h = w["h"]
     ev = events(client.post("/api/brain/chat", json={"message": "How do I make a booking?", "context": {"page_path": "/sales/deals"}}, headers=h))
-    mid = ev[-1][1]["message"]["id"]
+    mid = ev[-1][1]["result"]["message"]["id"]
     assert client.post(f"/api/brain/messages/{mid}/rating", json={"rating": 1}, headers=h).json()["rating"] == 1
     r = client.post(f"/api/brain/messages/{mid}/feedback", json={"note": "I meant a booking form"}, headers=h).json()
     f = w["db"].get(Feedback, __import__("uuid").UUID(r["feedback_id"]))
@@ -180,7 +193,8 @@ def test_not_switched_on_says_so(w, client, monkeypatch):
     agent.set_model(None)
     monkeypatch.setattr(settings, "gemini_api_key", "")
     ev = events(client.post("/api/brain/chat", json={"message": "hello"}, headers=w["h"]))
-    assert ev[-1][1]["message"]["text"] == runner.NOT_ON
+    assert ev[-1][0] == "RUN_ERROR" and ev[-1][1]["message"] == runner.NOT_ON
+    assert w["db"].query(BrainMessage).filter_by(role="assistant").one().context.get("error") is True
 
 
 def test_suggestions_come_from_the_guide(w, client):
@@ -197,3 +211,50 @@ def test_eval_questions_are_well_formed():
     assert len(qs) >= 10 and all(q["q"].endswith("?") and q["page"].startswith("/") and (q.get("all") or q.get("any")) for q in qs)
     assert check("Press **Request a change**.", qs[0]) == []
     assert check("It's a deal.", qs[0])     # wrong word and missing button
+
+
+def test_actions_wait_for_confirm_and_run_as_the_person(w, client, model):
+    """Phase 4: the Brain only proposes - a card (AG-UI tool call + interrupt); Confirm runs it, Cancel doesn't."""
+    from app.models import BrainAction, Reminder
+    db, h = w["db"], w["h"]
+    ev = events(client.post("/api/brain/chat", json={"message": "Remind me tomorrow to call Daniel"}, headers=h))
+    kinds = [k for k, _ in ev]
+    assert "TOOL_CALL_START" in kinds and kinds[-1] == "RUN_FINISHED"
+    start = dict(ev)["TOOL_CALL_START"]
+    assert start["toolCallName"] == "confirm_action"
+    card = json.loads(dict(ev)["TOOL_CALL_ARGS"]["delta"])
+    assert card["title"] == "Set a reminder" and card["status"] == "pending" and ["Note", "Call Daniel"] in card["lines"]
+    outcome = ev[-1][1]["outcome"]
+    assert outcome["type"] == "interrupt" and outcome["interrupts"][0]["id"] == card["id"] == start["toolCallId"]
+    assert db.query(Reminder).count() == 0                     # nothing done yet
+    conv = ev[0][1]["threadId"]
+    answer = db.query(BrainMessage).filter_by(role="assistant").one()
+    assert answer.context["actions"][0]["id"] == card["id"]
+
+    # someone else can't answer it
+    other = identity_headers(make_user(db, role="sales", name="Tom"))
+    db.commit()
+    r = client.post("/api/brain/chat", json={"conversation_id": conv, "resume": [{"interruptId": card["id"], "status": "resolved"}]}, headers=other)
+    assert r.status_code == 404 and db.query(Reminder).count() == 0
+
+    ev = events(client.post("/api/brain/chat", json={"conversation_id": conv, "resume": [{"interruptId": card["id"], "status": "resolved"}]}, headers=h))
+    assert [k for k, _ in ev][:2] == ["RUN_STARTED", "TOOL_CALL_RESULT"] and ev[-1][0] == "RUN_FINISHED"
+    assert json.loads(ev[1][1]["content"])["status"] == "done"
+    assert ev[-1][1]["result"]["message"]["text"].startswith("Reminder set for")
+    rem = db.query(Reminder).one()
+    assert rem.note == "Call Daniel" and rem.status == "open"
+    db.refresh(answer)
+    assert answer.context["actions"][0]["status"] == "done"   # a reopened chat shows how the card ended
+    # a second click does nothing twice
+    client.post("/api/brain/chat", json={"conversation_id": conv, "resume": [{"interruptId": card["id"], "status": "resolved"}]}, headers=h)
+    assert db.query(Reminder).count() == 1
+
+    # Cancel leaves everything as it was; a new question cancels cards left waiting
+    ev = events(client.post("/api/brain/chat", json={"conversation_id": conv, "message": "Remind me tomorrow to call Daniel"}, headers=h))
+    c2 = json.loads(dict(ev)["TOOL_CALL_ARGS"]["delta"])["id"]
+    events(client.post("/api/brain/chat", json={"conversation_id": conv, "resume": [{"interruptId": c2, "status": "cancelled"}]}, headers=h))
+    assert db.query(Reminder).count() == 1 and db.get(BrainAction, __import__("uuid").UUID(c2)).status == "cancelled"
+    ev = events(client.post("/api/brain/chat", json={"conversation_id": conv, "message": "Remind me tomorrow to call Daniel"}, headers=h))
+    c3 = json.loads(dict(ev)["TOOL_CALL_ARGS"]["delta"])["id"]
+    client.post("/api/brain/chat", json={"conversation_id": conv, "message": "Never mind, thanks"}, headers=h)
+    assert db.get(BrainAction, __import__("uuid").UUID(c3)).status == "cancelled"

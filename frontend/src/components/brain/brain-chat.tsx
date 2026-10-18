@@ -4,7 +4,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ArrowUp, Check, CheckCircle2, Copy, Crosshair, ExternalLink, Loader2, MapPin, Mic, ScanLine, Square, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { toast } from "sonner";
 import type { FeedbackElement } from "@/lib/feedback-types";
-import type { BrainContext, BrainMessage } from "@/lib/brain-types";
+import type { BrainAction, BrainContext, BrainMessage } from "@/lib/brain-types";
 import { askBrain } from "@/lib/brain-stream";
 import { brainAnswerToFeedback, brainConversation, brainSuggestions, rateBrainAnswer } from "@/lib/brain-actions";
 import { browserContext, captureScreen, crop, toDataUrl } from "@/lib/feedback-capture";
@@ -16,11 +16,18 @@ import { AnnotateDialog } from "@/components/feedback/annotate-dialog";
 import { AreaOverlay, PickOverlay } from "@/components/feedback/capture-overlay";
 import { BrainBuddy } from "@/components/brain/brain-buddy";
 import { BrainMarkdown } from "@/components/brain/brain-markdown";
+import { ActionCard } from "@/components/brain/action-card";
 
 export type Shot = { key: string; data: string; width: number; height: number; label: string; canvas?: HTMLCanvasElement };
 export type Pointed = FeedbackElement & { key: string };
 type Pending = { text: string; steps: string[] };
 type Turn = BrainMessage & { localImages?: string[] };
+
+/** A turn shown straight away, before (or without) the server's copy - e.g. a plain "couldn't answer" sentence. */
+function errorTurn(text: string): Turn {
+  return { id: `local-${Math.random().toString(36).slice(2)}`, role: "assistant", text, context: { error: true }, rating: null,
+    feedback_id: null, created_at: new Date().toISOString(), images: [] };
+}
 
 const newKey = () => Math.random().toString(36).slice(2, 10);
 const UUID = "[0-9a-f-]{36}";
@@ -55,6 +62,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
 }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [deciding, setDeciding] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [elements, setElements] = useState<Pointed[]>([]);
   const [shots, setShots] = useState<Shot[]>([]);
@@ -118,15 +126,35 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
     try {
       await askBrain({ conversation_id: conversationId, message: question, context: ctx,
         images: pics.map((s) => ({ data: s.data, label: s.label, width: s.width, height: s.height })) }, {
-        meta: (m) => { convo = m.conversation_id; },
+        started: (id) => { convo = id; },
         step: (label) => setPending((p) => (p ? { ...p, steps: [...p.steps, label] } : p)),
         text: (d) => setPending((p) => (p ? { ...p, text: p.text + d } : p)),
-        done: (msg) => setTurns((t) => [...t, msg]),
+        done: (msg) => { if (msg) setTurns((t) => [...t, msg]); },
+        error: (message) => setTurns((t) => [...t, errorTurn(message)]),
       }, abort.current.signal);
       if (convo && convo !== conversationId) onConversation(convo);
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") toast.error(friendlyError(e, "Couldn't get an answer just now. Please try again."));
     } finally { setPending(null); }
+  }
+
+  /** Confirm / Cancel on a card the Brain proposed: AG-UI "resume" for that interrupt; the backend runs it (or not). */
+  async function decide(card: BrainAction, confirm: boolean) {
+    if (pending || !conversationId) return;
+    setDeciding(card.id);
+    setTurns((t) => [...t, { ...errorTurn(`${confirm ? "Confirmed" : "Cancelled"}: ${card.title}`), role: "user", context: { mode: "card" } }]);
+    setPending({ text: "", steps: confirm ? [card.confirm] : [] });
+    try {
+      await askBrain({ conversation_id: conversationId, resume: [{ interruptId: card.id, status: confirm ? "resolved" : "cancelled" }] }, {
+        cardResult: (c) => setTurns((t) => t.map((x) => (x.context?.actions?.some((a) => a.id === c.id)
+          ? { ...x, context: { ...x.context, actions: x.context.actions!.map((a) => (a.id === c.id ? c : a)) } } : x))),
+        done: (msg) => { if (msg) setTurns((t) => [...t, msg]); },
+        error: (message) => setTurns((t) => [...t, errorTurn(message)]),
+      });
+      if (confirm) window.dispatchEvent(new CustomEvent("brain:acted"));
+    } catch (e) {
+      toast.error(friendlyError(e, confirm ? "Couldn't do that just now. Nothing was changed." : "Couldn't cancel it just now."));
+    } finally { setPending(null); setDeciding(null); }
   }
 
   function addShot(canvas: HTMLCanvasElement, label: string) {
@@ -192,6 +220,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
         {turns.map((t, i) => t.role === "user"
           ? <UserTurn key={t.id} t={t} />
           : <AnswerTurn key={t.id} t={t} last={i === turns.length - 1 && !pending} onAsk={(q) => void send(q, [], [])}
+              deciding={deciding} onDecide={(c, ok) => void decide(c, ok)}
               onChange={(n) => setTurns((xs) => xs.map((x) => (x.id === n.id ? { ...x, ...n } : x)))} />)}
         {pending && (
           <div className="flex items-start gap-2.5">
@@ -277,7 +306,10 @@ function UserTurn({ t }: { t: Turn }) {
   );
 }
 
-function AnswerTurn({ t, last, onAsk, onChange }: { t: Turn; last: boolean; onAsk: (q: string) => void; onChange: (t: Partial<Turn> & { id: string }) => void }) {
+function AnswerTurn({ t, last, onAsk, onChange, deciding, onDecide }: {
+  t: Turn; last: boolean; onAsk: (q: string) => void; onChange: (t: Partial<Turn> & { id: string }) => void;
+  deciding: string | null; onDecide: (card: BrainAction, confirm: boolean) => void;
+}) {
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -299,9 +331,20 @@ function AnswerTurn({ t, last, onAsk, onChange }: { t: Turn; last: boolean; onAs
   }
 
   const suggestions = t.context?.suggestions ?? [];
+  if (t.context?.error) {
+    return (
+      <div className="flex items-start gap-2">
+        <BrainBuddy mood="puzzled" head size={24} className="mt-0.5 shrink-0" />
+        <p className="text-sm" style={{ color: "var(--warn)" }}>{t.text}</p>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-2">
       <BrainMarkdown text={t.text} />
+      {(t.context?.actions ?? []).map((c) => (
+        <ActionCard key={c.id} card={c} busy={deciding === c.id} onDecide={(ok) => onDecide(c, ok)} />
+      ))}
       <div className="flex flex-wrap items-center gap-0.5 text-muted-foreground">
         <Button size="icon-xs" variant="ghost" aria-label="Helpful" aria-pressed={t.rating === 1} onClick={() => void rate(1)}>
           <ThumbsUp className="size-3.5" style={t.rating === 1 ? { color: "var(--ok)" } : undefined} />

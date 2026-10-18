@@ -124,6 +124,6 @@ def review_items(env: ToolEnv, card: str, limit: int = 8) -> dict:
     items = env.db.scalars(_queue_scope(env, select(ReviewQueueItem).where(ReviewQueueItem.kind == k.kind, ReviewQueueItem.status == "pending"))
                            .order_by(ReviewQueueItem.created_at).limit(max(1, min(limit, 20)))).all()
     return {"card": k.label, "about": k.description, "buttons": [a.label for a in k.actions],
-            "items": [{"summary": (i.payload or {}).get("summary") or (i.payload or {}).get("subject") or k.label,
+            "items": [{"id": str(i.id), "summary": (i.payload or {}).get("summary") or (i.payload or {}).get("subject") or k.label,
                        "waiting_days": (now - i.created_at).days if i.created_at else None} for i in items],
             "link": f"/automations/review?kind={quote(k.kind)}"}

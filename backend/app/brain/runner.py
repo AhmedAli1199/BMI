@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import AsyncIterator
 
-from app.brain import agent, knowledge, registry
+from app.brain import actions, agent, knowledge, registry
 from app.core.identity import Identity
 from app.roles import ROLE_DEFS
 
@@ -122,8 +122,10 @@ def _usage(u) -> dict:
             "output_tokens": g("candidates_token_count") + g("thoughts_token_count")}
 
 
-async def run(user, identity: Identity, history: list[tuple[str, str]], asked: Asked, model_text: str) -> AsyncIterator[dict]:
-    """Yields {"type": "step", "label"} / {"type": "text", "delta"} / {"type": "done", "text", "extras", "trace"}.
+async def run(user, identity: Identity, history: list[tuple[str, str]], asked: Asked, model_text: str,
+              conversation_id: str | None = None) -> AsyncIterator[dict]:
+    """Yields {"type": "step", "label"} / {"type": "text", "delta"} / {"type": "done", "text", "extras", "trace", "actions", "error"}.
+    "actions" are the ids of the cards proposed this turn (app/brain/actions.py); "error" is set when it failed.
 
     history: [(role, text)] oldest first - user turns as the model first saw them, assistant answers as shown.
     """
@@ -132,7 +134,7 @@ async def run(user, identity: Identity, history: list[tuple[str, str]], asked: A
     trace: dict = {"route": r.name, "thinking": r.thinking, "model": agent.model_name(), "steps": [],
                    "input_tokens": 0, "cached_tokens": 0, "output_tokens": 0, "llm_calls": 0}
     if not agent.configured():
-        yield {"type": "done", "text": NOT_ON, "extras": {}, "trace": {**trace, "error": "not_configured"}}
+        yield {"type": "done", "text": NOT_ON, "extras": {}, "trace": {**trace, "error": "not_configured"}, "actions": [], "error": "not_configured"}
         return
 
     from google.adk.agents.run_config import RunConfig, StreamingMode
@@ -142,7 +144,8 @@ async def run(user, identity: Identity, history: list[tuple[str, str]], asked: A
     from google.genai import types
 
     svc = InMemorySessionService()
-    session = await svc.create_session(app_name="bmi_brain", user_id=str(user.id), state=registry.identity_state(identity))
+    session = await svc.create_session(app_name="bmi_brain", user_id=str(user.id),
+                                       state={**registry.identity_state(identity), "conversation_id": conversation_id})
     for role, text in history:
         await svc.append_event(session, Event(invocation_id="history", author="user" if role == "user" else "brain",
                                               content=types.Content(role="user" if role == "user" else "model", parts=[types.Part(text=text)])))
@@ -176,12 +179,17 @@ async def run(user, identity: Identity, history: list[tuple[str, str]], asked: A
     except Exception as exc:
         log.exception("brain turn failed")
         trace.update(steps=registry.TRACES.pop(session.id, []), ms=int((time.monotonic() - started) * 1000), error=exc.__class__.__name__)
-        yield {"type": "done", "text": FAILED, "extras": {}, "trace": trace}
+        actions.PROPOSALS.pop(session.id, None)
+        yield {"type": "done", "text": FAILED, "extras": {}, "trace": trace, "actions": [], "error": "failed"}
         return
     trace["steps"] = registry.TRACES.pop(session.id, [])
     trace["ms"] = int((time.monotonic() - started) * 1000)
-    text, extras = finish("\n\n".join(a.strip() for a in answer if a.strip()) or FAILED, asked.context.get("page_path"))
-    yield {"type": "done", "text": text, "extras": extras, "trace": trace}
+    proposed = actions.PROPOSALS.pop(session.id, [])
+    joined = "\n\n".join(a.strip() for a in answer if a.strip())
+    if not joined and proposed:
+        joined = "Here it is - check it and press the button to go ahead."
+    text, extras = finish(joined or FAILED, asked.context.get("page_path"))
+    yield {"type": "done", "text": text, "extras": extras, "trace": trace, "actions": proposed, "error": None if joined else "empty"}
 
 
 def new_id() -> uuid.UUID:

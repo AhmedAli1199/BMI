@@ -120,3 +120,12 @@ sending CRM data to Gemini (paid tier, not used for training); keep the OpenAI f
 - Next: phase 4 - actions with a confirmation card (reminders, logging a call or note, drafting an email or proposal,
   starting a pencilled booking, approving a review card, switching an automation for admins); then phase 5 (MCP door,
   memory, voice).
+- **Phase 4 built (18 Oct): actions with a confirmation card, on AG-UI.** The chat stream now speaks AG-UI 1.0
+  (docs.ag-ui.com) using the small official `ag-ui-protocol` package; we kept our own ADK runner (the `ag-ui-adk`
+  middleware would replace our session replay/prompt cache, tracing, storage and access layer - not worth it).
+  Six action tools in `app/brain/tools/actions.py` (reminder, note/call/meeting, email from Outlook, start a booking,
+  press a Review Queue button, switch an automation - admins) only *propose*: they check the request and save a
+  pending `BrainAction` (`app/brain/actions.py`). The answer ends with a `confirm_action` tool call per card and
+  RUN_FINISHED outcome "interrupt"; Confirm/Cancel is the next POST with AG-UI `resume`, which runs it as the person
+  (permissions checked again) and streams TOOL_CALL_RESULT + a short message. Cards expire after a day; a new
+  question cancels waiting ones. Frontend: `lib/brain-stream.ts` (AG-UI reader), `components/brain/action-card.tsx`.

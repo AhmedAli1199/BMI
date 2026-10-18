@@ -1,8 +1,16 @@
 """The AI Hub chat and the "Ask AI" button (app/brain, docs/ai-hub-plan.md).
 
-POST /brain/chat streams one answer as server-sent events: `meta` (conversation and message ids), `step`
-(what it's doing - "Looking at the booking"), `text` (words as they arrive), then `done` (the final answer,
-follow-up questions and "Show me" targets) or `error` (a plain sentence).
+POST /brain/chat streams one answer in the AG-UI protocol (docs.ag-ui.com, spec 1.0 - `data: {json}` server-sent
+events, encoded with the official `ag-ui-protocol` package):
+  RUN_STARTED (threadId = conversation, metadata.message_id = the saved question)
+  STEP_STARTED / STEP_FINISHED   what it's doing ("Looking at the booking")
+  TEXT_MESSAGE_START / CONTENT / END   the answer's words as they arrive
+  TOOL_CALL_START / ARGS / END   one "confirm_action" call per card the Brain proposed (Phase 4, app/brain/actions.py)
+  RUN_FINISHED  result.message = the saved answer; outcome "interrupt" (one per card) or "success"
+  RUN_ERROR     a plain sentence (not switched on, or it failed) - the answer is still saved
+Confirm / Cancel on a card is the next POST with `resume: [{interruptId, status: "resolved" | "cancelled"}]`: it runs
+the action (or not) and streams RUN_STARTED, TOOL_CALL_RESULT per card, a short TEXT_MESSAGE and RUN_FINISHED.
+The request body is ours (question, page context, screenshots) plus AG-UI's `resume`; our own runner drives ADK.
 """
 from __future__ import annotations
 
@@ -14,16 +22,20 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
+from ag_ui.core import (Interrupt, ResumeEntry, RunErrorEvent, RunFinishedEvent, RunFinishedInterruptOutcome, RunFinishedSuccessOutcome,
+                        RunStartedEvent, StepFinishedEvent, StepStartedEvent, TextMessageContentEvent, TextMessageEndEvent,
+                        TextMessageStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, ToolCallStartEvent)
+from ag_ui.encoder import EventEncoder
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.routes.messaging import current_user
-from app.brain import knowledge, runner
+from app.brain import actions, knowledge, runner
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.models import BrainConversation, BrainImage, BrainMessage, Feedback, User
+from app.models import BrainAction, BrainConversation, BrainImage, BrainMessage, Feedback, User
 from app.services.notify import create_notification
 
 router = APIRouter(prefix="/brain", tags=["brain"])
@@ -46,6 +58,8 @@ class ChatIn(BaseModel):
     message: str = ""
     context: dict = Field(default_factory=dict)
     images: list[ImageIn] = Field(default_factory=list)
+    run_id: str | None = None
+    resume: list[ResumeEntry] = Field(default_factory=list)   # AG-UI: the answer to the cards (Confirm / Cancel)
 
 
 def _now() -> datetime:
@@ -88,8 +102,25 @@ def _conversation(db: Session, user: User, cid: uuid.UUID) -> BrainConversation:
     return c
 
 
-def _sse(kind: str, data: dict) -> str:
-    return f"event: {kind}\ndata: {json.dumps(data, default=str)}\n\n"
+ENCODER = EventEncoder()
+
+
+def _ev(event) -> str:
+    return ENCODER.encode(event)
+
+
+def _stream(gen) -> StreamingResponse:
+    return StreamingResponse(gen, media_type=ENCODER.get_content_type(), headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+def _card_calls(cards: list[dict], parent_id: str) -> list[str]:
+    """Each proposed card as an AG-UI tool call the screen renders (the tool is the confirmation itself)."""
+    out = []
+    for c in cards:
+        out += [_ev(ToolCallStartEvent(tool_call_id=c["id"], tool_call_name="confirm_action", parent_message_id=parent_id)),
+                _ev(ToolCallArgsEvent(tool_call_id=c["id"], delta=json.dumps(c, default=str))),
+                _ev(ToolCallEndEvent(tool_call_id=c["id"]))]
+    return out
 
 
 def _plain(text: str) -> str:
@@ -107,6 +138,8 @@ def _title(text: str) -> str:
 
 @router.post("/chat")
 async def chat(p: ChatIn, db: Session = Depends(get_db), user: User = Depends(current_user), identity: Identity = Depends(get_identity)):
+    if p.resume:
+        return await _resume(p, db, user, identity)
     question = p.message.strip()
     if not question and not p.images and not p.context.get("elements"):
         raise HTTPException(422, "Type a question, point at something or add a screenshot first.")
@@ -130,6 +163,7 @@ async def chat(p: ChatIn, db: Session = Depends(get_db), user: User = Depends(cu
         from app.sales import accounts
         if p.conversation_id:
             conv = _conversation(db, user, p.conversation_id)
+            actions.cancel_waiting(db, conv.id)   # a new question moves on from any card left unanswered
         else:
             conv = BrainConversation(id=uuid.uuid4(), user_id=user.id, title=_title(question), started_on=ctx.get("page_path"))
             db.add(conv)
@@ -160,29 +194,108 @@ async def chat(p: ChatIn, db: Session = Depends(get_db), user: User = Depends(cu
     conv_id, msg_id, history, model_text = await run_in_threadpool(prepare)
     asked = runner.Asked(question=question, context=ctx, images=[(m, b) for m, b, _ in pics])
 
-    def save(final: dict) -> dict:
+    answer_id, run_id = uuid.uuid4(), p.run_id or str(uuid.uuid4())
+
+    def save(final: dict) -> tuple[dict, list[dict]]:
         # times set here, not by the database, so a question always sorts before its answer
-        a = BrainMessage(id=uuid.uuid4(), conversation_id=conv_id, role="assistant", text=final["text"], context=final["extras"],
+        cards = []
+        for aid in final.get("actions") or []:
+            a = db.get(BrainAction, uuid.UUID(aid))
+            if a and a.user_id == user.id:
+                a.message_id = answer_id
+                cards.append(actions.card(a))
+        extras = {**final["extras"], **({"actions": cards} if cards else {}), **({"error": True} if final.get("error") else {})}
+        a = BrainMessage(id=answer_id, conversation_id=conv_id, role="assistant", text=final["text"], context=extras,
                          trace=final["trace"], created_at=_now())
         db.add(a)
         conv = db.get(BrainConversation, conv_id)
         conv.updated_at = _now()
         db.commit()
         db.refresh(a)
-        return _message_out(a)
+        return _message_out(a), cards
 
     async def stream():
-        yield _sse("meta", {"conversation_id": str(conv_id), "message_id": str(msg_id)})
-        async for ev in runner.run(user, identity, history, asked, model_text):
-            if ev["type"] == "done":
-                out = await run_in_threadpool(save, ev)
+        yield _ev(RunStartedEvent(thread_id=str(conv_id), run_id=run_id, metadata={"message_id": str(msg_id)}))
+        step: str | None = None
+        talking = False
+        async for ev in runner.run(user, identity, history, asked, model_text, conversation_id=str(conv_id)):
+            if ev["type"] == "step":
+                if step:
+                    yield _ev(StepFinishedEvent(step_name=step))
+                step = ev["label"]
+                yield _ev(StepStartedEvent(step_name=step))
+                continue
+            if step:
+                yield _ev(StepFinishedEvent(step_name=step))
+                step = None
+            if ev["type"] == "text":
+                if not talking:
+                    talking = True
+                    yield _ev(TextMessageStartEvent(message_id=str(answer_id), role="assistant"))
+                yield _ev(TextMessageContentEvent(message_id=str(answer_id), delta=ev["delta"]))
+            elif ev["type"] == "done":
+                if talking:
+                    yield _ev(TextMessageEndEvent(message_id=str(answer_id)))
+                out, cards = await run_in_threadpool(save, ev)
                 _log_usage(ev["trace"])
-                yield _sse("done", {"message": out})
-            else:
-                yield _sse(ev["type"], ev)
+                if ev.get("error"):
+                    yield _ev(RunErrorEvent(message=ev["text"], code=ev["error"]))
+                    return
+                for chunk in _card_calls(cards, str(answer_id)):
+                    yield chunk
+                outcome = (RunFinishedInterruptOutcome(interrupts=[
+                    Interrupt(id=c["id"], reason="confirm_action", message=c["title"], tool_call_id=c["id"], expires_at=c["expires_at"])
+                    for c in cards]) if cards else RunFinishedSuccessOutcome())
+                yield _ev(RunFinishedEvent(thread_id=str(conv_id), run_id=run_id, result={"message": out}, outcome=outcome))
 
-    return StreamingResponse(stream(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return _stream(stream())
+
+
+async def _resume(p: ChatIn, db: Session, user: User, identity: Identity):
+    """Confirm / Cancel on the cards: run each (or not), note it in the chat, and stream the outcome."""
+    if not p.conversation_id:
+        raise HTTPException(422, "That card isn't part of a chat any more.")
+    conv_id = p.conversation_id
+    run_id = p.run_id or str(uuid.uuid4())
+    answer_id = uuid.uuid4()
+
+    def decide() -> tuple[list[dict], dict, uuid.UUID]:
+        _conversation(db, user, conv_id)
+        done = [actions.decide(db, identity, user, r.interrupt_id, r.status == "resolved") for r in p.resume]
+        cards = [actions.card(a) for a in done]
+        # the answer that showed the cards shows how each one ended
+        for a in done:
+            m = db.get(BrainMessage, a.message_id) if a.message_id else None
+            if m and m.context.get("actions"):
+                m.context = {**m.context, "actions": [actions.card(a) if c.get("id") == str(a.id) else c for c in m.context["actions"]]}
+        said = "; ".join(f"{'Confirmed' if r.status == 'resolved' else 'Cancelled'}: {(a.preview or {}).get('title')}"
+                         for a, r in zip(done, p.resume))
+        q = BrainMessage(id=uuid.uuid4(), conversation_id=conv_id, role="user", text=said,
+                         model_text=f"[On the card{'s' if len(done) > 1 else ''}: {said}]", context={"mode": "card"}, created_at=_now())
+        db.add(q)
+        text = "\n\n".join((a.result or {}).get("text") or "" for a in done).strip() or "Nothing was changed."
+        links = [ln for a in done for ln in (a.result or {}).get("links") or []]
+        ans = BrainMessage(id=answer_id, conversation_id=conv_id, role="assistant", text=text,
+                           context={"links": links, "action_results": cards}, trace={"route": "card", "steps": []}, created_at=_now())
+        db.add(ans)
+        db.get(BrainConversation, conv_id).updated_at = _now()
+        db.commit()
+        db.refresh(ans)
+        return cards, _message_out(ans), q.id
+
+    cards, out, q_id = await run_in_threadpool(decide)
+
+    async def stream():
+        yield _ev(RunStartedEvent(thread_id=str(conv_id), run_id=run_id, metadata={"message_id": str(q_id)}))
+        for c in cards:
+            yield _ev(ToolCallResultEvent(message_id=str(answer_id), tool_call_id=c["id"], role="tool", content=json.dumps(c, default=str)))
+        yield _ev(TextMessageStartEvent(message_id=str(answer_id), role="assistant"))
+        yield _ev(TextMessageContentEvent(message_id=str(answer_id), delta=out["text"]))
+        yield _ev(TextMessageEndEvent(message_id=str(answer_id)))
+        yield _ev(RunFinishedEvent(thread_id=str(conv_id), run_id=run_id, result={"message": out, "cards": cards},
+                                   outcome=RunFinishedSuccessOutcome()))
+
+    return _stream(stream())
 
 
 def _history_limit() -> int:

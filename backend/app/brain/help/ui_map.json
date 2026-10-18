@@ -1421,19 +1421,19 @@
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:52",
+   "src": "app/(app)/groups/[id]/page.tsx:53",
    "kind": "button",
    "label": "Export"
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:62",
+   "src": "app/(app)/groups/[id]/page.tsx:63",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
-   "src": "app/(app)/groups/[id]/page.tsx:85",
+   "src": "app/(app)/groups/[id]/page.tsx:86",
    "kind": "heading",
    "label": "Members ( … )"
   },
@@ -1878,7 +1878,7 @@
   },
   {
    "file": "app/(app)/sales/editions/page.tsx",
-   "src": "app/(app)/sales/editions/page.tsx:33",
+   "src": "app/(app)/sales/editions/page.tsx:36",
    "kind": "button",
    "label": "Compare editions"
   },
@@ -3813,85 +3813,85 @@
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:90",
+   "src": "components/deals/deal-actions.tsx:91",
    "kind": "menu item",
    "label": "Rebook for next year"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:92",
+   "src": "components/deals/deal-actions.tsx:94",
    "kind": "menu item",
    "label": "Back to pencilled"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:95",
+   "src": "components/deals/deal-actions.tsx:97",
    "kind": "menu item",
    "label": "Reopen"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:99",
+   "src": "components/deals/deal-actions.tsx:101",
    "kind": "menu item",
    "label": "Ask accounts to cancel it"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:102",
+   "src": "components/deals/deal-actions.tsx:104",
    "kind": "menu item",
    "label": "Delete"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:118",
+   "src": "components/deals/deal-actions.tsx:120",
    "kind": "field",
    "label": "Why"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:119",
+   "src": "components/deals/deal-actions.tsx:121",
    "kind": "field",
    "label": "Keep items that have already run or been invoiced Usually right: they were delivered, so they stay booked."
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:125",
+   "src": "components/deals/deal-actions.tsx:127",
    "kind": "button",
    "label": "Send to accounts"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:144",
+   "src": "components/deals/deal-actions.tsx:146",
    "kind": "dialog",
    "label": "Email the"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:152",
+   "src": "components/deals/deal-actions.tsx:154",
    "kind": "field",
    "label": "To"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:153",
+   "src": "components/deals/deal-actions.tsx:155",
    "kind": "field",
    "label": "Copy to (optional)"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:155",
+   "src": "components/deals/deal-actions.tsx:157",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:156",
+   "src": "components/deals/deal-actions.tsx:158",
    "kind": "field",
    "label": "Message"
   },
   {
    "file": "components/deals/deal-actions.tsx",
-   "src": "components/deals/deal-actions.tsx:160",
+   "src": "components/deals/deal-actions.tsx:162",
    "kind": "button",
    "label": "Send"
   },
