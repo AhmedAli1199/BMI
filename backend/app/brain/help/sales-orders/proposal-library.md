@@ -84,10 +84,10 @@ Shown once you have a profile. Goes back to the standard style (it asks first). 
 Each thing it has learned from your sent drafts. Untick one to undo it; it shows crossed out.
 
 ### Period tabs and Everyone / person chips (Report)
-Change the time span, and (admins and data managers only) whose requests are counted.
+Change the time span, and (admins and data managers only) whose requests are counted. Everyone with requests in the period stays in the chips, so you can go straight from one person to another.
 
 ### Salesperson name (Report)
-Opens the Review Queue at the proposal request cards.
+Opens the Review Queue at that person's proposal request cards (its **Salesperson** filter is set for you).
 
 ## How it works
 - **Examples:** a link copied from an email with a security scanner's wrapping round it is cleaned up when saved, so clients see the real address. Links must start with https:// (or http://). Changing a link clears its check result. Broken and retired links are never suggested in a proposal. The **Examples of our work** part of a proposal picks a few from here, the client's sector first, unless you tick specific ones.
@@ -134,4 +134,3 @@ A: Only admins and data managers can. Salespeople see their own.
 - **Save is greyed out on a link**: fill in both **What it is** and **Link**.
 - **"The link needs to start with https://"**: paste the full web address.
 - **The link check results don't appear**: the check runs in the background. Refresh after a minute.
-- **I picked one person in the report and the others' chips vanished**: press **Everyone** first, then choose another person.

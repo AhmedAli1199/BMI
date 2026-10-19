@@ -191,9 +191,14 @@ def report(days: int = 90, user_id: uuid.UUID | None = None, db: Session = Depen
     since = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 730)))
     q = select(ReviewQueueItem).where(ReviewQueueItem.kind == "proposal_request", ReviewQueueItem.created_at >= since)
     items = list(db.scalars(q))
+    # everyone with requests in the period, before narrowing to one person - the report's person chips
+    owner_ids = sorted({(i.payload or {}).get("owner_user_id") for i in items if (i.payload or {}).get("owner_user_id")})
     if who:
         items = [i for i in items if (i.payload or {}).get("owner_user_id") == str(who)]
-    names = {u.id: u.name for u in db.scalars(select(User))}
+    from app.automations.proposal_requests import owner_label
+
+    users = {u.id: u for u in db.scalars(select(User))}
+    names = {k: u.name for k, u in users.items()}
     rows: dict[str, dict] = {}
     by_type: dict[str, int] = {}
     by_mag: dict[str, int] = {}
@@ -202,6 +207,8 @@ def report(days: int = 90, user_id: uuid.UUID | None = None, db: Session = Depen
         owner = p.get("owner_user_id") or "none"
         r = rows.setdefault(owner, {"user_id": owner if owner != "none" else None,
                                     "name": names.get(uuid.UUID(owner), "Someone") if owner != "none" else "No owner",
+                                    # the review queue's "Salesperson" filter for this person's cards
+                                    "queue_filter": "salesperson:" + owner_label(users.get(uuid.UUID(owner)) if owner != "none" else None),
                                     "received": 0, "replied": 0, "not_requests": 0, "waiting": 0, "proposals": 0, "bookings": 0,
                                     "booked_gbp": 0.0, "hours": []})
         r["received"] += 1
@@ -243,4 +250,6 @@ def report(days: int = 90, user_id: uuid.UUID | None = None, db: Session = Depen
                                               if it.reviewed_at and it.created_at and it.resolved_action in ("send", "replied", "proposal") else [])]
     total["median_hours"] = round(statistics.median(all_hours), 1) if all_hours else None
     people = [{"id": str(u.id), "name": u.name} for u in db.scalars(select(User).where(User.is_active.is_(True)).order_by(User.name))] if staff else []
-    return {"days": days, "rows": out, "total": total, "by_type": by_type, "by_magazine": by_mag, "staff": staff, "people": people}
+    owners = sorted(({"user_id": o, "name": names.get(uuid.UUID(o)) or "Someone"} for o in owner_ids), key=lambda x: x["name"].lower()) if staff else []
+    return {"days": days, "rows": out, "total": total, "by_type": by_type, "by_magazine": by_mag, "staff": staff, "people": people,
+            "owners": owners}

@@ -583,6 +583,7 @@
     "components/deals/deal-handoffs.tsx",
     "components/deals/deal-invoicing.tsx",
     "components/deals/deal-ui.tsx",
+    "components/deals/line-handoff.tsx",
     "components/deals/xero-invoice-button.tsx",
     "components/page-header.tsx",
     "components/sales/info-hint.tsx",
@@ -1441,13 +1442,13 @@
   },
   {
    "file": "app/(app)/editorial/page.tsx",
-   "src": "app/(app)/editorial/page.tsx:105",
+   "src": "app/(app)/editorial/page.tsx:111",
    "kind": "button",
    "label": "Deadline rules & sections"
   },
   {
    "file": "app/(app)/editorial/page.tsx",
-   "src": "app/(app)/editorial/page.tsx:113",
+   "src": "app/(app)/editorial/page.tsx:119",
    "kind": "hint",
    "label": "",
    "hint": "Admins and data managers can change every brand. Each brand's publishers can change their own brand's plan. Everyone can view it."
@@ -1666,141 +1667,141 @@
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:110",
+   "src": "app/(app)/sales/dashboard/page.tsx:111",
    "kind": "column",
    "label": "Edition"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:111",
+   "src": "app/(app)/sales/dashboard/page.tsx:112",
    "kind": "column",
    "label": "Booked"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:112",
+   "src": "app/(app)/sales/dashboard/page.tsx:113",
    "kind": "column",
    "label": "Last cycle, same point"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:113",
+   "src": "app/(app)/sales/dashboard/page.tsx:114",
    "kind": "column",
    "label": "Gap"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:114",
+   "src": "app/(app)/sales/dashboard/page.tsx:115",
    "kind": "column",
    "label": "Progress"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:115",
+   "src": "app/(app)/sales/dashboard/page.tsx:116",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:177",
+   "src": "app/(app)/sales/dashboard/page.tsx:178",
    "kind": "column",
    "label": "Salesperson"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:178",
+   "src": "app/(app)/sales/dashboard/page.tsx:179",
    "kind": "column",
    "label": "Bookings"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:179",
+   "src": "app/(app)/sales/dashboard/page.tsx:180",
    "kind": "column",
    "label": "Booked value"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:180",
+   "src": "app/(app)/sales/dashboard/page.tsx:181",
    "kind": "column",
    "label": "Follow-ups actioned"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:181",
+   "src": "app/(app)/sales/dashboard/page.tsx:182",
    "kind": "column",
    "label": "Waiting in queue"
   },
   {
    "file": "app/(app)/sales/dashboard/page.tsx",
-   "src": "app/(app)/sales/dashboard/page.tsx:209",
+   "src": "app/(app)/sales/dashboard/page.tsx:210",
    "kind": "hint",
    "label": "",
    "hint": "Only activity the system actually records appears here. Nothing is estimated."
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:70",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:78",
    "kind": "link",
    "label": "· Rebooked from booking"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:71",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:79",
    "kind": "link",
    "label": "· From a proposal"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:151",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:159",
    "kind": "link",
    "label": "Choose the issues"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:172",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:180",
    "kind": "heading",
    "label": "Schedule Every item sits in its own issue, month or event. Each earns commission and counts in that issue's figures when"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:173",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:181",
    "kind": "hint",
    "label": "",
    "hint": "Every item sits in its own issue, month or event. Each earns commission and counts in that issue's figures when it runs."
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:180",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:188",
    "kind": "column",
    "label": "Runs"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:181",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:189",
    "kind": "column",
    "label": "Item"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:182",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:190",
    "kind": "column",
    "label": "Issue, month or event"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:183",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:191",
    "kind": "column",
    "label": "Copy due"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:184",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:192",
    "kind": "column",
    "label": "Value"
   },
   {
    "file": "app/(app)/sales/deals/[id]/page.tsx",
-   "src": "app/(app)/sales/deals/[id]/page.tsx:185",
+   "src": "app/(app)/sales/deals/[id]/page.tsx:193",
    "kind": "column",
    "label": "Invoice"
   },
@@ -1917,7 +1918,7 @@
   },
   {
    "file": "app/(app)/sales/editions/page.tsx",
-   "src": "app/(app)/sales/editions/page.tsx:36",
+   "src": "app/(app)/sales/editions/page.tsx:56",
    "kind": "button",
    "label": "Compare editions"
   },
@@ -2052,69 +2053,75 @@
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:21",
+   "src": "app/(app)/sales/proposals/page.tsx:28",
    "kind": "button",
    "label": "Report"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:24",
+   "src": "app/(app)/sales/proposals/page.tsx:31",
    "kind": "button",
    "label": "How you write"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:27",
+   "src": "app/(app)/sales/proposals/page.tsx:34",
    "kind": "button",
    "label": "Examples library"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:30",
+   "src": "app/(app)/sales/proposals/page.tsx:37",
    "kind": "button",
    "label": "New proposal"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:40",
+   "src": "app/(app)/sales/proposals/page.tsx:47",
    "kind": "link",
    "label": "Start"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:53",
+   "src": "app/(app)/sales/proposals/page.tsx:60",
    "kind": "column",
    "label": "Client"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:54",
+   "src": "app/(app)/sales/proposals/page.tsx:61",
    "kind": "column",
    "label": "Campaign"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:55",
+   "src": "app/(app)/sales/proposals/page.tsx:62",
    "kind": "column",
    "label": "Title"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:56",
+   "src": "app/(app)/sales/proposals/page.tsx:63",
    "kind": "column",
    "label": "Total (before VAT)"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:57",
+   "src": "app/(app)/sales/proposals/page.tsx:64",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/sales/proposals/page.tsx",
-   "src": "app/(app)/sales/proposals/page.tsx:58",
+   "src": "app/(app)/sales/proposals/page.tsx:65",
    "kind": "column",
    "label": "By"
+  },
+  {
+   "file": "app/(app)/sales/proposals/page.tsx",
+   "src": "app/(app)/sales/proposals/page.tsx:95",
+   "kind": "link",
+   "label": "Show more"
   },
   {
    "file": "app/(app)/sales/proposals/report/page.tsx",
@@ -2780,211 +2787,218 @@
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:88",
+   "src": "components/commission/plans-view.tsx:105",
    "kind": "heading",
    "label": "How the plans are applied These are the answers to BMI's open questions about the structure, so a change here is all it "
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:88",
+   "src": "components/commission/plans-view.tsx:105",
    "kind": "hint",
    "label": "",
    "hint": "These are the answers to BMI's open questions about the structure, so a change here is all it takes when a rule is clarified."
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:90",
+   "src": "components/commission/plans-view.tsx:107",
    "kind": "field",
    "label": "A booking counts in the month its issue publishes or event runs it was booked"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:96",
+   "src": "components/commission/plans-view.tsx:113",
    "kind": "field",
    "label": "New business means no spend in the last months"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:99",
+   "src": "components/commission/plans-view.tsx:116",
    "kind": "field",
    "label": "A new customer's first deal is Matt's rule: everything on the new customer's first invoice gets the new business rate. I"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:100",
+   "src": "components/commission/plans-view.tsx:117",
    "kind": "hint",
    "label": "",
    "hint": "Matt's rule: everything on the new customer's first invoice gets the new business rate. Items added later on a different invoice don't."
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:109",
+   "src": "components/commission/plans-view.tsx:126",
    "kind": "field",
    "label": "Event profit is worked out from the whole event's income only their own sales on it"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:115",
+   "src": "components/commission/plans-view.tsx:132",
    "kind": "field",
    "label": "Held back for PAYE/NIC Taken off each statement's total before the cheque amount, as on BMI's statements (35%). %"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:116",
+   "src": "components/commission/plans-view.tsx:133",
    "kind": "hint",
    "label": "",
    "hint": "Taken off each statement's total before the cheque amount, as on BMI's statements (35%)."
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:122",
+   "src": "components/commission/plans-view.tsx:139",
    "kind": "button",
    "label": "Undo"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:123",
+   "src": "components/commission/plans-view.tsx:140",
    "kind": "button",
    "label": "Save"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:175",
+   "src": "components/commission/plans-view.tsx:189",
    "kind": "field",
    "label": "Product group"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:177",
+   "src": "components/commission/plans-view.tsx:191",
    "kind": "heading",
    "label": "Titles it covers"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:188",
+   "src": "components/commission/plans-view.tsx:202",
    "kind": "field",
    "label": "Rate on their revenue (%)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:189",
+   "src": "components/commission/plans-view.tsx:203",
    "kind": "field",
    "label": "Extra on new business (%)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:192",
+   "src": "components/commission/plans-view.tsx:206",
    "kind": "field",
    "label": "New business rate changes for issues from For a temporary rate, like David's 5% until May 2027: the date and the rate th"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:192",
+   "src": "components/commission/plans-view.tsx:206",
    "kind": "hint",
    "label": "",
    "hint": "For a temporary rate, like David's 5% until May 2027: the date and the rate that applies from then on."
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:193",
+   "src": "components/commission/plans-view.tsx:207",
    "kind": "field",
    "label": "...to (%)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:196",
+   "src": "components/commission/plans-view.tsx:210",
    "kind": "field",
    "label": "Bonus per new customer (£)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:197",
+   "src": "components/commission/plans-view.tsx:211",
    "kind": "field",
    "label": "Bonus per new contract-publishing guide (£)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:198",
+   "src": "components/commission/plans-view.tsx:212",
    "kind": "field",
-   "label": "Bonus when a title's yearly revenue passes (£)"
+   "label": "Bonus when a title's revenue in a calendar year passes (£) Counted from 1 January to 31 December, as in Matt's note (“pa"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:199",
+   "src": "components/commission/plans-view.tsx:212",
+   "kind": "hint",
+   "label": "",
+   "hint": "Counted from 1 January to 31 December, as in Matt's note (“passes £8,000 in a calendar year”), even when the sales screens show the July to June financial year. Paid in the month the total is passed."
+  },
+  {
+   "file": "components/commission/plans-view.tsx",
+   "src": "components/commission/plans-view.tsx:213",
    "kind": "field",
    "label": "...this much (£)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:200",
+   "src": "components/commission/plans-view.tsx:214",
    "kind": "field",
    "label": "Share of each event's profit (%)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:201",
+   "src": "components/commission/plans-view.tsx:215",
    "kind": "field",
    "label": "Bonus per event attendance (£) For example £75 for each Selling Travel Connect attendance. The number is entered for eac"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:201",
+   "src": "components/commission/plans-view.tsx:215",
    "kind": "hint",
    "label": "",
    "hint": "For example £75 for each Selling Travel Connect attendance. The number is entered for each event on the statement."
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:204",
+   "src": "components/commission/plans-view.tsx:218",
    "kind": "field",
    "label": "Only issues named with (optional) Words in the issue name, separated by commas. For example \"Hub\" gives the Canada Hub i"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:204",
+   "src": "components/commission/plans-view.tsx:218",
    "kind": "hint",
    "label": "",
    "hint": "Words in the issue name, separated by commas. For example \"Hub\" gives the Canada Hub its own rate. A rule like this wins over the title's general rule."
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:205",
+   "src": "components/commission/plans-view.tsx:219",
    "kind": "field",
    "label": "Except issues named with (optional)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:208",
+   "src": "components/commission/plans-view.tsx:222",
    "kind": "field",
    "label": "Applies from (optional)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:209",
+   "src": "components/commission/plans-view.tsx:223",
    "kind": "field",
    "label": "Until (optional)"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:211",
+   "src": "components/commission/plans-view.tsx:225",
    "kind": "field",
    "label": "Notes"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:214",
+   "src": "components/commission/plans-view.tsx:228",
    "kind": "button",
    "label": "Remove"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:218",
+   "src": "components/commission/plans-view.tsx:232",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/commission/plans-view.tsx",
-   "src": "components/commission/plans-view.tsx:219",
+   "src": "components/commission/plans-view.tsx:233",
    "kind": "button",
    "label": "Save"
   },
@@ -4425,19 +4439,43 @@
   },
   {
    "file": "components/deals/deal-handoffs.tsx",
-   "src": "components/deals/deal-handoffs.tsx:34",
+   "src": "components/deals/deal-handoffs.tsx:46",
    "kind": "heading",
    "label": "Hand-offs to editorial and production"
   },
   {
    "file": "components/deals/deal-handoffs.tsx",
-   "src": "components/deals/deal-handoffs.tsx:48",
+   "src": "components/deals/deal-handoffs.tsx:61",
    "kind": "button",
    "label": "Send again"
   },
   {
    "file": "components/deals/deal-handoffs.tsx",
-   "src": "components/deals/deal-handoffs.tsx:72",
+   "src": "components/deals/deal-handoffs.tsx:70",
+   "kind": "button",
+   "label": "Change hand-off"
+  },
+  {
+   "file": "components/deals/deal-handoffs.tsx",
+   "src": "components/deals/deal-handoffs.tsx:108",
+   "kind": "panel",
+   "label": "Hand-off for"
+  },
+  {
+   "file": "components/deals/deal-handoffs.tsx",
+   "src": "components/deals/deal-handoffs.tsx:119",
+   "kind": "button",
+   "label": "Cancel"
+  },
+  {
+   "file": "components/deals/deal-handoffs.tsx",
+   "src": "components/deals/deal-handoffs.tsx:120",
+   "kind": "button",
+   "label": "Save hand-off"
+  },
+  {
+   "file": "components/deals/deal-handoffs.tsx",
+   "src": "components/deals/deal-handoffs.tsx:135",
    "kind": "button",
    "label": "Save and tell editorial"
   },
@@ -4648,67 +4686,67 @@
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:37",
+   "src": "components/deals/unbooked-ad-button.tsx:40",
    "kind": "button",
    "label": "Advert with no booking"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:41",
+   "src": "components/deals/unbooked-ad-button.tsx:44",
    "kind": "panel",
    "label": "An advert with no booking"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:47",
+   "src": "components/deals/unbooked-ad-button.tsx:50",
    "kind": "field",
    "label": "Or type the name"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:48",
+   "src": "components/deals/unbooked-ad-button.tsx:51",
    "kind": "field",
    "label": "Page"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:50",
+   "src": "components/deals/unbooked-ad-button.tsx:53",
    "kind": "heading",
    "label": "What is it?"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:51",
+   "src": "components/deals/unbooked-ad-button.tsx:54",
    "kind": "field",
    "label": "Someone forgot the booking The salesperson is asked to make it. It can be dated back."
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:53",
+   "src": "components/deals/unbooked-ad-button.tsx:56",
    "kind": "field",
    "label": "A filler Space given to fill a page, no charge. Recorded on this issue as a filler."
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:56",
+   "src": "components/deals/unbooked-ad-button.tsx:59",
    "kind": "field",
    "label": "Salesperson Choose"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:61",
+   "src": "components/deals/unbooked-ad-button.tsx:68",
    "kind": "field",
    "label": "Note (optional)"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:64",
+   "src": "components/deals/unbooked-ad-button.tsx:71",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/deals/unbooked-ad-button.tsx",
-   "src": "components/deals/unbooked-ad-button.tsx:65",
+   "src": "components/deals/unbooked-ad-button.tsx:72",
    "kind": "button",
    "label": "Record the filler"
   },
@@ -6344,9 +6382,9 @@
   },
   {
    "file": "components/rate-card/brand-rate-card.tsx",
-   "src": "components/rate-card/brand-rate-card.tsx:266",
+   "src": "components/rate-card/brand-rate-card.tsx:280",
    "kind": "button",
-   "label": "Click to change the price"
+   "label": "Click to change the price, then press Enter or click away to save (Escape cancels)"
   },
   {
    "file": "components/rate-card/history-sheet.tsx",
@@ -6938,129 +6976,129 @@
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:66",
+   "src": "components/sales/edition-costs-panel.tsx:70",
    "kind": "button",
    "label": "Add the first cost"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:160",
+   "src": "components/sales/edition-costs-panel.tsx:165",
    "kind": "button",
    "label": "Save line"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:161",
+   "src": "components/sales/edition-costs-panel.tsx:166",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:169",
+   "src": "components/sales/edition-costs-panel.tsx:174",
    "kind": "heading",
    "label": "Costs & profit What this edition cost to produce or run, next to what it sold. Profit is the booked value minus the cost"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:171",
+   "src": "components/sales/edition-costs-panel.tsx:176",
    "kind": "hint",
    "label": "",
    "hint": "What this edition cost to produce or run, next to what it sold. Profit is the booked value minus the cost lines. Put costs in parts (e.g. judging day and ceremony) to see each part's total, add a budget to compare, and link a cost to one booking (a cover wrap's printing) to see that booking's own profit. Greyed “sheet total” lines are the original sheet's sums, for reference only. Amounts are before VAT unless the line says otherwise."
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:193",
+   "src": "components/sales/edition-costs-panel.tsx:198",
    "kind": "column",
    "label": "Type"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:194",
+   "src": "components/sales/edition-costs-panel.tsx:199",
    "kind": "column",
    "label": "Line"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:195",
+   "src": "components/sales/edition-costs-panel.tsx:200",
    "kind": "column",
    "label": "Budget"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:196",
+   "src": "components/sales/edition-costs-panel.tsx:201",
    "kind": "column",
    "label": "Actual"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:197",
+   "src": "components/sales/edition-costs-panel.tsx:202",
    "kind": "column",
    "label": "Actions"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:211",
+   "src": "components/sales/edition-costs-panel.tsx:216",
    "kind": "button",
    "label": "Add"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:236",
+   "src": "components/sales/edition-costs-panel.tsx:243",
    "kind": "button",
    "label": "Add a line"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:246",
+   "src": "components/sales/edition-costs-panel.tsx:253",
    "kind": "heading",
    "label": "Where the money went"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:264",
+   "src": "components/sales/edition-costs-panel.tsx:271",
    "kind": "heading",
    "label": "Bookings with their own costs What each booking sold for, the costs linked to it, and what it left. Its costs are also i"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:266",
+   "src": "components/sales/edition-costs-panel.tsx:273",
    "kind": "hint",
    "label": "",
    "hint": "What each booking sold for, the costs linked to it, and what it left. Its costs are also in the edition's totals."
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:272",
+   "src": "components/sales/edition-costs-panel.tsx:279",
    "kind": "column",
    "label": "Booking"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:273",
+   "src": "components/sales/edition-costs-panel.tsx:280",
    "kind": "column",
    "label": "Sold"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:274",
+   "src": "components/sales/edition-costs-panel.tsx:281",
    "kind": "column",
    "label": "Costs"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:275",
+   "src": "components/sales/edition-costs-panel.tsx:282",
    "kind": "column",
    "label": "Profit"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:282",
+   "src": "components/sales/edition-costs-panel.tsx:289",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/sales/edition-costs-panel.tsx",
-   "src": "components/sales/edition-costs-panel.tsx:348",
+   "src": "components/sales/edition-costs-panel.tsx:357",
    "kind": "link",
    "label": "For … (opens in a new tab)"
   },
@@ -7350,87 +7388,99 @@
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:274",
+   "src": "components/sales/order-sheet.tsx:96",
+   "kind": "link",
+   "label": "Change this on the booking"
+  },
+  {
+   "file": "components/sales/order-sheet.tsx",
+   "src": "components/sales/order-sheet.tsx:304",
    "kind": "button",
    "label": "Mark checked"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:298",
+   "src": "components/sales/order-sheet.tsx:348",
    "kind": "button",
    "label": "booking · linked"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:323",
+   "src": "components/sales/order-sheet.tsx:373",
    "kind": "hint",
    "label": "",
    "hint": "Linking the booking to its CRM company shows it on the company's Bookings tab and lets renewals reach the right record. Optional."
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:372",
+   "src": "components/sales/order-sheet.tsx:436",
    "kind": "button",
    "label": "Split"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:381",
+   "src": "components/sales/order-sheet.tsx:445",
    "kind": "hint",
    "label": "",
    "hint": "Each person's share is what their commission is worked out on - like the sheet's per-rep columns."
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:405",
+   "src": "components/sales/order-sheet.tsx:469",
    "kind": "button",
    "label": "Remove this share"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:411",
+   "src": "components/sales/order-sheet.tsx:475",
    "kind": "button",
    "label": "Add person"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:419",
+   "src": "components/sales/order-sheet.tsx:483",
    "kind": "button",
    "label": "Go back to one salesperson"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:449",
+   "src": "components/sales/order-sheet.tsx:513",
    "kind": "link",
    "label": "Open in Xero"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:523",
+   "src": "components/sales/order-sheet.tsx:587",
    "kind": "field",
    "label": "Filler ad Space given away, or a house ad, used to fill a page. Kept apart so you can see how much of an issue was fille"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:552",
+   "src": "components/sales/order-sheet.tsx:616",
    "kind": "button",
    "label": "Show change history"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:576",
+   "src": "components/sales/order-sheet.tsx:640",
    "kind": "button",
    "label": "Delete"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:582",
+   "src": "components/sales/order-sheet.tsx:645",
+   "kind": "link",
+   "label": "Remove it on the booking"
+  },
+  {
+   "file": "components/sales/order-sheet.tsx",
+   "src": "components/sales/order-sheet.tsx:651",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:585",
+   "src": "components/sales/order-sheet.tsx:654",
    "kind": "button",
    "label": "Saving"
   },
@@ -7521,147 +7571,147 @@
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:220",
+   "src": "components/sales/proposal-editor.tsx:223",
    "kind": "button",
    "label": "Save"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:221",
+   "src": "components/sales/proposal-editor.tsx:224",
    "kind": "button",
    "label": "Download Word file"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:224",
+   "src": "components/sales/proposal-editor.tsx:227",
    "kind": "button",
    "label": "They chose … : make the order"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:228",
+   "src": "components/sales/proposal-editor.tsx:231",
    "kind": "button",
    "label": "They said yes: make the booking"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:229",
+   "src": "components/sales/proposal-editor.tsx:232",
    "kind": "button",
    "label": "Email it from Outlook"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:230",
+   "src": "components/sales/proposal-editor.tsx:233",
    "kind": "button",
    "label": "I've sent it myself"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:236",
+   "src": "components/sales/proposal-editor.tsx:239",
    "kind": "heading",
    "label": "The issue From the editorial plan. Its date, advertising deadline and features are what the wording mentions."
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:236",
+   "src": "components/sales/proposal-editor.tsx:239",
    "kind": "hint",
    "label": "",
    "hint": "From the editorial plan. Its date, advertising deadline and features are what the wording mentions."
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:253",
+   "src": "components/sales/proposal-editor.tsx:256",
    "kind": "field",
    "label": "Change the issue"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:262",
+   "src": "components/sales/proposal-editor.tsx:265",
    "kind": "heading",
    "label": "History with BMI From the order register. The draft wording only uses these figures."
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:262",
+   "src": "components/sales/proposal-editor.tsx:265",
    "kind": "hint",
    "label": "",
    "hint": "From the order register. The draft wording only uses these figures."
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:273",
+   "src": "components/sales/proposal-editor.tsx:276",
    "kind": "link",
    "label": "Open"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:284",
+   "src": "components/sales/proposal-editor.tsx:287",
    "kind": "dialog",
    "label": "Email the proposal"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:295",
+   "src": "components/sales/proposal-editor.tsx:298",
    "kind": "field",
    "label": "To"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:298",
+   "src": "components/sales/proposal-editor.tsx:301",
    "kind": "field",
    "label": "Cc (optional)"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:301",
+   "src": "components/sales/proposal-editor.tsx:304",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:304",
+   "src": "components/sales/proposal-editor.tsx:307",
    "kind": "field",
    "label": "Opening line (the proposal follows it)"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:308",
+   "src": "components/sales/proposal-editor.tsx:311",
    "kind": "field",
    "label": "Also attach it as a Word document"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:310",
+   "src": "components/sales/proposal-editor.tsx:313",
    "kind": "field",
    "label": "Remind me to follow up in (days)"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:317",
+   "src": "components/sales/proposal-editor.tsx:320",
    "kind": "button",
    "label": "Send"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:333",
+   "src": "components/sales/proposal-editor.tsx:336",
    "kind": "dialog",
    "label": "Log this proposal as sent"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:337",
+   "src": "components/sales/proposal-editor.tsx:340",
    "kind": "field",
    "label": "How did you send it? Emailed the downloaded file Another way"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:344",
+   "src": "components/sales/proposal-editor.tsx:347",
    "kind": "field",
    "label": "Remind me to follow up in (days)"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
-   "src": "components/sales/proposal-editor.tsx:351",
+   "src": "components/sales/proposal-editor.tsx:354",
    "kind": "button",
    "label": "Log it"
   },
@@ -7903,171 +7953,171 @@
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:108",
+   "src": "components/sales/writing-profile.tsx:115",
    "kind": "button",
    "label": "Upload files"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:110",
+   "src": "components/sales/writing-profile.tsx:117",
    "kind": "button",
    "label": "Paste one"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:111",
+   "src": "components/sales/writing-profile.tsx:118",
    "kind": "button",
    "label": "Find them in my Sent Items"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:121",
+   "src": "components/sales/writing-profile.tsx:128",
    "kind": "button",
    "label": "Add it"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:125",
+   "src": "components/sales/writing-profile.tsx:132",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:151",
+   "src": "components/sales/writing-profile.tsx:158",
    "kind": "button",
    "label": "Save the note"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:156",
+   "src": "components/sales/writing-profile.tsx:163",
    "kind": "button",
    "label": "Work out my style"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:169",
+   "src": "components/sales/writing-profile.tsx:176",
    "kind": "heading",
    "label": "Your profile"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:171",
+   "src": "components/sales/writing-profile.tsx:178",
    "kind": "field",
    "label": "In a few words, how you write"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:173",
+   "src": "components/sales/writing-profile.tsx:180",
    "kind": "field",
    "label": "Tone"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:174",
+   "src": "components/sales/writing-profile.tsx:181",
    "kind": "field",
    "label": "Length Short and to the point Medium Long and detailed"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:178",
+   "src": "components/sales/writing-profile.tsx:185",
    "kind": "field",
    "label": "Usually sent As an email As a Word document"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:184",
+   "src": "components/sales/writing-profile.tsx:191",
    "kind": "field",
    "label": "Greeting ({first_name} is their name)"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:185",
+   "src": "components/sales/writing-profile.tsx:192",
    "kind": "field",
    "label": "Sign-off ({my_first_name} is yours)"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:188",
+   "src": "components/sales/writing-profile.tsx:195",
    "kind": "field",
    "label": "Direct clients' prices: % below the rate card Agencies always get the rate card (they take their commission from it). Le"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:189",
+   "src": "components/sales/writing-profile.tsx:196",
    "kind": "hint",
    "label": "",
    "hint": "Agencies always get the rate card (they take their commission from it). Leave at 0 to quote the rate card to everyone."
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:193",
+   "src": "components/sales/writing-profile.tsx:200",
    "kind": "field",
    "label": "Round those prices to the nearest"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:199",
+   "src": "components/sales/writing-profile.tsx:206",
    "kind": "field",
    "label": "Things you always do (one per line)"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:200",
+   "src": "components/sales/writing-profile.tsx:207",
    "kind": "field",
    "label": "Things you never do (one per line)"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:204",
+   "src": "components/sales/writing-profile.tsx:211",
    "kind": "hint",
    "label": "",
    "hint": "Tick what you include and put it in your order. Prices, issues, numbers and examples always come from the Brain's own data."
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:219",
+   "src": "components/sales/writing-profile.tsx:226",
    "kind": "button",
    "label": "Earlier"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:220",
+   "src": "components/sales/writing-profile.tsx:227",
    "kind": "button",
    "label": "Later"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:228",
+   "src": "components/sales/writing-profile.tsx:235",
    "kind": "field",
    "label": "How you open ({for_client} names an agency's client)"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:229",
+   "src": "components/sales/writing-profile.tsx:236",
    "kind": "field",
    "label": "How you close"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:235",
+   "src": "components/sales/writing-profile.tsx:242",
    "kind": "button",
    "label": "Use this profile"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:241",
+   "src": "components/sales/writing-profile.tsx:248",
    "kind": "button",
    "label": "Back to the standard style"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:252",
+   "src": "components/sales/writing-profile.tsx:259",
    "kind": "heading",
    "label": "What the Brain has learned Each time you send a drafted reply or proposal, it notes what you took out. Something you tak"
   },
   {
    "file": "components/sales/writing-profile.tsx",
-   "src": "components/sales/writing-profile.tsx:252",
+   "src": "components/sales/writing-profile.tsx:259",
    "kind": "hint",
    "label": "",
    "hint": "Each time you send a drafted reply or proposal, it notes what you took out. Something you take out 3 times in your last 6 is left out from then on. Switch any of these off to undo it."

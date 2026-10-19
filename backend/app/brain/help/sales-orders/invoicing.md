@@ -75,7 +75,7 @@ On Sales Orders > Bookings, in the filter panel: **Due to invoice now** (items t
 
 ### Advert with no booking (issue page)
 On an issue's page. For an advert in the printed issue that has no booking. Choose the **Client company** (or type the name), the **Page**, and **What is it?**:
-- **Someone forgot the booking**: choose the **Salesperson** and press **Ask them to book it**. They get a notification and an email with a link to a new booking for that issue and client. It can be dated back.
+- **Someone forgot the booking**: choose the **Salesperson** and press **Ask them to book it**. They get a notification and an email with a link to a new booking for that issue and client. It can be dated back. Only people who can sign in to the Brain are listed.
 - **A filler**: press **Record the filler**. A no-charge filler item is added to the issue, with the page noted.
 
 ## How it works

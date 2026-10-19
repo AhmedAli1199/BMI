@@ -99,6 +99,12 @@ export default async function EditorialPage({ searchParams }: { searchParams: Pr
             <div key={b.key} className="flex flex-col gap-2 rounded-xl border border-border/80 bg-card p-4 shadow-2xs">
               <p className="flex items-center gap-2 text-sm font-bold"><span className="masthead-rule w-4" style={{ background: brandColor(b.key) }} aria-hidden="true" />{b.name}</p>
               {b.about && <p className="text-xs text-muted-foreground">{b.about}</p>}
+              {b.can_edit && !b.published_plan && b.rows.length === 0 && b.undated.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  There&apos;s no published plan to load for {b.short} in {year}. Add its issues and events with &ldquo;Add an issue or event&rdquo;, or go to {year - 1} and use
+                  &ldquo;Plan {year}&rdquo; to copy last year forward.
+                </p>
+              )}
               {b.undated.length > 0 && <p className="text-xs" style={{ color: "var(--warn)" }}>{b.undated.length} without a date yet: {b.undated.map((u) => u.name).slice(0, 4).join(", ")}{b.undated.length > 4 ? "…" : ""}</p>}
               <div className="mt-auto flex flex-wrap gap-2 pt-1">
                 {b.can_edit && b.rows.length > 0 && <PlanNextYearButton brand={b.key} brandName={b.name} fromYear={year} />}

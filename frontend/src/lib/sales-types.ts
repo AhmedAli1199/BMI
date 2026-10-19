@@ -339,6 +339,8 @@ export type SalesDashboard = {
   pace: PaceRow[];
   weekly: { week_start: string; orders: number; value_gbp: number; last_year_value_gbp: number }[];
   activity_days: number;
+  /** The first day the team activity counts (ISO date). */
+  activity_since?: string | null;
   activity: {
     rep: SalesRep;
     bookings: number;
@@ -403,6 +405,8 @@ export type EditionCosts = {
   by_category: Record<string, number>;
   by_booking: { order: Ref; value_gbp: number; costs_gbp: number; profit_gbp: number }[];
   categories: Record<string, string>;
+  /** Whether you may add, change or remove lines: administrators, data managers and the event's organiser, until signed off. */
+  can_edit?: boolean;
 };
 
 export type CostLineInput = {

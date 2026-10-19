@@ -16,10 +16,10 @@ sources: ["frontend/src/app/(app)/brain/page.tsx", "frontend/src/app/(app)/brain
 - Answers stream in as they're written. While it works, you see its steps (for example "Reading the guide…") and "Thinking…".
 - Answers use numbered steps, button names in bold, green **Tip** boxes and amber **Note** boxes, links that open in a new tab, and small **Show me** buttons next to buttons on your screen. Under the latest answer there may be up to three follow-up questions to press.
 - Under each answer: thumbs up (**Helpful**), thumbs down (**Not helpful**), **Copy the answer** and **This didn't help**.
-- At the bottom: the question box, **Send** (the arrow), **Point at it**, **Screenshot** and **Speak**. Anything you've pointed at or captured shows above the box, each with a cross to remove it.
+- At the bottom: the question box, **Send** (the arrow), **Point at it**, **Screenshot** and **Speak**. Anything you've pointed at or captured shows above the box, each with a cross to remove it. Click a screenshot's thumbnail to mark it up again.
 
 ### The Chat with the Brain page
-The same chat, full size, with your conversations listed on the left and **New conversation** above them. Administrators also see **What it's been asked**.
+The same chat, full size, with your conversations listed on the left and **New conversation** above them. Hover over a conversation for **Rename** (the pencil) and **Delete** (the bin). Administrators also see **What it's been asked**.
 
 ### Questions people asked (administrators only)
 - Four tiles for the last 14 days: **Answers (14 days)**, **Helpful / not**, **Average time to answer** and **Served from the cache** (how much of what it reads each time was already cached - cheaper and quicker; higher is better).
@@ -50,10 +50,13 @@ Opens the panel. **Ctrl+J** opens or closes it from any page.
 Sends your question. Enter sends; Shift+Enter starts a new line. While it's answering, **Stop** appears so you can cancel.
 
 ### Point at it
-Click the thing on the page you're asking about (the panel stays open). It's added with a close-up screenshot. Ask "What does this do?", or just press Send - with nothing typed it asks "What is this and how do I use it?". Press Esc to stop pointing. Up to 4 things at a time.
+Click the thing on the page you're asking about (the panel stays open). A close-up screenshot of it opens for marking up, the same as **Screenshot** (**Arrow**, **Box**, **Draw**, **Hide**); press **Add this screenshot**, or **Cancel** to add the close-up as it is. Ask "What does this do?", or just press Send - with nothing typed it asks "What is this and how do I use it?". Press Esc to stop pointing. Up to 4 things at a time.
 
 ### Screenshot
 Takes a picture of the page; drag a box over the part you mean, or press **Whole screen**. Then mark it up (**Arrow**, **Box**, **Draw**, **Hide** to black out anything private) and press **Add this screenshot**. Up to 3 screenshots per question.
+
+### Mark up a screenshot again
+Click a screenshot's thumbnail above the question box (**Mark up ... again**) to open it for marking up again - add more arrows or hide something you missed - then press **Add this screenshot**. **Cancel** leaves it as it was.
 
 ### Speak
 Records your question and types it into the box. Press **Stop** when you've finished, check the words, then send.
@@ -74,7 +77,7 @@ Opens "Tell the team, so the answer (or the screen) gets better." Add what you n
 Copies the answer's text.
 
 ### Your conversations (clock)
-Lists your last 50 conversations, newest first. Press one to open it. The bin (**Delete <title>**, shown on hover) deletes one.
+Lists your last 50 conversations, newest first. Press one to open it. The pencil (**Rename <title>**, shown on hover) lets you type a new name: press Enter or click away to save it, Escape to keep the old name. The bin (**Delete <title>**, shown on hover) deletes one.
 
 ### New conversation
 Starts a fresh chat. Earlier ones stay under **Your conversations**.
@@ -110,6 +113,9 @@ A: Yes, for clients you can see. Ask things like "What did <client> last buy and
 
 **Q: How do I find an old conversation?**
 A: In the panel, press **Your conversations** (the clock), or open **Chat with the Brain** in the menu and pick it from the list on the left.
+
+**Q: Can I give a conversation a better name?**
+A: Yes. Hover over it in **Your conversations** (or the list on the Chat with the Brain page), press the pencil, type the new name and press Enter.
 
 **Q: The answer was wrong or unhelpful - what should I do?**
 A: Press **This didn't help**, say what you needed, and press **Send to the team**. It goes to the Feedback board so the help or the screen can be fixed.

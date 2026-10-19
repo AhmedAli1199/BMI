@@ -7,6 +7,7 @@ import type { SalesMeta } from "@/lib/sales-types";
 
 export const STATUS_OPTIONS = [
   { value: "booked", label: "Booked" },
+  { value: "pencilled", label: "Pencilled", hint: "Held for the client but not confirmed yet - not counted in sales figures" },
   { value: "cancelled", label: "Cancelled" },
   { value: "contra", label: "Contra", hint: "Exchanged for goods/services, not paid in money" },
   { value: "moved", label: "Moved", hint: "Moved to another edition" },
@@ -20,6 +21,7 @@ export const PRODUCT_LINE_OPTIONS = [
 ];
 
 export const XERO_OPTIONS = [
+  { value: "draft", label: "Draft in Xero", hint: "The invoice has been made in Xero but not sent to the client yet" },
   { value: "paid", label: "Paid" },
   { value: "part_paid", label: "Part paid" },
   { value: "unpaid", label: "Unpaid", hint: "Not yet due" },

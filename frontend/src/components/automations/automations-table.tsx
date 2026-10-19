@@ -90,7 +90,7 @@ export function AutomationsTable({ rows, range }: { rows: AutomationStats[]; ran
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <ScannerStatus job={a.job} />
+                    <ScannerStatus job={a.job} source={a.source_label} />
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums">
                     {a.pending > 0 ? (
@@ -153,8 +153,8 @@ export function AutomationsTable({ rows, range }: { rows: AutomationStats[]; ran
   );
 }
 
-function ScannerStatus({ job }: { job: JobSummary | null }) {
-  if (!job) return <span className="text-xs text-muted-foreground">Manual upload</span>;
+function ScannerStatus({ job, source }: { job: JobSummary | null; source?: string | null }) {
+  if (!job) return <span className="text-xs text-muted-foreground">{source ?? "Made in the app"}</span>;
   const run = job.last_run;
   const failed = run?.status === "failed";
   const color = !job.enabled ? "var(--muted-foreground)" : failed ? "var(--bad)" : "var(--ok)";
@@ -248,7 +248,7 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
               <dd className="text-foreground">
                 {run ? `${fmtAgo(run.started_at)} · ${run.status === "failed" ? "failed" : run.status === "running" ? "running" : "succeeded"}` : "No runs recorded yet"}
               </dd>
-              {run && (
+              {run && row.job.makes_cards !== false && (
                 <>
                   <dt className="text-muted-foreground">Found</dt>
                   <dd className="text-foreground">{fmtCount(run.items_queued)} item{run.items_queued === 1 ? "" : "s"}{runSeconds !== null ? ` in ${fmtDuration(runSeconds)}` : ""}</dd>
@@ -262,7 +262,7 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
               )}
             </dl>
           ) : (
-            <p className="text-xs text-muted-foreground">Created from photo uploads, not a scheduled scanner.</p>
+            <p className="text-xs text-muted-foreground">{row.source_text ?? "Made by something people do in the app, not by a scheduled scanner."}</p>
           )}
           <Link href="/automations/engine" className="mt-auto text-xs font-semibold text-primary hover:underline">
             All scanners &rarr;

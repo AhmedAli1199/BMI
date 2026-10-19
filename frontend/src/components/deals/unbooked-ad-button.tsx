@@ -29,6 +29,9 @@ export function UnbookedAdButton({ editionId, editionLabel, reps }: { editionId:
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
   const client = company?.label || name.trim();
+  // only someone who can sign in can be asked to make the booking (they get a notification); a filler can name anyone
+  const choices = reps.filter((r) => r.active && (outcome === "filler" || r.has_login));
+  const hidden = outcome === "needs_booking" ? reps.filter((r) => r.active && !r.has_login).length : 0;
 
   const reset = () => { setCompany(null); setName(""); setPage(""); setOutcome("needs_booking"); setRep(""); setNote(""); };
 
@@ -54,17 +57,22 @@ export function UnbookedAdButton({ editionId, editionLabel, reps }: { editionId:
                 <span>A filler<span className="block text-xs text-muted-foreground">Space given to fill a page, no charge. Recorded on this issue as a filler.</span></span></label>
             </fieldset>
             <label className={labelCls}>Salesperson{outcome === "needs_booking" ? "" : " (optional)"}
-              <select className={selectCls} value={rep} onChange={(e) => setRep(e.target.value)}>
+              <select className={selectCls} value={choices.some((r) => r.id === rep) ? rep : ""} onChange={(e) => setRep(e.target.value)}>
                 <option value="">Choose…</option>
-                {reps.filter((r) => r.active).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select></label>
+                {choices.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              {hidden > 0 && (
+                <span className="font-normal">Only people who can sign in to the Brain are listed, as they&apos;re sent a notification. Tell anyone else yourself.</span>
+              )}
+            </label>
             <label className={labelCls}>Note (optional)<Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-sm" /></label>
           </div>
           <SheetFooter className="flex-row border-t border-border/70">
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button disabled={pending || !client || (outcome === "needs_booking" && !rep)} onClick={() => start(async () => {
+            <Button disabled={pending || !client || (outcome === "needs_booking" && !choices.some((r) => r.id === rep))} onClick={() => start(async () => {
               try {
-                const r = await reportUnbookedAd({ edition_id: editionId, client_name: client, company_id: company?.id ?? null, rep_id: rep || null,
+                const chosen = choices.some((r) => r.id === rep) ? rep : "";
+                const r = await reportUnbookedAd({ edition_id: editionId, client_name: client, company_id: company?.id ?? null, rep_id: chosen || null,
                   page: page || null, outcome, note: note || null });
                 toast.success(r.message);
                 reset(); setOpen(false); router.refresh();

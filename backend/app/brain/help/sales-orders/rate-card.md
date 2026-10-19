@@ -57,7 +57,7 @@ Shown on an empty year when prices from that year's media pack are ready. Loads 
 On the amber banner. Marks every price and offer of this brand and year as checked (it asks first). Only use it if you've really looked at them all. Editors only.
 
 ### Clicking a price
-Editors can click a price (hovering over it says **Click to change the price**), type the new one and press Enter. It saves straight away. Escape, or clicking away, cancels without saving. If the new price is more than five times bigger or smaller than the old one, it asks you to confirm. A price that was "On request" becomes a set price.
+Editors can click a price (hovering over it says **Click to change the price, then press Enter or click away to save (Escape cancels)**), type the new one and press Enter or click away. It saves straight away. Escape cancels without saving; clicking away with nothing changed (or the box empty) leaves the price as it was. If the new price is more than five times bigger or smaller than the old one, it asks you to confirm. A price that was "On request" becomes a set price.
 
 ### Clicking a product's name / pencil icon
 Opens the price panel to change everything else about that product (hovering says **Change this product - name, size, pages, notes**). Editors only.
@@ -151,4 +151,4 @@ A: Its "Price ends on" date has passed. Change the date or the price in the pric
 - **Prepare next year's prices is missing**: you can't edit, or this year has no prices yet.
 - **"Every <year> price is already in <next year>. Nothing to copy."**: next year is already filled. Add any new ones by hand.
 - **Put back is missing on a change**: it has been changed again since, or it's a kind of change that can't be undone automatically. Edit it directly.
-- **My typed price disappeared**: you clicked away before pressing Enter. Click the price again, type it and press Enter.
+- **My typed price disappeared**: you pressed Escape, or what you typed wasn't a price (a message says so). Click the price again, type it and press Enter.

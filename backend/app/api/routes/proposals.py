@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -301,14 +301,16 @@ def _learn_from(db: Session, p: Proposal, user: User) -> None:
 
 
 @router.get("", response_model=list[ProposalOut])
-def list_proposals(company_id: uuid.UUID | None = None, db: Session = Depends(get_db), user: User = Depends(current_user),
+def list_proposals(company_id: uuid.UUID | None = None, limit: int = Query(default=200, ge=1, le=2000), offset: int = Query(default=0, ge=0),
+                   db: Session = Depends(get_db), user: User = Depends(current_user),
                    identity: Identity = Depends(get_identity)) -> list[ProposalOut]:
+    """Newest first, a page at a time (the list page asks for one more than it shows, to know if there are more)."""
     q = select(Proposal)
     if company_id:
         q = q.where(Proposal.company_id == company_id)
     if not _is_staff(identity):
         q = q.where(Proposal.created_by_user_id == user.id)
-    return [_out(db, p) for p in db.scalars(q.order_by(Proposal.created_at.desc()).limit(200))]
+    return [_out(db, p) for p in db.scalars(q.order_by(Proposal.created_at.desc(), Proposal.id).limit(limit).offset(offset))]
 
 
 @router.get("/{pid}", response_model=ProposalOut)

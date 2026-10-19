@@ -74,7 +74,7 @@ function editionDefs(titles: SalesTitle[]): FilterDef[] {
   ];
 }
 
-export function EditionsExplorer({ editions, titles, year }: { editions: EditionSummary[]; titles: SalesTitle[]; year: number }) {
+export function EditionsExplorer({ editions, titles, year }: { editions: EditionSummary[]; titles: SalesTitle[]; year: number | string }) {
   const defs = useMemo(() => editionDefs(titles), [titles]);
   return (
     <ClientDataView rows={editions} defs={defs} defaultSort={DEFAULT_SORT} accessors={ACCESSORS} sortAccessors={SORTS}>
@@ -83,7 +83,7 @@ export function EditionsExplorer({ editions, titles, year }: { editions: Edition
   );
 }
 
-function EditionsBody({ rows, all, titles, year }: { rows: EditionSummary[]; all: EditionSummary[]; titles: SalesTitle[]; year: number }) {
+function EditionsBody({ rows, all, titles, year }: { rows: EditionSummary[]; all: EditionSummary[]; titles: SalesTitle[]; year: number | string }) {
   const { params, update } = useDataView();
   const grouped = params.get("group") !== "none";
   const groups = grouped

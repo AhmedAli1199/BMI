@@ -43,6 +43,7 @@ export function EditionCostsPanel({
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [pending, start] = useTransition();
   const cats = costs.categories;
+  const canEdit = !!costs.can_edit;
 
   // Parts in the order they first appear. A note line named like a part is that part's heading (from the sheet).
   const partNames = [...new Set(costs.lines.map((l) => l.section).filter(Boolean) as string[])];
@@ -60,12 +61,16 @@ export function EditionCostsPanel({
     return (
       <section aria-label="Costs and profit" className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-border/80 bg-card/60 px-4 py-3 text-sm">
         <p className="min-w-0 flex-1 text-muted-foreground">
-          <span className="font-semibold text-foreground">Costs &amp; profit.</span> Record what this edition cost to produce - printing, postage,
-          writers, design - to see the profit it made.
+          <span className="font-semibold text-foreground">Costs &amp; profit.</span>{" "}
+          {canEdit
+            ? "Record what this edition cost to produce - printing, postage, writers, design - to see the profit it made."
+            : "No costs recorded for this edition yet. Administrators, data managers and the event's organiser can add them."}
         </p>
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setOpen(true); edit(); }}>
-          <Plus className="size-3.5" /> Add the first cost
-        </Button>
+        {canEdit && (
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setOpen(true); edit(); }}>
+            <Plus className="size-3.5" /> Add the first cost
+          </Button>
+        )}
       </section>
     );
   }
@@ -207,14 +212,14 @@ export function EditionCostsPanel({
                     <td className="px-2 py-1.5 text-right text-xs font-semibold tabular-nums text-muted-foreground">{t?.budget_gbp != null ? fmtGBP(t.budget_gbp) : ""}</td>
                     <td className="px-2 py-1.5 text-right text-xs font-semibold tabular-nums">{t?.costs_gbp ? fmtGBP(t.costs_gbp) : ""}</td>
                     <td className="px-3 py-1 text-right">
-                      {editing === null && (
+                      {editing === null && canEdit && (
                         <Button size="xs" variant="ghost" className="gap-1" onClick={() => edit(undefined, g.part)} aria-label={`Add a line to ${g.part}`}><Plus className="size-3" /> Add</Button>
                       )}
                     </td>
                   </tr>
                 )}
                 {g.lines.map((l) => (
-                  <LineRow key={l.id} l={l} cats={cats} editing={editing} editor={editor} onEdit={edit} onDelete={remove} pending={pending} />
+                  <LineRow key={l.id} l={l} cats={cats} editing={editing} editor={editor} onEdit={edit} onDelete={remove} pending={pending} canEdit={canEdit} />
                 ))}
               </tbody>
             );
@@ -223,7 +228,9 @@ export function EditionCostsPanel({
             {costs.lines.length === 0 && editing !== "new" && (
               <tr>
                 <td colSpan={5} className="px-4 py-5 text-sm text-muted-foreground">
-                  No costs recorded yet. Add printing, postage, venue, catering, writers, travel and other direct costs to see the profit.
+                  {canEdit
+                    ? "No costs recorded yet. Add printing, postage, venue, catering, writers, travel and other direct costs to see the profit."
+                    : "No costs recorded yet."}
                 </td>
               </tr>
             )}
@@ -231,7 +238,7 @@ export function EditionCostsPanel({
           </tbody>
         </table>
       </div>
-      {editing === null && (
+      {editing === null && canEdit && (
         <div className="border-t border-border/60 px-4 py-2">
           <Button size="sm" variant="ghost" className="gap-1.5" onClick={() => edit()}>
             <Plus className="size-3.5" /> Add a line
@@ -320,6 +327,7 @@ function LineRow({
   onEdit,
   onDelete,
   pending,
+  canEdit,
 }: {
   l: CostLine;
   cats: Record<string, string>;
@@ -328,6 +336,7 @@ function LineRow({
   onEdit: (l: CostLine) => void;
   onDelete: (id: string) => void;
   pending: boolean;
+  canEdit: boolean;
 }) {
   if (editing === l.id) return <>{editor(l.id)}</>;
   const over = l.budget_gbp !== null && l.amount_gbp !== null && l.amount_gbp > l.budget_gbp;
@@ -362,7 +371,7 @@ function LineRow({
         {l.amount_inc_vat_gbp !== null && <div className="text-[10.5px] text-muted-foreground">{fmtGBP(l.amount_inc_vat_gbp)} inc VAT</div>}
       </td>
       <td className="px-3 py-1.5 text-right whitespace-nowrap">
-        {l.kind !== "summary" && (
+        {l.kind !== "summary" && canEdit && (
           <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
             <Button size="icon-sm" variant="ghost" onClick={() => onEdit(l)} aria-label={`Edit ${l.label}`}><Pencil className="size-3.5" /></Button>
             <Button size="icon-sm" variant="ghost" disabled={pending} onClick={() => onDelete(l.id)} aria-label={`Remove ${l.label}`}><Trash2 className="size-3.5" /></Button>

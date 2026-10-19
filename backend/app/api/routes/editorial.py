@@ -114,6 +114,8 @@ class PlannerBrand(BaseModel):
     can_edit: bool
     titles: list[TitleRef]
     seed_available: int
+    # We hold a published plan for this brand and year (whether or not it's loaded yet).
+    published_plan: bool = False
     rows: list[PlannerRow]
     undated: list[IssueOut]
     about: str | None
@@ -229,7 +231,8 @@ def planner(year: int | None = None, db: Session = Depends(get_db), identity: Id
         st = db.get(EditorialSetting, b.key)
         out.append(PlannerBrand(key=b.key, name=b.name, short=b.short, can_edit=B.can_edit_brand(db, identity, b),
                                 titles=[TitleRef(id=t.id, name=t.name, slug=t.slug) for t in B.brand_titles(db, b, active_only=True)],
-                                seed_available=seed.seed_available(db, b.key, y), rows=[r for r in rows.values() if r.issues],
+                                seed_available=seed.seed_available(db, b.key, y), published_plan=seed.has_published_plan(b.key, y),
+                                rows=[r for r in rows.values() if r.issues],
                                 undated=undated, about=st.about if st else None))
     return Planner(year=y, years=_years(db), today=date.today(), brands=out)
 
@@ -647,7 +650,7 @@ def next_year_apply(p: NextYearIn, db: Session = Depends(get_db), identity: Iden
                           period_label=e.period_label, edition_date=new_date, date_set_in_plan=True, editorial_deadline=mv(e.editorial_deadline),
                           ad_deadline=mv(e.ad_deadline), copy_deadline=mv(e.copy_deadline),
                           milestones=[{**m, "date": mv(date.fromisoformat(m["date"])).isoformat()} for m in (e.milestones or []) if m.get("date")],
-                          distribution=e.distribution, plan_needs_check=True)
+                          theme=e.theme, distribution=e.distribution, plan_needs_check=True)  # the theme usually repeats; notes stay with the old issue
         db.add(ne)
         db.flush()
         if p.keep_features:

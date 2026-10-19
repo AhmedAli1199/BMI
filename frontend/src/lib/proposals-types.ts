@@ -142,8 +142,12 @@ export type WritingProfileState = {
 export type ProposalReportRow = {
   user_id: string | null; name: string; received: number; replied: number; not_requests: number; waiting: number; proposals: number;
   bookings: number; booked_gbp: number; median_hours: number | null;
+  /** The review queue's "Salesperson" filter for this person's cards (e.g. "salesperson:Sally Parker"). */
+  queue_filter?: string;
 };
 export type ProposalReport = {
   days: number; rows: ProposalReportRow[]; total: Omit<ProposalReportRow, "user_id" | "name">; by_type: Record<string, number>;
   by_magazine: Record<string, number>; staff: boolean; people: { id: string; name: string }[];
+  /** Everyone with requests in the period, whoever is picked - the person chips. */
+  owners?: { user_id: string; name: string }[];
 };

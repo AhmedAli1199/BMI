@@ -47,7 +47,7 @@ Opens that edition's page.
 Opens All items filtered to that person (including bookings they share) for the same year.
 
 ### Renewals / Invoicing / All editions cards
-Shortcuts to those pages.
+Shortcuts to those pages. In financial-year mode, **All editions** opens the Editions list for the whole financial year (July to June), not a calendar year.
 
 ### This year / Selling now (tabs)
 **This year** is this page. **Selling now** shows how each issue and event that is still selling compares with last cycle, the weekly bookings and team activity (see the "Sales overview: Selling now, and the weekly summary" guide).

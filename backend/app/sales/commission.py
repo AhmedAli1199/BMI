@@ -202,9 +202,9 @@ def core(ctx: Ctx, rep: SalesRep, period: str) -> dict:
             limit = float(rule.threshold_gbp)
             if before <= limit < before + during:
                 name = next((t.name for t in ctx.titles.values() if t.slug == slug), slug)
-                bonuses.append({"kind": "threshold", "label": f"{name} passed £{limit:,.0f} in {start.year}", "group": rule.name,
+                bonuses.append({"kind": "threshold", "label": f"{name} passed £{limit:,.0f} in calendar year {start.year}", "group": rule.name,
                                 "amount_gbp": float(rule.threshold_bonus_gbp),
-                                "reason": f"Their {name} revenue this year reached £{before + during:,.0f}"})
+                                "reason": f"Their {name} revenue from 1 January {start.year} reached £{before + during:,.0f}"})
     # Event profit share: events signed off this month
     for rule in all_rules:
         if not rule.event_profit_rate:

@@ -415,6 +415,8 @@ export type ScheduledJob = {
   cron: string;
   enabled: boolean;
   has_cursor: boolean;
+  /** False for a job that keeps data up to date without making review cards. */
+  makes_cards?: boolean;
 };
 
 // ---- Automations Hub workstream stats (backend automation_stats.py) ----
@@ -440,6 +442,8 @@ export type JobSummary = {
   label: string;
   cron: string;
   enabled: boolean;
+  /** False for a job that doesn't make review cards (its "found" count means nothing). */
+  makes_cards?: boolean;
   last_run: JobRun | null;
 };
 
@@ -461,6 +465,9 @@ export type AutomationStats = StatsTotals & {
   label: string;
   description: string;
   job: JobSummary | null;
+  /** Where the cards come from, for a kind no scheduled job makes (e.g. "Photo upload", "After a call"). */
+  source_label?: string | null;
+  source_text?: string | null;
   daily_new: number[];
 };
 

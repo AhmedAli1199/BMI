@@ -33,6 +33,8 @@ Two pickers (**This edition** against **Compared with**), then a table (Booked, 
 ### Year buttons (Editions list)
 Show a different year's editions. Your filters are kept.
 
+From the overview in financial-year mode, **All editions** opens the Editions list for that financial year instead (for example 2026/27: editions published or held from 1 July 2026 to 30 June 2027; an undated edition counts from 1 January of its year). Pick a year button to go back to a calendar year.
+
 ### Filters (Editions list)
 **Title**, **Type** (Print, Digital, Events, Awards), **Status** (Open, Closed), **Invoicing** (Has bookings to invoice / All invoiced), **Import check** (Has rows to check / No issues), **vs last year** (Level or ahead / Behind / Nothing to compare), **Booked value** range and **Edition / event date**. Click a column heading to sort.
 
@@ -67,7 +69,7 @@ Administrators and data managers only, on open editions that have an equivalent 
 Marks the edition as finished selling, or opens it again. A closed edition drops out of "Coming up", the dashboard tracker and renewal passes. Nothing is locked: invoices can still be recorded against it.
 
 ### Costs & profit panel
-- **Add the first cost** / **Add a line** - adds a line. Choose **Cost**, **Other income** or **Note**, describe it, and for a cost pick **What was it for?**, an optional **Part** (for example "Judging day"), whether it was **For the whole edition** or for one booking, a **Budget £** and the **Actual £**. Click the tick (**Save line**) to save or the cross to cancel.
+- **Add the first cost** / **Add a line** - adds a line (only for administrators, data managers and the event's organiser, until the costs are signed off; everyone else sees the costs without these buttons). Choose **Cost**, **Other income** or **Note**, describe it, and for a cost pick **What was it for?**, an optional **Part** (for example "Judging day"), whether it was **For the whole edition** or for one booking, a **Budget £** and the **Actual £**. Click the tick (**Save line**) to save or the cross to cancel.
 - **Add** on a part's heading adds a line to that part.
 - The pencil and bin icons (shown when you hover over a line) edit or remove it. Greyed "Sheet total" lines from the imported sheet can't be edited.
 - Booking names under **Bookings with their own costs** open the booking in a new tab.
@@ -83,7 +85,7 @@ Type in the box, then **Save notes** (or **Cancel**). The buttons only appear on
 
 ### Advert with no booking
 For an advert found in the printed issue with nothing on the register. Pick the **Client company** (or type the name), the **Page**, and choose **What is it?**:
-- **Someone forgot the booking** - choose the **Salesperson** and click **Ask them to book it**. They get a notification and an email linking to a new booking for this issue and client, which they can date back.
+- **Someone forgot the booking** - choose the **Salesperson** and click **Ask them to book it**. They get a notification and an email linking to a new booking for this issue and client, which they can date back. Only people who can sign in to the Brain are listed, as they're the ones who can be sent a notification - tell anyone else yourself.
 - **A filler** - click **Record the filler**. A £0 item marked as a filler ad is added to this issue, with the page noted.
 
 ### Add item

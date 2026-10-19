@@ -5,11 +5,18 @@ import type { Proposal, WritingProfileState } from "@/lib/proposals-types";
 import { Button } from "@/components/ui/button";
 import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
-export default async function ProposalsPage() {
-  const [proposals, style] = await Promise.all([
-    backendFetch<Proposal[]>("/api/proposals").catch(() => [] as Proposal[]),
+const PAGE = 200;
+
+export default async function ProposalsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+  const sp = await searchParams;
+  const shown = Math.min(Math.max(Number(sp.show) || PAGE, PAGE), 2000);
+  const [fetched, style] = await Promise.all([
+    // one more than we show, to know whether there are older ones
+    backendFetch<Proposal[]>(`/api/proposals?limit=${shown + 1}`).catch(() => [] as Proposal[]),
     backendFetch<WritingProfileState>("/api/proposal-style").catch(() => null),
   ]);
+  const more = fetched.length > shown;
+  const proposals = more ? fetched.slice(0, shown) : fetched;
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <SalesHeader
@@ -79,6 +86,17 @@ export default async function ProposalsPage() {
               ))}
             </tbody>
           </table>
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-2 text-xs text-muted-foreground">
+            <span>
+              Showing the newest {proposals.length.toLocaleString("en-GB")} proposal{proposals.length === 1 ? "" : "s"}
+              {more ? "" : " - that's all of them"}
+            </span>
+            {more && shown < 2000 && (
+              <Link href={`/sales/proposals?show=${shown + PAGE}`} scroll={false} className="font-semibold text-primary hover:underline">
+                Show more
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>

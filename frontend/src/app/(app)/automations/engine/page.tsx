@@ -125,7 +125,9 @@ export default async function ScannersPage() {
                       <span className="whitespace-nowrap text-muted-foreground">Never run</span>
                     )}
                   </td>
-                  <td className="px-3 py-3.5 text-right text-xs tabular-nums">{last ? fmtCount(last.items_queued) : "—"}</td>
+                  <td className="px-3 py-3.5 text-right text-xs tabular-nums" title={j.makes_cards === false ? "This job keeps data up to date - it doesn't make review cards" : undefined}>
+                    {last && j.makes_cards !== false ? fmtCount(last.items_queued) : "—"}
+                  </td>
                   <td className="px-3 py-3.5 text-right text-xs tabular-nums">{secs !== null ? fmtDuration(secs) : "—"}</td>
                   <td className="px-3 py-3.5">
                     {history.length > 0 ? (
@@ -134,7 +136,7 @@ export default async function ScannersPage() {
                         {[...history].reverse().map((r) => (
                           <li
                             key={r.id}
-                            title={`${new Date(r.started_at).toLocaleString("en-GB")} · ${r.status} · found ${r.items_queued}`}
+                            title={`${new Date(r.started_at).toLocaleString("en-GB")} · ${r.status}${j.makes_cards === false ? "" : ` · found ${r.items_queued}`}`}
                             className="h-5 w-2 rounded-sm"
                             style={{ background: RUN_COLOR[r.status] }}
                           />

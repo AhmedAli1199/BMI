@@ -27,7 +27,8 @@ export function BrainPage({ initial, userName }: { initial: string | null; userN
         <div className="border-b border-border/70 p-2">
           <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={() => open(null)}><MessageSquarePlus className="size-3.5" /> New conversation</Button>
         </div>
-        <HistoryList items={list} active={active} onOpen={open} onDelete={(id) => { setList(list.filter((c) => c.id !== id)); if (id === active) open(null); }} />
+        <HistoryList items={list} active={active} onOpen={open} onDelete={(id) => { setList(list.filter((c) => c.id !== id)); if (id === active) open(null); }}
+          onRename={(id, title) => setList(list.map((c) => (c.id === id ? { ...c, title } : c)))} />
       </div>
       <div className="flex min-h-0 flex-col">
         <BrainChat key={chatKey} variant="page" conversationId={active} userName={userName}

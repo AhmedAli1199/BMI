@@ -64,8 +64,8 @@ export default async function ProposalReportPage({ searchParams }: { searchParam
         {r.staff && (
           <div className="ml-auto flex flex-wrap gap-1 text-xs">
             <Link href={link({ user: undefined })} className={`rounded-full border px-2.5 py-1 ${!sp.user ? "border-primary bg-primary/10" : "border-border text-muted-foreground"}`}>Everyone</Link>
-            {r.rows.filter((x) => x.user_id).map((x) => (
-              <Link key={x.user_id} href={link({ user: x.user_id ?? undefined })} className={`rounded-full border px-2.5 py-1 ${sp.user === x.user_id ? "border-primary bg-primary/10" : "border-border text-muted-foreground"}`}>{x.name}</Link>
+            {(r.owners ?? r.rows.filter((x) => x.user_id).map((x) => ({ user_id: x.user_id as string, name: x.name }))).map((x) => (
+              <Link key={x.user_id} href={link({ user: x.user_id })} className={`rounded-full border px-2.5 py-1 ${sp.user === x.user_id ? "border-primary bg-primary/10" : "border-border text-muted-foreground"}`}>{x.name}</Link>
             ))}
           </div>
         )}
@@ -96,7 +96,15 @@ export default async function ProposalReportPage({ searchParams }: { searchParam
           <tbody>
             {r.rows.map((x) => (
               <tr key={x.user_id ?? x.name} className="border-b border-border/60 last:border-0">
-                <td className="px-4 py-2 font-medium">{x.user_id ? <Link href={`/automations/review?kind=proposal_request`} className="hover:underline">{x.name}</Link> : x.name}</td>
+                <td className="px-4 py-2 font-medium">
+                  <Link
+                    href={`/automations/review?kind=proposal_request${x.queue_filter ? `&facet=${encodeURIComponent(x.queue_filter)}` : ""}`}
+                    title={`Open ${x.name}'s proposal requests in the review queue`}
+                    className="hover:underline"
+                  >
+                    {x.name}
+                  </Link>
+                </td>
                 <td className="px-2 py-2 text-right tabular-nums">{x.received}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{x.replied}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{hours(x.median_hours)}</td>

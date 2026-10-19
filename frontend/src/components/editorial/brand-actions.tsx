@@ -56,7 +56,7 @@ export function PlanNextYearButton({ brand, brandName, fromYear }: { brand: stri
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Start {brandName}&apos;s {to} plan from {fromYear}</DialogTitle>
-            <DialogDescription>Each issue and event is copied a year on, on the same day of the week, with its deadlines moved too. Numbered issues carry on the numbering. Everything is marked “please check” so you can confirm the dates.</DialogDescription>
+            <DialogDescription>Each issue and event is copied a year on, on the same day of the week, with its deadlines moved too. Numbered issues carry on the numbering. Each one keeps its theme and where it&apos;s handed out (they usually repeat); notes stay with the {fromYear} issue. Everything is marked “please check” so you can confirm the dates.</DialogDescription>
           </DialogHeader>
           {rows === null ? <p className="py-6 text-center text-sm text-muted-foreground">Working it out…</p> : rows.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">Everything from {fromYear} is already in {to}.</p>

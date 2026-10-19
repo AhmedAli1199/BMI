@@ -2,12 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ExternalLink, History, Loader2, MessageSquarePlus, Trash2, X } from "lucide-react";
+import { ExternalLink, History, Loader2, MessageSquarePlus, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import type { BrainConversationSummary } from "@/lib/brain-types";
-import { brainConversations, deleteBrainConversation } from "@/lib/brain-actions";
+import { brainConversations, deleteBrainConversation, renameBrainConversation } from "@/lib/brain-actions";
 import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { BrainBuddy } from "@/components/brain/brain-buddy";
 import { BrainCoach } from "@/components/brain/brain-coach";
 import { BrainChat, type ChatHandle, type Seed } from "@/components/brain/brain-chat";
@@ -77,7 +78,8 @@ export function BrainProvider({ userName, role, children }: { userName?: string;
           </header>
           {history ? (
             <HistoryList items={history} onOpen={(id) => { setConversation(id); setHistory(null); setSeed(null); setChatKey((k) => k + 1); }}
-              onDelete={(id) => { setHistory(history.filter((h) => h.id !== id)); if (id === conversation) { setConversation(null); setChatKey((k) => k + 1); } }} />
+              onDelete={(id) => { setHistory(history.filter((h) => h.id !== id)); if (id === conversation) { setConversation(null); setChatKey((k) => k + 1); } }}
+              onRename={(id, title) => setHistory(history.map((h) => (h.id === id ? { ...h, title } : h)))} />
           ) : (
             <BrainChat key={chatKey} handle={chat} variant="panel" conversationId={conversation} onConversation={setConversation} seed={seed} userName={userName}
               />
@@ -88,17 +90,46 @@ export function BrainProvider({ userName, role, children }: { userName?: string;
   );
 }
 
-export function HistoryList({ items, onOpen, onDelete, active }: { items: BrainConversationSummary[]; onOpen: (id: string) => void; onDelete: (id: string) => void; active?: string | null }) {
+export function HistoryList({ items, onOpen, onDelete, onRename, active }: {
+  items: BrainConversationSummary[]; onOpen: (id: string) => void; onDelete: (id: string) => void; onRename: (id: string, title: string) => void; active?: string | null;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   if (!items.length) return <p className="px-4 py-6 text-center text-sm text-muted-foreground">No conversations yet.</p>;
+
+  async function saveName() {
+    if (!renaming) return;
+    const { id, title } = renaming;
+    const was = items.find((c) => c.id === id)?.title ?? "";
+    setRenaming(null);
+    if (!title.trim() || title.trim() === was) return;
+    setBusy(id);
+    try { await renameBrainConversation(id, title.trim()); onRename(id, title.trim().slice(0, 200)); }
+    catch (e) { toast.error(friendlyError(e, "Couldn't rename it")); }
+    finally { setBusy(null); }
+  }
+
   return (
     <ul className="flex-1 divide-y divide-border/60 overflow-y-auto">
       {items.map((c) => (
         <li key={c.id} className={`group flex items-center gap-2 px-3 py-2 ${c.id === active ? "bg-muted/60" : ""}`}>
-          <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(c.id)}>
-            <p className="truncate text-sm font-medium">{c.title}</p>
-            {c.updated_at && <p className="text-[11px] text-muted-foreground">{new Date(c.updated_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>}
-          </button>
+          {renaming?.id === c.id ? (
+            <Input autoFocus value={renaming.title} aria-label="New name for the conversation" maxLength={200} className="h-7 min-w-0 flex-1 text-sm"
+              onChange={(e) => setRenaming({ id: c.id, title: e.target.value })}
+              onKeyDown={(e) => { if (e.key === "Enter") void saveName(); if (e.key === "Escape") setRenaming(null); }}
+              onBlur={() => void saveName()} />
+          ) : (
+            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(c.id)}>
+              <p className="truncate text-sm font-medium">{c.title}</p>
+              {c.updated_at && <p className="text-[11px] text-muted-foreground">{new Date(c.updated_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>}
+            </button>
+          )}
+          {renaming?.id !== c.id && (
+            <Button size="icon-xs" variant="ghost" aria-label={`Rename ${c.title}`} title="Rename" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100" disabled={busy === c.id}
+              onClick={() => setRenaming({ id: c.id, title: c.title })}>
+              <Pencil className="size-3" />
+            </Button>
+          )}
           <Button size="icon-xs" variant="ghost" aria-label={`Delete ${c.title}`} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100" disabled={busy === c.id}
             onClick={async () => {
               setBusy(c.id);

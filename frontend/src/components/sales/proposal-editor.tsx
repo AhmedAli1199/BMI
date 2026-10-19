@@ -214,7 +214,10 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
           {!sent && (
             <Button variant="ghost" size="sm" className="mr-auto gap-1.5 text-muted-foreground" disabled={pending} onClick={() => {
               if (!window.confirm("Delete this draft?")) return;
-              start(async () => { await deleteProposal(proposal.id); router.push("/sales/proposals"); });
+              start(async () => {
+                try { await deleteProposal(proposal.id); router.push("/sales/proposals"); }
+                catch (e) { toast.error(friendlyError(e, "Couldn't delete the draft")); }
+              });
             }}><Trash2 className="size-3.5" /> Delete draft</Button>
           )}
           {!sent && <Button variant="outline" disabled={pending || !dirty} onClick={() => save()} className="gap-1.5">{pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save</Button>}
