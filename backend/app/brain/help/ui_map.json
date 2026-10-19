@@ -2373,55 +2373,55 @@
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:73",
+   "src": "components/act-tab-workstation.tsx:78",
    "kind": "tab",
    "label": "Activities ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:87",
+   "src": "components/act-tab-workstation.tsx:92",
    "kind": "tab",
    "label": "Notes ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:97",
+   "src": "components/act-tab-workstation.tsx:102",
    "kind": "tab",
    "label": "History ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:107",
+   "src": "components/act-tab-workstation.tsx:112",
    "kind": "tab",
    "label": "Groups ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:115",
+   "src": "components/act-tab-workstation.tsx:120",
    "kind": "tab",
    "label": "Magazine & Issues"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:123",
+   "src": "components/act-tab-workstation.tsx:128",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:267",
+   "src": "components/act-tab-workstation.tsx:272",
    "kind": "heading",
    "label": "Assigned Groups & Distribution Lists"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:284",
+   "src": "components/act-tab-workstation.tsx:289",
    "kind": "heading",
    "label": "Commercial Affiliation & Issue Inserts"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:324",
+   "src": "components/act-tab-workstation.tsx:329",
    "kind": "heading",
    "label": "Act! Database Custom Fields (user1 .. user15)"
   },

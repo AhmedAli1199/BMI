@@ -16,6 +16,10 @@ Found while writing the assistant's help guides for every area (15 Oct), by read
 ## Data-changing bugs - fixed 18 Oct
 Mail merge template update, issue date moves (year + deadlines follow), renamed deadline rules (rule keys, migration 0062), empty number settings, reopening cards that already wrote (now refused), snoozes (new "snoozed" outcome, migration 0063), duplicate pairs and dismissed follow-ups coming back, follow-up card links, inbound leads' database, returned-copy addresses (asks for the new one), departures (contacts.has_left), reopened cancelled bookings, hand-off resends and change emails, Send with the accounts check off, notetaker recording rule, call-note reminder dates, call cards closing/updating, activity repeats. Struck-through items below are covered by this.
 
+## Plain on-screen text (C) and Review Queue rules (D) - fixed 19 Oct
+C: Run now / run history / bulk errors in plain words, no job codes on screen, title names instead of database names, schedules in UK time words, Xero / Outlook / mail merge / notetaker messages plain, Settings cards without server setting names, staff checks on Automation settings, Brain usage and Email signals, Home uses card labels and real title counts (tests/test_plain_messages.py).
+D: filters + date sort + new-tab links on every Review Queue kind (app/automations/review_facets.py), paging with a true count, bulk actions follow the Queue Insights group and run in rounds of 500 with a confirm dialog, soft bounces lead with "Keep - it was temporary" (tests/test_review_facets.py).
+
 ## Editorial plan
 - Moving an issue's publication date into another year doesn't update its year, so it drops off both years' planners.
 - Saving brand settings deletes brand figures other than the seven on the form (proposals can show extras like LinkedIn followers).
