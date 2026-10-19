@@ -23,6 +23,11 @@ import { highlightMatch } from "@/lib/highlight";
 import { deleteContactNote } from "@/lib/actions";
 import { DeleteItemButton } from "@/components/delete-item-button";
 
+/** Notes and History are tables made of grids, so a long type label wraps inside its column instead of running
+ * into the next one, and the headings sit over their columns. On a phone the columns stack. */
+const NOTE_COLS = "grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-[6.5rem_9.5rem_minmax(0,1fr)_8rem]";
+const HISTORY_COLS = "grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-[6.5rem_9.5rem_minmax(0,1fr)]";
+
 export function ActTabWorkstation({
   contact,
   defaultTab = "notes",
@@ -164,11 +169,11 @@ export function ActTabWorkstation({
           <TouchpointBar contactId={contact.id} contactName={contact.full_name || contact.first_name || "Contact"} sourceDb={contact.source_db} />
 
           <Card className="overflow-hidden border border-border">
-            <div className="bg-muted/40 px-4 py-2 border-b flex items-center justify-between text-xs font-semibold text-muted-foreground">
-              <span>Date / Time</span>
+            <div className={`${NOTE_COLS} bg-muted/40 px-3.5 py-2 border-b text-xs font-semibold text-muted-foreground`}>
+              <span>Date</span>
               <span>Type</span>
-              <span className="w-1/2">Content</span>
-              <span>Source</span>
+              <span>Content</span>
+              <span className="text-right">Source</span>
             </div>
 
             <CardContent className="p-0 divide-y divide-border/60 text-xs">
@@ -178,9 +183,9 @@ export function ActTabWorkstation({
                   return (
                     <div
                       key={n.id}
-                      className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 p-3.5 hover:bg-muted/20 transition-colors"
+                      className={`${NOTE_COLS} items-start p-3.5 hover:bg-muted/20 transition-colors`}
                     >
-                      <time className="w-28 shrink-0 text-muted-foreground font-mono text-[11px]">
+                      <time className="text-muted-foreground font-mono text-[11px]">
                         {n.act_created_at
                           ? new Date(n.act_created_at).toLocaleDateString("en-GB", {
                               day: "2-digit",
@@ -189,15 +194,15 @@ export function ActTabWorkstation({
                             })
                           : "—"}
                       </time>
-                      <div className="w-24 shrink-0">
+                      <div className="min-w-0">
                         <Badge variant="outline" className="text-[10px] py-0 px-1.5">
                           {highlightMatch(n.note_type || "Note", searchTerm)}
                         </Badge>
                       </div>
-                      <p className="flex-1 text-foreground leading-relaxed whitespace-pre-wrap">
+                      <p className="min-w-0 text-foreground leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {body ? highlightMatch(body, searchTerm) : "No content."}
                       </p>
-                      <span className="flex shrink-0 items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
+                      <span className="flex items-center justify-end gap-2 text-right text-[10px] text-muted-foreground uppercase tracking-wider">
                         {noteSourceLabel(n)}
                         <DeleteItemButton
                           label="Delete note"
@@ -220,10 +225,10 @@ export function ActTabWorkstation({
         {/* TAB 3: History (Audit Log) */}
         <TabsContent value="history" className="mt-4 flex flex-col gap-4">
           <Card className="overflow-hidden border border-border">
-            <div className="bg-muted/40 px-4 py-2 border-b flex items-center justify-between text-xs font-semibold text-muted-foreground">
+            <div className={`${HISTORY_COLS} bg-muted/40 px-3 py-2 border-b text-xs font-semibold text-muted-foreground`}>
               <span>Date</span>
-              <span>History Type</span>
-              <span className="w-2/3">Subject / Summary</span>
+              <span>Type</span>
+              <span>Subject / Summary</span>
             </div>
 
             <CardContent className="p-0 divide-y divide-border/60 text-xs">
@@ -231,21 +236,21 @@ export function ActTabWorkstation({
                 filteredHistory.map((h) => (
                   <div
                     key={h.id}
-                    className="flex items-center justify-between gap-3 p-3 hover:bg-muted/20 transition-colors"
+                    className={`${HISTORY_COLS} items-center p-3 hover:bg-muted/20 transition-colors`}
                   >
-                    <time className="w-28 shrink-0 text-muted-foreground font-mono text-[11px]">
+                    <time className="text-muted-foreground font-mono text-[11px]">
                       {new Date(h.occurred_at).toLocaleDateString("en-GB", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
                       })}
                     </time>
-                    <div className="w-32 shrink-0">
+                    <div className="min-w-0">
                       <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                         {highlightMatch(h.history_type, searchTerm)}
                       </Badge>
                     </div>
-                    <span className="flex-1 font-medium text-foreground">
+                    <span className="min-w-0 font-medium text-foreground [overflow-wrap:anywhere]">
                       {h.subject ? highlightMatch(h.subject, searchTerm) : "Event logged"}
                     </span>
                   </div>
