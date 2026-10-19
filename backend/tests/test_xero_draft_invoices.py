@@ -112,7 +112,9 @@ def test_contact_not_found_and_xero_refusals(w, client, monkeypatch):
     fake.reject = "Account code '3010' is not a valid code for this document."
     r = client.post(f"/api/xero-invoicing/deals/{d['id']}", json={"contact_id": "c-wis", "contact_name": "Travel Wisconsin",
                                                                   "lines": {oid: {"unit_amount": 2540}}}, headers=sam_h).json()
-    assert not r["ok"] and r["problems"][0]["key"] == "account" and r["problems"][0]["message"].startswith("Xero said:")
+    assert not r["ok"] and r["problems"][0]["key"] == "account"
+    # a plain sentence, never Xero's own wording
+    assert r["problems"][0]["message"].startswith("Xero didn't accept an account code") and "3010" not in r["problems"][0]["message"]
     assert fake.posted[-1][0]["Invoices"][0]["CurrencyCode"] == "USD" and fake.posted[-1][0]["Invoices"][0]["LineItems"][0]["UnitAmount"] == 2540
     fake.reject = None
     r = client.post(f"/api/xero-invoicing/deals/{d['id']}", json={"contact_id": "c-wis", "contact_name": "Travel Wisconsin",

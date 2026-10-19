@@ -37,9 +37,27 @@ def people(w):
 
 
 def test_schedules_in_plain_words():
+    summer, winter = date(2026, 7, 1), date(2026, 1, 15)
     assert schedule_words("*/15 * * * *") == "every 15 minutes"
-    assert schedule_words("0 7 * * 1-5") == "at 07:00 UTC, Monday to Friday"
-    assert schedule_words("30 6 * * *") == "every day at 06:30 UTC"
+    # jobs run on UTC times; people see UK clock time (BST in summer, GMT in winter)
+    assert schedule_words("0 7 * * 1-5", summer) == "at 08:00 UK time, Monday to Friday"
+    assert schedule_words("0 7 * * 1-5", winter) == "at 07:00 UK time, Monday to Friday"
+    assert schedule_words("30 6 * * *", summer) == "every day at 07:30 UK time"
+
+
+def test_every_scheduled_job_has_a_plain_schedule():
+    """No job's schedule comes back as a raw cron code or says UTC."""
+    from app.automations.scheduler import all_jobs
+
+    for j in all_jobs():
+        for on in (date(2026, 7, 1), date(2026, 1, 15)):
+            words = schedule_words(j.cron, on)
+            assert "*" not in words and "UTC" not in words and words != "on a custom schedule", (j.id, j.cron, words)
+    assert schedule_words("15 7 * * 1-5", date(2026, 7, 1)) == "at 08:15 UK time, Monday to Friday"
+    assert schedule_words("30 6 * * 1", date(2026, 1, 15)) == "at 06:30 UK time, every Monday"
+    assert schedule_words("0 7-18 * * 1-5", date(2026, 7, 1)) == "every hour from 08:00 to 19:00 UK time, Monday to Friday"
+    assert schedule_words("20 * * * *") == "every hour at 20 minutes past"
+    assert schedule_words("0 3 * * 0", date(2026, 7, 1)) == "at 04:00 UK time, every Sunday"
 
 
 def test_automations_are_for_people_who_can_open_the_hub(run, people):

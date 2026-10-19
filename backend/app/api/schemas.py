@@ -667,7 +667,7 @@ class BulkReviewActionResult(BaseModel):
     matched: int  # how many pending items matched kind/status before this ran
     succeeded: int
     failed: int
-    errors: list[str] = []  # "<item id>: <message>" for whichever items failed, capped
+    errors: list[str] = []  # "<n> cards: <plain reason>" per reason, most common first, capped - never card ids
 
 
 # ---- LLM usage / cost dashboard ----------------------------------------

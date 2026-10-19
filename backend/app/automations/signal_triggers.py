@@ -310,7 +310,7 @@ def scan_signal_triggers() -> None:
 register_job(ScheduledJob(
     id="sales012_signal_triggers_scan",
     label="Budget window / renewal trigger scan",
-    description="Surfaces budget_window/renewal_date signals once they're due or have sat undated long enough to be worth a look (SALES-012).",
+    description="Brings back budget timing and renewal dates found in emails once they're due, or once one without a date has waited long enough to be worth a look.",  # SALES-012
     cron="0 6 * * *",  # once daily - not time-critical the way a mailbox scan is
     func=scan_signal_triggers,
     enabled_flag="automations_signal_triggers_scan_enabled",

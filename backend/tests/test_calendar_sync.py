@@ -217,7 +217,8 @@ def test_notetaker_check_and_start_over_are_admin_only(client, db_session, peopl
     r = client.get("/api/calendar/health", headers=identity_headers(admin))
     assert r.status_code == 200, r.text
     first = r.json()["checks"][0]
-    assert first["label"] == "The notetaker service" and not first["ok"] and "NOTETAKER_URL" in first["text"]
+    assert first["label"] == "The notetaker service" and not first["ok"] and "haven't been added on the server" in first["text"]
+    assert "NOTETAKER" not in first["text"]   # never the server setting names
     assert client.post("/api/calendar/start-over", headers=identity_headers(sales)).status_code == 403
     monkeypatch.setattr(cs, "sync_all", lambda db, force=False: 0)
     r = client.post("/api/calendar/start-over", headers=identity_headers(admin))

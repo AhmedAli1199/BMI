@@ -74,7 +74,7 @@ Administrators only, on the Xero card. **Reconnect** appears when the connection
   - The Ready to invoice card closes.
   - The item shows **Draft in Xero** until the hourly Xero sync sees it approved. It then shows Awaiting payment, Paid and so on.
 - **Double clicks** don't make two invoices: Xero is told it's the same request.
-- **Xero permission**: the Brain needs permission to create invoices, and to read contacts and settings. If the connection was made before this was added, an administrator must connect Xero again. If the card shows no **Reconnect** button because the connection otherwise works, press **Disconnect** and then **Connect Xero**. If Xero is connected through BMI's n8n workflow, the n8n Xero app needs the same permissions.
+- **Xero permission**: the Brain needs permission to create invoices, and to read contacts and settings. If the connection was made before this was added, an administrator must connect Xero again. If the card shows no **Reconnect** button because the connection otherwise works, press **Disconnect** and then **Connect Xero**. If Xero is connected automatically on the server, whoever runs BMI Brain needs to give that Xero app the same permissions.
 
 ## Common questions
 **Q: Does this send the invoice to the client?**

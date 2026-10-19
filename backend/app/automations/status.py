@@ -7,7 +7,8 @@ Never returns the raw error text of a failed run (that's for the logs) - only th
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -22,34 +23,71 @@ from app.models import AutomationJobRun, ReviewQueueItem
 _DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 
-def schedule_words(cron: str) -> str:
-    """'*/15 * * * *' -> 'every 15 minutes'; '0 7 * * 1-5' -> 'at 07:00 UTC, Monday to Friday'."""
+_UK = ZoneInfo("Europe/London")
+_DAY_NUMBER = {str(i): i for i in range(7)} | {"7": 0}
+
+
+def _uk_time(hour: int, minute: int, on: date) -> tuple[str, int]:
+    """A UTC time of day as UK clock time on that date (GMT or BST), and how many days it moved (-1, 0 or 1)."""
+    uk = datetime(on.year, on.month, on.day, hour, minute, tzinfo=timezone.utc).astimezone(_UK)
+    return f"{uk.hour:02d}:{uk.minute:02d}", (uk.date() - on).days
+
+
+def _days_words(dow: str, shift: int) -> str | None:
+    """'1-5' -> 'Monday to Friday', '0' -> 'Sunday' (moved by `shift` days when the UK time crosses midnight)."""
+    def name(d: str) -> str:
+        return _DAYS[(_DAY_NUMBER[d] + shift) % 7]
+    try:
+        if "-" in dow:
+            first, last = dow.split("-")
+            return f"{name(first)} to {name(last)}"
+        names = [name(d) for d in dow.split(",")]
+        return f"every {names[0]}" if len(names) == 1 else "on " + ", ".join(names)
+    except KeyError:
+        return None
+
+
+def schedule_words(cron: str, on: date | None = None) -> str:
+    """A job's schedule in plain words, in UK time. Jobs run on UTC cron times; this converts them to the UK clock
+    (GMT in winter, BST in summer) for the date `on` (today by default).
+    '*/15 * * * *' -> 'every 15 minutes'; '0 7 * * 1-5' -> 'at 08:00 UK time, Monday to Friday' (in summer)."""
+    on = on or datetime.now(timezone.utc).date()
     try:
         minute, hour, dom, month, dow = cron.split()
     except ValueError:
-        return cron
-    if minute.startswith("*/") and hour == "*" and dom == month == dow == "*":
-        return f"every {minute[2:]} minutes"
-    if minute == "*" and hour == dom == month == dow == "*":
+        return "on a custom schedule"
+    if month != "*":
+        return "on a custom schedule"
+    if minute == "*" and hour == dom == dow == "*":
         return "every minute"
-    if minute.isdigit() and hour == "*" and dom == month == dow == "*":
-        return f"every hour at {int(minute):02d} minutes past"
-    if minute.isdigit() and hour.startswith("*/"):
+    if minute.startswith("*/") and minute[2:].isdigit() and hour == dom == dow == "*":
+        return "every minute" if minute[2:] == "1" else f"every {minute[2:]} minutes"
+    if minute.isdigit() and hour == "*" and dom == dow == "*":
+        return "every hour, on the hour" if int(minute) == 0 else f"every hour at {int(minute)} minutes past"
+    if minute.isdigit() and hour.startswith("*/") and hour[2:].isdigit() and dom == dow == "*":
         return f"every {hour[2:]} hours"
-    if minute.isdigit() and hour.replace(",", "").isdigit():
-        times = ", ".join(f"{int(h):02d}:{int(minute):02d}" for h in hour.split(","))
-        days = ""
-        if dow != "*":
-            names = {str(i): n for i, n in enumerate(_DAYS)} | {"7": "Sunday"}
-            if "-" in dow:
-                a, b = dow.split("-")
-                days = f", {names.get(a, a)} to {names.get(b, b)}"
-            else:
-                days = ", on " + ", ".join(names.get(d, d) for d in dow.split(","))
-        elif dom != "*":
-            days = f", on day {dom} of the month"
-        return f"at {times} UTC{days}" if days else f"every day at {times} UTC"
-    return cron
+    m = int(minute) if minute.isdigit() else None
+    if m is None:
+        return "on a custom schedule"
+    shift = 0
+    if hour.isdigit() or (hour.replace(",", "").isdigit() and "," in hour):
+        parts = [_uk_time(int(h), m, on) for h in hour.split(",")]
+        shift = parts[0][1]
+        when = "at " + ", ".join(t for t, _ in parts) + " UK time"
+    elif "-" in hour and all(x.isdigit() for x in hour.split("-", 1)):
+        first, last = (int(x) for x in hour.split("-", 1))
+        (start, shift), (end, _) = _uk_time(first, m, on), _uk_time(last, m, on)
+        when = f"every hour from {start} to {end} UK time"
+    else:
+        return "on a custom schedule"
+    if dow != "*":
+        days = _days_words(dow, shift)
+        if days is None:
+            return "on a custom schedule"
+        return f"{when}, {days}"
+    if dom != "*":
+        return f"{when}, on day {dom} of the month"
+    return f"every day {when}" if when.startswith("at ") else when
 
 
 def _next(job: ScheduledJob, now: datetime) -> datetime | None:

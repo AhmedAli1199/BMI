@@ -21,6 +21,7 @@ import re
 import uuid
 from datetime import date, datetime, timezone
 
+import httpx
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -315,6 +316,26 @@ def _split(addrs: str | None) -> list[str]:
     return [a.strip() for a in re.split(r"[;,]", addrs or "") if a.strip()]
 
 
+def plain_send_error(exc: BaseException) -> str:
+    """Why one email in a merge didn't go, in plain words. The raw Outlook reply is logged, never shown."""
+    text = str(exc).lower()
+    if isinstance(exc, httpx.TimeoutException):
+        return "Outlook didn't answer in time. Try resuming the merge later."
+    if isinstance(exc, httpx.HTTPError):
+        return "We couldn't reach Outlook. Try resuming the merge later."
+    if "recipient" in text or "smtp address" in text or "invalid address" in text or ("(400)" in text and "address" in text):
+        return "The address was refused."
+    if "(413)" in text or "too large" in text or "maxrequestbody" in text:
+        return "The email was too big to send. Try smaller attachments."
+    if "(403)" in text or "access is denied" in text or "sendas" in text:
+        return "Outlook didn't let this mailbox send it."
+    if "(429)" in text or "throttl" in text:
+        return "Outlook asked us to slow down. Try resuming the merge in a few minutes."
+    if any(f"({code})" in text for code in ("500", "502", "503", "504")):
+        return "Outlook had a problem on its side. Try resuming the merge later."
+    return "Outlook couldn't send this one."
+
+
 def send_queued(db: Session, per_minute: int | None = None) -> int:
     """One tick: sends up to per_minute messages for each active merge
     (each merge is one user's mailbox, so each gets its own budget).
@@ -332,7 +353,7 @@ def send_queued(db: Session, per_minute: int | None = None) -> int:
     for m in merges:
         acct = db.scalar(select(MailAccount).where(MailAccount.user_id == m.created_by_user_id)) if m.created_by_user_id else None
         if not acct:
-            m.status, m.error = "failed", "No Outlook mailbox connected."
+            m.status, m.error = "failed", "No Outlook mailbox is connected. Connect Outlook in Settings, then resume."
             db.commit()
             continue
         me = db.get(User, m.created_by_user_id)
@@ -347,7 +368,7 @@ def send_queued(db: Session, per_minute: int | None = None) -> int:
         for r in batch:
             ctx = ctx_by_id.get(r.contact_id)
             if not ctx or not r.email:
-                r.status, r.error = "skipped", "contact deleted or no email"
+                r.status, r.error = "skipped", "The contact was deleted or has no email address."
                 m.skipped += 1
                 db.commit()
                 continue
@@ -359,12 +380,15 @@ def send_queued(db: Session, per_minute: int | None = None) -> int:
                 stop = True
                 break
             except outlook.OutlookAuthError as exc:
-                m.status, m.error = "failed", f"{exc} Reconnect Outlook in Settings, then resume."
+                logger.warning("mail merge %s paused - Outlook sign-in no longer works: %s", m.id, exc)
+                m.status, m.error = "failed", "The Outlook connection has expired. Reconnect Outlook in Settings, then resume."
                 db.commit()
                 stop = True
                 break
             except Exception as exc:
-                r.status, r.error = "failed", str(exc)[:500]
+                # Outlook's own wording goes to the log; the screen shows a plain reason.
+                logger.warning("mail merge %s couldn't send to recipient %s: %s", m.id, r.id, exc)
+                r.status, r.error = "failed", plain_send_error(exc)
                 m.failed += 1
                 db.commit()
                 continue

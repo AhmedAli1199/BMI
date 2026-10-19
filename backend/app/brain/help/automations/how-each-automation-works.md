@@ -6,7 +6,7 @@ sources: ["backend/app/automations/workstreams.py", "backend/app/automations/sch
 ---
 
 ## What this screen is for
-This guide explains every automation behind the Review Queue and the Scanners & Settings page. For each one it covers what sets it off, how often it runs (times are UTC), what it reads, which card it makes, what the card's buttons do, and the setting in Automations > Settings that switches it on. The basic rule: automations suggest, and a person decides. The few things that happen without a person are called out below.
+This guide explains every automation behind the Review Queue and the Scanners & Settings page. For each one it covers what sets it off, how often it runs (times here are GMT; the Scanners & Settings page shows them in UK time, an hour later in summer), what it reads, which card it makes, what the card's buttons do, and the setting in Automations > Settings that switches it on. The basic rule: automations suggest, and a person decides. The few things that happen without a person are called out below.
 
 ## What you see
 - Scheduled automations are listed on **Scanners & Settings** under the scanner names used below (for example **Bounce & OOO mailbox scan**).

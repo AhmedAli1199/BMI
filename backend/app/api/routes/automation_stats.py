@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.api.routes.automations import require_staff
 from app.api.routes.review_queue import _apply_scope
 from app.automations import get_kind
-from app.automations.scheduler import all_jobs, is_enabled
+from app.automations.scheduler import all_jobs, is_enabled, plain_run_error
 from app.automations.workstreams import KIND_COST_PREFIX, KIND_JOB, WORKSTREAMS, get_workstream
 from app.core.identity import Identity
 from app.db.session import get_db
@@ -43,7 +43,10 @@ class JobRunOut(BaseModel):
     finished_at: datetime | None = None
     status: str
     items_queued: int
+    # A plain sentence for the screen (see scheduler.plain_run_error). error_detail is the stored
+    # technical error, for an administrator's tooltip only - never shown as the message.
     error: str | None = None
+    error_detail: str | None = None
 
 
 class JobSummary(BaseModel):
@@ -171,7 +174,8 @@ def _job_lookup(db: Session) -> dict[str, JobSummary]:
 def _run_out(r: AutomationJobRun) -> JobRunOut:
     return JobRunOut(
         id=str(r.id), job_id=r.job_id, trigger=r.trigger, started_at=r.started_at,
-        finished_at=r.finished_at, status=r.status, items_queued=r.items_queued, error=r.error,
+        finished_at=r.finished_at, status=r.status, items_queued=r.items_queued,
+        error=plain_run_error(r.error), error_detail=r.error,
     )
 
 

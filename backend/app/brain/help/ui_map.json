@@ -45,6 +45,7 @@
    "page": "app/(app)/automations/llm-usage/page.tsx",
    "files": [
     "app/(app)/automations/llm-usage/page.tsx",
+    "components/automations/hub-ui.tsx",
     "components/page-header.tsx"
    ]
   },
@@ -83,6 +84,7 @@
    "files": [
     "app/(app)/automations/settings/page.tsx",
     "components/automation-setting-field.tsx",
+    "components/automations/hub-ui.tsx",
     "components/page-header.tsx"
    ]
   },
@@ -91,6 +93,7 @@
    "page": "app/(app)/automations/signals/page.tsx",
    "files": [
     "app/(app)/automations/signals/page.tsx",
+    "components/automations/hub-ui.tsx",
     "components/page-header.tsx"
    ]
   },
@@ -1125,55 +1128,55 @@
   },
   {
    "file": "app/(app)/automations/settings/page.tsx",
-   "src": "app/(app)/automations/settings/page.tsx:44",
+   "src": "app/(app)/automations/settings/page.tsx:47",
    "kind": "link",
    "label": "View Brain usage & cost →"
   },
   {
    "file": "app/(app)/automations/settings/page.tsx",
-   "src": "app/(app)/automations/settings/page.tsx:68",
+   "src": "app/(app)/automations/settings/page.tsx:71",
    "kind": "link",
    "label": "All areas"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:34",
+   "src": "app/(app)/automations/signals/page.tsx:56",
    "kind": "column",
    "label": "Contact"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:35",
+   "src": "app/(app)/automations/signals/page.tsx:57",
    "kind": "column",
    "label": "Type"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:36",
+   "src": "app/(app)/automations/signals/page.tsx:58",
    "kind": "column",
    "label": "Due date"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:37",
+   "src": "app/(app)/automations/signals/page.tsx:59",
    "kind": "column",
    "label": "Summary"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:38",
+   "src": "app/(app)/automations/signals/page.tsx:60",
    "kind": "column",
    "label": "Confidence"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:39",
+   "src": "app/(app)/automations/signals/page.tsx:61",
    "kind": "column",
    "label": "Status"
   },
   {
    "file": "app/(app)/automations/signals/page.tsx",
-   "src": "app/(app)/automations/signals/page.tsx:40",
+   "src": "app/(app)/automations/signals/page.tsx:62",
    "kind": "column",
    "label": "Created"
   },
@@ -1451,19 +1454,19 @@
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:91",
+   "src": "app/(app)/mail-merge/[id]/page.tsx:96",
    "kind": "column",
    "label": "Contact"
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:92",
+   "src": "app/(app)/mail-merge/[id]/page.tsx:97",
    "kind": "column",
    "label": "Email"
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
-   "src": "app/(app)/mail-merge/[id]/page.tsx:93",
+   "src": "app/(app)/mail-merge/[id]/page.tsx:98",
    "kind": "column",
    "label": "Status"
   },
@@ -1493,61 +1496,67 @@
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:288",
+   "src": "app/(app)/page.tsx:304",
    "kind": "heading",
    "label": "BMI Brain · Overnight Activity"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:296",
+   "src": "app/(app)/page.tsx:312",
    "kind": "link",
    "label": "Open review queue"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:307",
+   "src": "app/(app)/page.tsx:323",
    "kind": "heading",
    "label": "New for your review"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:348",
+   "src": "app/(app)/page.tsx:364",
    "kind": "heading",
    "label": "Recently resolved"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:359",
+   "src": "app/(app)/page.tsx:375",
    "kind": "link",
    "label": "Approved ·"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:397",
+   "src": "app/(app)/page.tsx:413",
    "kind": "heading",
    "label": "Recently Active Contacts"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:406",
+   "src": "app/(app)/page.tsx:418",
    "kind": "link",
-   "label": "View all →"
+   "label": "Change this in Settings"
   },
   {
    "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:449",
-   "kind": "heading",
-   "label": "Top Companies"
-  },
-  {
-   "file": "app/(app)/page.tsx",
-   "src": "app/(app)/page.tsx:456",
+   "src": "app/(app)/page.tsx:423",
    "kind": "link",
    "label": "View all →"
   },
   {
    "file": "app/(app)/page.tsx",
    "src": "app/(app)/page.tsx:466",
+   "kind": "heading",
+   "label": "Top Companies"
+  },
+  {
+   "file": "app/(app)/page.tsx",
+   "src": "app/(app)/page.tsx:473",
+   "kind": "link",
+   "label": "View all →"
+  },
+  {
+   "file": "app/(app)/page.tsx",
+   "src": "app/(app)/page.tsx:483",
    "kind": "link",
    "label": "contacts"
   },
@@ -6107,13 +6116,13 @@
   },
   {
    "file": "components/outlook-connection-card.tsx",
-   "src": "components/outlook-connection-card.tsx:67",
+   "src": "components/outlook-connection-card.tsx:68",
    "kind": "button",
    "label": "Reconnect"
   },
   {
    "file": "components/outlook-connection-card.tsx",
-   "src": "components/outlook-connection-card.tsx:76",
+   "src": "components/outlook-connection-card.tsx:77",
    "kind": "button",
    "label": "Disconnect"
   },
@@ -6155,37 +6164,37 @@
   },
   {
    "file": "components/publication-form-dialog.tsx",
-   "src": "components/publication-form-dialog.tsx:90",
+   "src": "components/publication-form-dialog.tsx:89",
    "kind": "field",
    "label": "Name"
   },
   {
    "file": "components/publication-form-dialog.tsx",
-   "src": "components/publication-form-dialog.tsx:99",
+   "src": "components/publication-form-dialog.tsx:98",
    "kind": "field",
-   "label": "Internal key (auto-filled, rarely needs changing)"
+   "label": "Short name (filled in for you, rarely needs changing)"
   },
   {
    "file": "components/publication-form-dialog.tsx",
-   "src": "components/publication-form-dialog.tsx:115",
+   "src": "components/publication-form-dialog.tsx:114",
    "kind": "field",
    "label": "Description"
   },
   {
    "file": "components/publication-form-dialog.tsx",
-   "src": "components/publication-form-dialog.tsx:125",
+   "src": "components/publication-form-dialog.tsx:124",
    "kind": "field",
    "label": "Color"
   },
   {
    "file": "components/publication-form-dialog.tsx",
-   "src": "components/publication-form-dialog.tsx:148",
+   "src": "components/publication-form-dialog.tsx:147",
    "kind": "field",
    "label": "Icon"
   },
   {
    "file": "components/publication-form-dialog.tsx",
-   "src": "components/publication-form-dialog.tsx:182",
+   "src": "components/publication-form-dialog.tsx:181",
    "kind": "button",
    "label": "Adding"
   },
@@ -6808,13 +6817,13 @@
   },
   {
    "file": "components/run-job-button.tsx",
-   "src": "components/run-job-button.tsx:65",
+   "src": "components/run-job-button.tsx:68",
    "kind": "button",
    "label": "Running"
   },
   {
    "file": "components/run-job-button.tsx",
-   "src": "components/run-job-button.tsx:70",
+   "src": "components/run-job-button.tsx:73",
    "kind": "button",
    "label": "Reset & rescan"
   },
@@ -8143,25 +8152,25 @@
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:66",
+   "src": "components/xero-connection-card.tsx:67",
    "kind": "button",
    "label": "Reconnect"
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:72",
+   "src": "components/xero-connection-card.tsx:73",
    "kind": "button",
    "label": "Sync now"
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:90",
+   "src": "components/xero-connection-card.tsx:91",
    "kind": "button",
    "label": "Re-read all invoices"
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:110",
+   "src": "components/xero-connection-card.tsx:111",
    "kind": "button",
    "label": "Disconnect"
   }

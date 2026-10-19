@@ -11,8 +11,8 @@ import { friendlyError } from "@/lib/errors";
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "never");
 
-/** Settings › Integrations: the read-only Xero link. Sales invoices sync
- * every hour and show as paid / unpaid / overdue next to each booking. */
+/** Settings › Integrations: the Xero link. Sales invoices sync every hour and show as paid / unpaid /
+ * overdue next to each booking; the only thing ever written to Xero is a draft invoice someone makes. */
 export function XeroConnectionCard({ status, canManage = true }: { status: XeroStatus | null; canManage?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -22,7 +22,7 @@ export function XeroConnectionCard({ status, canManage = true }: { status: XeroS
     const ok = params.get("xero_connected");
     const err = params.get("xero_error");
     if (ok) toast.success(`Xero connected to ${ok} - invoices are syncing`);
-    if (err) toast.error(err);
+    if (err) toast.error(friendlyError(err, "Xero couldn't be connected - please try again."));
     if (ok || err) router.replace("/settings#integrations", { scroll: false });
   }, [params, router]);
 
@@ -50,13 +50,14 @@ export function XeroConnectionCard({ status, canManage = true }: { status: XeroS
                   <span>
                     {status.organisation} · {status.invoices.toLocaleString()} invoices · {status.bookings_matched.toLocaleString()} bookings
                     matched · last sync {when(status.last_sync_at)}
-                    {viaN8n && " · signed in through BMI's n8n workflow"}
+                    {viaN8n && " · connected automatically on the server"}
                   </span>
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Read-only link to BMI&apos;s Xero. Sales invoices sync every hour and each booking shows whether its invoice is paid,
-                  unpaid or overdue. Nothing is ever written to Xero.
+                  Links BMI Brain to BMI&apos;s Xero. Sales invoices sync every hour and each booking shows whether its invoice is paid,
+                  unpaid or overdue. The only thing BMI Brain adds to Xero is a draft invoice, when someone makes one from a booking -
+                  accounts still check and send it in Xero.
                 </p>
               )}
             </div>
@@ -141,8 +142,8 @@ export function XeroConnectionCard({ status, canManage = true }: { status: XeroS
         )}
         {!status.configured && (
           <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            Not available yet: add XERO_CLIENT_ID and XERO_CLIENT_SECRET to the server settings. In the Xero app, the redirect URI must be{" "}
-            <span className="font-mono">{status.redirect_uri}</span>.
+            Xero isn&apos;t set up on the server yet - ask whoever runs BMI Brain to add the Xero app details. They&apos;ll need this
+            return address for the Xero app: <span className="font-mono">{status.redirect_uri}</span>
           </p>
         )}
       </CardContent>

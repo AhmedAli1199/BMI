@@ -5,6 +5,42 @@ import { backendFetch } from "@/lib/backend";
 import type { LlmUsageSummary } from "@/lib/types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StaffOnly } from "@/components/automations/hub-ui";
+import { canUseAutomations } from "@/lib/access";
+import { getSession } from "@/lib/session";
+
+/** What each logged purpose was for, in plain words. A purpose that isn't listed here is tidied into words. */
+const PURPOSE_LABELS: Record<string, string> = {
+  brain_chat: "Ask the Brain chat",
+  brain_voice: "Ask the Brain - voice notes",
+  "bounce_handling.bounce_severity": "Bounced emails - how serious",
+  "bounce_handling.ooo_extraction": "Out-of-office replies - reading details",
+  "business_card.extraction": "Reading business card photos",
+  contact_import_pdf: "Importing contacts from a PDF",
+  "email_summary.signal_extraction": "Reading sales emails for useful facts",
+  "followup_queue.draft": "Drafting follow-ups",
+  "inbound_capture.intent_classification": "Spotting new enquiries",
+  "management_summary.headline": "Weekly management summary",
+  "personal_touchpoints.draft": "Drafting personal notes",
+  proposal_draft: "Drafting proposals",
+  proposal_revise: "Revising proposals",
+  proposal_voice: "Proposals - voice notes",
+  "proposal_style.build": "Learning the proposal style",
+  "proposal_requests.classify": "Spotting proposal requests",
+  "proposal_requests.opening": "Drafting proposal request replies",
+  "returned_copy.label_extraction": "Reading returned post labels",
+  "save_the_sale.draft": "Drafting save-the-sale replies",
+  "signal_triggers.draft": "Drafting budget and renewal emails",
+  "sor_renewal.draft": "Drafting renewal emails",
+  unspecified: "Other",
+};
+
+function purposeLabel(purpose: string): string {
+  const known = PURPOSE_LABELS[purpose];
+  if (known) return known;
+  const words = purpose.replace(/[._:-]+/g, " ").replace(/\s+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : "Other";
+}
 
 const DAY_OPTIONS = [
   { value: 7, label: "7 days" },
@@ -42,6 +78,9 @@ export default async function LlmUsagePage({
 }: {
   searchParams: Promise<{ days?: string; granularity?: string }>;
 }) {
+  const session = await getSession();
+  if (!canUseAutomations(session)) return <StaffOnly />;
+
   const { days: rawDays, granularity: rawGranularity } = await searchParams;
   const days = DAY_OPTIONS.some((d) => String(d.value) === rawDays) ? Number(rawDays) : 30;
   const granularity = GRANULARITY_OPTIONS.some((g) => g.value === rawGranularity) ? rawGranularity! : "day";
@@ -192,7 +231,7 @@ export default async function LlmUsagePage({
               <TableBody>
                 {summary.by_purpose.map((p) => (
                   <TableRow key={`${p.purpose}:${p.provider}`}>
-                    <TableCell className="text-xs font-medium">{p.purpose}</TableCell>
+                    <TableCell className="text-xs font-medium">{purposeLabel(p.purpose)}</TableCell>
                     <TableCell className="text-xs capitalize text-muted-foreground">{p.provider}</TableCell>
                     <TableCell className="text-right text-xs">{p.call_count.toLocaleString()}</TableCell>
                     <TableCell className={`text-right text-xs ${p.failure_count > 0 ? "text-[var(--warn)] font-semibold" : ""}`}>

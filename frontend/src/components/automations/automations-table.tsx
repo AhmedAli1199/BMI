@@ -256,7 +256,7 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
               )}
               {run?.error && (
                 <>
-                  <dt className="text-muted-foreground">Error</dt>
+                  <dt className="text-muted-foreground">Problem</dt>
                   <dd className="break-words" style={{ color: "var(--bad)" }}>{run.error}</dd>
                 </>
               )}
@@ -284,7 +284,7 @@ function DetailPanel({ row, data, rangeLabel }: { row: AutomationStats; data: Lo
           )}
           <div className="mt-1 border-t border-border/70 pt-2 text-xs">
             {detail.ai_cost_usd === null ? (
-              <span className="text-muted-foreground">Doesn't use the Brain - it follows fixed rules.</span>
+              <span className="text-muted-foreground">Doesn&apos;t use the Brain - it follows fixed rules.</span>
             ) : (
               <>
                 <span className="font-semibold text-foreground tabular-nums">${detail.ai_cost_usd.toFixed(2)}</span>

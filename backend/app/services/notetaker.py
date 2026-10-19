@@ -30,9 +30,9 @@ def _detail(r: httpx.Response, fallback: str) -> str:
     """A plain reason for a refused request. The notetaker's own messages are written for people, so its
     "can't book that" answers are passed on; anything else gets the plain fallback (and goes in the log)."""
     if r.status_code == 401:
-        return "The notetaker didn't accept BMI Brain's key. An administrator needs to set a new one (notetaker console, Apps, New key)."
+        return "The notetaker didn't accept BMI Brain's key. An administrator needs to make a new one on the notetaker's admin page (Apps, New key)."
     if r.status_code == 403:
-        return "BMI Brain is switched off in the notetaker console. An administrator needs to switch it back on."
+        return "BMI Brain is switched off on the notetaker's admin page. An administrator needs to switch it back on."
     try:
         d = r.json().get("detail")
     except Exception:
@@ -83,14 +83,14 @@ def verify(body: bytes, timestamp: str, signature: str, max_age: int = 600) -> b
 def check() -> tuple[bool, str]:
     """Can BMI Brain reach the notetaker with its key? Plain words either way (for the Notetaker check)."""
     if not configured():
-        return False, "Not connected: NOTETAKER_URL and NOTETAKER_API_KEY aren't set on the BMI Brain backend."
+        return False, "Not connected: the notetaker's address and key haven't been added on the server yet. Ask whoever runs BMI Brain to add them."
     try:
         with _client() as c:
             r = c.get("/v1/capacity")
     except httpx.HTTPError:
-        return False, "BMI Brain can't reach the notetaker at its address. Check NOTETAKER_URL and that the notetaker is running."
+        return False, "BMI Brain can't reach the notetaker. Ask whoever runs BMI Brain to check the notetaker's address on the server and that the notetaker is running."
     if r.status_code >= 400:
-        return False, _detail(r, "The notetaker answered with a problem. Check its console.")
+        return False, _detail(r, "The notetaker answered with a problem. Ask whoever runs the notetaker to look at what went wrong.")
     try:
         free = r.json().get("free")
     except Exception:

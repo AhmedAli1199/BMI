@@ -40,7 +40,7 @@ Open it from the menu: **Automations** (under The Brain) > **Overview**, one pag
 - **By automation**: the same figures for each purpose and provider.
 
 **Email signals** (/automations/signals)
-- A plain table of the latest 200 facts the email scan has picked out of sales emails: **Contact**, **Type**, **Due date**, **Summary**, **Confidence**, **Status** and **Created**. It shows what the Brain has picked out of client emails so far, and how sure it was of each.
+- A plain table of the latest 200 facts the email scan has picked out of sales emails: **Contact**, **Type**, **Due date**, **Summary**, **Confidence**, **Status** and **Created**. It shows what the Brain has picked out of client emails so far, and how sure it was of each. **Type** is one of Budget timing, Renewal date, Promised call-back, Personal moment or Said no. **Status** is Waiting, Acted on or Dismissed. The page isn't in the menu; open it by its address when you want to check the scan is reading emails sensibly.
 
 ## Buttons and controls
 ### Review <number> pending / Open Review Queue
@@ -95,7 +95,7 @@ On Automation settings and Brain usage & cost, the breadcrumb above the title ta
 
 ## How it works
 - Every scanner has an on/off setting in Automations > Settings. Most are off until switched on. Reminders, notification emails, mail merge sending, the Xero sync, the shared calendar, the Brain search index, Ready to invoice reminders and the weekly example-link check start on. Switching one changes its next scheduled run, with no restart.
-- Schedules run in UTC (GMT). In British Summer Time, "07:00 UTC" is 08:00 in the UK.
+- Schedules are shown in UK time, so in British Summer Time they read an hour later than in winter (a job set for 07:00 GMT shows as 08:00 in summer).
 - Each run is recorded with its result. **Found** counts the Review Queue cards the job added during that run. Jobs that don't make cards always show 0, even when they did their work. These include reminders, notification emails, mail merge, the Xero sync, the shared calendar, the search index, the email summary scan, the advertising deadline reminders and the management reports.
 - A card waits in the Review Queue until someone presses one of its buttons. **Acted on** counts approvals against dismissals. **Time to resolve** is the middle value from card to decision.
 - Brain costs are estimates: tokens used × the price set in Automations > Settings > Brain usage & cost at the time. Check the provider's own bill for exact amounts.
@@ -133,8 +133,8 @@ A: An administrator can press **Reset & rescan** on that scanner. It reads back 
 ## If something doesn't work
 - **"Administrators & Data Managers only"**: the Hub is for those two roles. Salespeople can still use **Today** and **Review Queue**. Press **Go to your Today queue**.
 - **No Reset & rescan button**: only administrators see it, and only on the four scanners that remember their place.
-- **Run now shows an error**: the job itself failed. The message gives the first line of the reason. Fix the cause, for example connect the mailbox or switch the Brain on, and try again.
+- **Run now shows an error**: the job itself stopped with a problem. The full reason is in the server log; on screen you get a plain sentence. Common causes are a mailbox that needs connecting or the Brain being switched off. Fix the cause and try again. If it says the job is already running, its scheduled run has just started - check back in a minute.
+- **A run shows a problem in red**: the sentence says what kind of problem it was (for example a connected account that needs signing in again, or a service that didn't answer). Administrators can hover over it to see the technical detail to pass on to whoever runs BMI Brain.
 - **Found is 0 but the scanner ran**: either nothing new turned up, or the job doesn't make Review Queue cards (see How it works).
-- **The schedule shows a code like "15 7 * * 1-5"**: some schedules aren't turned into words yet. The five parts are minute, hour, day of month, month and day of week, in UTC. "15 7 * * 1-5" means 07:15 Monday to Friday. "20 * * * *" means 20 minutes past every hour. "* * * * *" means every minute.
 - **Upload says "Reading cards needs the Brain"**: reading photos needs the Brain key. Ask your administrator. "Image too large (max 8MB)" means you need a smaller photo. "Couldn't read this image" means you should try a clearer, flatter photo.
-- **Brain usage & cost or Email signals shows an error page for a salesperson**: these pages are for administrators and data managers only.
+- **Automation settings, Brain usage & cost or Email signals says "Administrators & Data Managers only"**: these pages are for administrators and data managers. Salespeople can still use **Today** and **Review Queue**.

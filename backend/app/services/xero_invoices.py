@@ -386,6 +386,27 @@ def _remember(db: Session, d: SalesDeal, draft: dict, overrides: dict) -> None:
     st.xero_codes = codes
 
 
+# What we tell the person when Xero refuses a draft invoice, by what Xero complained about.
+_XERO_PLAIN = {
+    "account": "Xero didn't accept an account code. Check each line's account code matches one in Xero.",
+    "item": "Xero didn't recognise an item code. Check each line's item code matches one in Xero, or leave it blank.",
+    "contact": "Xero didn't accept the client. Check they're set up in Xero and haven't been archived.",
+    "currency": "Xero isn't set up for this currency. Ask accounts to switch it on in Xero, or change the currency here.",
+    "tracking": "Xero didn't accept a tracking option. Check each line's tracking matches the options set up in Xero.",
+    "date": "Xero didn't accept the invoice date or due date. Check both dates and try again.",
+    "xero": "Xero didn't accept the invoice. Check the lines and try again, or ask accounts to look in Xero.",
+}
+
+
+def _xero_problem_key(message: str) -> str:
+    low = message.lower()
+    for key, words in (("account", ("account",)), ("item", ("item code", "itemcode")), ("contact", ("contact",)),
+                       ("currency", ("currency",)), ("tracking", ("tracking",)), ("date", ("date",))):
+        if any(w in low for w in words):
+            return key
+    return "xero"
+
+
 def create(db: Session, d: SalesDeal, order_ids: list[uuid.UUID] | None, overrides: dict | None, user_id: uuid.UUID | None) -> dict:
     """Make the draft invoice. Returns {"ok": True, "invoice": summary} or {"ok": False, "draft": ..., "problems": [...]}."""
     ov = overrides or {}
@@ -400,11 +421,14 @@ def create(db: Session, d: SalesDeal, order_ids: list[uuid.UUID] | None, overrid
         return {"ok": False, "draft": draft, "problems": [{"key": "connection", "message": str(exc)}]}
     if resp.status_code >= 400:
         msgs = validation_messages(body) or ["Xero didn't accept the invoice."]
-        probs = []
+        # Xero's own wording goes to the log; the person gets one plain sentence per kind of problem.
+        logger.warning("Xero refused a draft invoice for deal %s: %s", d.id, " | ".join(msgs))
+        probs, seen = [], set()
         for m in msgs:
-            low = m.lower()
-            k = "account" if "account" in low else "contact" if "contact" in low else "currency" if "currency" in low else "tracking" if "tracking" in low else "xero"
-            probs.append({"key": k, "message": f"Xero said: {m}"})
+            k = _xero_problem_key(m)
+            if k not in seen:
+                seen.add(k)
+                probs.append({"key": k, "message": _XERO_PLAIN[k]})
         return {"ok": False, "draft": draft, "problems": probs}
     inv = (body.get("Invoices") or [{}])[0]
     if not inv.get("InvoiceID"):

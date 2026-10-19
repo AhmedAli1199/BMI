@@ -98,7 +98,11 @@ export default async function ScannersPage() {
                         </div>
                         <div className="max-w-md text-xs text-muted-foreground">{j.description}</div>
                         {last?.status === "failed" && last.error && (
-                          <div className="mt-1 max-w-md break-words text-xs" style={{ color: "var(--bad)" }}>
+                          <div
+                            className="mt-1 max-w-md break-words text-xs"
+                            style={{ color: "var(--bad)" }}
+                            title={isAdmin(session) && last.error_detail ? `For whoever runs BMI Brain: ${last.error_detail.slice(0, 500)}` : undefined}
+                          >
                             {last.error}
                           </div>
                         )}
@@ -142,7 +146,7 @@ export default async function ScannersPage() {
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex justify-end">
-                      <RunJobButton jobId={j.id} hasCursor={j.has_cursor && isAdmin(session)} />
+                      <RunJobButton jobId={j.id} label={j.label} hasCursor={j.has_cursor && isAdmin(session)} />
                     </div>
                   </td>
                 </tr>

@@ -616,7 +616,7 @@ def scan_email_exchanges() -> None:
 register_job(ScheduledJob(
     id="email_summary_scan",
     label="Email exchange summary scan",
-    description="Reads real 1:1 sales conversations and extracts budget/renewal/call-back/touchpoint signals (SALES-010-lite).",
+    description="Reads one-to-one sales emails and notes anything useful: budget timing, renewal dates, call-back requests and personal moments.",  # SALES-010-lite
     cron="0 */4 * * *",  # every 4 hours - less urgent than bounce, more expensive per run (an LLM call per updated thread)
     func=scan_email_exchanges,
     enabled_flag="automations_email_summary_scan_enabled",

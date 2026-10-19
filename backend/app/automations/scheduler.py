@@ -165,6 +165,31 @@ def _finish_run_record(job: ScheduledJob, run_id, started_at: datetime, error: B
         db.close()
 
 
+_PLAIN_RUN_ERRORS: list[tuple[tuple[str, ...], str]] = [
+    (("OperationalError", "DatabaseError", "IntegrityError", "ProgrammingError", "InterfaceError", "DataError"),
+     "It couldn't read or save its data. It will try again on its next run."),
+    (("Timeout", "ConnectError", "ConnectionError", "RemoteProtocolError", "NetworkError"),
+     "A service it relies on (such as Outlook or Xero) didn't answer in time. It will try again on its next run."),
+]
+_PLAIN_RUN_ERROR_DEFAULT = "It stopped with a problem before it finished. The full details are in the log."
+
+
+def plain_run_error(raw: str | None) -> str | None:
+    """The sentence a person sees for a failed run. The stored error (`TypeName: message`, see
+    _finish_run_record) stays in the database and the log for whoever is debugging; the screen only
+    ever gets one of these plain sentences."""
+    if not raw:
+        return None
+    type_name = raw.split(":", 1)[0].strip()
+    lowered = raw.lower()
+    if "AuthError" in type_name or "401" in raw or "unauthori" in lowered or ("token" in lowered and ("expired" in lowered or "invalid" in lowered)):
+        return "A connected account needs signing in again. Check the connections in Settings."
+    for names, sentence in _PLAIN_RUN_ERRORS:
+        if any(n in type_name for n in names):
+            return sentence
+    return _PLAIN_RUN_ERROR_DEFAULT
+
+
 def run_job(job: ScheduledJob, trigger: str = "scheduled") -> bool:
     """The one place a job's func() actually gets called from - both the
     scheduler's cron tick and the manual "Run now" API route go through

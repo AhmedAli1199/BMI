@@ -1,10 +1,29 @@
 import { PageHeader } from "@/components/page-header";
+import { StaffOnly } from "@/components/automations/hub-ui";
 import { backendFetch } from "@/lib/backend";
+import { canUseAutomations } from "@/lib/access";
+import { getSession } from "@/lib/session";
 
-// THROWAWAY page - quick visibility into what email_summary.py's scan has
-// actually extracted, so it can be judged on real output before
-// SALES-012/013 get built on top of it. Delete this file (and the matching
-// GET /api/automations/email-signals route) once that decision's made.
+// A read-only check on what the email exchange summary scan (email_summary.py) has picked out of client
+// emails. Not in the menu or the Hub on purpose - it's an occasional "is the scan reading emails sensibly?"
+// look for administrators and data managers (the Automations Hub help guide points to it).
+
+/** What each kind of fact is called on screen. */
+const SIGNAL_LABELS: Record<string, string> = {
+  budget_window: "Budget timing",
+  renewal_date: "Renewal date",
+  promised_callback: "Promised call-back",
+  personal_touchpoint: "Personal moment",
+  decline: "Said no",
+};
+const STATUS_LABELS: Record<string, string> = { open: "Waiting", actioned: "Acted on", dismissed: "Dismissed" };
+
+function words(code: string, labels: Record<string, string>): string {
+  const known = labels[code];
+  if (known) return known;
+  const tidy = code.replace(/[_-]+/g, " ").trim();
+  return tidy ? tidy.charAt(0).toUpperCase() + tidy.slice(1) : "-";
+}
 type EmailSignalRow = {
   id: string;
   contact_name: string;
@@ -17,6 +36,9 @@ type EmailSignalRow = {
 };
 
 export default async function EmailSignalsPage() {
+  const session = await getSession();
+  if (!canUseAutomations(session)) return <StaffOnly />;
+
   const rows = await backendFetch<EmailSignalRow[]>("/api/automations/email-signals");
 
   return (
@@ -44,13 +66,13 @@ export default async function EmailSignalsPage() {
             {rows.map((r) => (
               <tr key={r.id}>
                 <td className="px-3 py-2 font-medium text-foreground">{r.contact_name}</td>
-                <td className="px-3 py-2">{r.signal_type}</td>
+                <td className="px-3 py-2">{words(r.signal_type, SIGNAL_LABELS)}</td>
                 <td className="px-3 py-2">{r.due_date ?? "-"}</td>
                 <td className="max-w-md px-3 py-2 text-muted-foreground">{r.summary}</td>
                 <td className="px-3 py-2">{Math.round(r.confidence * 100)}%</td>
-                <td className="px-3 py-2">{r.status}</td>
+                <td className="px-3 py-2">{words(r.status, STATUS_LABELS)}</td>
                 <td className="px-3 py-2 text-muted-foreground">
-                  {new Date(r.created_at).toLocaleString()}
+                  {new Date(r.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
                 </td>
               </tr>
             ))}

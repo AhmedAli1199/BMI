@@ -3,7 +3,8 @@ import { Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { backendFetch } from "@/lib/backend";
 import { getSession } from "@/lib/session";
-import { isAdmin } from "@/lib/access";
+import { canUseAutomations, isAdmin } from "@/lib/access";
+import { StaffOnly } from "@/components/automations/hub-ui";
 import type { AutomationSetting } from "@/lib/types";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AutomationSettingField } from "@/components/automation-setting-field";
@@ -14,7 +15,9 @@ const slug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
  * long page. */
 export default async function AutomationSettingsPage({ searchParams }: { searchParams: Promise<{ area?: string }> }) {
   const { area } = await searchParams;
-  const [settingsList, session] = await Promise.all([backendFetch<AutomationSetting[]>("/api/automations/settings"), getSession()]);
+  const session = await getSession();
+  if (!canUseAutomations(session)) return <StaffOnly />;
+  const settingsList = await backendFetch<AutomationSetting[]>("/api/automations/settings");
   const readOnly = !isAdmin(session);
 
   const groups = new Map<string, AutomationSetting[]>();
