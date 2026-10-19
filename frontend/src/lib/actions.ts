@@ -13,6 +13,7 @@ import type {
   ContactDetail,
   ContactListItem,
   FieldChange,
+  GroupDetail,
   GroupListItem,
   HistoryOut,
   Page,
@@ -176,6 +177,12 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
  * doesn't mean N round trips (and N chances for the list to jump back to
  * the top - see group-members-table.tsx, which removes the selected rows
  * from its own local state rather than re-fetching after this call). */
+/** More of a group's members, starting after the ones already shown (the group page loads them a page at a time). */
+export async function getGroupMembersPage(groupId: string, offset: number) {
+  const g = await backendFetch<GroupDetail>(`/api/groups/${groupId}?offset=${Math.max(0, Math.floor(offset))}`);
+  return g.members;
+}
+
 export async function removeGroupMembers(groupId: string, contactIds: string[]) {
   await backendFetch<void>(`/api/groups/${groupId}/members/remove`, {
     method: "POST",

@@ -62,8 +62,8 @@ export default async function TodayPage({
         description={
           <>
             {view === "mine" ? "" : "Everyone's list. "}
-            {items.length.toLocaleString()} item{items.length === 1 ? "" : "s"} - budget windows, renewals and
-            promised call-backs that are due, plus overdue follow-ups.
+            {items.length.toLocaleString()} item{items.length === 1 ? "" : "s"} - budget windows, renewals, promised
+            call-backs and personal moments worth a note (like a birthday) that are due, plus overdue follow-ups.
           </>
         }
       />

@@ -41,7 +41,7 @@ Opens the printable confirmation in a new tab (see below).
 - **Rebook for next year**: makes a new pencilled booking for the same client, with each item moved to next year's matching issue at next year's rate card price. Notes say what couldn't be matched or what prices changed. It opens the new booking. Nothing is confirmed until you confirm it. Shown to people who can change the booking, and not on cancelled bookings.
 - **Back to pencilled**: confirmed bookings with nothing invoiced. It stops counting and is taken out of the accounts check.
 - **Reopen**: cancelled bookings. Brings it back as pencilled. Only the items the cancellation cancelled come back as pencilled; items kept booked because they had already run or been invoiced stay booked.
-- **Cancel the booking** / **Ask accounts to cancel it**: opens a dialog. Type **Why** (required) and choose **Keep items that have already run or been invoiced** (ticked by default: they were delivered, so they stay booked). Press **Cancel the booking** (or **Send to accounts** on a locked booking), or **Keep the booking** to back out.
+- **Cancel the booking** / **Ask accounts to cancel it**: opens a dialog. Type **Why** (required) and choose **Keep items that have already run or been invoiced** (ticked by default: they were delivered, so they stay booked). Press **Yes, cancel the booking** (or **Yes, send to accounts** on a locked booking), or **No, keep it** to back out without changing anything.
 - **Delete**: pencilled bookings with nothing invoiced only. Asks you to confirm, then removes the booking and its pencilled items.
 
 ### Choose the issues
@@ -94,7 +94,7 @@ A: Press **Confirm** (or just email the confirmation, which confirms it).
 A: Open the **...** menu and choose **Rebook for next year**. Check the new pencilled booking, then press **Confirm** when they agree.
 
 **Q: The client cancelled. What do I do?**
-A: Open the **...** menu, choose **Cancel the booking**, type why, and press **Cancel the booking**. Leave "Keep items that have already run or been invoiced" ticked unless they should go too.
+A: Open the **...** menu, choose **Cancel the booking**, type why, and press **Yes, cancel the booking**. Leave "Keep items that have already run or been invoiced" ticked unless they should go too.
 
 **Q: Why does it say Request a change instead of Change?**
 A: Accounts have checked or invoiced it. Make your change, say why, and press **Send to accounts**. It changes once they approve.

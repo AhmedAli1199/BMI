@@ -47,7 +47,7 @@ export default async function AutomationsOverviewPage({
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <HubHeader
         title="Automations Hub"
-        description="Background automations draft suggestions; nothing is updated, merged or sent until someone on your team approves it."
+        description="The Brain works in the background and suggests changes. Most wait for someone on your team to approve them; a few safe ones happen on their own, such as adding an email summary note to a record. Scanners & Settings says which."
         actions={
           <Button
             nativeButton={false}

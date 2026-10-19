@@ -123,7 +123,7 @@ export function DealActions({ d }: { d: Deal }) {
             <span>Keep items that have already run or been invoiced <span className="block text-xs text-muted-foreground">Usually right: they were delivered, so they stay booked.</span></span>
           </label>
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost" />}>Keep the booking</DialogClose>
+            <DialogClose render={<Button variant="ghost" />}>No, keep it</DialogClose>
             <Button variant="destructive" disabled={pending || !reason.trim()} onClick={() => start(async () => {
               try {
                 if (mustAsk) {
@@ -135,7 +135,7 @@ export function DealActions({ d }: { d: Deal }) {
                 r.notes?.forEach((n) => toast.info(n));
                 toast.success("Booking cancelled"); setCancelOpen(false); router.refresh();
               } catch (e) { toast.error(friendlyError(e, "Couldn't cancel it")); }
-            })}>{mustAsk ? "Send to accounts" : "Cancel the booking"}</Button>
+            })}>{mustAsk ? "Yes, send to accounts" : "Yes, cancel the booking"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

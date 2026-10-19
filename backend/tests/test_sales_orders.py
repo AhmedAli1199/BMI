@@ -326,6 +326,15 @@ def test_order_filters(client, db_session, sor):
     assert client.get("/api/sales/orders?search=invoic").json()["total"] == 2
 
 
+def test_order_list_total_value_counts_live_bookings_only(client, db_session, sor):
+    """The value line above All items adds up live (Booked) items, the same way the table's footer does."""
+    _order(db_session, sor["this"], "Live One", 300, sor["reps"]["SP"])
+    _order(db_session, sor["this"], "Cancelled One", 1000, sor["reps"]["SP"], status="cancelled")
+    body = client.get("/api/sales/orders?search=One").json()
+    assert body["total"] == 2                    # every status is still listed
+    assert body["total_value_gbp"] == 300        # but only the live one is counted
+
+
 def test_order_multi_filters_sort_facets_and_export(client, db_session, sor):
     sp, st = sor["reps"]["SP"], sor["reps"]["ST"]
     _order(db_session, sor["this"], "Beta Air", 500, sp, booked_on=date.today() - timedelta(days=5))

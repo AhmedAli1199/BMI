@@ -120,12 +120,21 @@ class BrandPage(BaseModel):
     archived: list[RateItem]
     titles: list[TitleRef]
     has_next_year: bool
+    # The "Publishers can change their own prices" setting, so the page can say who may change prices.
+    publishers_can_edit: bool = False
 
 
 class Overview(BaseModel):
     year: int
     years: list[int]
     brands: list[BrandSummary]
+    publishers_can_edit: bool = False
+
+
+def _publishers_can_edit(db: Session) -> bool:
+    from app.automations import runtime_settings
+
+    return runtime_settings.get_bool(db, "rate_card_publishers_can_edit")
 
 
 def price_label(r: SalesRate) -> str:
@@ -235,7 +244,8 @@ def _summary(db: Session, identity: Identity, brand: B.Brand, year: int) -> Bran
 @router.get("", response_model=Overview)
 def overview(year: int | None = None, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> Overview:
     y = year or date.today().year
-    return Overview(year=y, years=_years(db), brands=[_summary(db, identity, b, y) for b in B.BRANDS])
+    return Overview(year=y, years=_years(db), brands=[_summary(db, identity, b, y) for b in B.BRANDS],
+                    publishers_can_edit=_publishers_can_edit(db))
 
 
 @router.get("/brands/{key}", response_model=BrandPage)
@@ -258,6 +268,7 @@ def brand_page(key: str, year: int | None = None, db: Session = Depends(get_db),
         titles=[TitleRef(id=t.id, slug=t.slug, name=t.name, digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url)
                 for t in titles.values() if t.active],
         has_next_year=has_next,
+        publishers_can_edit=_publishers_can_edit(db),
     )
 
 

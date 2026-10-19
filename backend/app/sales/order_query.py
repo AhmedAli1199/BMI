@@ -218,8 +218,11 @@ def ordered(stmt: Select, q: OrderQuery) -> Select:
 
 
 def page(db: Session, q: OrderQuery, limit: int, offset: int) -> tuple[list[SalesOrder], int, float]:
-    sub = base(q, SalesOrder.value_gbp).subquery()
-    total, value = db.execute(select(func.count(), func.coalesce(func.sum(sub.c.value_gbp), 0)).select_from(sub)).one()
+    # The value adds up live (Booked) items only - cancelled, contra and moved ones are kept on record but not
+    # counted anywhere, and the table's footer counts the same way.
+    sub = base(q, SalesOrder.value_gbp, SalesOrder.status).subquery()
+    live_value = func.sum(case((sub.c.status == BOOKED, sub.c.value_gbp), else_=0))
+    total, value = db.execute(select(func.count(), func.coalesce(live_value, 0)).select_from(sub)).one()
     rows = db.scalars(ordered(base(q), q).limit(limit).offset(offset)).all()
     return list(rows), int(total), float(value)
 

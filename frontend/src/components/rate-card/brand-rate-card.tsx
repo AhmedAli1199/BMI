@@ -44,7 +44,7 @@ export function BrandRateCard({ data }: { data: BrandPage }) {
         <SalesHeader
           title={`${brand.name} rate card`}
           crumbs={[{ label: "Sales Orders", href: "/sales" }, { label: "Rate card", href: `/sales/rate-card?year=${year}` }]}
-          description={`${year} prices, before VAT. ${canEdit ? "Click a price to change it, or a product's name for everything else." : "View only - ask an admin, a data manager or this brand's publisher to change a price."}`}
+          description={`${year} prices, before VAT. ${canEdit ? "Click a price to change it, or a product's name for everything else." : data.publishers_can_edit ? "View only - ask an admin, a data manager or this brand's publisher to change a price." : "View only - ask an admin or a data manager to change a price."}`}
           actions={<YearSwitch years={data.years} current={year} href={(y) => `/sales/rate-card/${brand.key}?year=${y}`} />}
         />
       </div>

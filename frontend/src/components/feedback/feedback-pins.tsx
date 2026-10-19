@@ -76,6 +76,7 @@ export function FeedbackPins({ pins, focusId, onClose }: { pins: FeedbackPin[]; 
 
 function PinCard({ pin, onClose }: { pin: FeedbackPin; onClose: () => void }) {
   const [count, setCount] = useState(pin.me_too);
+  const [voted, setVoted] = useState(pin.me_too_mine);
   return (
     <div className="pointer-events-auto absolute bottom-32 left-1/2 w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl bg-popover p-3 text-sm text-popover-foreground shadow-xl ring-1 ring-border">
       <div className="flex items-start gap-2">
@@ -87,10 +88,14 @@ function PinCard({ pin, onClose }: { pin: FeedbackPin; onClose: () => void }) {
         <Button size="icon-sm" variant="ghost" aria-label="Close" onClick={onClose}><X className="size-3.5" /></Button>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <Button size="sm" variant="outline" className="gap-1.5" onClick={async () => {
-          try { const r = await toggleMeToo(pin.id); setCount(r.me_too.length); toast.success(r.me_too_mine ? "Added your vote" : "Took your vote off"); }
-          catch (e) { toast.error(friendlyError(e, "Couldn't add your vote")); }
-        }}><ThumbsUp className="size-3.5" /> Me too{count ? ` (${count})` : ""}</Button>
+        {pin.mine ? (
+          <span className="text-xs text-muted-foreground">You sent this{count ? ` · ${count} said me too` : ""}</span>
+        ) : (
+          <Button size="sm" variant={voted ? "default" : "outline"} className="gap-1.5" onClick={async () => {
+            try { const r = await toggleMeToo(pin.id); setCount(r.me_too.length); setVoted(r.me_too_mine); toast.success(r.me_too_mine ? "Added your vote" : "Took your vote off"); }
+            catch (e) { toast.error(friendlyError(e, "Couldn't add your vote")); }
+          }}><ThumbsUp className="size-3.5" /> {voted ? "You said me too" : "Me too"}{count ? ` (${count})` : ""}</Button>
+        )}
         <a href={`/feedback?open=${pin.id}`} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
           Open it <ExternalLink className="size-3" aria-hidden="true" />
         </a>

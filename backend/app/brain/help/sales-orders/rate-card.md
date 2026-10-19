@@ -139,7 +139,7 @@ A: Press **Print or save as PDF** and choose "Save as PDF" in the print window. 
 A: Its "Price ends on" date has passed. Change the date or the price in the price panel.
 
 ## If something doesn't work
-- **I can't click prices and there's no Add a price button**: you have view-only access. Only admins and data managers can change prices, unless an admin has turned on "Publishers can change their own prices". The note at the bottom of the home page about publishers only applies when that setting is on.
+- **I can't click prices and there's no Add a price button**: you have view-only access. Only admins and data managers can change prices, unless an admin has turned on "Publishers can change their own prices". The "Who can change prices" note at the bottom of the home page says which way the setting is.
 - **"Only administrators and data managers can change the rate card"**: as above.
 - **"Type a price in pounds, e.g. 2990"**: the price must be a number of 0 or more.
 - **Add price / Save changes is greyed out**: give the product a name and a price (or choose Price on request). Give both width and height, or neither.

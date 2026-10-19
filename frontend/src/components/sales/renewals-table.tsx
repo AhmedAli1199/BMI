@@ -101,7 +101,7 @@ function RenewalsBody({ rows, data, editions, reps }: { rows: Row[]; data: Renew
                 </option>
               ))}
             </select>
-            <InfoHint>&ldquo;New booking&rdquo; opens the booking form for this advertiser, filled in from their last booking and set to this edition - adjust anything before saving. Advertisers not linked to a CRM company get a single item instead.</InfoHint>
+            <InfoHint>&ldquo;New booking&rdquo; opens the booking form for this advertiser with their company name and address, how their last booking was invoiced (invoice to, invoice email, agency) and one empty item in this edition - add what they&apos;re buying and the price before saving. Advertisers not linked to a CRM company get a single item with last year&apos;s size, value and salesperson instead.</InfoHint>
           </label>
         )}
       </div>

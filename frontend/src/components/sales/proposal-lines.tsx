@@ -176,7 +176,7 @@ export function ProposalLines({ lines, onChange, titles, rates, defaultTitleId, 
             </span>
           </div>
         ))}
-        {options.length > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Lines without an option are part of every option. The client picks one; the order is made from that option.</p>}
+        {options.length > 0 && <p className="mt-1 text-[11px] text-muted-foreground">Lines without an option are part of every option. The client picks one; the booking is made from that option.</p>}
         {stale && <p className="mt-1 text-[11px] text-muted-foreground">Any rate card offers are worked out again when you save.</p>}
       </div>
     </div>

@@ -26,8 +26,10 @@ export type BrandSummary = {
 export type BrandTitle = { id: string; slug: string; name: string; digital_page_url: string | null; digital_issue_url: string | null };
 export type BrandPage = {
   brand: BrandSummary; year: number; years: number[]; sections: RateSection[]; offers: RateOffer[]; archived: RateItem[]; titles: BrandTitle[]; has_next_year: boolean;
+  /** "Publishers can change their own prices" (Automations > Settings). */
+  publishers_can_edit: boolean;
 };
-export type RateOverview = { year: number; years: number[]; brands: BrandSummary[] };
+export type RateOverview = { year: number; years: number[]; brands: BrandSummary[]; publishers_can_edit: boolean };
 export type RateHistoryRow = {
   id: string; entity_type: string; entity_id: string; what: string; field: string; old_value: string | null; new_value: string | null;
   by: string | null; at: string; can_put_back: boolean;

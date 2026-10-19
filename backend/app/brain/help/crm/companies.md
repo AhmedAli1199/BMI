@@ -26,6 +26,9 @@ Companies lists every account in the CRM: advertisers, agencies and prospects, a
 ### Search company name...
 Type part of a company's name and press Enter. Only the name is searched.
 
+### Show all companies
+Shown when you arrive from **Fix** on the Data Health page, where the list shows only companies without an industry. Press it to go back to the full list.
+
 ### Which title (the switcher at the top of the app)
 To see one database's companies, or all you can see, use the **All Titles** switcher at the top of the app. The choice also applies to Contacts, Groups and Home.
 

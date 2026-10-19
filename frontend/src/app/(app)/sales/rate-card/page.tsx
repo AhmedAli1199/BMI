@@ -83,7 +83,11 @@ export default async function RateCardPage({ searchParams }: { searchParams: Pro
       </section>
       <p className="flex items-center gap-1 text-xs text-muted-foreground">
         Who can change prices
-        <InfoHint>Admins and data managers can change every brand. Each brand&apos;s publishers can change their own brand: Sue Williams and Craig McQuinn (Onboard Hospitality), Kirsty Hicks (The Business Travel Magazine), Sally Parker, Steven Thompson and David Wilcox (Selling Travel). Everyone can view.</InfoHint>
+        <InfoHint>
+          {data.publishers_can_edit
+            ? "Admins and data managers can change every brand. Each brand's publishers can change their own brand: Sue Williams and Craig McQuinn (Onboard Hospitality), Kirsty Hicks (The Business Travel Magazine), Sally Parker, Steven Thompson and David Wilcox (Selling Travel). Everyone can view."
+            : "Admins and data managers change prices. Publishers can only view for now - an admin can let each brand's publishers change their own prices with \"Publishers can change their own prices\" in Automations > Settings. Everyone can view."}
+        </InfoHint>
       </p>
     </div>
   );

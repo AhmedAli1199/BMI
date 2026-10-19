@@ -43,7 +43,7 @@ On an invoice in the Xero list. Opens "Which booking is invoice <number> for?" w
 On an invoice in the Xero list. For money that isn't a sale, such as a cost share, a refund or a recharge. Add an optional note ("What is it?") and press **Not a booking** (or **Cancel**). The invoice is never matched to bookings again, any waiting Review Queue card for it closes, and it moves to **Marked as not a booking**.
 
 ### Marked as not a booking (N) and Put back
-Click to open the list: invoice, customer, amount, note, who marked it and when. **Put back** undoes it, so the invoice is matched to bookings again on the next matching run.
+Click to open the list: invoice, customer, amount, note, who marked it and when. **Put back** undoes it. If Xero invoice matching is switched on, you're told "Put back - it will be matched to bookings again within the hour" and it's matched on the next hourly run. If matching is switched off, you're told it won't be matched until an admin turns it on.
 
 ### Find in Xero and Undo this link (item side panel)
 In an item's side panel, under Invoice. **Find in Xero** lists Xero invoices no booking has yet, most likely first; search by number, customer or reference, then **Link**. If the invoice was linked automatically or by a person, the panel shows "Linked to Xero invoice <number>" with **Open in Xero** and **Undo this link**. Undo clears the invoice number, amount and date, and that invoice isn't offered for this booking again.

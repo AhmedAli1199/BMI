@@ -58,12 +58,13 @@ export function FeedbackBoardView({ initial, openId }: { initial: FeedbackBoard 
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {[
           { label: "Open", n: openCount, key: "open" },
           { label: "New", n: board.counts.new, key: "new" },
           { label: "Looking at it", n: board.counts.looking, key: "looking" },
           { label: "Fixed", n: board.counts.fixed, key: "fixed" },
+          { label: "Won't do", n: board.counts.wont_do, key: "wont_do" },
         ].map((t) => (
           <button key={t.key} type="button" onClick={() => set({ status: t.key })}
             className={`rounded-xl border p-3 text-left shadow-2xs transition ${q.status === t.key ? "border-primary bg-primary/5" : "border-border/80 bg-card hover:border-primary/50"}`}>

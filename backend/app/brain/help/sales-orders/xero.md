@@ -49,7 +49,7 @@ Closes the problem dialog. Nothing has been made in Xero.
 On the Bookings list, for Accounts. Opens **Xero codes for invoices**: the account, item and tracking each publication's invoice lines use. There's a row for **Every publication** and one for each publication. Leave a publication's account on **Same as every publication** to use the general one. **Reload the codes from Xero** fetches new accounts or items you've just added in Xero. **Save** keeps your choices; **Cancel** closes without saving. Up to two tracking categories are used.
 
 ### Reconnect / Connect Xero (Settings > Integrations)
-Administrators only, on the Xero card. **Reconnect** appears when the connection has a problem. **Sync now** fetches recent invoice changes; **Re-read all invoices** reads every invoice again; **Disconnect** removes the link.
+Administrators only, on the Xero card. Once connected, **Reconnect** is always shown - press it to sign in again, for example after a problem. **Sync now** fetches recent invoice changes; **Re-read all invoices** reads every invoice again; **Disconnect** removes the link.
 
 ## How it works
 - **What goes on the invoice**:
@@ -74,7 +74,7 @@ Administrators only, on the Xero card. **Reconnect** appears when the connection
   - The Ready to invoice card closes.
   - The item shows **Draft in Xero** until the hourly Xero sync sees it approved. It then shows Awaiting payment, Paid and so on.
 - **Double clicks** don't make two invoices: Xero is told it's the same request.
-- **Xero permission**: the Brain needs permission to create invoices, and to read contacts and settings. If the connection was made before this was added, an administrator must connect Xero again. If the card shows no **Reconnect** button because the connection otherwise works, press **Disconnect** and then **Connect Xero**. If Xero is connected automatically on the server, whoever runs BMI Brain needs to give that Xero app the same permissions.
+- **Xero permission**: the Brain needs permission to create invoices, and to read contacts and settings. If the connection was made before this was added, an administrator must connect Xero again. Press **Reconnect** on the Xero card and sign in again. If Xero is connected automatically on the server, whoever runs BMI Brain needs to give that Xero app the same permissions.
 
 ## Common questions
 **Q: Does this send the invoice to the client?**

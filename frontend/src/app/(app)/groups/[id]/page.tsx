@@ -84,8 +84,15 @@ export default async function GroupDetailPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Members ({group.members.length.toLocaleString()})
+            Members ({group.member_count.toLocaleString()})
           </CardTitle>
+          {group.has_sub_groups && (
+            <p className="text-xs text-muted-foreground">
+              Includes everyone in its sub-groups, the same people Export and Mail merge use.{" "}
+              {group.direct_member_count.toLocaleString()} {group.direct_member_count === 1 ? "is" : "are"} in this group
+              itself; the rest are marked with their sub-group.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <GroupMembersTable
@@ -93,6 +100,8 @@ export default async function GroupDetailPage({
             groupName={group.name}
             sourceDb={group.source_db}
             initialMembers={group.members}
+            total={group.member_count}
+            pageSize={group.members_page_size}
           />
         </CardContent>
       </Card>

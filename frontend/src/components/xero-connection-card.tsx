@@ -63,8 +63,11 @@ export function XeroConnectionCard({ status, canManage = true }: { status: XeroS
             </div>
           </div>
           <div className="flex gap-2">
-            {canManage && status.configured && !viaN8n && (!status.connected || broken) && (
-              <Button size="sm" nativeButton={false} render={<a href="/api/xero/connect?return_to=/settings" />}>
+            {/* Reconnect is always there once connected (signing in again fixes most problems), except when the server connects on its own. */}
+            {canManage && status.configured && !viaN8n && (
+              <Button size="sm" variant={status.connected && !broken ? "outline" : "default"} nativeButton={false}
+                title={status.connected ? "Sign in to Xero again, for example to switch account or after a problem." : undefined}
+                render={<a href="/api/xero/connect?return_to=/settings" />}>
                 {status.connected ? "Reconnect" : "Connect Xero"}
               </Button>
             )}

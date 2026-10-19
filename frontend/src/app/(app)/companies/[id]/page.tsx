@@ -35,7 +35,7 @@ export default async function CompanyDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ q?: string; source_db?: string }>;
+  searchParams: Promise<{ q?: string; source_db?: string; missing?: string }>;
 }) {
   const { id } = await params;
   const navParams = await searchParams;
@@ -53,6 +53,7 @@ export default async function CompanyDetailPage({
   const posParams = new URLSearchParams();
   if (navParams.q) posParams.set("q", navParams.q);
   if (navParams.source_db) posParams.set("source_db", navParams.source_db);
+  if (navParams.missing === "industry") posParams.set("missing", "industry");
   const position = await backendFetch<RecordPosition>(
     `/api/companies/${id}/position?${posParams}`
   ).catch(() => undefined);
@@ -232,7 +233,7 @@ export default async function CompanyDetailPage({
               <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
                 <Users className="size-8 mx-auto mb-2 opacity-40" />
                 <p className="font-medium">No contacts associated with this company yet.</p>
-                <p className="text-xs mt-1">Use the &apos;Link Existing Contact&apos; or &apos;New Contact&apos; button above to connect people.</p>
+                <p className="text-xs mt-1">Use &ldquo;Add existing contact&rdquo; or &ldquo;Add contact here&rdquo; above to connect people.</p>
               </div>
             )}
           </TabsContent>

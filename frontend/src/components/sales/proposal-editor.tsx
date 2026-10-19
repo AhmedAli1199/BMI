@@ -222,7 +222,7 @@ export function ProposalEditor({ proposal, titles, rates }: { proposal: Proposal
           {sent && (proposal.totals.length > 1
             ? proposal.totals.map((t) => (
               <Button key={t.option ?? ""} variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}&option=${encodeURIComponent(t.option ?? "")}`} />}>
-                <ClipboardList className="size-4" /> They chose {t.option}: make the order
+                <ClipboardList className="size-4" /> They chose {t.option}: make the booking
               </Button>
             ))
             : <Button variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/deals/new?proposal=${proposal.id}`} />}><ClipboardList className="size-4" /> They said yes: make the booking</Button>)}

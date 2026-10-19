@@ -170,8 +170,17 @@ export type GroupDetail = {
   name: string;
   description: string | null;
   parent_group_id: string | null;
-  members: ContactListItem[];
+  /** One page of everyone in the group and its sub-groups - the same people Export and Mail merge use. */
+  members: GroupMember[];
+  member_count: number;
+  direct_member_count: number;
+  has_sub_groups: boolean;
+  members_page: number;
+  members_page_size: number;
 };
+
+/** A group member; `via_group_*` is set when they're only in a sub-group, not the group itself. */
+export type GroupMember = ContactListItem & { via_group_id?: string | null; via_group_name?: string | null };
 
 export type ActivitiesPage = Page<ActivityOut>;
 
@@ -395,6 +404,10 @@ export type DataHealthMetric = {
   total: number;
   entity_type: "contact" | "company" | null;
   review_kind: string | null;
+  /** What `total` counts ("contacts with an email address"); empty for a review backlog. */
+  total_label: string;
+  /** The list filtered to the records with this problem. */
+  fix_href: string | null;
 };
 
 export type DataHealthStats = {

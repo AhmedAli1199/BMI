@@ -68,8 +68,12 @@ export function PutBackButton({ invoiceId }: { invoiceId: string }) {
       onClick={() =>
         start(async () => {
           try {
-            await putBackInvoice(invoiceId);
-            toast.success("Put back - it will be matched to bookings again within the hour");
+            const { matching_on } = await putBackInvoice(invoiceId);
+            toast.success(
+              matching_on
+                ? "Put back - it will be matched to bookings again within the hour"
+                : "Put back. Xero invoice matching is switched off, so it won't be matched to a booking until an admin turns it on.",
+            );
             router.refresh();
           } catch (e) {
             toast.error(friendlyError(e, "Couldn't put it back"));

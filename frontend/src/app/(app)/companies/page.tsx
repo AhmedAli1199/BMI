@@ -26,21 +26,22 @@ const PAGE_SIZE = 50;
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; missing?: string }>;
 }) {
-  const { q, page: pageParam } = await searchParams;
+  const { q, page: pageParam, missing: missingParam } = await searchParams;
+  // Data Health's "Fix" link for companies without an industry.
+  const missing = missingParam === "industry" ? "industry" : "";
   const page = Math.max(1, Number(pageParam) || 1);
   const [rawSourceDb, session] = await Promise.all([getPublicationFilter(), getSession()]);
   const scope = resolveScope(session, rawSourceDb);
-  // Companies aren't group-scoped (a group is a contact-level concept -
-  // see backend/app/models/user_access.py's docstring) - a group-scoped
-  // session still only sees its assigned database's companies broadly,
-  // not filtered down to the group's own contacts' companies.
+  // A group-limited session only sees the companies its group's contacts
+  // work for - the backend applies that (core/visibility.py company_clause).
   const source_db = scope.source_db === "__no_access__" ? "" : scope.source_db;
 
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (q) params.set("q", q);
   if (source_db) params.set("source_db", source_db);
+  if (missing) params.set("missing", missing);
 
   const data = scope.source_db === "__no_access__"
     ? { items: [], total: 0, page: 1, page_size: PAGE_SIZE }
@@ -53,6 +54,7 @@ export default async function CompaniesPage({
   const rowQuery = new URLSearchParams();
   if (q) rowQuery.set("q", q);
   if (source_db) rowQuery.set("source_db", source_db);
+  if (missing) rowQuery.set("missing", missing);
   const rowSuffix = rowQuery.toString() ? `?${rowQuery}` : "";
 
   return (
@@ -60,15 +62,28 @@ export default async function CompaniesPage({
       <PageHeader
         section="Clients"
         title="Companies"
-        description={`${data.total.toLocaleString()} ${q ? "companies match this search" : "accounts across every BMI title"}`}
-        below={scope.group_name ? (
-          <p className="text-[11px] font-medium" style={{ color: "var(--warn)" }}>
-            Your access is limited to the &ldquo;{scope.group_name}&rdquo; group of contacts - companies aren&apos;t split by
-            group, so this list shows every company in {sourceLabel(source_db)}.
-          </p>
+        description={`${data.total.toLocaleString()} ${q || missing ? "companies match" : "accounts across every BMI title"}`}
+        below={scope.group_name || missing ? (
+          <div className="flex flex-col gap-1">
+            {missing && (
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Showing only companies without an industry.{" "}
+                <Link href={`/companies${q ? `?${new URLSearchParams({ q })}` : ""}`} className="font-semibold text-primary hover:underline">
+                  Show all companies
+                </Link>
+              </p>
+            )}
+            {scope.group_name && (
+              <p className="text-[11px] font-medium" style={{ color: "var(--warn)" }}>
+                Your access is limited to the &ldquo;{scope.group_name}&rdquo; group of contacts, so this list shows only the
+                companies those contacts work for.
+              </p>
+            )}
+          </div>
         ) : undefined}
         actions={<>
           <form action="/companies" className="w-64 sm:w-72">
+            {missing && <input type="hidden" name="missing" value={missing} />}
             <Input name="q" aria-label="Search companies" placeholder="Search company name..." defaultValue={q ?? ""} className="h-9" />
           </form>
           <CompanyFormDialog defaultSourceDb={source_db} />
@@ -128,7 +143,7 @@ export default async function CompaniesPage({
           {page > 1 && (
             <Link
               className="rounded border px-3 py-1 hover:bg-muted"
-              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
+              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), ...(missing ? { missing } : {}), page: String(page - 1) })}`}
             >
               Previous
             </Link>
@@ -136,7 +151,7 @@ export default async function CompaniesPage({
           {page < totalPages && (
             <Link
               className="rounded border px-3 py-1 hover:bg-muted"
-              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
+              href={`/companies?${new URLSearchParams({ ...(q ? { q } : {}), ...(missing ? { missing } : {}), page: String(page + 1) })}`}
             >
               Next
             </Link>

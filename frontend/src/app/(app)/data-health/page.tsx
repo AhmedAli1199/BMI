@@ -15,6 +15,8 @@ import { Card, CardContent } from "@/components/ui/card";
  * so this marks "under control" rather than "perfect". */
 const HEALTHY_THRESHOLD = 0.02;
 
+/** Review backlogs have no total (they're a to-do list, not a share of the
+ * database), so anything waiting is "Watch" until someone clears it. */
 function severity(count: number, total: number): "good" | "warn" | "bad" {
   if (count === 0) return "good";
   if (total === 0) return "warn";
@@ -38,11 +40,13 @@ function MetricRow({ metric }: { metric: DataHealthMetric }) {
   const { badge, bar, icon: SeverityIcon } = SEVERITY_STYLE[level];
   const kindStyle = metric.review_kind ? styleForKind(metric.review_kind) : null;
   const Icon = kindStyle?.icon ?? SeverityIcon;
-  const href = metric.review_kind
-    ? `/automations/review?kind=${metric.review_kind}`
-    : metric.entity_type === "company"
-      ? "/companies"
-      : "/contacts";
+  const href =
+    metric.fix_href ??
+    (metric.review_kind
+      ? `/automations/review?kind=${metric.review_kind}`
+      : metric.entity_type === "company"
+        ? "/companies"
+        : "/contacts");
 
   return (
     <div className="flex flex-col gap-2.5 border-b border-border/60 p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
@@ -65,11 +69,15 @@ function MetricRow({ metric }: { metric: DataHealthMetric }) {
         <div className="text-right">
           <div className="text-lg font-bold text-foreground">{metric.count.toLocaleString()}</div>
           <div className="text-[10.5px] text-muted-foreground">
-            {metric.total > 0 ? `${pct}% of ${metric.total.toLocaleString()}` : "—"}
+            {metric.review_kind
+              ? "waiting for review"
+              : metric.total > 0
+                ? `${pct}% of ${metric.total.toLocaleString()} ${metric.total_label}`.trim()
+                : "—"}
           </div>
         </div>
         <Badge variant="outline" className={`text-[10px] font-bold ${badge}`}>
-          {level === "good" ? "Clean" : level === "warn" ? "Watch" : "Needs attention"}
+          {level === "good" ? "Clean" : metric.review_kind ? "To review" : level === "warn" ? "Watch" : "Needs attention"}
         </Badge>
         {metric.count > 0 && (
           <Link
@@ -122,9 +130,11 @@ export default async function DataHealthPage() {
         title="Data Health"
         description={
           <>
-            Record completeness across {health.total_contacts.toLocaleString()} contacts and{" "}
-            {health.total_companies.toLocaleString()} companies, plus every hygiene automation&apos;s
-            backlog - one place to see what&apos;s dragging on data quality and jump straight to fixing it.
+            Gaps in your {health.total_contacts.toLocaleString()} contacts and{" "}
+            {health.total_companies.toLocaleString()} companies, plus what the Brain has found that is waiting for
+            someone to check. Each figure is a share of the records it&apos;s about (for example, bounces are measured
+            against contacts who have an email address). &ldquo;Fix&rdquo; opens the list of the records with that
+            problem.
           </>
         }
       />
@@ -137,7 +147,7 @@ export default async function DataHealthPage() {
               {totalIssues.toLocaleString()}
             </div>
             <div className="mt-1 text-sm font-bold text-foreground">Open issues</div>
-            <div className="text-xs text-muted-foreground">Across every completeness &amp; hygiene metric</div>
+            <div className="text-xs text-muted-foreground">Missing details plus items waiting for review</div>
           </CardContent>
         </Card>
         <Card className="editorial-card h-full overflow-hidden">
@@ -147,7 +157,7 @@ export default async function DataHealthPage() {
               {health.metrics.filter((m) => severity(m.count, m.total) === "good").length}
               <span className="text-lg text-muted-foreground">/{health.metrics.length}</span>
             </div>
-            <div className="mt-1 text-sm font-bold text-foreground">Metrics clean</div>
+            <div className="mt-1 text-sm font-bold text-foreground">Checks clear</div>
             <div className="text-xs text-muted-foreground">No open issues at all</div>
           </CardContent>
         </Card>
@@ -169,8 +179,8 @@ export default async function DataHealthPage() {
         <div className="mb-3">
           <h2 className="editorial-heading text-base font-bold text-foreground">Record completeness</h2>
           <p className="text-xs text-muted-foreground">
-            Fields missing from contacts and companies that other features (outreach, segmentation,
-            bounce detection) depend on.
+            Details missing from contacts and companies that mailings, follow-ups and bounce checks rely on.
+            &ldquo;Watch&rdquo; means under 2% of the records it&apos;s measured against.
           </p>
         </div>
         <Card className="editorial-card overflow-hidden">
@@ -184,10 +194,10 @@ export default async function DataHealthPage() {
 
       <div>
         <div className="mb-3">
-          <h2 className="editorial-heading text-base font-bold text-foreground">Automation hygiene backlog</h2>
+          <h2 className="editorial-heading text-base font-bold text-foreground">Waiting for review</h2>
           <p className="text-xs text-muted-foreground">
-            Pending items from the automations engine that exist specifically to keep the CRM clean -
-            duplicates, bounces, unconfirmed departures.
+            Things the Brain spotted that keep your records clean - possible duplicates, bounces, people who may have
+            left - and that need someone to decide. These are counts, not percentages.
           </p>
         </div>
         <Card className="editorial-card overflow-hidden">

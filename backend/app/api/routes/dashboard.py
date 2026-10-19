@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
+from urllib.parse import urlencode
 
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
@@ -247,8 +249,15 @@ def get_data_health(
         .select_from(Company)
         .where(*company_filter, (Company.industry.is_(None)) | (Company.industry == ""))
     ) or 0
-    unsubscribed_contacts = db.scalar(
-        select(func.count()).select_from(Contact).where(*contact_filter, Contact.is_unsubscribed.is_(True))
+    has_email = Contact.id.in_(select(Email.contact_id).where(Email.contact_id.isnot(None)))
+    contacts_with_email = db.scalar(
+        select(func.count()).select_from(Contact).where(*contact_filter, has_email)
+    ) or 0
+    # Either flag means outreach skips them; a contact with both counts once.
+    unreachable_contacts = db.scalar(
+        select(func.count())
+        .select_from(Contact)
+        .where(*contact_filter, (Contact.is_unsubscribed.is_(True)) | (Contact.has_bounced.is_(True)))
     ) or 0
 
     hygiene_filter = [ReviewQueueItem.source_db == source_db] if source_db else []
@@ -267,47 +276,69 @@ def get_data_health(
         ).all()
     )
 
+    # The publication picked in the sidebar carries over to the list pages
+    # by itself, so the links only add the problem filter.
+    def contacts_link(conds: list[dict], match_any: bool = False) -> str:
+        params = {"conds": json.dumps(conds, separators=(",", ":"))}
+        if match_any:
+            params["match"] = "any"
+        return f"/contacts?{urlencode(params)}"
+
     metrics = [
         DataHealthMetric(
             key="missing_email",
             label="Contacts without an email address",
-            description="Can't be reached for renewals, follow-ups, or automated bounce/OOO detection.",
+            description="Can't be emailed for renewals or follow-ups, and bounces and out-of-office replies can't be picked up for them.",
             count=contacts_missing_email,
             total=total_contacts,
+            total_label="contacts",
             entity_type="contact",
+            fix_href=contacts_link([{"field": "email", "op": "is_empty"}]),
         ),
         DataHealthMetric(
             key="missing_phone",
             label="Contacts without a phone number",
-            description="No fallback channel when email goes unanswered or bounces.",
+            description="No other way to reach them when an email goes unanswered or bounces.",
             count=contacts_missing_phone,
             total=total_contacts,
+            total_label="contacts",
             entity_type="contact",
+            fix_href=contacts_link([{"field": "phone", "op": "is_empty"}]),
         ),
         DataHealthMetric(
             key="missing_industry",
             label="Companies without an industry",
-            description="Weakens segmentation, targeting, and the Top Companies breakdown.",
+            description="Makes it harder to pick the right companies for a mailing and weakens the Top Companies breakdown.",
             count=companies_missing_industry,
             total=total_companies,
+            total_label="companies",
             entity_type="company",
+            fix_href="/companies?missing=industry",
         ),
         DataHealthMetric(
             key="unsubscribed",
-            label="Unsubscribed / hard-bounced contacts",
-            description="Confirmed undeliverable by the bounce-handling automation - excluded from outreach.",
-            count=unsubscribed_contacts,
-            total=total_contacts,
+            label="Unsubscribed or bounced contacts",
+            description="Asked not to be emailed, or their email address bounced - left out of mailings. "
+            "Measured against contacts who have an email address.",
+            count=unreachable_contacts,
+            total=contacts_with_email,
+            total_label="contacts with an email address",
             entity_type="contact",
+            fix_href=contacts_link(
+                [{"field": "is_unsubscribed", "op": "is_yes"}, {"field": "has_bounced", "op": "is_yes"}], match_any=True
+            ),
         ),
     ] + [
+        # A backlog is a to-do list, not a share of the database: no
+        # percentage (total 0), and anything waiting needs someone to look.
         DataHealthMetric(
             key=kind,
             label=label,
-            description="Flagged by the automations engine and waiting for a human decision.",
+            description="Spotted by the Brain and waiting for someone to decide what to do.",
             count=hygiene_rows.get(kind, 0),
-            total=total_contacts,
+            total=0,
             review_kind=kind,
+            fix_href=f"/automations/review?kind={kind}",
         )
         for kind, label in _HYGIENE_KINDS.items()
     ]
