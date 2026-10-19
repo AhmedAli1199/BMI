@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import logging
 import re
 import tempfile
 import uuid
@@ -19,10 +20,12 @@ from sqlalchemy.orm import Session
 
 from app.api.routes.messaging import current_user
 from app.db.session import SessionLocal, get_db
-from app.feedback import github, text
+from app.feedback import discord, github, text
 from app.models import Feedback, FeedbackImage, User
 from app.models.feedback import FEEDBACK_KINDS, FEEDBACK_STATUSES
 from app.services.notify import create_notification
+
+logger = logging.getLogger("app.api.feedback")
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
@@ -88,6 +91,24 @@ def _sync_later(feedback_id: uuid.UUID, comment: tuple[str, str] | None = None) 
         if comment:
             github.comment(f, *comment)
         db.commit()
+    finally:
+        db.close()
+
+
+def _after_send(feedback_id: uuid.UUID) -> None:
+    """New feedback: make its GitHub issue (if that's on), then post it to Discord (if that's on) - after GitHub, so
+    the Discord message can link to the issue."""
+    try:
+        _sync_later(feedback_id)
+    except Exception:
+        logger.exception("feedback GitHub sync failed")
+    if not discord.enabled():
+        return
+    db = SessionLocal()
+    try:
+        f = db.get(Feedback, feedback_id)
+        if f:
+            discord.post(db, f)
     finally:
         db.close()
 
@@ -181,7 +202,7 @@ def send(p: FeedbackIn, background: BackgroundTasks, db: Session = Depends(get_d
                             link=f"/feedback?open={f.id}")
     db.commit()
     db.refresh(f)
-    background.add_task(_sync_later, f.id)
+    background.add_task(_after_send, f.id)
     return _out(f, user, list(db.query(FeedbackImage).filter_by(feedback_id=f.id).order_by(FeedbackImage.position)), full=True)
 
 

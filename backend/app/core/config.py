@@ -345,6 +345,9 @@ class Settings(BaseSettings):
     github_feedback_repo: str = ""
     github_feedback_token: str = ""
     github_feedback_branch: str = "feedback-screenshots"
+    # Each new piece of feedback posted to a Discord channel: the channel's webhook address (Discord: channel settings >
+    # Integrations > Webhooks > Copy Webhook URL). Keep it in the server's settings only - anyone with it can post there.
+    discord_feedback_webhook_url: str = ""
 
     # ---- Mail merge / "Connect Outlook" (delegated OAuth) ------------------
     # Each user signs in with Microsoft once; mail merge then sends from

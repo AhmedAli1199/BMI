@@ -190,3 +190,50 @@ def test_github_issue_with_screenshots(client, db_session, monkeypatch):
     patch = next(c for c in calls if c[0] == "PATCH")[2]
     assert patch["state"] == "closed" and patch["state_reason"] == "completed"
     assert sum(1 for c in calls if c[0] == "PUT") == 1   # the screenshot isn't uploaded twice
+
+
+def test_new_feedback_goes_to_discord_with_its_screenshot(client, db_session, monkeypatch):
+    from app.feedback import discord
+    sent = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        sent.append(req)
+        return httpx.Response(204)
+
+    monkeypatch.setattr(settings, "discord_feedback_webhook_url", "https://discord.com/api/webhooks/1/abc")
+    monkeypatch.setattr(discord, "_client", lambda: httpx.Client(transport=httpx.MockTransport(handler)))
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    db_session.flush()
+    f = _send(client, identity_headers(sally), message="Hey @everyone the Save button does nothing").json()
+    row = db_session.get(Feedback, __import__("uuid").UUID(f["id"]))
+    assert discord.post(db_session, row)
+    req = sent[-1]
+    assert str(req.url) == "https://discord.com/api/webhooks/1/abc"
+    body = req.content.decode("latin-1")
+    assert 'name="files[0]"; filename="screenshot.png"' in body          # the screenshot goes with it
+    payload = json.loads(body.split('name="payload_json"')[1].split("\r\n\r\n", 1)[1].split("\r\n--", 1)[0])
+    embed = payload["embeds"][0]
+    assert payload["allowed_mentions"] == {"parse": []}                    # no pings, whatever they wrote
+    assert embed["title"].startswith(f"#{row.number} ") and "Save button" in embed["description"]
+    assert embed["url"].endswith(f"/feedback?open={row.id}") and embed["image"]["url"] == "attachment://screenshot.png"
+    assert any(fl["name"] == "From" and "Sally Parker (Sales)" in fl["value"] for fl in embed["fields"])
+
+
+def test_discord_being_down_never_stops_feedback(client, db_session, monkeypatch):
+    from app.feedback import discord
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down")
+
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    db_session.flush()
+    monkeypatch.setattr(settings, "discord_feedback_webhook_url", "")
+    assert not discord.enabled()                                           # off unless the address is set
+    monkeypatch.setattr(settings, "discord_feedback_webhook_url", "https://example.com/not-discord")
+    assert not discord.enabled()                                           # only a real Discord webhook address counts
+    monkeypatch.setattr(settings, "discord_feedback_webhook_url", "https://discord.com/api/webhooks/1/abc")
+    monkeypatch.setattr(discord, "_client", lambda: httpx.Client(transport=httpx.MockTransport(handler)))
+    r = _send(client, identity_headers(sally))
+    assert r.status_code == 200
+    row = db_session.get(Feedback, __import__("uuid").UUID(r.json()["id"]))
+    assert discord.post(db_session, row) is False

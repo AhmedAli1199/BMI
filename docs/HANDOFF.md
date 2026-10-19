@@ -370,6 +370,7 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
 - **Board** `/feedback` (sidebar "Feedback"): counts, status tabs, kind/page/sort/mine filters, search (words, page, person, #12), cards with the first screenshot, a side sheet with everything (screenshots, code locations, browser and errors for the sender and managers, votes, comments, status). "Show me on the page" opens the page with numbered dots on the things people pointed at (`feedback-pins.tsx`, `?feedback_pin=`); the button shows how many are open on the current page. Admins and data managers set the status (New / Looking at it / Fixed / Won't do + a note); the sender and everyone who said Me too get a notification. Admins are notified of each new one (in the app).
 - **Download feedback**: a zip of what the board is showing: `feedback.md` (readable, screenshots linked), `feedback.json` (everything) and `images/`. Built a batch at a time.
 - **GitHub issues (optional)**: set `GITHUB_FEEDBACK_REPO` (owner/name) and `GITHUB_FEEDBACK_TOKEN` (fine-grained token, that repo only, Contents + Issues read/write). Each new piece of feedback becomes an issue labelled `feedback` + kind, with screenshots saved on branch `feedback-screenshots` (`GITHUB_FEEDBACK_BRANCH`) so they show inside the issue; edits, comments and status pass on, Fixed / Won't do closes it. Failures are kept on the feedback with a Try again button for admins (`app/feedback/github.py`).
+- **Discord (optional)**: set `DISCORD_FEEDBACK_WEBHOOK_URL` (Discord channel settings > Integrations > Webhooks > Copy Webhook URL - server settings only, never in the code). Each new piece of feedback is posted to that channel: kind, message, page, who sent it, the first screenshot, a link to it in BMI Brain and to its GitHub issue if that's on. No @mentions are ever sent. A failure is only logged (`app/feedback/discord.py`).
 - Backend `api/routes/feedback.py`, `models/feedback.py` (migration `0055`, tables `feedback`, `feedback_images`), tests `tests/test_feedback.py`.
 
 ### 4.4 Invoicing logic
@@ -450,7 +451,7 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 - **Playwright:** Chromium at `/opt/pw-browsers/chromium`; login via `e2e/helpers`. Clean up leftover E2E test data if specs flake (the groups test doesn't clean up after itself — known follow-up).
 
 ### Live env vars (summary)
-`APP_BASE_URL`, `MAIL_TOKEN_KEY` (Fernet), `GRAPH_TENANT_ID/CLIENT_ID/CLIENT_SECRET` (mailbox scanners; Outlook sign-in falls back to these), optional `OUTLOOK_*`, `AUTOMATION_MAILBOX`, optional `GITHUB_FEEDBACK_REPO` + `GITHUB_FEEDBACK_TOKEN` (feedback as GitHub issues), `XERO_CLIENT_ID/SECRET` (+ optional Xero vars above), LLM key.
+`APP_BASE_URL`, `MAIL_TOKEN_KEY` (Fernet), `GRAPH_TENANT_ID/CLIENT_ID/CLIENT_SECRET` (mailbox scanners; Outlook sign-in falls back to these), optional `OUTLOOK_*`, `AUTOMATION_MAILBOX`, optional `GITHUB_FEEDBACK_REPO` + `GITHUB_FEEDBACK_TOKEN` (feedback as GitHub issues), optional `DISCORD_FEEDBACK_WEBHOOK_URL` (new feedback posted to Discord), `XERO_CLIENT_ID/SECRET` (+ optional Xero vars above), LLM key.
 
 ---
 
