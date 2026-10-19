@@ -1292,61 +1292,61 @@
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:92",
+   "src": "app/(app)/companies/[id]/page.tsx:93",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:102",
+   "src": "app/(app)/companies/[id]/page.tsx:103",
    "kind": "button",
    "label": "Build a proposal"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:112",
+   "src": "app/(app)/companies/[id]/page.tsx:113",
    "kind": "button",
    "label": "New booking"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:137",
+   "src": "app/(app)/companies/[id]/page.tsx:138",
    "kind": "tab",
    "label": "Associated Contacts ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:144",
+   "src": "app/(app)/companies/[id]/page.tsx:145",
    "kind": "tab",
    "label": "Activity & History ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:150",
+   "src": "app/(app)/companies/[id]/page.tsx:151",
    "kind": "tab",
    "label": "Company Notes ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:157",
+   "src": "app/(app)/companies/[id]/page.tsx:158",
    "kind": "tab",
    "label": "Bookings ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:165",
+   "src": "app/(app)/companies/[id]/page.tsx:166",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:179",
+   "src": "app/(app)/companies/[id]/page.tsx:180",
    "kind": "heading",
    "label": "Contacts linked to"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:300",
+   "src": "app/(app)/companies/[id]/page.tsx:301",
    "kind": "heading",
    "label": "Extra fields from Act!"
   },
