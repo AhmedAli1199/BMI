@@ -53,6 +53,10 @@ class ReminderIn(BaseModel):
     contact_id: uuid.UUID | None = None
     company_id: uuid.UUID | None = None
     email_me: bool = True
+    # Only used by "Undo" after a delete, to put the reminder back exactly as it was
+    # (so one that already sent its email doesn't send it again).
+    status: str = Field(default="open", pattern="^(open|done|cancelled)$")
+    notified_at: datetime | None = None
 
 
 class ReminderPatch(BaseModel):
@@ -106,7 +110,7 @@ def create_reminder(payload: ReminderIn, db: Session = Depends(get_db), user: Us
         raise HTTPException(404, "Company not found")
     r = Reminder(id=uuid.uuid4(), user_id=user.id, contact_id=payload.contact_id, company_id=payload.company_id,
                  due_at=_aware(payload.due_at), note=(payload.note or "").strip() or None, email_me=payload.email_me,
-                 status="open")
+                 status=payload.status, notified_at=_aware(payload.notified_at) if payload.notified_at else None)
     db.add(r)
     db.commit()
     return _reminder_out(db, r)

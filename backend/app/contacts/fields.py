@@ -141,6 +141,17 @@ def pretty_key(key: str) -> str:
     return key.replace("_", " ").strip().capitalize() if key else key
 
 
+def labels_for_record(db: Session | None, custom_fields: dict | None) -> dict[str, str]:
+    """Display names for one record's custom fields, for the record page: the
+    saved real name when there is one, otherwise a tidied key. Our own internal
+    keys (starting with "_") are left out, so the page never shows them.
+    Pass db=None for a company - the saved names describe contact fields."""
+    if not isinstance(custom_fields, dict):
+        return {}
+    labels = get_custom_labels(db) if db is not None else {}
+    return {k: labels.get(k) or pretty_key(k) for k in custom_fields if k and not k.startswith("_")}
+
+
 def custom_field_defs(db: Session) -> list[FieldDef]:
     labels = get_custom_labels(db)
     out = []

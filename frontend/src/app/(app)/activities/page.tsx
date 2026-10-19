@@ -13,6 +13,8 @@ import type { ActivityOut } from "@/lib/types";
 
 type Status = "open" | "overdue" | "done" | "all";
 
+const PAGE_SIZE = 100;
+
 export default async function ActivitiesPage({
   searchParams,
 }: {
@@ -22,10 +24,12 @@ export default async function ActivitiesPage({
     type?: string;
     priority?: string;
     q?: string;
+    page?: string;
   }>;
 }) {
-  const { status: statusParam, mine: rawMine, type: typeParam, priority: priorityParam, q: qParam } =
+  const { status: statusParam, mine: rawMine, type: typeParam, priority: priorityParam, q: qParam, page: pageParam } =
     await searchParams;
+  const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
 
   const status: Status =
     statusParam === "overdue" || statusParam === "done" || statusParam === "all"
@@ -53,9 +57,14 @@ export default async function ActivitiesPage({
   const isCleared =
     status === "done" ? true : status === "open" || status === "overdue" ? false : undefined;
 
+  // "Overdue" = not done and due before today. The list and the count both
+  // come from the server, so they cover every activity, not just one page.
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const data =
     scope.source_db === "__no_access__"
-      ? { items: [] as ActivityOut[], total: 0, page: 1, page_size: 100 }
+      ? { items: [] as ActivityOut[], total: 0, page: 1, page_size: PAGE_SIZE, overdue_total: 0 }
       : await listActivities({
           source_db: source_db || undefined,
           is_cleared: isCleared,
@@ -63,35 +72,30 @@ export default async function ActivitiesPage({
           activity_type: selectedType,
           q: searchQuery,
           assigned_user_id: mine === "1" && session ? session.sub : undefined,
+          start_before: status === "overdue" ? new Date(todayStart.getTime() - 1).toISOString() : undefined,
+          overdue_before: todayStart.toISOString(),
+          page,
+          page_size: PAGE_SIZE,
         });
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  // If status is "overdue", further ensure start_at < today
-  let displayItems = data.items;
-  if (status === "overdue") {
-    displayItems = displayItems.filter(
-      (item) => !item.is_cleared && new Date(item.start_at).getTime() < todayStart.getTime()
-    );
-  }
-
-  // Count overdues in the fetched set for the tab badge
-  const overdueCount = data.items.filter(
-    (item) => !item.is_cleared && new Date(item.start_at).getTime() < todayStart.getTime()
-  ).length;
+  const displayItems = data.items;
+  const overdueCount = data.overdue_total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
 
   const createFilterHref = (updates: Record<string, string | undefined | null>) => {
     const p = new URLSearchParams();
     const current: Record<string, string | undefined> = {
       status: status !== "open" ? status : undefined,
-      mine: mine === "1" ? "1" : undefined,
+      // Keep the person's own choice. A salesperson starts on "Mine only", so
+      // when they turn it off that has to stay off ("0") as they click about.
+      mine: mine === "1" ? (session?.role === "sales" ? undefined : "1") : session?.role === "sales" ? "0" : undefined,
       type: selectedType,
       priority: selectedPriority,
       q: searchQuery,
     };
 
-    const merged = { ...current, ...updates };
+    // Any filter change starts again from page 1.
+    const merged = { ...current, page: undefined, ...updates };
     for (const [k, v] of Object.entries(merged)) {
       if (v) p.set(k, v);
     }
@@ -114,7 +118,8 @@ export default async function ActivitiesPage({
             {status !== "open" && <input type="hidden" name="status" value={status} />}
             {selectedType && <input type="hidden" name="type" value={selectedType} />}
             {selectedPriority && <input type="hidden" name="priority" value={selectedPriority} />}
-            {mine === "1" && <input type="hidden" name="mine" value="1" />}
+            {mine === "1" && session?.role !== "sales" && <input type="hidden" name="mine" value="1" />}
+            {mine !== "1" && session?.role === "sales" && <input type="hidden" name="mine" value="0" />}
           </form>
 
           {/* Log or schedule dialog trigger */}
@@ -149,14 +154,14 @@ export default async function ActivitiesPage({
             href={createFilterHref({ status: "overdue" })}
             className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
               status === "overdue"
-                ? "border border-red-500/40 bg-red-500/15 text-red-600 dark:text-red-400"
+                ? "border border-[var(--bad)]/40 bg-[var(--bad-tint)] text-[var(--bad)]"
                 : "border border-transparent text-muted-foreground hover:bg-muted"
             }`}
           >
             <span>Overdue</span>
             {overdueCount > 0 && (
-              <span className="rounded-full bg-red-500/20 px-1.5 py-0.2 text-[10px] font-bold text-red-700 dark:text-red-300">
-                {overdueCount}
+              <span className="rounded-full bg-[var(--bad-tint)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[var(--bad)]">
+                {overdueCount.toLocaleString("en-GB")}
               </span>
             )}
           </Link>
@@ -252,10 +257,33 @@ export default async function ActivitiesPage({
       {/* Bottom Summary Strip */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          Showing {displayItems.length} {displayItems.length === 1 ? "activity" : "activities"}
+          {data.total > PAGE_SIZE
+            ? `Showing ${((page - 1) * PAGE_SIZE + 1).toLocaleString("en-GB")}-${((page - 1) * PAGE_SIZE + displayItems.length).toLocaleString("en-GB")} of ${data.total.toLocaleString("en-GB")} activities`
+            : `Showing ${displayItems.length} ${displayItems.length === 1 ? "activity" : "activities"}`}
           {searchQuery ? ` matching "${searchQuery}"` : ""}
         </span>
         <div className="flex items-center gap-4">
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              {page > 1 && (
+                <Link
+                  className="rounded-md border border-border bg-card px-3 py-1.5 font-medium hover:bg-muted"
+                  href={createFilterHref({ page: String(page - 1) })}
+                >
+                  &larr; Previous
+                </Link>
+              )}
+              <span className="tabular-nums">Page {page} of {totalPages.toLocaleString("en-GB")}</span>
+              {page < totalPages && (
+                <Link
+                  className="rounded-md border border-border bg-card px-3 py-1.5 font-medium hover:bg-muted"
+                  href={createFilterHref({ page: String(page + 1) })}
+                >
+                  Next &rarr;
+                </Link>
+              )}
+            </div>
+          )}
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3 text-primary" />
             <span>Times in London / BST</span>

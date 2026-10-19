@@ -15,11 +15,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.services.field_audit import describe_channel, record_channel_change
 
 ModelT = TypeVar("ModelT")
 
 
-def create_channel(db: Session, model: type[ModelT], owner_field: str, owner_id: uuid.UUID, payload: BaseModel) -> ModelT:
+def create_channel(db: Session, model: type[ModelT], owner_field: str, owner_id: uuid.UUID, payload: BaseModel,
+                   changed_by_user_id: uuid.UUID | None = None) -> ModelT:
     row = model(
         id=uuid.uuid4(),
         source_db=MANUAL_SOURCE_DB,
@@ -29,28 +31,37 @@ def create_channel(db: Session, model: type[ModelT], owner_field: str, owner_id:
         **payload.model_dump(exclude_unset=True),
     )
     db.add(row)
+    record_channel_change(db, owner_field=owner_field, owner_id=owner_id, row=row,
+                          before=None, after=describe_channel(row), changed_by_user_id=changed_by_user_id)
     db.commit()
     db.refresh(row)
     return row
 
 
 def update_channel(
-    db: Session, model: type[ModelT], owner_field: str, owner_id: uuid.UUID, channel_id: uuid.UUID, payload: BaseModel
+    db: Session, model: type[ModelT], owner_field: str, owner_id: uuid.UUID, channel_id: uuid.UUID, payload: BaseModel,
+    changed_by_user_id: uuid.UUID | None = None,
 ) -> ModelT:
     row = db.get(model, channel_id)
     if not row or getattr(row, owner_field) != owner_id:
         raise HTTPException(status_code=404, detail="Not found")
+    before = describe_channel(row)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(row, field, value)
+    record_channel_change(db, owner_field=owner_field, owner_id=owner_id, row=row,
+                          before=before, after=describe_channel(row), changed_by_user_id=changed_by_user_id)
     db.commit()
     db.refresh(row)
     return row
 
 
-def delete_channel(db: Session, model: type[ModelT], owner_field: str, owner_id: uuid.UUID, channel_id: uuid.UUID) -> None:
+def delete_channel(db: Session, model: type[ModelT], owner_field: str, owner_id: uuid.UUID, channel_id: uuid.UUID,
+                   changed_by_user_id: uuid.UUID | None = None) -> None:
     row = db.get(model, channel_id)
     if not row or getattr(row, owner_field) != owner_id:
         raise HTTPException(status_code=404, detail="Not found")
+    record_channel_change(db, owner_field=owner_field, owner_id=owner_id, row=row,
+                          before=describe_channel(row), after=None, changed_by_user_id=changed_by_user_id)
     db.delete(row)
     db.commit()
 

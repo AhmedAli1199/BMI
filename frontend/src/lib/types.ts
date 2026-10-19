@@ -92,7 +92,7 @@ export type FieldChange = {
   changed_at: string;
   changed_by: UserSummary | null;
 };
-export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null };
+export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null; website?: string | null };
 
 export type ContactDetail = {
   id: string;
@@ -114,6 +114,8 @@ export type ContactDetail = {
   is_unsubscribed: boolean;
   has_left: boolean;
   custom_fields: Record<string, unknown>;
+  /** Display names for custom_fields; internal keys are left out. */
+  custom_field_labels?: Record<string, string>;
   company: CompanySummary | null;
   addresses: AddressOut[];
   phones: PhoneOut[];
@@ -146,6 +148,8 @@ export type CompanyDetail = {
   website: string | null;
   num_employees: number | null;
   custom_fields: Record<string, unknown>;
+  /** Display names for custom_fields; internal keys are left out. */
+  custom_field_labels?: Record<string, string>;
   addresses: AddressOut[];
   phones: PhoneOut[];
   emails: EmailOut[];
@@ -173,7 +177,7 @@ export type GroupDetail = {
   members: ContactListItem[];
 };
 
-export type ActivitiesPage = Page<ActivityOut>;
+export type ActivitiesPage = Page<ActivityOut> & { overdue_total?: number | null };
 
 export type SourceBreakdown = { source_db: string; count: number };
 

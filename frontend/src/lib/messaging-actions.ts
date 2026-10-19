@@ -34,6 +34,9 @@ export async function createReminder(input: {
   contact_id?: string | null;
   company_id?: string | null;
   email_me: boolean;
+  /** Only for putting back a deleted reminder exactly as it was. */
+  status?: "open" | "done" | "cancelled";
+  notified_at?: string | null;
 }) {
   const r = await backendFetch<Reminder>("/api/reminders", json(input));
   revalidatePath("/reminders");
@@ -99,6 +102,13 @@ export async function saveTemplate(
 
 export async function deleteTemplate(id: string) {
   await backendFetch(`/api/mail/templates/${id}`, { method: "DELETE" });
+}
+
+/** Adds Clare's sales templates from Act! that aren't in the library yet. Returns how many were added. */
+export async function loadActTemplates() {
+  const r = await backendFetch<{ added: number }>("/api/mail/templates/load-act", { method: "POST" });
+  revalidatePath("/mail-merge/templates");
+  return r;
 }
 
 // ---- Mail merge ---------------------------------------------------------

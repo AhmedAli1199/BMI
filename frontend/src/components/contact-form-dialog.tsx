@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,8 +100,8 @@ export function ContactFormDialog({
         }
         setOpen(false);
         router.refresh();
-      } catch {
-        toast.error(existing ? "Couldn't update contact" : "Couldn't add contact");
+      } catch (e) {
+        toast.error(friendlyError(e, existing ? "We couldn't save the contact. Please try again." : "We couldn't add the contact. Please try again."));
       }
     });
   }

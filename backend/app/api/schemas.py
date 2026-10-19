@@ -25,6 +25,7 @@ class CompanySummary(BaseModel):
     source_db: str
     industry: str | None = None
     category: str | None = None
+    website: str | None = None
 
 
 class ContactListItem(BaseModel):
@@ -234,6 +235,9 @@ class ActivityUpdate(BaseModel):
 
 class ActivitiesPage(Page):
     items: list[ActivityOut]
+    # Only filled in when the caller asks (overdue_before): how many
+    # not-done activities start before that moment, with the same filters.
+    overdue_total: int | None = None
 
 
 
@@ -264,6 +268,8 @@ class ContactDetail(BaseModel):
     is_unsubscribed: bool = False
     has_left: bool = False
     custom_fields: dict
+    # Display names for custom_fields (internal "_" keys left out) - see app/contacts/fields.py
+    custom_field_labels: dict[str, str] = {}
     company: CompanySummary | None = None
     addresses: list[AddressOut] = []
     phones: list[PhoneOut] = []
@@ -312,6 +318,7 @@ class CompanyDetail(BaseModel):
     website: str | None = None
     num_employees: int | None = None
     custom_fields: dict
+    custom_field_labels: dict[str, str] = {}
     addresses: list[AddressOut] = []
     phones: list[PhoneOut] = []
     emails: list[EmailOut] = []

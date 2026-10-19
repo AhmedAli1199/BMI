@@ -14,9 +14,9 @@ Three related tools for keeping on top of your clients:
 ## What you see
 **Calendar & tasks**
 - The title "Calendar & Reminders", the tabs **Calendar & tasks** and **Reminders**, a search box ("Search regarding, details, names...") and **Log or schedule**.
-- A filter bar: **Open**, **Overdue** (with a red count), **Done** and **All**; **Type**: all, call, meeting, **To-do**; **Priority**: all, high, normal, low; and **Mine only**.
+- A filter bar: **Open**, **Overdue** (with a red count of every overdue activity that matches your other filters, not just the ones on this page), **Done** and **All**; **Type**: all, call, meeting, **To-do**; **Priority**: all, high, normal, low; and **Mine only**.
 - The grid: **Done** tick box, **Type**, **Date** (red with "Overdue" when the date has passed and it isn't done), **Time**, **Priority**, **Regarding / Details**, **Contact**, **Company**, **Duration**, **Location**, a paperclip if it has attachments, and **Scheduled For** (who organised it). Done items are faded; overdue ones have a red tint.
-- "Showing <n> activities" at the bottom, and "Times in London / BST".
+- "Showing <n> activities" at the bottom (or "Showing 1-100 of <n> activities" when there's more than one page), **← Previous** and **Next →** with "Page <n> of <n>", and "Times in London / BST".
 
 **My reminders**
 - The same heading and tabs, then **Upcoming**, **Done** and **All**.
@@ -45,13 +45,16 @@ Searches the title and details of activities. Press Enter. It keeps your other f
 Narrow the grid. Things scheduled with **Log or schedule** are "normal" priority.
 
 ### Mine only / Showing mine only
-Shows only activities you scheduled here, or that Act! records as organised by you (matched on your name). For salespeople it starts switched on; click it to see everyone's.
+Shows only activities you scheduled here, or that Act! records as organised by you (matched on your name). For salespeople it starts switched on; click it to see everyone's. Your choice stays as you change the other filters and pages.
 
 ### Which title (the switcher at the top of the app)
 To see one database's activities, or all you can see, use the **All Titles** switcher at the top of the app.
 
 ### Column headings
 Click **Type**, **Date**, **Priority**, **Regarding / Details**, **Contact**, **Company** or **Duration** to sort what's on screen; click again to reverse.
+
+### ← Previous, Next →
+Move between pages of 100. Changing a filter takes you back to the first page.
 
 ### Done tick box
 Marks the activity done (or not done again) straight away.
@@ -72,7 +75,7 @@ Moves the reminder to **1 hour** from now, **Tomorrow morning** (9am), **1 week*
 On a done reminder: makes it open again.
 
 ### Delete reminder (the bin)
-Deletes the reminder straight away. There's no confirmation and no undo.
+Deletes the reminder straight away. The message that pops up has an **Undo** button for a few seconds: press it to put the reminder back exactly as it was.
 
 ### Remind me (on a contact or company)
 Sets a reminder: a quick pick (**Tomorrow**, **In 3 days**, **1 week**, **2 weeks**, **1 month**, **3 months**, **6 months**, **1 year**, all at 9am) or your own date and time, **What about? (optional)**, and **Email me as well**. **Set reminder** saves it. Your open reminders also show in an amber strip on that contact's or company's page, with **Done** and **All my reminders →**.
@@ -80,7 +83,7 @@ Sets a reminder: a quick pick (**Tomorrow**, **In 3 days**, **1 week**, **2 week
 ## How it works
 - A **Log** entry is history: it's dated when it happened and appears on the person's History and Activities tabs. A **Schedule** entry is an activity: it appears on Calendar & tasks and on the person's Activities tab as "Scheduled" until it's ticked done.
 - An activity is linked to either a contact or a company, never both.
-- Calendar & tasks shows the activities of the contacts and companies you can see. By default it shows everyone's in those databases (as Act! did), newest first, up to 100 at a time.
+- Calendar & tasks shows the activities of the contacts and companies you can see. By default it shows everyone's in those databases (as Act! did), newest first, 100 to a page.
 - Reminders are personal: only you see yours. Every five minutes, reminders that have come due turn into a notification under the bell, and an email too if you ticked **Email me as well**. Snoozing or changing the time re-arms the reminder so you're notified again.
 - Some reminders are set for you: saving call notes adds one per agreed action, due at 9am on the day agreed in the call ("by Friday", "next week", "14 Nov"), or the next working day if no day was mentioned, and sending a proposal sets a follow-up.
 
@@ -113,7 +116,7 @@ A: Tick **Make this private** before saving.
 - **Save or Schedule is greyed out**: pick a contact or company first. On the **Note** tab, type the note. On **Schedule**, a start date and time is needed.
 - **"Couldn't save that - try again"**: something went wrong saving. Try again; if you picked a contact and then cleared it, pick them again.
 - **Mine only shows nothing**: activities brought over from Act! only count as yours if the organiser's name matches your name in BMI Brain exactly.
-- **Something I scheduled isn't on Calendar & tasks**: check the filters (**Open** hides done items) and the **All Titles** switcher at the top of the app. The grid shows up to 100 activities at a time, newest first; use the search box or filters to find older ones.
+- **Something I scheduled isn't on Calendar & tasks**: check the filters (**Open** hides done items) and the **All Titles** switcher at the top of the app. The grid shows 100 activities a page, newest first; use **Next →**, the search box or the filters to find older ones.
 - **I can't see next week's repeat yet**: only the next one is on the calendar. It's added when you mark the current one as done.
 - **I didn't get a reminder email**: check **Email me as well** was ticked (the row says "email too"). The in-app notification under the bell always comes.
 - **I can't see a colleague's reminders**: reminders are personal. Ask them, or schedule a shared activity instead.

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClipboardList, ExternalLink, FileText, Layers, Mail, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
+import { customFieldEntries } from "@/lib/custom-fields";
 import type { CompanyDetail, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { allowedSourceDbSlugs } from "@/lib/access";
@@ -68,7 +69,7 @@ export default async function CompanyDetailPage({
     notFound();
   }
 
-  const customEntries = Object.entries(company.custom_fields || {});
+  const customEntries = customFieldEntries(company.custom_fields, company.custom_field_labels);
   const [bookings, salesMeta] = await Promise.all([
     backendFetch<CompanyBookings>(`/api/sales/companies/${id}/orders`).catch(() => null),
     backendFetch<SalesMeta>("/api/sales/meta").catch(() => null),
@@ -137,7 +138,7 @@ export default async function CompanyDetailPage({
                 value="contacts"
                 className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-card rounded-t-md rounded-b-none px-3.5 py-2 text-xs font-semibold cursor-pointer gap-1.5"
               >
-                <Users className="size-3.5 text-blue-600" />
+                <Users className="size-3.5 text-[var(--chart-2)]" />
                 <span>Associated Contacts ({company.contacts.length})</span>
               </TabsTrigger>
               <TabsTrigger
@@ -298,22 +299,22 @@ export default async function CompanyDetailPage({
               <CardHeader className="p-0 pb-3 border-b mb-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <Layers className="size-4 text-primary" />
-                  <span>Act! Custom Database Fields</span>
+                  <span>Extra fields from Act!</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 {customEntries.length > 0 ? (
                   <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 text-xs">
-                    {customEntries.map(([key, value]) => (
+                    {customEntries.map((f) => (
                       <div
-                        key={key}
+                        key={f.key}
                         className="flex flex-col justify-center rounded border border-border/60 bg-muted/20 p-2.5"
                       >
-                        <span className="text-[11px] text-muted-foreground font-mono">
-                          {key}
+                        <span className="text-[11px] text-muted-foreground">
+                          {f.label}
                         </span>
                         <span className="font-medium text-foreground mt-0.5">
-                          {String(value)}
+                          {f.value}
                         </span>
                       </div>
                     ))}

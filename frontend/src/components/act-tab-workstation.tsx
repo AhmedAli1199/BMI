@@ -22,6 +22,7 @@ import { cleanNoteBody, noteSourceLabel } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
 import { deleteContactNote } from "@/lib/actions";
 import { DeleteItemButton } from "@/components/delete-item-button";
+import { customFieldEntries, isPublishingField } from "@/lib/custom-fields";
 
 /** Notes and History are tables made of grids, so a long type label wraps inside its column instead of running
  * into the next one, and the headings sit over their columns. On a phone the columns stack. */
@@ -38,10 +39,8 @@ export function ActTabWorkstation({
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const customEntries = Object.entries(contact.custom_fields || {});
-  const publishingEntries = customEntries.filter(([k]) =>
-    /issue|ad|print|circulation|tier|title|sponsor|expo|wtce/i.test(k)
-  );
+  const customEntries = customFieldEntries(contact.custom_fields, contact.custom_field_labels);
+  const publishingEntries = customEntries.filter(isPublishingField);
 
   // One search box drives all three content tabs (Activities, Notes,
   // History) at once, rather than each having its own - typing here
@@ -79,7 +78,7 @@ export function ActTabWorkstation({
               value="activities"
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
-              <Calendar className="size-3.5 text-blue-600" />
+              <Calendar className="size-3.5 text-[var(--chart-2)]" />
               <span>
                 Activities (
                 {needle
@@ -93,7 +92,7 @@ export function ActTabWorkstation({
               value="notes"
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
-              <FileText className="size-3.5 text-emerald-600" />
+              <FileText className="size-3.5 text-[var(--ok)]" />
               <span>
                 Notes ({needle ? `${filteredNotes.length} of ${contact.notes.length}` : contact.notes.length})
               </span>
@@ -103,7 +102,7 @@ export function ActTabWorkstation({
               value="history"
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
-              <Clock className="size-3.5 text-amber-600" />
+              <Clock className="size-3.5 text-[var(--warn)]" />
               <span>
                 History ({needle ? `${filteredHistory.length} of ${contact.history.length}` : contact.history.length})
               </span>
@@ -113,7 +112,7 @@ export function ActTabWorkstation({
               value="groups"
               className="data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-2xs data-[state=active]:border-border border border-transparent rounded-md px-3 py-1.5 text-xs font-semibold cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground transition-all"
             >
-              <UsersRound className="size-3.5 text-purple-600" />
+              <UsersRound className="size-3.5 text-[var(--chart-1)]" />
               <span>Groups ({contact.groups.length})</span>
             </TabsTrigger>
 
@@ -300,16 +299,16 @@ export function ActTabWorkstation({
 
             {publishingEntries.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 text-xs">
-                {publishingEntries.map(([k, v]) => (
+                {publishingEntries.map((f) => (
                   <div
-                    key={k}
+                    key={f.key}
                     className="rounded-md border border-border/80 bg-muted/30 p-3"
                   >
                     <span className="text-muted-foreground block text-[11px] mb-1">
-                      {k}
+                      {f.label}
                     </span>
                     <span className="font-semibold text-foreground text-sm">
-                      {String(v)}
+                      {f.value}
                     </span>
                   </div>
                 ))}
@@ -327,25 +326,25 @@ export function ActTabWorkstation({
           <Card className="p-5 border border-border">
             <div className="flex items-center justify-between mb-3 border-b pb-2">
               <h3 className="text-sm font-bold text-foreground">
-                Act! Database Custom Fields (user1 .. user15)
+                Extra fields from Act!
               </h3>
-              <span className="text-xs text-muted-foreground font-mono">
-                {customEntries.length} total attributes
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {customEntries.length} {customEntries.length === 1 ? "field" : "fields"}
               </span>
             </div>
 
             {customEntries.length > 0 ? (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-xs">
-                {customEntries.map(([key, value]) => (
+                {customEntries.map((f) => (
                   <div
-                    key={key}
+                    key={f.key}
                     className="flex flex-col justify-center rounded border border-border/60 bg-muted/20 p-2.5"
                   >
-                    <span className="text-[10px] font-mono text-muted-foreground">
-                      {key}
+                    <span className="text-[11px] text-muted-foreground">
+                      {f.label}
                     </span>
-                    <span className="font-medium text-foreground mt-0.5 truncate">
-                      {String(value)}
+                    <span className="font-medium text-foreground mt-0.5 truncate" title={f.value}>
+                      {f.value}
                     </span>
                   </div>
                 ))}

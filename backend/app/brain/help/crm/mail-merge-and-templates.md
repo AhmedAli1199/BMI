@@ -2,7 +2,7 @@
 title: Mail merge and email templates
 screens: ["/mail-merge", "/mail-merge/[id]", "/mail-merge/history", "/mail-merge/templates", "/mail-merge/templates/new", "/mail-merge/templates/[id]"]
 summary: Send one personalised email to many people from your own Outlook, or make Word letters, address labels or a data file; follow a mailing as it sends; and keep the team's email templates.
-sources: ["frontend/src/app/(app)/mail-merge/page.tsx", "frontend/src/app/(app)/mail-merge/[id]/page.tsx", "frontend/src/app/(app)/mail-merge/history/page.tsx", "frontend/src/app/(app)/mail-merge/templates/page.tsx", "frontend/src/app/(app)/mail-merge/templates/new/page.tsx", "frontend/src/app/(app)/mail-merge/templates/[id]/page.tsx", "frontend/src/components/mail-merge/mail-merge-wizard.tsx", "frontend/src/components/mail-merge/merge-progress-controls.tsx", "frontend/src/components/mail-merge/templates-library.tsx", "frontend/src/components/mail-merge/template-editor.tsx", "frontend/src/components/mail-merge/email-from-template.tsx", "frontend/src/components/mail-merge/rich-email-editor.tsx", "backend/app/api/routes/messaging.py", "backend/app/services/mail_merge.py", "backend/app/automations/messaging_jobs.py", "backend/app/core/config.py"]
+sources: ["frontend/src/app/(app)/mail-merge/page.tsx", "frontend/src/app/(app)/mail-merge/[id]/page.tsx", "frontend/src/app/(app)/mail-merge/history/page.tsx", "frontend/src/app/(app)/mail-merge/templates/page.tsx", "frontend/src/app/(app)/mail-merge/templates/new/page.tsx", "frontend/src/app/(app)/mail-merge/templates/[id]/page.tsx", "frontend/src/components/mail-merge/mail-merge-wizard.tsx", "frontend/src/components/mail-merge/merge-progress-controls.tsx", "frontend/src/components/mail-merge/templates-library.tsx", "frontend/src/components/mail-merge/load-act-templates-button.tsx", "frontend/src/components/mail-merge/template-editor.tsx", "frontend/src/components/mail-merge/email-from-template.tsx", "frontend/src/components/mail-merge/rich-email-editor.tsx", "backend/app/api/routes/messaging.py", "backend/app/services/mail_merge.py", "backend/app/automations/messaging_jobs.py", "backend/app/core/config.py"]
 ---
 
 ## What this screen is for
@@ -20,7 +20,7 @@ Mail merge is Act!'s Write > Mail Merge. You write one message with merge fields
 
 **Sent mail merges**: your emails and logged letters, newest first, with "<sent>/<total> sent" or "<n> letters" and the status.
 
-**Email templates**: a filter sidebar, a search box, **New template**, and a card per template with its brand, title, what it's for, subject, the start of the message, who wrote it and how often it's been used.
+**Email templates**: a filter sidebar, a search box, **New template**, **Load Clare's Act! templates** (administrators and data managers only), and a card per template with its brand, title, what it's for, subject, the start of the message, who wrote it and how often it's been used.
 
 ## Buttons and controls
 
@@ -70,8 +70,8 @@ Makes and downloads the Word file or spreadsheet straight away.
 ### See earlier mail merges
 Opens Sent mail merges.
 
-### Cancel the rest, Resume sending, Retry <n> failed
-On the progress page. **Cancel the rest** stops anything not yet sent. **Resume sending** restarts a paused mailing (after you reconnect Outlook). **Retry <n> failed** tries the failed ones again.
+### Cancel the rest, Cancel - don't send to the other <n>, Resume sending, Retry <n> failed
+On the progress page. **Cancel the rest** stops anything not yet sent. On a paused mailing the same button reads **Cancel - don't send to the other <n>**: use it when you've decided not to resume, so the people still waiting are never emailed. **Resume sending** restarts a paused mailing (after you reconnect Outlook). **Retry <n> failed** tries the failed ones again.
 
 ### Letters for the <n> without email
 On the progress page: a Word file of the same message as letters for everyone skipped for having no email address.
@@ -84,6 +84,9 @@ Search by name, words in the email or who wrote it. Filter by **Brand**, **What 
 
 ### Email someone
 Opens "Email from a template" for one person: choose **Who to**, pick **Which issue or event** and **The feature you're pitching** if the template uses them, check **To**, **Copy to (optional)**, **Subject** and the message, then **Send from Outlook** (noted on their history) or **Copy**.
+
+### Load Clare's Act! templates
+Administrators and data managers only. Adds the Selling Travel sales emails Clare sent from Act! to the library, shared with the team and marked "needs a check" so someone reads each one before it's used. It asks you to confirm first (**Yes - load the templates** or **Not now**), then says how many it added. Templates already in the library are skipped, so pressing it again adds nothing twice and changes nothing. It also fills in any blank Selling Travel figures (print run, email database, readership, video, media pack) in the editorial plan.
 
 ### Change, Copy, New template
 **Change** (only if you wrote it, or you're an administrator or data manager) opens the template to edit. **Copy** starts a new template from it, named "<name> (my copy)" and private to you. **New template** starts from blank.
@@ -109,7 +112,7 @@ A: Open the group and press **Mail merge**. Choose **E-mail**, press **Next**, u
 A: In the message, click the salutation or first name field button. Add a fallback like {{first_name|there}} for people with no first name.
 
 **Q: Can I stop a mailing once it's started?**
-A: Yes. Open it from **Sent mail merges** and press **Cancel the rest**. Anything already sent stays sent.
+A: Yes. Open it from **Sent mail merges** and press **Cancel the rest** (on a paused mailing: **Cancel - don't send to the other <n>**). Anything already sent stays sent.
 
 **Q: Some people have no email address. Can I still reach them?**
 A: In step 4 choose **Make Word letters for them**, or afterwards press **Letters for the <n> without email** on the progress page.

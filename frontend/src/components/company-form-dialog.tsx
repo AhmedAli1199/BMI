@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,8 +63,8 @@ export function CompanyFormDialog({ existing, defaultSourceDb }: { existing?: Ex
           setOpen(false);
           router.push(`/companies/${created.id}`);
         }
-      } catch {
-        toast.error(existing ? "Couldn't update company" : "Couldn't add company");
+      } catch (e) {
+        toast.error(friendlyError(e, existing ? "We couldn't save the company. Please try again." : "We couldn't add the company. Please try again."));
       }
     });
   }

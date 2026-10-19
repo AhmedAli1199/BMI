@@ -16,11 +16,14 @@ export function MergeProgressControls({
   status,
   failed,
   noEmailCount,
+  unsent = 0,
 }: {
   id: string;
   status: string;
   failed: number;
   noEmailCount: number;
+  /** Recipients not sent to yet (still waiting in the queue). */
+  unsent?: number;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -46,10 +49,10 @@ export function MergeProgressControls({
 
   return (
     <div className="flex flex-wrap gap-2">
-      {live && (
+      {(live || (status === "failed" && unsent > 0)) && (
         <Button variant="outline" size="sm" disabled={pending} onClick={() => act(() => cancelMerge(id), "Cancelled - nothing more will be sent")}>
           <Ban className="size-3.5" />
-          Cancel the rest
+          {status === "failed" ? `Cancel - don't send to the other ${unsent.toLocaleString("en-GB")}` : "Cancel the rest"}
         </Button>
       )}
       {(status === "failed" || (status === "done" && failed > 0)) && (

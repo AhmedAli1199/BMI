@@ -59,7 +59,7 @@ export default async function RemindersPage({ searchParams }: { searchParams: Pr
           )}
           {r.note && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{r.note}</p>}
         </div>
-        <ReminderRowActions id={r.id} status={r.status} />
+        <ReminderRowActions reminder={r} />
       </li>
     );
   };

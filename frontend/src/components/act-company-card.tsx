@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Check, Copy, ExternalLink, Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/errors";
 import type { CompanyDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,10 +65,10 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
             num_employees: numEmployees ? Number(numEmployees) : undefined,
           }),
           phone !== (company.phones[0]?.number ?? "")
-            ? saveCompanyPhone(company.id, company.phones[0]?.id, { type_label: "Business", number: phone })
+            ? saveCompanyPhone(company.id, company.phones[0]?.id, { type_label: company.phones[0]?.type_label || "Business", number: phone })
             : Promise.resolve(),
           email !== (company.emails[0]?.address ?? "")
-            ? saveCompanyEmail(company.id, company.emails[0]?.id, { type_label: "Business", address: email })
+            ? saveCompanyEmail(company.id, company.emails[0]?.id, { type_label: company.emails[0]?.type_label || "Business", address: email })
             : Promise.resolve(),
           addrLine1 !== (company.addresses[0]?.line1 ?? "") ||
           addrLine2 !== (company.addresses[0]?.line2 ?? "") ||
@@ -76,7 +77,7 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
           addrPostal !== (company.addresses[0]?.postal_code ?? "") ||
           addrCountry !== (company.addresses[0]?.country ?? "")
             ? saveCompanyAddress(company.id, company.addresses[0]?.id, {
-                type_label: "Business",
+                type_label: company.addresses[0]?.type_label || "Business",
                 line1: addrLine1,
                 line2: addrLine2,
                 city: addrCity,
@@ -88,8 +89,8 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
         ]);
         toast.success("Company record updated");
         setEditing(false);
-      } catch {
-        toast.error("Failed to save company changes");
+      } catch (e) {
+        toast.error(friendlyError(e, "We couldn't save your changes. Please try again."));
       }
     });
   }

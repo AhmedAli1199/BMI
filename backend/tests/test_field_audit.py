@@ -186,3 +186,49 @@ def test_explicit_full_name_override_is_not_clobbered_by_recompute(client, db_se
     )
     assert resp.status_code == 200
     assert resp.json()["full_name"] == "Dr. Grace Lovelace"
+
+
+def test_a_company_change_shows_company_names_not_ids(client, db_session):
+    old = _create_company(client, name="Old Co")
+    new = _create_company(client, name="New Co")
+    contact = _create_contact(client, company_id=old["id"])
+    assert client.patch(f"/api/contacts/{contact['id']}", json={"company_id": new["id"]}).status_code == 200
+
+    change = next(c for c in client.get(f"/api/contacts/{contact['id']}/field-changes").json() if c["field"] == "company_id")
+    assert change["old_value"] == "Old Co"
+    assert change["new_value"] == "New Co"
+
+
+def test_phone_email_and_address_edits_are_in_the_history(client, db_session):
+    rep = make_user(db_session, role="sales", name="Jane Rep")
+    h = identity_headers(rep, access=[("manual", None)])
+    cid = _create_contact(client)["id"]
+
+    phone = client.post(f"/api/contacts/{cid}/phones", json={"type_label": "Mobile", "number": "07700 900842"}, headers=h)
+    assert phone.status_code == 201, phone.text
+    pid = phone.json()["id"]
+    assert client.patch(f"/api/contacts/{cid}/phones/{pid}", json={"number": "07700 900999"}, headers=h).status_code == 200
+    email = client.post(f"/api/contacts/{cid}/emails", json={"type_label": "Business", "address": "ada@example.com"}, headers=h)
+    assert client.delete(f"/api/contacts/{cid}/emails/{email.json()['id']}", headers=h).status_code == 204
+    client.post(f"/api/contacts/{cid}/addresses", json={"line1": "1 High St", "city": "London"}, headers=h)
+    # Saving a phone with nothing changed writes nothing.
+    client.patch(f"/api/contacts/{cid}/phones/{pid}", json={"number": "07700 900999"}, headers=h)
+
+    changes = client.get(f"/api/contacts/{cid}/field-changes").json()
+    seen = [(c["field"], c["old_value"], c["new_value"]) for c in reversed(changes)]
+    assert seen == [
+        ("phone", None, "Mobile: 07700 900842"),
+        ("phone", "Mobile: 07700 900842", "Mobile: 07700 900999"),
+        ("email", None, "Business: ada@example.com"),
+        ("email", "Business: ada@example.com", None),
+        ("address", None, "1 High St, London"),
+    ]
+    assert all(c["changed_by"]["name"] == "Jane Rep" for c in changes)
+
+
+def test_company_phone_edits_are_in_the_company_history(client, db_session):
+    company = _create_company(client)
+    r = client.post(f"/api/companies/{company['id']}/phones", json={"type_label": "Business", "number": "020 7946 0000"})
+    assert r.status_code == 201, r.text
+    changes = client.get(f"/api/companies/{company['id']}/field-changes").json()
+    assert [(c["field"], c["new_value"]) for c in changes] == [("phone", "Business: 020 7946 0000")]

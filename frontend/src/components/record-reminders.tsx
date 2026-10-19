@@ -13,13 +13,13 @@ function nowMs() {
 export function RecordReminders({ reminders }: { reminders: Reminder[] }) {
   if (reminders.length === 0) return null;
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+    <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--warn)]/30 bg-[var(--warn-tint)] px-3 py-2">
       {reminders.map((r) => {
         const due = new Date(r.due_at);
         const overdue = due.getTime() < nowMs();
         return (
           <div key={r.id} className="flex flex-wrap items-center gap-2 text-sm">
-            <BellRing className={`size-4 shrink-0 ${overdue ? "text-destructive" : "text-amber-600"}`} />
+            <BellRing className={`size-4 shrink-0 ${overdue ? "text-destructive" : "text-[var(--warn)]"}`} />
             <span className={`font-medium ${overdue ? "text-destructive" : ""}`}>
               {due.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             </span>

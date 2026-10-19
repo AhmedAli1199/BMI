@@ -42,7 +42,7 @@ export default async function ContactDetailPage({
   // InteractiveContactTable's `queryString` prop), not some other order.
   // Best-effort: if it fails, the stepper just shows disabled arrows.
   const posParams = new URLSearchParams();
-  for (const k of ["q", "source_db", "group_id", "company", "city", "country", "title", "sort", "desc"]) {
+  for (const k of ["q", "source_db", "group_id", "company", "city", "country", "title", "conds", "match", "sort", "desc"]) {
     const v = navParams[k];
     if (v) posParams.set(k, v);
   }

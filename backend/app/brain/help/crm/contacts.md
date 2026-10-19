@@ -19,7 +19,7 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 - **Contacts** above the name goes back to the list. Under the name: their job title, their company (click to open it) and which database they're in.
 - On the right: **Remind me**, **Write**, **Email from a template**, **Duplicate**, and **Previous contact** / **Next contact** arrows with "12 of 340" to step through the list you came from.
 - An amber strip with your own open reminders about this person (red once overdue).
-- **Contact details** in three columns (empty fields are hidden until you press **Edit Record**): Business Card (company, title, department, phone, mobile, e-mail), Address & Web, and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
+- **Contact details** in three columns (empty fields are hidden until you press **Edit Record**): Business Card (company, title, department, up to two phone numbers each labelled with its type, such as Business or Mobile, and e-mail), Address & Web (the address and the company's website), and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
 - **History of changes** (closed until you click it).
 - Tabs: **Activities (<n>)**, **Notes (<n>)**, **History (<n>)**, **Groups (<n>)**, **Magazine & Issues** and **User Fields (<n>)**, with one search box that searches the first three at once.
 
@@ -87,24 +87,24 @@ Opens "Email from a template". Choose the **Template** (ones marked "(needs a ch
 Act!'s "duplicate contact": a new person at the same company. Type **First name**, **Last name**, **Email**, **Job title** and **Direct phone**; keep **Put them in the same groups** ticked to copy the groups. **Create contact** copies the company, database, owner, business address and office phones (never mobiles, home addresses or the email) and opens the new person.
 
 ### Edit Record, Save Changes, Cancel
-**Edit Record** makes the card editable: names, company, title, department, phone, mobile, e-mail, address, ID/Status (the category), Referred By and Birthdate. **Save Changes** saves; **Cancel** throws the edits away. The copy icon next to a phone or email copies it.
+**Edit Record** makes the card editable: names, company, title, department, the two phone numbers and the type of each (Business, Mobile, Home, Fax or Other), e-mail, address, ID/Status (the category), Referred By and Birthdate. A number keeps its own type when you save. **Save Changes** saves; **Cancel** throws the edits away. The copy icon next to a phone or email copies it.
 
 ### Mark as departed
 For someone who has left. Search for who replaced them and press **Move notes and history**. Every note and history entry moves to that person, and both records get a short "Departure" note. The old record itself stays, marked "Left the company" (a yes/no field you can search, export and change in bulk). Scheduled activities don't move.
 
-### Company Profile
-Opens the person's company.
+### Website
+The website of the person's company, if it has one. It opens in a new tab. To open the company itself, click its name in the **Company** row.
 
 ### History of changes
-Shows who changed which field, from what to what, and when (newest first).
+Shows who changed which field, from what to what, and when (newest first). A change of company shows the company names. Adding, changing or removing a phone number, email or address is listed too.
 
 ### Activities, Notes, History, Groups, Magazine & Issues, User Fields (tabs)
 - **Activities**: everything in one timeline (notes, history and scheduled items), newest first, with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green).
 - **Notes**: date, type, the note and where it came from.
 - **History**: what happened (calls, emails, meetings, letters).
 - **Groups**: the groups they're in. The X on a group takes them out; **Add to group** lets you search for one to add.
-- **Magazine & Issues**: custom fields whose names look like issue or advertising details.
-- **User Fields**: every Act! custom field on this person.
+- **Magazine & Issues**: custom fields whose names are about issues, adverts, print, circulation, sponsors or magazines.
+- **User Fields**: every Act! custom field with a value on this person, under its real name once one has been set.
 
 ### Search this contact's notes & history...
 Narrows and highlights matches in Activities, Notes and History at once; the tab counts show "x of y".
@@ -142,7 +142,7 @@ Shows Added, Updated, Left out and Already complete. **See the contacts** opens 
 ## How it works
 - What you see is limited to the databases (or the group) you've been given in Settings > Users. This applies to the list, export, copy emails, bulk update and mail merge. Opening a contact outside your access shows "not found". Administrators see everything.
 - The same lookup (search, boxes, advanced rules and sort) is used by the list, the record arrows, export, copy emails, bulk update and mail merge, so they all mean the same people in the same order. Export, bulk update and copy emails handle up to 50,000 contacts; copy emails stops at 5,000.
-- Every edit to a contact's own fields (by hand, by bulk update or by an import) is recorded in **History of changes** with who made it.
+- Every edit to a contact's own fields (by hand, by bulk update or by an import), and every phone number, email or address added, changed or removed, is recorded in **History of changes** with who made it.
 - Bulk update **Undo** puts back the old value only for people whose value is still the one the update set. Anyone changed again since is left alone, and the message says how many.
 - Import recognises people already in the CRM by email address, or by name plus company. It tidies names, emails, phone numbers and postcodes, splits full names, and flags bad emails, missing names and repeats. Rows with no name and no email are skipped. PDFs with a table are read as a table; otherwise the text is read for you and flagged for checking.
 - Import **Undo** removes the people it added, except anyone someone has worked on since (an edit, a history entry, an activity or a note), and puts updated people back as they were.

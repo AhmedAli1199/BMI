@@ -57,7 +57,7 @@ Opens the blank booking form with this company already chosen (see the "New book
 **Edit Company** makes the card editable: Name, Industry, Phone, E-mail, Web Site, the address, Category, Territory, Region and Employees. **Save Changes** saves; **Cancel** throws the changes away. The copy icon next to the phone or email copies it; the Web Site link opens the site in a new tab.
 
 ### History of changes
-Who changed which company field, from what to what, and when.
+Who changed which company field, from what to what, and when. Adding, changing or removing a phone number, email or address is listed too.
 
 ### Associated Contacts tab
 Cards for everyone linked to the company, with job title and email. Click a card to open the person.
@@ -79,7 +79,7 @@ Everything this company has booked, from the Sales Order Register, across every 
 - If nothing is linked yet, the tab explains how bookings get linked, with a link to the **edition page**.
 
 ### User Fields tab
-The Act! custom fields stored on this company, under their stored names.
+The Act! custom fields with a value on this company, with their names tidied up (for example "User3").
 
 ## How it works
 - You only see companies in the databases you've been given. If your access is limited to a group of contacts, you see the companies those contacts work for. Administrators see every company. Opening a company outside your access shows "not found".

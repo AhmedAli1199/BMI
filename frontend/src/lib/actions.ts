@@ -301,6 +301,7 @@ export async function listActivities(params: {
   q?: string;
   start_after?: string;
   start_before?: string;
+  overdue_before?: string;
   page?: number;
   page_size?: number;
 }): Promise<ActivitiesPage> {
@@ -313,6 +314,7 @@ export async function listActivities(params: {
   if (params.q) q.set("q", params.q);
   if (params.start_after) q.set("start_after", params.start_after);
   if (params.start_before) q.set("start_before", params.start_before);
+  if (params.overdue_before) q.set("overdue_before", params.overdue_before);
   q.set("page", String(params.page ?? 1));
   q.set("page_size", String(params.page_size ?? 100));
   return backendFetch<ActivitiesPage>(`/api/activities?${q}`);

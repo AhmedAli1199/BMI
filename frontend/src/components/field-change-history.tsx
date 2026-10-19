@@ -15,6 +15,10 @@ const FIELD_LABELS: Record<string, string> = {
   referred_by: "Referred by",
   birthdate: "Birthdate",
   company_id: "Company",
+  parent_company_id: "Parent company",
+  phone: "Phone",
+  email: "Email",
+  address: "Address",
   name: "Name",
   industry: "Industry",
   website: "Website",
@@ -28,6 +32,9 @@ const FIELD_LABELS: Record<string, string> = {
   invoiced_on: "Invoice date",
   xero_link: "Xero invoice link",
 };
+
+/** A record can have several of these, so they are added and removed rather than just changed. */
+const LIST_FIELDS = new Set(["phone", "email", "address"]);
 
 function fieldLabel(field: string): string {
   return FIELD_LABELS[field] ?? field.replace(/_/g, " ");
@@ -98,14 +105,23 @@ export function FieldChangeHistory({
               {changes.map((c) => (
                 <li key={c.id} className="text-xs">
                   <span className="font-semibold text-foreground">{fieldLabel(c.field)}</span>{" "}
-                  <span className="text-muted-foreground">changed</span>{" "}
-                  {c.old_value ? (
+                  {LIST_FIELDS.has(c.field) && !c.new_value ? (
                     <>
-                      <span className="text-muted-foreground line-through">{c.old_value}</span>{" "}
-                      <span className="text-muted-foreground">→</span>{" "}
+                      <span className="text-muted-foreground">removed</span>{" "}
+                      <span className="text-muted-foreground line-through">{c.old_value}</span>
                     </>
-                  ) : null}
-                  <span className="font-medium text-foreground">{c.new_value || "(cleared)"}</span>
+                  ) : (
+                    <>
+                      <span className="text-muted-foreground">{LIST_FIELDS.has(c.field) && !c.old_value ? "added" : "changed"}</span>{" "}
+                      {c.old_value ? (
+                        <>
+                          <span className="text-muted-foreground line-through">{c.old_value}</span>{" "}
+                          <span className="text-muted-foreground">→</span>{" "}
+                        </>
+                      ) : null}
+                      <span className="font-medium text-foreground">{c.new_value || "(cleared)"}</span>
+                    </>
+                  )}
                   <div className="mt-0.5 text-muted-foreground">
                     {c.changed_by ? c.changed_by.name : "Unknown user"} · {timeAgo(c.changed_at)}
                   </div>

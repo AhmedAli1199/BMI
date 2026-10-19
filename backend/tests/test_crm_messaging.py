@@ -138,6 +138,23 @@ def test_reminder_snooze_rearms_and_is_private(client, db_session):
     assert client.get("/api/reminders", headers=identity_headers(other)).json() == []
 
 
+def test_undo_after_deleting_a_reminder_puts_it_back_without_a_second_email(client, db_session):
+    me = make_user(db_session)
+    h = identity_headers(me, access=[("manual", None)])
+    due = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    r = client.post("/api/reminders", headers=h, json={"due_at": due, "email_me": False, "note": "Call back"}).json()
+    fire_due_reminders(db_session)
+    before = client.get("/api/reminders", headers=h).json()[0]
+    assert before["notified_at"] is not None
+    assert client.delete(f"/api/reminders/{r['id']}", headers=h).status_code == 204
+    back = client.post("/api/reminders", headers=h, json={
+        "due_at": before["due_at"], "note": before["note"], "email_me": before["email_me"],
+        "status": before["status"], "notified_at": before["notified_at"]}).json()
+    assert back["note"] == "Call back" and back["notified_at"] is not None and back["status"] == "open"
+    fire_due_reminders(db_session)
+    assert db_session.query(Notification).filter_by(user_id=me.id).count() == 1    # not notified twice
+
+
 def test_merge_field_rendering():
     ctx = {"first_name": "Amy", "company": ""}
     assert mm.render("Dear {{first_name}}, at {{ company | your company }}", ctx) == "Dear Amy, at your company"

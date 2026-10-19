@@ -46,9 +46,9 @@ export function OutlookConnectionCard({ status }: { status: MailStatus | null })
               {status.connected ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   {status.needs_reconnect ? (
-                    <AlertTriangle className="size-3.5 text-amber-600" />
+                    <AlertTriangle className="size-3.5 text-[var(--warn)]" />
                   ) : (
-                    <CheckCircle2 className="size-3.5 text-emerald-600" />
+                    <CheckCircle2 className="size-3.5 text-[var(--ok)]" />
                   )}
                   <span className="truncate">
                     {status.display_name ? `${status.display_name} · ` : ""}

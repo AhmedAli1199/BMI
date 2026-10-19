@@ -33,9 +33,9 @@ type SortDirection = "asc" | "desc";
 
 function typeIcon(type: string | null) {
   const t = (type || "").toLowerCase();
-  if (t.includes("call")) return <PhoneCall className="size-3.5 text-amber-600 dark:text-amber-400 shrink-0" />;
-  if (t.includes("meet")) return <CalendarIcon className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0" />;
-  return <CheckSquare className="size-3.5 text-rose-600 dark:text-rose-400 shrink-0" />;
+  if (t.includes("call")) return <PhoneCall className="size-3.5 text-[var(--chart-1)] shrink-0" />;
+  if (t.includes("meet")) return <CalendarIcon className="size-3.5 text-[var(--chart-2)] shrink-0" />;
+  return <CheckSquare className="size-3.5 text-[var(--warn)] shrink-0" />;
 }
 
 function formatDuration(mins?: number | null): string {
@@ -216,11 +216,11 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
             const priority = (item.priority || "normal").toLowerCase();
             const priorityBadge =
               priority === "high" ? (
-                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30">
+                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--bad-tint)] text-[var(--bad)] border border-[var(--bad)]/30">
                   High
                 </span>
               ) : priority === "low" ? (
-                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                   Low
                 </span>
               ) : (
@@ -235,7 +235,7 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
               <TableRow
                 key={item.id}
                 className={`group border-b border-border/60 transition-colors hover:bg-accent/40 ${
-                  item.is_cleared ? "opacity-60 bg-muted/10" : overdue ? "bg-red-500/5" : ""
+                  item.is_cleared ? "opacity-60 bg-muted/10" : overdue ? "bg-[var(--bad-tint)]" : ""
                 }`}
               >
                 {/* 1. Done Checkbox */}
@@ -259,11 +259,11 @@ export function InteractiveActivityTable({ items }: { items: ActivityOut[] }) {
                 {/* 3. Date */}
                 <TableCell className="py-2.5 whitespace-nowrap">
                   <div className="flex flex-col">
-                    <span className={`font-mono text-xs ${overdue ? "font-semibold text-red-600 dark:text-red-400" : "text-foreground"}`}>
+                    <span className={`font-mono text-xs ${overdue ? "font-semibold text-[var(--bad)]" : "text-foreground"}`}>
                       {formatDate(item.start_at)}
                     </span>
                     {overdue && (
-                      <span className="text-[10px] font-bold uppercase tracking-tight text-red-600 dark:text-red-400">
+                      <span className="text-[10px] font-bold uppercase tracking-tight text-[var(--bad)]">
                         Overdue
                       </span>
                     )}

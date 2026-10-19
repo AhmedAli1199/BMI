@@ -11,7 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { deleteReminder, updateReminder } from "@/lib/messaging-actions";
+import { createReminder, deleteReminder, updateReminder } from "@/lib/messaging-actions";
+import type { Reminder } from "@/lib/messaging-types";
 import { friendlyError } from "@/lib/errors";
 
 export function ReminderDoneButton({ id }: { id: string }) {
@@ -48,7 +49,8 @@ const SNOOZE: { label: string; hours: number }[] = [
   { label: "1 month", hours: 24 * 30 },
 ];
 
-export function ReminderRowActions({ id, status }: { id: string; status: string }) {
+export function ReminderRowActions({ reminder }: { reminder: Reminder }) {
+  const { id, status } = reminder;
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -60,6 +62,40 @@ export function ReminderRowActions({ id, status }: { id: string; status: string 
         router.refresh();
       } catch (e) {
         toast.error(friendlyError(e, "Something went wrong"));
+      }
+    });
+  }
+
+  // Delete straight away, with an Undo in the message that puts it back as it was.
+  function remove() {
+    start(async () => {
+      try {
+        await deleteReminder(id);
+        router.refresh();
+        toast.success("Reminder deleted", {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                await createReminder({
+                  due_at: reminder.due_at,
+                  note: reminder.note ?? undefined,
+                  contact_id: reminder.contact_id,
+                  company_id: reminder.company_id,
+                  email_me: reminder.email_me,
+                  status: reminder.status,
+                  notified_at: reminder.notified_at,
+                });
+                toast.success("Reminder put back");
+                router.refresh();
+              } catch (e) {
+                toast.error(friendlyError(e, "We couldn't put the reminder back. Please add it again."));
+              }
+            },
+          },
+        });
+      } catch (e) {
+        toast.error(friendlyError(e, "We couldn't delete the reminder. Please try again."));
       }
     });
   }
@@ -109,7 +145,7 @@ export function ReminderRowActions({ id, status }: { id: string; status: string 
         </Button>
       )}
       <Button size="sm" variant="ghost" className="h-7 text-muted-foreground" disabled={pending} aria-label="Delete reminder"
-        onClick={() => run(() => deleteReminder(id), "Deleted")}>
+        onClick={remove}>
         <Trash2 className="size-3.5" />
       </Button>
     </div>

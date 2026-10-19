@@ -57,6 +57,9 @@ def list_activities(
     q: str | None = Query(None, description="Search subject or details"),
     contact_id: uuid.UUID | None = Query(None),
     company_id: uuid.UUID | None = Query(None),
+    overdue_before: datetime | None = Query(
+        None, description="Also count not-done activities starting before this instant (same other filters)"
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -89,12 +92,6 @@ def list_activities(
             )
         else:
             stmt = stmt.where(Activity.created_by_user_id == assigned_user_id)
-    if start_after:
-        stmt = stmt.where(Activity.start_at >= start_after)
-    if start_before:
-        stmt = stmt.where(Activity.start_at <= start_before)
-    if is_cleared is not None:
-        stmt = stmt.where(Activity.is_cleared == is_cleared)
     if priority:
         stmt = stmt.where(Activity.priority == priority)
     if activity_type:
@@ -106,6 +103,20 @@ def list_activities(
         stmt = stmt.where(Activity.contact_id == contact_id)
     if company_id:
         stmt = stmt.where(Activity.company_id == company_id)
+
+    # The overdue count shares every filter above, but not the done/date
+    # ones - it is always "not done and due before overdue_before".
+    overdue_total = None
+    if overdue_before:
+        overdue_stmt = stmt.where(Activity.is_cleared.is_(False), Activity.start_at < overdue_before)
+        overdue_total = db.scalar(select(func.count()).select_from(overdue_stmt.order_by(None).subquery())) or 0
+
+    if start_after:
+        stmt = stmt.where(Activity.start_at >= start_after)
+    if start_before:
+        stmt = stmt.where(Activity.start_at <= start_before)
+    if is_cleared is not None:
+        stmt = stmt.where(Activity.is_cleared == is_cleared)
 
     total = db.scalar(select(func.count()).select_from(stmt.order_by(None).subquery())) or 0
     # Most-recent-first, not oldest-first: the migrated backlog goes back
@@ -123,7 +134,8 @@ def list_activities(
     contacts, companies = _resolve_names(db, rows)
 
     return ActivitiesPage(
-        items=[_out(r, creators, contacts, companies) for r in rows], total=total, page=page, page_size=page_size
+        items=[_out(r, creators, contacts, companies) for r in rows], total=total, page=page, page_size=page_size,
+        overdue_total=overdue_total,
     )
 
 

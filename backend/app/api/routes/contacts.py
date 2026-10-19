@@ -41,7 +41,8 @@ from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.services.contact_transfer import reassign_contact_records
 from app.services.contact_lookup import SORTS, LookupFilters, apply_filters, apply_sort, lookup_ids, primary_address_expr, primary_email_expr
-from app.services.field_audit import record_field_changes
+from app.services.field_audit import company_names_for, readable_value, record_field_changes
+from app.contacts.fields import labels_for_record
 from app.models import (
     Activity,
     Company,
@@ -294,6 +295,7 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         is_unsubscribed=contact.is_unsubscribed,
         has_left=contact.has_left,
         custom_fields=contact.custom_fields,
+        custom_field_labels=labels_for_record(db, contact.custom_fields),
         company=CompanySummary.model_validate(company) if company else None,
         addresses=[AddressOut.model_validate(a) for a in addresses],
         phones=[PhoneOut.model_validate(p) for p in phones],
@@ -371,69 +373,84 @@ def _require_contact(db: Session, contact_id: uuid.UUID) -> None:
 
 
 @router.post("/{contact_id}/emails", response_model=EmailOut, status_code=201)
-def add_contact_email(contact_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)) -> EmailOut:
+def add_contact_email(
+    contact_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> EmailOut:
     _require_contact(db, contact_id)
-    return EmailOut.model_validate(create_channel(db, Email, "contact_id", contact_id, payload))
+    return EmailOut.model_validate(create_channel(db, Email, "contact_id", contact_id, payload, identity.user_uuid))
 
 
 @router.patch("/{contact_id}/emails/{email_id}", response_model=EmailOut)
 def update_contact_email(
-    contact_id: uuid.UUID, email_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)
+    contact_id: uuid.UUID, email_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> EmailOut:
     _require_contact(db, contact_id)
-    return EmailOut.model_validate(update_channel(db, Email, "contact_id", contact_id, email_id, payload))
+    return EmailOut.model_validate(update_channel(db, Email, "contact_id", contact_id, email_id, payload, identity.user_uuid))
 
 
 @router.delete("/{contact_id}/emails/{email_id}", status_code=204, response_model=None)
-def delete_contact_email(contact_id: uuid.UUID, email_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_contact_email(
+    contact_id: uuid.UUID, email_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> None:
     _require_contact(db, contact_id)
-    delete_channel(db, Email, "contact_id", contact_id, email_id)
+    delete_channel(db, Email, "contact_id", contact_id, email_id, identity.user_uuid)
 
 
 @router.post("/{contact_id}/phones", response_model=PhoneOut, status_code=201)
-def add_contact_phone(contact_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)) -> PhoneOut:
+def add_contact_phone(
+    contact_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> PhoneOut:
     _require_contact(db, contact_id)
-    return PhoneOut.model_validate(create_channel(db, Phone, "contact_id", contact_id, payload))
+    return PhoneOut.model_validate(create_channel(db, Phone, "contact_id", contact_id, payload, identity.user_uuid))
 
 
 @router.patch("/{contact_id}/phones/{phone_id}", response_model=PhoneOut)
 def update_contact_phone(
-    contact_id: uuid.UUID, phone_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)
+    contact_id: uuid.UUID, phone_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> PhoneOut:
     _require_contact(db, contact_id)
-    return PhoneOut.model_validate(update_channel(db, Phone, "contact_id", contact_id, phone_id, payload))
+    return PhoneOut.model_validate(update_channel(db, Phone, "contact_id", contact_id, phone_id, payload, identity.user_uuid))
 
 
 @router.delete("/{contact_id}/phones/{phone_id}", status_code=204, response_model=None)
-def delete_contact_phone(contact_id: uuid.UUID, phone_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_contact_phone(
+    contact_id: uuid.UUID, phone_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> None:
     _require_contact(db, contact_id)
-    delete_channel(db, Phone, "contact_id", contact_id, phone_id)
+    delete_channel(db, Phone, "contact_id", contact_id, phone_id, identity.user_uuid)
 
 
 @router.post("/{contact_id}/addresses", response_model=AddressOut, status_code=201)
-def add_contact_address(contact_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)) -> AddressOut:
+def add_contact_address(
+    contact_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> AddressOut:
     _require_contact(db, contact_id)
-    return AddressOut.model_validate(create_channel(db, Address, "contact_id", contact_id, payload))
+    return AddressOut.model_validate(create_channel(db, Address, "contact_id", contact_id, payload, identity.user_uuid))
 
 
 @router.patch("/{contact_id}/addresses/{address_id}", response_model=AddressOut)
 def update_contact_address(
-    contact_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)
+    contact_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> AddressOut:
     _require_contact(db, contact_id)
-    return AddressOut.model_validate(update_channel(db, Address, "contact_id", contact_id, address_id, payload))
+    return AddressOut.model_validate(update_channel(db, Address, "contact_id", contact_id, address_id, payload, identity.user_uuid))
 
 
 @router.delete("/{contact_id}/addresses/{address_id}", status_code=204, response_model=None)
-def delete_contact_address(contact_id: uuid.UUID, address_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_contact_address(
+    contact_id: uuid.UUID, address_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> None:
     _require_contact(db, contact_id)
-    delete_channel(db, Address, "contact_id", contact_id, address_id)
+    delete_channel(db, Address, "contact_id", contact_id, address_id, identity.user_uuid)
 
 
 @router.post("", response_model=ContactDetail, status_code=201)
 def create_contact(payload: ContactCreate, db: Session = Depends(get_db)) -> ContactDetail:
     if payload.company_id and not db.get(Company, payload.company_id):
-        raise HTTPException(status_code=400, detail="company_id does not exist")
+        raise HTTPException(status_code=400, detail="That company no longer exists. Please pick another one.")
     source_db = resolve_source_db(db, payload.source_db)
 
     contact = Contact(
@@ -526,7 +543,7 @@ def update_contact(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
     if payload.company_id and not db.get(Company, payload.company_id):
-        raise HTTPException(status_code=400, detail="company_id does not exist")
+        raise HTTPException(status_code=400, detail="That company no longer exists. Please pick another one.")
 
     updates = payload.model_dump(exclude_unset=True)
     # full_name is derived from first/last at create time (see
@@ -564,9 +581,11 @@ def list_contact_field_changes(contact_id: uuid.UUID, db: Session = Depends(get_
     ).all()
     user_ids = {r.changed_by_user_id for r in rows if r.changed_by_user_id}
     users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    names = company_names_for(db, rows)
     return [
         FieldChangeOut(
-            id=r.id, field=r.field, old_value=r.old_value, new_value=r.new_value, changed_at=r.changed_at,
+            id=r.id, field=r.field, changed_at=r.changed_at,
+            old_value=readable_value(r.field, r.old_value, names), new_value=readable_value(r.field, r.new_value, names),
             changed_by=UserSummary.model_validate(users[r.changed_by_user_id]) if r.changed_by_user_id in users else None,
         )
         for r in rows

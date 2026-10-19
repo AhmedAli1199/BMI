@@ -13,11 +13,34 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
 import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, searchCompanies } from "@/lib/actions";
 import { ReassignContactButton } from "@/components/reassign-contact-button";
+import { friendlyError } from "@/lib/errors";
+
+function websiteHref(site: string): string {
+  return /^https?:\/\//i.test(site) ? site : `https://${site}`;
+}
 
 // A field row: label on the left, value next to it. Empty fields are hidden while viewing (Edit shows them all).
 const ROW = "grid grid-cols-[7.5rem_minmax(0,1fr)] items-baseline gap-2";
 const ROW_VIEW = `${ROW} [&:has([data-empty])]:hidden`;
 const EMPTY = <span data-empty="" className="text-muted-foreground/50">—</span>;
+const PHONE_TYPES = ["Business", "Mobile", "Home", "Fax", "Other"];
+
+/** Pick what kind of phone number this is. Keeps any type that came over from Act! as an option too. */
+function PhoneTypeSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const options = value && !PHONE_TYPES.includes(value) ? [value, ...PHONE_TYPES] : PHONE_TYPES;
+  return (
+    <select
+      aria-label={label}
+      className="h-7 w-24 shrink-0 rounded-md border border-input bg-transparent px-1.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {options.map((o) => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+    </select>
+  );
+}
 
 export function ActContactCard({
   contact,
@@ -47,6 +70,11 @@ export function ActContactCard({
   // that first row (or creates one if none exists yet).
   const [phone, setPhone] = useState(contact.phones[0]?.number ?? "");
   const [mobile, setMobile] = useState(contact.phones[1]?.number ?? "");
+  // Each number keeps its own type (Business, Mobile, Home...) - saving never relabels it.
+  const firstPhoneType = contact.phones[0]?.type_label || "Business";
+  const secondPhoneType = contact.phones[1]?.type_label || "Mobile";
+  const [phoneType, setPhoneType] = useState(firstPhoneType);
+  const [mobileType, setMobileType] = useState(secondPhoneType);
   const [email, setEmail] = useState(contact.emails[0]?.address ?? "");
   const [addrLine1, setAddrLine1] = useState(contact.addresses[0]?.line1 ?? "");
   const [addrLine2, setAddrLine2] = useState(contact.addresses[0]?.line2 ?? "");
@@ -81,14 +109,14 @@ export function ActContactCard({
             birthdate,
             company_id: company?.id ?? null,
           }),
-          phone !== (contact.phones[0]?.number ?? "")
-            ? saveContactPhone(contact.id, contact.phones[0]?.id, { type_label: "Business", number: phone })
+          phone !== (contact.phones[0]?.number ?? "") || (contact.phones[0] && phoneType !== firstPhoneType)
+            ? saveContactPhone(contact.id, contact.phones[0]?.id, { type_label: phoneType, number: phone })
             : Promise.resolve(),
-          mobile !== (contact.phones[1]?.number ?? "")
-            ? saveContactPhone(contact.id, contact.phones[1]?.id, { type_label: "Mobile", number: mobile })
+          mobile !== (contact.phones[1]?.number ?? "") || (contact.phones[1] && mobileType !== secondPhoneType)
+            ? saveContactPhone(contact.id, contact.phones[1]?.id, { type_label: mobileType, number: mobile })
             : Promise.resolve(),
           email !== (contact.emails[0]?.address ?? "")
-            ? saveContactEmail(contact.id, contact.emails[0]?.id, { type_label: "Business", address: email })
+            ? saveContactEmail(contact.id, contact.emails[0]?.id, { type_label: contact.emails[0]?.type_label || "Business", address: email })
             : Promise.resolve(),
           addrLine1 !== (contact.addresses[0]?.line1 ?? "") ||
           addrLine2 !== (contact.addresses[0]?.line2 ?? "") ||
@@ -97,7 +125,7 @@ export function ActContactCard({
           addrPostal !== (contact.addresses[0]?.postal_code ?? "") ||
           addrCountry !== (contact.addresses[0]?.country ?? "")
             ? saveContactAddress(contact.id, contact.addresses[0]?.id, {
-                type_label: "Business",
+                type_label: contact.addresses[0]?.type_label || "Business",
                 line1: addrLine1,
                 line2: addrLine2,
                 city: addrCity,
@@ -117,8 +145,8 @@ export function ActContactCard({
         // fields appeared to silently do nothing: saved fine, but the
         // header kept showing the old name until a manual reload.
         router.refresh();
-      } catch {
-        toast.error("Failed to save changes");
+      } catch (e) {
+        toast.error(friendlyError(e, "We couldn't save your changes. Please try again."));
       }
     });
   }
@@ -133,6 +161,8 @@ export function ActContactCard({
     setBirthdate(contact.birthdate ?? "");
     setPhone(contact.phones[0]?.number ?? "");
     setMobile(contact.phones[1]?.number ?? "");
+    setPhoneType(firstPhoneType);
+    setMobileType(secondPhoneType);
     setEmail(contact.emails[0]?.address ?? "");
     setAddrLine1(contact.addresses[0]?.line1 ?? "");
     setAddrLine2(contact.addresses[0]?.line2 ?? "");
@@ -146,6 +176,7 @@ export function ActContactCard({
 
 
   const primaryAddress = contact.addresses[0];
+  const website = contact.company?.website?.trim() || null;
   const primaryPhone = contact.phones[0]?.number;
   const mobilePhone = contact.phones[1]?.number;
   const primaryEmail = contact.emails[0]?.address;
@@ -293,13 +324,18 @@ export function ActContactCard({
 
           {/* Phone */}
           <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
-            <span className="w-24 shrink-0 text-muted-foreground">Phone</span>
+            {editing ? (
+              <PhoneTypeSelect value={phoneType} onChange={setPhoneType} label="Type of the first phone number" />
+            ) : (
+              <span className="w-24 shrink-0 text-muted-foreground">{contact.phones[0]?.type_label || "Phone"}</span>
+            )}
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Business phone"
+                placeholder="Phone number"
+                aria-label="First phone number"
               />
             ) : primaryPhone ? (
               <div className="flex items-center gap-1.5">
@@ -308,7 +344,7 @@ export function ActContactCard({
                 </a>
                 <button
                   type="button"
-                  onClick={() => copyText(primaryPhone, "phone", "phone-main")}
+                  onClick={() => copyText(primaryPhone, "phone number", "phone-main")}
                   className="text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   {copiedKey === "phone-main" ? (
@@ -323,15 +359,20 @@ export function ActContactCard({
             )}
           </div>
 
-          {/* Mobile */}
+          {/* Second phone - shown with its own type */}
           <div className={editing ? ROW : ROW_VIEW}>
-            <span className="w-24 shrink-0 text-muted-foreground">Mobile</span>
+            {editing ? (
+              <PhoneTypeSelect value={mobileType} onChange={setMobileType} label="Type of the second phone number" />
+            ) : (
+              <span className="w-24 shrink-0 text-muted-foreground">{contact.phones[1]?.type_label || "Phone 2"}</span>
+            )}
             {editing ? (
               <Input
                 className="h-7 text-xs flex-1"
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value)}
-                placeholder="Mobile phone"
+                placeholder="Phone number"
+                aria-label="Second phone number"
               />
             ) : mobilePhone ? (
               <div className="flex items-center gap-1.5">
@@ -340,7 +381,7 @@ export function ActContactCard({
                 </a>
                 <button
                   type="button"
-                  onClick={() => copyText(mobilePhone, "mobile", "phone-mob")}
+                  onClick={() => copyText(mobilePhone, "phone number", "phone-mob")}
                   className="text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   {copiedKey === "phone-mob" ? (
@@ -472,17 +513,20 @@ export function ActContactCard({
             )}
           </div>
 
-          {/* Web Site */}
-          <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
-            <span className="w-24 shrink-0 text-muted-foreground">Web Site</span>
-            {contact.company?.id ? (
-              <Link
-                href={`/companies/${contact.company.id}`}
-                className="font-medium text-primary hover:underline truncate inline-flex items-center gap-1"
+          {/* Web site - the company's own site, opened in a new tab */}
+          <div className={`${ROW_VIEW} pt-1 border-t border-border/40`}>
+            <span className="w-24 shrink-0 text-muted-foreground">Website</span>
+            {website ? (
+              <a
+                href={websiteHref(website)}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-primary hover:underline truncate inline-flex min-w-0 items-center gap-1"
               >
-                <span>Company Profile</span>
-                <ExternalLink className="size-3" />
-              </Link>
+                <span className="truncate">{website.replace(/^https?:\/\//i, "").replace(/\/$/, "")}</span>
+                <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
+                <span className="sr-only">(opens in a new tab)</span>
+              </a>
             ) : (
               EMPTY
             )}
@@ -507,9 +551,13 @@ export function ActContactCard({
                 onChange={(e) => setCategory(e.target.value)}
               />
             ) : (
-              <Badge variant="secondary" className="font-semibold text-[11px]">
-                {contact.category || "Standard"}
-              </Badge>
+              contact.category ? (
+                <Badge variant="secondary" className="font-semibold text-[11px]">
+                  {contact.category}
+                </Badge>
+              ) : (
+                EMPTY
+              )
             )}
           </div>
 

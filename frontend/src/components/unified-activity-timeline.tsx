@@ -155,15 +155,15 @@ export function UnifiedActivityTimeline({
   const getIcon = (category: string) => {
     switch (category) {
       case "call":
-        return <PhoneCall className="size-3.5 text-[#c9611e]" />;
+        return <PhoneCall className="size-3.5 text-[var(--chart-1)]" />;
       case "meeting":
-        return <Calendar className="size-3.5 text-[#0099e5]" />;
+        return <Calendar className="size-3.5 text-[var(--chart-2)]" />;
       case "email":
-        return <Mail className="size-3.5 text-[#5b3e8f]" />;
+        return <Mail className="size-3.5 text-[var(--chart-3)]" />;
       case "note":
-        return <FileText className="size-3.5 text-[#1e7a52]" />;
+        return <FileText className="size-3.5 text-[var(--chart-4)]" />;
       case "task":
-        return <CheckSquare className="size-3.5 text-[#c0392b]" />;
+        return <CheckSquare className="size-3.5 text-[var(--warn)]" />;
       default:
         return <Sparkles className="size-3.5 text-primary" />;
     }
@@ -190,15 +190,15 @@ export function UnifiedActivityTimeline({
   const getBorderColor = (category: string) => {
     switch (category) {
       case "call":
-        return "border-[#c9611e]";
+        return "border-[var(--chart-1)]";
       case "meeting":
-        return "border-[#0099e5]";
+        return "border-[var(--chart-2)]";
       case "email":
-        return "border-[#5b3e8f]";
+        return "border-[var(--chart-3)]";
       case "note":
-        return "border-[#1e7a52]";
+        return "border-[var(--chart-4)]";
       case "task":
-        return "border-[#c0392b]";
+        return "border-[var(--warn)]";
       default:
         return "border-primary";
     }
@@ -279,7 +279,7 @@ export function UnifiedActivityTimeline({
                   shadow) so it reads as a raised bead the spine threads
                   through, not a flat sticker */}
               <div
-                className={`z-10 flex size-8 shrink-0 items-center justify-center rounded-full border shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_1px_3px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_1px_3px_rgba(0,0,0,0.35)] ${getBorderColor(
+                className={`z-10 flex size-8 shrink-0 items-center justify-center rounded-full border shadow-2xs ${getBorderColor(
                   item.category
                 )}`}
               >

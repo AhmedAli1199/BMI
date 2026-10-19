@@ -416,7 +416,7 @@ export function MailMergeWizard({
             >
               <span
                 className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  done ? "bg-emerald-600 text-white" : active ? "bg-primary text-primary-foreground" : "bg-muted"
+                  done ? "bg-[var(--ok)] text-background" : active ? "bg-primary text-primary-foreground" : "bg-muted"
                 }`}
               >
                 {done ? <Check className="size-3.5" /> : i + 1}
@@ -640,7 +640,7 @@ export function MailMergeWizard({
                     </span>
                   )}
                   {output === "email" && noEmailCount > 0 && (
-                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300">
+                    <Badge variant="outline" className="border-[var(--warn)]/40 text-[var(--warn)]">
                       {noEmailCount} without email
                     </Badge>
                   )}
@@ -650,7 +650,7 @@ export function MailMergeWizard({
                     </Badge>
                   )}
                   {output === "labels" && noAddressCount > 0 && (
-                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-300">
+                    <Badge variant="outline" className="border-[var(--warn)]/40 text-[var(--warn)]">
                       {noAddressCount} without an address
                     </Badge>
                   )}
@@ -732,7 +732,7 @@ export function MailMergeWizard({
                             <td className="hidden px-2 py-1.5 text-muted-foreground sm:table-cell">{r.company ?? "—"}</td>
                             <td className="px-2 py-1.5">
                               {problem ? (
-                                <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                                <span className="text-xs font-medium text-[var(--warn)]">
                                   {problem}
                                   {r.email && output === "email" ? ` · ${r.email}` : ""}
                                 </span>
@@ -1099,7 +1099,7 @@ export function MailMergeWizard({
                 )}
               </div>
               {emailBlocked && (
-                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                <p className="mt-2 text-xs text-[var(--warn)]">
                   Connect your Outlook first (Settings › Email) to send.
                 </p>
               )}
@@ -1189,8 +1189,8 @@ function Notice({ tone, children }: { tone: "warn" | "ok"; children: React.React
     <div
       className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
         tone === "warn"
-          ? "border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200"
-          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200"
+          ? "border-[var(--warn)]/40 bg-[var(--warn-tint)] text-[var(--warn)]"
+          : "border-[var(--ok)]/40 bg-[var(--ok-tint)] text-[var(--ok)]"
       }`}
     >
       {tone === "warn" ? <AlertTriangle className="mt-0.5 size-4 shrink-0" /> : <Check className="mt-0.5 size-4 shrink-0" />}

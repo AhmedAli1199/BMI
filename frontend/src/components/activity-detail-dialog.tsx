@@ -15,9 +15,9 @@ import type { ActivityOut } from "@/lib/types";
 
 function typeIcon(type: string | null) {
   const t = (type || "").toLowerCase();
-  if (t.includes("call")) return <PhoneCall className="size-4 text-amber-600 dark:text-amber-400" />;
-  if (t.includes("meet")) return <Calendar className="size-4 text-blue-600 dark:text-blue-400" />;
-  return <CheckSquare className="size-4 text-rose-600 dark:text-rose-400" />;
+  if (t.includes("call")) return <PhoneCall className="size-4 text-[var(--chart-1)]" />;
+  if (t.includes("meet")) return <Calendar className="size-4 text-[var(--chart-2)]" />;
+  return <CheckSquare className="size-4 text-[var(--warn)]" />;
 }
 
 function formatDuration(mins?: number | null): string | null {
@@ -47,9 +47,9 @@ export function ActivityDetailDialog({
   const priority = (item.priority || "normal").toLowerCase();
   const priorityColor =
     priority === "high"
-      ? "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400"
+      ? "border-[var(--bad)]/40 bg-[var(--bad-tint)] text-[var(--bad)]"
       : priority === "low"
-        ? "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+        ? "border-primary/40 bg-primary/10 text-primary"
         : "border-border bg-muted/50 text-muted-foreground";
 
   const durationStr = formatDuration(item.duration_minutes);

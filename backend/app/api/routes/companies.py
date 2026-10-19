@@ -36,7 +36,8 @@ from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
-from app.services.field_audit import record_field_changes
+from app.services.field_audit import company_names_for, readable_value, record_field_changes
+from app.contacts.fields import labels_for_record
 from app.models import Activity, Company, Contact, Email, FieldChange, HistoryEntry, Note, Opportunity, User
 from app.models.contact_channel import Address, Phone
 
@@ -182,6 +183,7 @@ def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Company
         website=company.website,
         num_employees=company.num_employees,
         custom_fields=company.custom_fields,
+        custom_field_labels=labels_for_record(None, company.custom_fields),
         addresses=[AddressOut.model_validate(a) for a in addresses],
         phones=[PhoneOut.model_validate(p) for p in phones],
         emails=[EmailOut.model_validate(e) for e in emails],
@@ -265,63 +267,78 @@ def _require_company(db: Session, company_id: uuid.UUID) -> None:
 
 
 @router.post("/{company_id}/emails", response_model=EmailOut, status_code=201)
-def add_company_email(company_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)) -> EmailOut:
+def add_company_email(
+    company_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> EmailOut:
     _require_company(db, company_id)
-    return EmailOut.model_validate(create_channel(db, Email, "company_id", company_id, payload))
+    return EmailOut.model_validate(create_channel(db, Email, "company_id", company_id, payload, identity.user_uuid))
 
 
 @router.patch("/{company_id}/emails/{email_id}", response_model=EmailOut)
 def update_company_email(
-    company_id: uuid.UUID, email_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db)
+    company_id: uuid.UUID, email_id: uuid.UUID, payload: EmailWrite, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> EmailOut:
     _require_company(db, company_id)
-    return EmailOut.model_validate(update_channel(db, Email, "company_id", company_id, email_id, payload))
+    return EmailOut.model_validate(update_channel(db, Email, "company_id", company_id, email_id, payload, identity.user_uuid))
 
 
 @router.delete("/{company_id}/emails/{email_id}", status_code=204, response_model=None)
-def delete_company_email(company_id: uuid.UUID, email_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_company_email(
+    company_id: uuid.UUID, email_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> None:
     _require_company(db, company_id)
-    delete_channel(db, Email, "company_id", company_id, email_id)
+    delete_channel(db, Email, "company_id", company_id, email_id, identity.user_uuid)
 
 
 @router.post("/{company_id}/phones", response_model=PhoneOut, status_code=201)
-def add_company_phone(company_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)) -> PhoneOut:
+def add_company_phone(
+    company_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> PhoneOut:
     _require_company(db, company_id)
-    return PhoneOut.model_validate(create_channel(db, Phone, "company_id", company_id, payload))
+    return PhoneOut.model_validate(create_channel(db, Phone, "company_id", company_id, payload, identity.user_uuid))
 
 
 @router.patch("/{company_id}/phones/{phone_id}", response_model=PhoneOut)
 def update_company_phone(
-    company_id: uuid.UUID, phone_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db)
+    company_id: uuid.UUID, phone_id: uuid.UUID, payload: PhoneWrite, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> PhoneOut:
     _require_company(db, company_id)
-    return PhoneOut.model_validate(update_channel(db, Phone, "company_id", company_id, phone_id, payload))
+    return PhoneOut.model_validate(update_channel(db, Phone, "company_id", company_id, phone_id, payload, identity.user_uuid))
 
 
 @router.delete("/{company_id}/phones/{phone_id}", status_code=204, response_model=None)
-def delete_company_phone(company_id: uuid.UUID, phone_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_company_phone(
+    company_id: uuid.UUID, phone_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> None:
     _require_company(db, company_id)
-    delete_channel(db, Phone, "company_id", company_id, phone_id)
+    delete_channel(db, Phone, "company_id", company_id, phone_id, identity.user_uuid)
 
 
 @router.post("/{company_id}/addresses", response_model=AddressOut, status_code=201)
-def add_company_address(company_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)) -> AddressOut:
+def add_company_address(
+    company_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> AddressOut:
     _require_company(db, company_id)
-    return AddressOut.model_validate(create_channel(db, Address, "company_id", company_id, payload))
+    return AddressOut.model_validate(create_channel(db, Address, "company_id", company_id, payload, identity.user_uuid))
 
 
 @router.patch("/{company_id}/addresses/{address_id}", response_model=AddressOut)
 def update_company_address(
-    company_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db)
+    company_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
 ) -> AddressOut:
     _require_company(db, company_id)
-    return AddressOut.model_validate(update_channel(db, Address, "company_id", company_id, address_id, payload))
+    return AddressOut.model_validate(update_channel(db, Address, "company_id", company_id, address_id, payload, identity.user_uuid))
 
 
 @router.delete("/{company_id}/addresses/{address_id}", status_code=204, response_model=None)
-def delete_company_address(company_id: uuid.UUID, address_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_company_address(
+    company_id: uuid.UUID, address_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> None:
     _require_company(db, company_id)
-    delete_channel(db, Address, "company_id", company_id, address_id)
+    delete_channel(db, Address, "company_id", company_id, address_id, identity.user_uuid)
 
 
 @router.post("", response_model=CompanyDetail, status_code=201)
@@ -372,9 +389,11 @@ def list_company_field_changes(company_id: uuid.UUID, db: Session = Depends(get_
     ).all()
     user_ids = {r.changed_by_user_id for r in rows if r.changed_by_user_id}
     users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(user_ids)))} if user_ids else {}
+    names = company_names_for(db, rows)
     return [
         FieldChangeOut(
-            id=r.id, field=r.field, old_value=r.old_value, new_value=r.new_value, changed_at=r.changed_at,
+            id=r.id, field=r.field, changed_at=r.changed_at,
+            old_value=readable_value(r.field, r.old_value, names), new_value=readable_value(r.field, r.new_value, names),
             changed_by=UserSummary.model_validate(users[r.changed_by_user_id]) if r.changed_by_user_id in users else None,
         )
         for r in rows

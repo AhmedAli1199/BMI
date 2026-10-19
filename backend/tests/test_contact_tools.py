@@ -78,6 +78,16 @@ def test_fields_list_names_custom_fields_and_labels_win(client, db_session, peop
     assert client.put("/api/contacts/fields/custom", json={"user3": "x"}, headers=identity_headers(rep)).status_code == 403
 
 
+def test_contact_page_gets_real_field_names_and_never_internal_keys(client, db_session, people):
+    a, _, _ = people
+    a.custom_fields = {**a.custom_fields, "_import": {"batch": "x"}, "issue_no": "42"}
+    db_session.flush()
+    admin = make_user(db_session, role="admin")
+    client.put("/api/contacts/fields/custom", json={"user3": "ABTA number"}, headers=identity_headers(admin))
+    labels = client.get(f"/api/contacts/{a.id}").json()["custom_field_labels"]
+    assert labels == {"user3": "ABTA number", "user4": "User4", "issue_no": "Issue no"}
+
+
 def test_copy_emails_skips_unsubscribed_and_dedupes(client, db_session, people):
     a, b, c = people
     mk(db_session, "Ann", "Twin", email="ANN@x.test")

@@ -9,11 +9,11 @@ import { MergeProgressControls } from "@/components/mail-merge/merge-progress-co
 import { PageHeader } from "@/components/page-header";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  queued: { label: "Starting", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30" },
-  sending: { label: "Sending", cls: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30" },
-  done: { label: "Finished", cls: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" },
+  queued: { label: "Starting", cls: "border-primary/30 bg-primary/10 text-primary" },
+  sending: { label: "Sending", cls: "border-primary/30 bg-primary/10 text-primary" },
+  done: { label: "Finished", cls: "border-[var(--ok)]/30 bg-[var(--ok-tint)] text-[var(--ok)]" },
   cancelled: { label: "Cancelled", cls: "bg-muted text-muted-foreground" },
-  failed: { label: "Paused", cls: "bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30" },
+  failed: { label: "Paused", cls: "border-[var(--warn)]/30 bg-[var(--warn-tint)] text-[var(--warn)]" },
 };
 
 export default async function MailMergeProgressPage({ params }: { params: Promise<{ id: string }> }) {
@@ -50,7 +50,8 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
             </p>
           )}
         </>}
-        actions={<MergeProgressControls id={m.id} status={m.status} failed={m.failed} noEmailCount={noEmail} />}
+        actions={<MergeProgressControls id={m.id} status={m.status} failed={m.failed} noEmailCount={noEmail}
+          unsent={Math.max(0, m.total - m.sent - m.failed - m.skipped)} />}
       />
 
       <div className="flex flex-col gap-2">
@@ -59,8 +60,8 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: "Sent", v: m.sent, cls: "text-emerald-600" },
-            { label: "Waiting", v: Math.max(0, m.total - done), cls: "text-sky-600" },
+            { label: "Sent", v: m.sent, cls: "text-[var(--ok)]" },
+            { label: "Waiting", v: Math.max(0, m.total - done), cls: "text-primary" },
             { label: "Failed", v: m.failed, cls: "text-destructive" },
             { label: "Skipped", v: m.skipped, cls: "text-muted-foreground" },
           ].map((t) => (
@@ -113,9 +114,9 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
                 <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{r.email ?? "—"}</td>
                 <td className="px-3 py-2">
                   <span className="flex items-center gap-1.5 text-xs">
-                    {r.status === "sent" && <CheckCircle2 className="size-3.5 text-emerald-600" />}
+                    {r.status === "sent" && <CheckCircle2 className="size-3.5 text-[var(--ok)]" />}
                     {r.status === "failed" && <XCircle className="size-3.5 text-destructive" />}
-                    {r.status === "queued" && <Clock className="size-3.5 text-sky-600" />}
+                    {r.status === "queued" && <Clock className="size-3.5 text-primary" />}
                     <span className="capitalize">{r.status}</span>
                     {r.error && <span className="text-muted-foreground">· {friendlyError(r.error, "Outlook couldn't send this one.")}</span>}
                   </span>
