@@ -667,7 +667,7 @@ class BulkReviewActionResult(BaseModel):
     matched: int  # how many pending items matched the filters before this ran
     succeeded: int
     failed: int
-    errors: list[str] = []  # "<card summary>: <plain message>" for whichever items failed, capped
+    errors: list[str] = []  # "<n> cards: <plain reason>" per reason, most common first, capped - never card ids
     remaining: int = 0  # matching cards this call didn't get to (a call handles at most 500) - call again with offset=<failed so far>
 
 

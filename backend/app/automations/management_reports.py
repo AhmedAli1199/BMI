@@ -408,7 +408,7 @@ def weekly_management_summary() -> None:
 register_job(ScheduledJob(
     id="management_alerts_scan",
     label="Behind-last-cycle alerts",
-    description="Daily: alerts leadership when an issue or event has booked far less than its equivalent edition had at the same point last cycle (SALES-028).",
+    description="Daily: alerts leadership when an issue or event has booked far less than its equivalent edition had at the same point last cycle.",  # SALES-028
     cron="15 7 * * 1-5",
     func=scan_management_alerts,
     enabled_flag="automations_management_alerts_enabled",
@@ -416,7 +416,7 @@ register_job(ScheduledJob(
 register_job(ScheduledJob(
     id="weekly_management_summary",
     label="Weekly management summary",
-    description="Monday morning: writes the one-page leadership brief from the order register and notifies the recipients (SALES-028).",
+    description="Monday morning: writes the one-page leadership brief from the order register and notifies the recipients.",  # SALES-028
     cron="0 7 * * 1",
     func=weekly_management_summary,
     enabled_flag="automations_weekly_summary_enabled",

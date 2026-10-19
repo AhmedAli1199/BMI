@@ -254,7 +254,7 @@ def scan_personal_touchpoints() -> None:
 register_job(ScheduledJob(
     id="personal_touchpoints_scan",
     label="Personal touchpoint reminder scan",
-    description="Surfaces due personal touchpoints (leave, birthdays, anniversaries) extracted from real correspondence, with a warm no-business draft (SALES-005).",
+    description="Finds personal moments that are coming up (time off, birthdays, work anniversaries) mentioned in real emails, and drafts a warm note with no sales pitch.",  # SALES-005
     cron="0 6 * * *",  # once daily, early morning - matches the spec's "on the day it falls due"
     func=scan_personal_touchpoints,
     enabled_flag="automations_personal_touchpoints_scan_enabled",

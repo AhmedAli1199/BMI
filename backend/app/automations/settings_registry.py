@@ -470,7 +470,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="automations_sor_renewal_scan_enabled", label="Renewal outreach active",
-        description="Weekdays: drafts a renewal email for last year's advertisers approaching the anniversary of their booking who haven't rebooked (SALES-021).",
+        description="Weekdays: drafts a renewal email for last year's advertisers who haven't rebooked yet, as the anniversary of their booking gets close.",  # SALES-021
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(

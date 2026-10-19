@@ -17,6 +17,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -28,6 +29,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.messaging import MailAccount
+
+logger = logging.getLogger("app.services.outlook")
 
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 SCOPES = "offline_access User.Read Mail.Send"
@@ -47,7 +50,7 @@ def _client() -> tuple[str, str, str]:
     secret = settings.outlook_client_secret or settings.graph_client_secret
     tenant = settings.outlook_tenant_id or settings.graph_tenant_id
     if not (cid and secret and tenant):
-        raise OutlookNotConfigured("Outlook sign-in isn't set up yet (no Microsoft app registration configured).")
+        raise OutlookNotConfigured("Outlook sign-in isn't set up on the server yet - ask whoever runs BMI Brain to add the Microsoft app details.")
     return cid, secret, tenant
 
 
@@ -102,9 +105,9 @@ def read_state(state: str) -> tuple[uuid.UUID, str]:
     try:
         payload, sig = state.rsplit(".", 1)
     except ValueError:
-        raise OutlookAuthError("Invalid sign-in state.")
+        raise OutlookAuthError("That sign-in link isn't valid any more - please try connecting again.")
     if not hmac.compare_digest(sig, _sign(payload)):
-        raise OutlookAuthError("Invalid sign-in state.")
+        raise OutlookAuthError("That sign-in link isn't valid any more - please try connecting again.")
     data = json.loads(base64.urlsafe_b64decode(payload))
     if time.time() - data["t"] > STATE_MAX_AGE:
         raise OutlookAuthError("The sign-in took too long - please try again.")
@@ -129,7 +132,9 @@ def _token_request(data: dict) -> dict:
                       data={"client_id": cid, "client_secret": secret, "scope": SCOPES, **data}, timeout=20)
     body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
     if resp.status_code >= 300:
-        raise OutlookAuthError(body.get("error_description") or f"Microsoft sign-in failed ({resp.status_code}).")
+        # Microsoft's wording (AADSTS codes and the like) is for the log; people get a plain sentence.
+        logger.warning("Microsoft token request failed (%s): %s", resp.status_code, body.get("error_description") or body.get("error"))
+        raise OutlookAuthError("Microsoft didn't accept the sign-in. Please try connecting Outlook again.")
     return body
 
 
@@ -163,8 +168,8 @@ def access_token(db: Session, acct: MailAccount) -> str:
         return decrypt(acct.access_token_enc)
     try:
         body = _token_request({"grant_type": "refresh_token", "refresh_token": decrypt(acct.refresh_token_enc)})
-    except OutlookAuthError as exc:
-        acct.last_error = f"Reconnect needed: {exc}"
+    except OutlookAuthError:   # the reason is already in the log (_token_request)
+        acct.last_error = "Your Outlook connection has expired. Press Reconnect to sign in again."
         db.commit()
         raise
     _store_tokens(acct, body)

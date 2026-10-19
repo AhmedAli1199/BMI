@@ -10,9 +10,11 @@ export async function GET(request: Request) {
   const base = publicBase(request);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+  // Microsoft's own error text (codes like AADSTS...) never reaches the screen - just a plain sentence.
   const error = url.searchParams.get("error_description") || url.searchParams.get("error");
   if (error || !code || !state) {
-    return NextResponse.redirect(new URL(`/settings?outlook_error=${encodeURIComponent(error || "Sign-in was cancelled")}`, base));
+    const msg = "Outlook sign-in was cancelled or didn't finish - please try connecting again.";
+    return NextResponse.redirect(new URL(`/settings?outlook_error=${encodeURIComponent(msg)}`, base));
   }
   try {
     const res = await backendFetch<{ email: string; return_to: string }>("/api/mail/outlook/callback", {

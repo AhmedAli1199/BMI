@@ -429,7 +429,10 @@ export type JobRun = {
   finished_at: string | null;
   status: "running" | "success" | "failed";
   items_queued: number;
+  /** A plain sentence about what went wrong - safe to show on screen. */
   error: string | null;
+  /** The stored technical error, for an administrator's tooltip only. */
+  error_detail?: string | null;
 };
 
 export type JobSummary = {

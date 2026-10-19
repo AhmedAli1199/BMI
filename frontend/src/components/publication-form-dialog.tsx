@@ -80,9 +80,8 @@ export function PublicationFormDialog() {
           <DialogHeader>
             <DialogTitle>Add a database</DialogTitle>
             <DialogDescription>
-              A new title or list of your own — not a separate Postgres database, just a label every
-              contact/company can be filed under, exactly like OnBoard, Selling Travel, and Prospects
-              already are.
+              A new title or list of your own. Contacts and companies can be filed under it, just like
+              OnBoard, Selling Travel and Prospects.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -97,7 +96,7 @@ export function PublicationFormDialog() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="pub-slug">
-                Internal key <span className="font-normal text-muted-foreground">(auto-filled, rarely needs changing)</span>
+                Short name <span className="font-normal text-muted-foreground">(filled in for you, rarely needs changing)</span>
               </Label>
               <Input
                 id="pub-slug"
@@ -108,7 +107,7 @@ export function PublicationFormDialog() {
                 }}
               />
               <p className="text-[11px] text-muted-foreground">
-                Permanent once created — every contact/company filed under it stores this exact value.
+                Can&apos;t be changed later - every contact and company filed under it keeps this name.
               </p>
             </div>
             <div className="flex flex-col gap-1.5">

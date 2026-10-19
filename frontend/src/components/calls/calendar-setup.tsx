@@ -28,7 +28,7 @@ export function CalendarSetup({ setup }: { setup: Setup }) {
     const ok = params.get("calendar_connected") || params.get("outlook_connected");
     const err = params.get("calendar_error");
     if (ok) toast.success(`Calendar connected (${ok}) - its meetings now show on the shared calendar`);
-    if (err) toast.error(err);
+    if (err) toast.error(friendlyError(err, "Your calendar couldn't be connected - please try again."));
     if (ok || err) router.replace("/calls/meetings");
   }, [params, router]);
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Clock, Loader2, Paperclip, XCircle } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
+import { friendlyError } from "@/lib/errors";
 import type { MailMergeDetail } from "@/lib/messaging-types";
 import { Badge } from "@/components/ui/badge";
 import { MergeProgressControls } from "@/components/mail-merge/merge-progress-controls";
@@ -43,7 +44,11 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
               {m.source_label ? ` · ${m.source_label}` : ""}
             </span>
           </div>
-          {m.error && <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{m.error}</p>}
+          {m.error && (
+            <p className="mt-1 text-sm" style={{ color: "var(--warn)" }}>
+              {friendlyError(m.error, "This mail merge stopped with a problem. Check your Outlook connection in Settings, then resume.")}
+            </p>
+          )}
         </>}
         actions={<MergeProgressControls id={m.id} status={m.status} failed={m.failed} noEmailCount={noEmail} />}
       />
@@ -112,7 +117,7 @@ export default async function MailMergeProgressPage({ params }: { params: Promis
                     {r.status === "failed" && <XCircle className="size-3.5 text-destructive" />}
                     {r.status === "queued" && <Clock className="size-3.5 text-sky-600" />}
                     <span className="capitalize">{r.status}</span>
-                    {r.error && <span className="text-muted-foreground">· {r.error}</span>}
+                    {r.error && <span className="text-muted-foreground">· {friendlyError(r.error, "Outlook couldn't send this one.")}</span>}
                   </span>
                 </td>
               </tr>

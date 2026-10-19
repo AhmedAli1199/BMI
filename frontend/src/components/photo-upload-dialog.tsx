@@ -88,7 +88,7 @@ export function PhotoUploadDialog({ kind, publications }: { kind: Kind; publicat
         const res = await fetch(`/api/automations/upload?kind=${kind}`, { method: "POST", body: formData });
         const result = await res.json();
         if (!res.ok || result.error) {
-          toast.error(result.error ?? "Couldn't process that photo - try again");
+          toast.error(friendlyError(typeof result.error === "string" ? result.error : typeof result.detail === "string" ? result.detail : "", "Couldn't process that photo - try again"));
           return;
         }
         const queued = Number(result.queued ?? 0);

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { disconnectOutlook } from "@/lib/messaging-actions";
 import type { MailStatus } from "@/lib/messaging-types";
+import { friendlyError } from "@/lib/errors";
 
 /** Settings > Email: "Connect Outlook" (so mail merge sends from your own
  * mailbox) and where notification emails come from. */
@@ -20,7 +21,7 @@ export function OutlookConnectionCard({ status }: { status: MailStatus | null })
     const ok = params.get("outlook_connected");
     const err = params.get("outlook_error");
     if (ok) toast.success(`Outlook connected - mail merges will send from ${ok}`);
-    if (err) toast.error(err);
+    if (err) toast.error(friendlyError(err, "Outlook couldn't be connected - please try again."));
     if (ok || err) router.replace("/settings#email", { scroll: false });
   }, [params, router]);
 
@@ -79,8 +80,12 @@ export function OutlookConnectionCard({ status }: { status: MailStatus | null })
                 disabled={pending}
                 onClick={() =>
                   start(async () => {
-                    await disconnectOutlook();
-                    toast.success("Outlook disconnected");
+                    try {
+                      await disconnectOutlook();
+                      toast.success("Outlook disconnected");
+                    } catch (e) {
+                      toast.error(friendlyError(e, "Couldn't disconnect Outlook - please try again."));
+                    }
                     router.refresh();
                   })
                 }
@@ -92,14 +97,18 @@ export function OutlookConnectionCard({ status }: { status: MailStatus | null })
           </div>
         </div>
         {status.needs_reconnect && status.last_error && (
-          <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-            {status.last_error}
+          <p
+            role="status"
+            className="rounded-md bg-[color-mix(in_oklab,var(--warn)_12%,transparent)] px-3 py-2 text-xs font-medium"
+            style={{ color: "var(--warn)" }}
+          >
+            {friendlyError(status.last_error, "Your Outlook connection has expired. Press Reconnect to sign in again.")}
           </p>
         )}
         {!status.configured && (
           <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-            Not available yet: an administrator needs to add the Microsoft app registration (with the delegated{" "}
-            <em>Mail.Send</em> permission) to the server settings.
+            Outlook isn&apos;t set up on the server yet - ask whoever runs BMI Brain to add the Microsoft app details, with
+            permission to send email on your behalf.
           </p>
         )}
         <div className="border-t border-border/60 pt-3 text-xs text-muted-foreground">

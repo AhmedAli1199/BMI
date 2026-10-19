@@ -653,7 +653,7 @@ register_job(ScheduledJob(
 register_job(ScheduledJob(
     id="sor_renewal_scan",
     label="Renewal outreach scan",
-    description="Drafts renewal emails for last year's advertisers approaching the anniversary of their booking who haven't rebooked (SALES-021).",
+    description="Drafts renewal emails for last year's advertisers who haven't rebooked yet, as the anniversary of their booking gets close.",  # SALES-021
     cron="30 6 * * 1-5",
     func=scan_renewals,
     enabled_flag="automations_sor_renewal_scan_enabled",

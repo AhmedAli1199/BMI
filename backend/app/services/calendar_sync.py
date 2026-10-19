@@ -374,7 +374,7 @@ def outcome(m: CalendarMeeting, call: CallRecording | None, d: Decision, at: dat
             return say("live", "Recorded - writing up the notes now")
         if s == "scheduled":
             if ended:
-                return say("bad", "Not recorded - the notetaker was sent but never joined. The notetaker service didn't report back, so check its console.")
+                return say("bad", "Not recorded - the notetaker was sent but never joined, and it didn't say why. Ask whoever runs the notetaker to look.")
             if started:
                 return say("warn", "The notetaker has been sent and should be joining now")
             return say("ok", "Will be recorded - the notetaker is on its way")

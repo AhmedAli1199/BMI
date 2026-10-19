@@ -11,9 +11,11 @@ export async function GET(request: Request) {
   const base = publicBase(request);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+  // Xero's own error text never reaches the screen - just a plain sentence.
   const error = url.searchParams.get("error_description") || url.searchParams.get("error");
   if (error || !code || !state) {
-    return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(error || "Xero sign-in was cancelled")}`, base));
+    const msg = "Xero sign-in was cancelled or didn't finish - please try connecting again.";
+    return NextResponse.redirect(new URL(`/settings?xero_error=${encodeURIComponent(msg)}`, base));
   }
   try {
     const res = await backendFetch<{ organisation: string; return_to: string }>("/api/integrations/xero/callback", {

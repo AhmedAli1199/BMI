@@ -57,7 +57,7 @@ from app.automations.sender_patterns import (
 from app.automations.state import get_state, set_state
 from app.db.session import SessionLocal
 from app.graph_client import GraphRequestError, list_messages_since
-from app.models import Company, Contact, Email, Group, GroupMembership, Note, Phone, ReviewQueueItem
+from app.models import Company, Contact, Email, Group, GroupMembership, Note, Phone, Publication, ReviewQueueItem
 from app.models.base import SOURCE_DBS
 
 logger = logging.getLogger("app.automations.inbound_capture")
@@ -85,6 +85,30 @@ def _parse_mailbox_config(db: Session) -> list[tuple[str, str]]:
             continue
         pairs.append((mailbox, source_db))
     return pairs
+
+
+# What people call each database - used until the publications table says otherwise (see _title_names).
+_DEFAULT_TITLE_NAMES = {"onboard": "Onboard Hospitality", "prospects": "Prospects", "sellingtravel": "Selling Travel"}
+
+
+def _title_names(db: Session) -> dict[str, str]:
+    """source_db -> the publication's display name, for the shared-inbox question on the card."""
+    stored = {p.slug: p.name for p in db.query(Publication).filter(Publication.slug.in_(SOURCE_DBS))}
+    return {slug: stored.get(slug) or _DEFAULT_TITLE_NAMES.get(slug, slug) for slug in SOURCE_DBS}
+
+
+def _pick_title(answer: str, names: dict[str, str]) -> str | None:
+    """The reviewer can type the title's name ("Selling Travel") or its short name ("sellingtravel")."""
+    def squash(v: str) -> str:
+        return "".join(ch for ch in v.lower() if ch.isalnum())
+
+    wanted = squash(answer)
+    if not wanted:
+        return None
+    for slug, name in names.items():
+        if wanted in (squash(slug), squash(name)):
+            return slug
+    return None
 
 
 def _find_group(db: Session, source_db: str, name: str) -> Group | None:
@@ -118,12 +142,13 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
         # scan queued this without a company/group guess and the reviewer
         # picks it now, same "never guess what we can't know" rule as
         # everywhere else here.
-        chosen = (input_data.get("source_db") or "").strip().lower()
-        if chosen not in SOURCE_DBS:
-            raise ValueError(f"This came in on a shared inbox - pick which database it belongs to ({', '.join(SOURCE_DBS)}).")
+        names = _title_names(db)
+        chosen = _pick_title((input_data.get("source_db") or ""), names)
+        if chosen is None:
+            raise ValueError(f"This came in on a shared inbox - say which BMI title it belongs to ({' or '.join(names.values())}).")
         source_db = chosen
     elif not source_db:
-        raise ValueError("This item is missing its source database - it may be stale.")
+        raise ValueError("This card doesn't say which BMI title it belongs to - it may be out of date.")
     # Everything is created in the database the mailbox belongs to (from "address:db" in the mailbox settings, or
     # the one the reviewer picked for a shared "address:*" inbox) - the same database the company and group
     # suggestions came from - never the "manual" catch-all.
@@ -219,8 +244,8 @@ register(ReviewKind(
                 ExtraField(key="name", label="Full name", placeholder="Jane Smith"),
                 ExtraField(key="job_title", label="Job title", placeholder="Job title", required=False),
                 ExtraField(
-                    key="source_db", label="Database (only needed for a shared inbox)",
-                    placeholder=f"{' / '.join(SOURCE_DBS)}", required=False,
+                    key="source_db", label="Which BMI title does this belong to? (only for a shared inbox)",
+                    placeholder=" or ".join(_DEFAULT_TITLE_NAMES.values()), required=False,
                 ),
                 ExtraField(key="company_name", label="Company", placeholder="Company name", required=False),
                 ExtraField(key="phone", label="Phone", placeholder="Direct line", required=False),
@@ -547,7 +572,7 @@ def scan_inbound_contacts() -> None:
 register_job(ScheduledJob(
     id="sales011_inbound_capture_scan",
     label="Inbound contact capture scan",
-    description="Scans enquiry mailboxes for messages from unmatched senders and suggests capturing them as new contacts (SALES-011).",
+    description="Checks the enquiry inboxes for emails from people who aren't in the CRM yet, and suggests adding them as new contacts.",  # SALES-011
     cron="*/30 * * * *",
     func=scan_inbound_contacts,
     enabled_flag="automations_inbound_capture_scan_enabled",

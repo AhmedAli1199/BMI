@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Building2, CheckCircle2, ClipboardCheck, Sparkles, Users, UsersRound } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { DashboardStats, Page, ReviewQueueItem, UserPreferences } from "@/lib/types";
+import type { DashboardStats, Page, ReviewKind, ReviewQueueItem, UserPreferences } from "@/lib/types";
+import { hiddenSections } from "@/lib/hidden-sections";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
 import { PageHeader } from "@/components/page-header";
@@ -85,7 +86,7 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-bold text-foreground">No database access yet</h1>
         <p className="text-sm text-muted-foreground">
           Your account doesn&apos;t have any database assigned. Ask an administrator to grant you access under
-          Settings → Team.
+          Settings → Team &amp; access.
         </p>
       </div>
     );
@@ -99,8 +100,10 @@ export default async function DashboardPage() {
   // than a full paged list. Gated the same way the sidebar's Today/
   // Review Queue links are - no point fetching this for a role that
   // can't open either destination.
-  const showOvernightActivity = canViewAutomationsQueue(session);
-  const [pendingActivity, approvedActivity, rejectedActivity] = showOvernightActivity
+  // Also hidden when an administrator has hidden the Review Queue for this person (Settings > Sections).
+  const hidden = await hiddenSections();
+  const showOvernightActivity = canViewAutomationsQueue(session) && !hidden.includes("review_queue");
+  const [pendingActivity, approvedActivity, rejectedActivity, reviewKinds] = showOvernightActivity
     ? await Promise.all([
         backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=pending&sort=recent&page_size=5").catch(
           () => ({ items: [], total: 0, page: 1, page_size: 5 })
@@ -111,8 +114,17 @@ export default async function DashboardPage() {
         backendFetch<Page<ReviewQueueItem>>("/api/review-queue?status=rejected&sort=recent&page_size=5").catch(
           () => ({ items: [], total: 0, page: 1, page_size: 5 })
         ),
+        backendFetch<ReviewKind[]>("/api/review-queue/kinds").catch(() => [] as ReviewKind[]),
       ])
-    : [{ items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }];
+    : [{ items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }, { items: [], total: 0, page: 1, page_size: 5 }, [] as ReviewKind[]];
+  // A card's kind in words, from the review queue's own labels ("Inbound Lead Capture", not "inbound_contact_unmatched").
+  const kindLabels = new Map(reviewKinds.map((k) => [k.kind, k.label]));
+  const kindLabel = (kind: string) => {
+    const known = kindLabels.get(kind);
+    if (known) return known;
+    const words = kind.replace(/_/g, " ");
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
 
   const newForReview = pendingActivity.items.slice(0, 5);
   const recentlyResolved = [...approvedActivity.items, ...rejectedActivity.items]
@@ -122,7 +134,11 @@ export default async function DashboardPage() {
   const KPIS = [
     {
       label: "Total Contacts",
-      sublabel: sourceDb ? "In this publication" : "Across all 3 publication titles",
+      sublabel: sourceDb
+        ? "In this publication"
+        : publications.length === 1
+          ? "In your publication title"
+          : `Across all ${publications.length} publication titles`,
       value: stats.total_contacts,
       icon: Users,
       href: "/contacts",
@@ -328,7 +344,7 @@ export default async function DashboardPage() {
                             {item.payload.summary || "New item"}
                           </div>
                           <div className="truncate text-[11px] text-muted-foreground">
-                            {item.kind.replace(/_/g, " ")}
+                            {kindLabel(item.kind)}
                           </div>
                         </div>
                         <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
@@ -370,7 +386,7 @@ export default async function DashboardPage() {
                           </div>
                           <div className="truncate text-[11px] text-muted-foreground">
                             {item.status === "approved" ? "Approved" : "Rejected"} &middot;{" "}
-                            {item.kind.replace(/_/g, " ")}
+                            {kindLabel(item.kind)}
                           </div>
                         </div>
                         <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
@@ -398,9 +414,10 @@ export default async function DashboardPage() {
                 Recently Active Contacts
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                {recentActivitySort === "engagement"
-                  ? "Most recent note or logged call - see /settings to change"
-                  : "Most recently added or edited in Act! - see /settings to change"}
+                {recentActivitySort === "engagement" ? "Most recent note or logged call. " : "Most recently added or edited. "}
+                <Link href="/settings" className="font-medium text-primary hover:underline">
+                  Change this in Settings
+                </Link>
               </p>
             </div>
             <Link

@@ -125,35 +125,32 @@ def run_job_now(job_id: str, _staff: Identity = Depends(require_staff)) -> dict:
     toggle. Every job function already fails soft internally (catches its
     own errors so a bad mailbox message can't lose the rest of a batch),
     so a raised exception here means something genuinely broke, not "0
-    found" - which is why it's surfaced as a 500 with the real message
-    rather than swallowed.
+    found" - which is why it is surfaced as a 500 (plain sentence on screen,
+    full error in the log) rather than swallowed.
     """
     job = next((j for j in all_jobs() if j.id == job_id), None)
     if job is None:
-        raise HTTPException(status_code=404, detail=f"No registered job with id {job_id!r}")
+        raise HTTPException(status_code=404, detail="We couldn't find that job. Refresh the page and try again.")
 
     logger.info("manual run requested for automation job: %s", job.id)
     try:
         ran = run_job(job, trigger="manual")
     except Exception as exc:
-        # The full logs.exception() call below still carries the complete
-        # traceback (and, for a SQLAlchemy error, the compiled SQL +
-        # every bound parameter) - exactly what you want when debugging
-        # from the logs. None of that belongs in an HTTP response a
-        # frontend toast renders verbatim: str(exc) on a SQLAlchemy error
-        # is a multi-line dump, easily thousands of characters, so only
-        # its first line (the actual driver error message) and a hard
-        # length cap ever reach the client.
+        # The full traceback (and, for a database error, the SQL and its
+        # parameters) goes to the log for whoever is debugging. The person
+        # who clicked "Run now" only gets a plain sentence.
         logger.exception("manual run failed for automation job: %s", job.id)
-        short_reason = str(exc).splitlines()[0][:300] if str(exc) else exc.__class__.__name__
-        raise HTTPException(status_code=500, detail=f"{job.id} failed: {short_reason} (see backend logs for the full error)") from exc
+        raise HTTPException(
+            status_code=500,
+            detail=f"{job.label} stopped with a problem before it finished. The details are in the log - try again later or ask whoever runs BMI Brain to look.",
+        ) from exc
 
     if not ran:
         logger.info("manual run skipped for automation job (already running): %s", job.id)
-        return {"ok": True, "job_id": job.id, "skipped": True, "message": "Already running (e.g. its scheduled tick just started) - this click didn't queue a second run. Check back shortly."}
+        return {"ok": True, "job_id": job.id, "label": job.label, "skipped": True, "message": f"{job.label} is already running, so this click didn't start a second run. Check back shortly."}
 
     logger.info("manual run finished for automation job: %s", job.id)
-    return {"ok": True, "job_id": job.id, "skipped": False, "message": "Ran to completion - check the review queue and logs for what it found."}
+    return {"ok": True, "job_id": job.id, "label": job.label, "skipped": False, "message": f"{job.label} has finished - check the review queue for what it found."}
 
 
 @router.post("/jobs/{job_id}/reset-cursor")
@@ -169,9 +166,9 @@ def reset_job_cursor(job_id: str, db: Session = Depends(get_db), _admin: Identit
     only the pointer for what counts as "new" next time."""
     job = next((j for j in all_jobs() if j.id == job_id), None)
     if job is None:
-        raise HTTPException(status_code=404, detail=f"No registered job with id {job_id!r}")
+        raise HTTPException(status_code=404, detail="We couldn't find that job. Refresh the page and try again.")
     if not job.cursor_prefix:
-        raise HTTPException(status_code=400, detail=f"{job.id} has no cursor to reset.")
+        raise HTTPException(status_code=400, detail=f"{job.label} doesn't keep a place to reset.")
 
     deleted = (
         db.query(AutomationState)
@@ -180,14 +177,14 @@ def reset_job_cursor(job_id: str, db: Session = Depends(get_db), _admin: Identit
     )
     db.commit()
     logger.info("cursor reset for automation job: %s (%d state row(s) cleared)", job.id, deleted)
-    return {"ok": True, "job_id": job.id, "cleared": deleted}
+    return {"ok": True, "job_id": job.id, "label": job.label, "cleared": deleted}
 
 
 @router.post("/reset")
 def reset_automation_data(
     confirm: bool = Query(False, description="Must be true - a safety catch against an accidental call."),
     reset_cursors: bool = Query(True, description="Also clear every scan job's remembered mailbox/scan position, so the next run re-reads from its configured lookback instead of picking up where it left off."),
-    reset_signals: bool = Query(False, description="Also delete every EmailSignal row (SALES-010-lite's extracted budget/renewal/callback/touchpoint facts), not just the review queue built on top of them - forces a full re-extraction from scratch on the next email scan, not just re-triggering off what's already there."),
+    reset_signals: bool = Query(False, description="Also delete every saved email fact (budget timing, renewal dates, call-backs, personal moments), not just the review queue built on top of them - forces a full re-extraction from scratch on the next email scan, not just re-triggering off what's already there."),
     db: Session = Depends(get_db),
     _admin: Identity = Depends(require_admin),
 ) -> dict:
@@ -339,10 +336,9 @@ def reset_automation_setting(key: str, db: Session = Depends(get_db), _admin: Id
 
 @router.get("/email-signals")
 def list_email_signals(db: Session = Depends(get_db), _staff: Identity = Depends(require_staff)) -> list[dict]:
-    """THROWAWAY - a quick read-only visibility view into what
-    email_summary.py's scan has actually extracted, so it can be judged on
-    real output before SALES-012/013 get built on top of it. Not meant to
-    survive as a real feature; delete once that decision's made."""
+    """Read-only view of what email_summary.py's scan has extracted, for the
+    staff-only Email signals page (/automations/signals) - an occasional
+    check that the scan reads emails sensibly. Not linked from the menu."""
     rows = (
         db.query(EmailSignal, Contact)
         .join(Contact, Contact.id == EmailSignal.contact_id)

@@ -48,7 +48,29 @@ class XeroNotConfigured(Exception):
 
 
 class XeroAuthError(Exception):
-    """The stored grant no longer works - an admin has to reconnect."""
+    """The stored grant no longer works - an admin has to reconnect.
+
+    The message is the technical detail, for the log. `plain` (when given) is a sentence written for people;
+    otherwise plain_problem() picks one."""
+
+    def __init__(self, message: str, plain: str | None = None):
+        super().__init__(message)
+        self.plain = plain
+
+
+_SERVER_LINK_BROKEN = "The automatic Xero connection on the server isn't working. Ask whoever runs BMI Brain to check it."
+_RECONNECT = "The Xero connection needs renewing. An administrator reconnects it in Settings, Integrations."
+_SYNC_STOPPED = "The last sync with Xero didn't finish. It will try again on the next run."
+
+
+def plain_problem(exc: BaseException) -> str:
+    """What a person sees about a Xero problem - never Xero's own wording, status codes or server details
+    (those go to the log)."""
+    if isinstance(exc, XeroNotConfigured):
+        return str(exc)
+    if isinstance(exc, XeroAuthError):
+        return exc.plain or (_SERVER_LINK_BROKEN if webhook_mode() else _RECONNECT)
+    return _SYNC_STOPPED
 
 
 def webhook_mode() -> bool:
@@ -66,9 +88,9 @@ def redirect_uri() -> str:
 
 def authorize_url(state: str) -> str:
     if webhook_mode():
-        raise XeroNotConfigured("Xero is linked through the n8n token workflow, so there's nothing to sign in to here.")
+        raise XeroNotConfigured("Xero is connected automatically on the server, so there's nothing to sign in to here.")
     if not (settings.xero_client_id and settings.xero_client_secret):
-        raise XeroNotConfigured("Xero isn't set up yet - XERO_CLIENT_ID and XERO_CLIENT_SECRET are missing on the server.")
+        raise XeroNotConfigured("Xero isn't set up on the server yet - ask whoever runs BMI Brain to add the Xero app details.")
     return str(httpx.URL(AUTHORIZE_URL, params={
         "response_type": "code", "client_id": settings.xero_client_id, "redirect_uri": redirect_uri(),
         "scope": settings.xero_scopes, "state": state,
@@ -80,7 +102,8 @@ def _token(data: dict) -> dict:
     resp = httpx.post(TOKEN_URL, data=data, headers={"Authorization": f"Basic {basic}"}, timeout=20)
     body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
     if resp.status_code >= 300:
-        raise XeroAuthError(body.get("error_description") or body.get("error") or f"Xero sign-in failed ({resp.status_code}).")
+        raise XeroAuthError(body.get("error_description") or body.get("error") or f"Xero sign-in failed ({resp.status_code}).",
+                            plain="Xero didn't accept the sign-in. Try connecting Xero again.")
     return body
 
 
@@ -100,7 +123,8 @@ def complete_sign_in(db: Session, code: str, user_id: uuid.UUID | None) -> XeroC
     resp.raise_for_status()
     tenants = [t for t in resp.json() if t.get("tenantType") == "ORGANISATION"]
     if not tenants:
-        raise XeroAuthError("That Xero login has no organisation connected - pick BMI's organisation when Xero asks.")
+        msg = "That Xero login has no organisation connected - pick BMI's organisation when Xero asks."
+        raise XeroAuthError(msg, plain=msg)
     # The most recently authorised organisation is the one just chosen.
     tenant = max(tenants, key=lambda t: t.get("updatedDateUtc") or "")
     for old in db.scalars(select(XeroConnection)):
@@ -173,7 +197,8 @@ def _access_token(db: Session, conn: XeroConnection) -> str:
         try:
             body = _webhook_token()
         except XeroAuthError as exc:
-            conn.last_error = str(exc)[:500]
+            logger.warning("xero token webhook failed: %s", exc)
+            conn.last_error = plain_problem(exc)
             db.commit()
             raise
         _store(conn, body)
@@ -182,7 +207,8 @@ def _access_token(db: Session, conn: XeroConnection) -> str:
     try:
         body = _token({"grant_type": "refresh_token", "refresh_token": decrypt(conn.refresh_token_enc)})
     except XeroAuthError as exc:
-        conn.last_error = f"Reconnect needed: {exc}"
+        logger.warning("xero token refresh failed: %s", exc)
+        conn.last_error = plain_problem(exc)
         db.commit()
         raise
     _store(conn, body)
@@ -317,7 +343,7 @@ def sync(db: Session, full: bool = False) -> dict:
         if conn:
             if webhook_mode():
                 conn.access_expires_at = None  # don't reuse a token Xero just refused; ask n8n again next time
-            conn.last_error = str(exc)[:500]
+            conn.last_error = plain_problem(exc)   # the detail is in the log line below
             conn.last_sync_at = started
             db.commit()
         logger.warning("xero sync failed: %s", exc)

@@ -62,6 +62,6 @@ def _xero(db):
 
 register_job(ScheduledJob(
     id="xero_invoice_sync", label="Xero invoice sync",
-    description="Hourly: copies sales invoices changed in Xero since the last run, so each booking shows whether it's been paid. Read-only - nothing is written to Xero.",
+    description="Hourly: copies sales invoices changed in Xero since the last run, so each booking shows whether it's been paid. This job only reads from Xero.",
     cron="20 * * * *", func=_with_db(_xero), enabled_flag="automations_xero_sync_enabled",
 ))

@@ -717,7 +717,8 @@ def test_xero_webhook_mode_drops_a_token_xero_refuses(db_session, webhook_mode, 
     with pytest.raises(xero.XeroAuthError):
         xero.sync(db_session)
     conn = xero.connection(db_session)
-    assert conn.access_expires_at is None and "n8n" in conn.last_error  # next sync asks n8n for a new one
+    assert conn.access_expires_at is None  # next sync asks n8n for a new one
+    assert conn.last_error == "The automatic Xero connection on the server isn't working. Ask whoever runs BMI Brain to check it."
 
 
 @pytest.mark.parametrize("reply, expected", [
@@ -733,7 +734,9 @@ def test_xero_webhook_problems_are_explained_without_leaking(db_session, webhook
     with pytest.raises(xero.XeroAuthError) as exc:
         xero.sync(db_session)
     assert expected in str(exc.value) and "n8n.example.com" not in str(exc.value) and "s3cret" not in str(exc.value)
-    assert expected in xero.connection(db_session).last_error
+    # the detail is for the log; Settings shows a plain sentence with no server or status details
+    assert xero.connection(db_session).last_error == xero.plain_problem(exc.value)
+    assert expected not in xero.connection(db_session).last_error and "n8n" not in xero.connection(db_session).last_error
 
 
 def test_xero_webhook_answer_may_be_a_list_and_must_be_https(db_session, webhook_mode, monkeypatch):

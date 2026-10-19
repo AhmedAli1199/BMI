@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import uuid
+from collections import Counter
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -30,6 +32,10 @@ from app.automations.review_facets import NOT_SET
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import Company, Contact, Email, Phone, ReviewQueueItem, User
+
+logger = logging.getLogger("app.api.review_queue")
+
+_BULK_FALLBACK_REASON = "something went wrong while applying it - try these cards one at a time."
 
 router = APIRouter(prefix="/review-queue", tags=["review-queue"])
 
@@ -480,7 +486,7 @@ def resolve_review_item(
         raise HTTPException(status_code=500, detail=f"No automation is registered for kind {item.kind!r}")
     action = get_action(item.kind, action_id)
     if not action:
-        raise HTTPException(status_code=400, detail=f"{action_id!r} is not a valid action for {item.kind!r}")
+        raise HTTPException(status_code=400, detail="That button isn't available for this card. Refresh the page and try again.")
 
     if action.requires_note and not (payload.note or "").strip():
         raise HTTPException(status_code=400, detail="This action requires a note.")
@@ -615,7 +621,7 @@ def bulk_resolve_review_items(
         raise HTTPException(status_code=404, detail="This kind of card doesn't exist, or you don't have access to it.")
     action = get_action(kind, action_id)
     if not action:
-        raise HTTPException(status_code=400, detail="That button isn't available for this kind of card.")
+        raise HTTPException(status_code=400, detail="That button isn't available for these cards. Refresh the page and try again.")
 
     if action.requires_contact_picker or action.requires_related_entity_choice:
         raise HTTPException(status_code=400, detail=f"\"{action.label}\" needs a per-item choice and can't be applied in bulk.")
@@ -634,7 +640,8 @@ def bulk_resolve_review_items(
     items = db.scalars(stmt.order_by(ReviewQueueItem.created_at, ReviewQueueItem.id).offset(offset).limit(BULK_MAX_PER_CALL)).all()
 
     succeeded = failed = 0
-    errors: list[str] = []
+    # Why cards couldn't be done, counted by reason - a plain summary for the person, never card ids.
+    reasons: Counter[str] = Counter()
     for n, item in enumerate(items, start=1):
         try:
             with db.begin_nested():
@@ -646,12 +653,20 @@ def bulk_resolve_review_items(
                 item.reviewed_by_user_id = identity.user_uuid
             succeeded += 1
         except ValueError as e:
+            # Handlers raise ValueError with a plain sentence written for people.
             failed += 1
-            if len(errors) < 20:  # cap - a batch that's failing wholesale doesn't need a 500-line response
-                errors.append(f"{(item.payload or {}).get('summary') or 'A card'}: {e}")
+            reasons[str(e).strip() or _BULK_FALLBACK_REASON] += 1
+        except Exception:
+            logger.exception("bulk review action %s failed for item %s", action_id, item.id)
+            failed += 1
+            reasons[_BULK_FALLBACK_REASON] += 1
         if n % BULK_COMMIT_EVERY == 0:
             db.commit()
 
+    errors = [
+        f"{n} card{'' if n == 1 else 's'}: {reason}"
+        for reason, n in reasons.most_common(5)  # a batch failing wholesale doesn't need a long list
+    ]
     db.commit()
     return BulkReviewActionResult(matched=matched, succeeded=succeeded, failed=failed, errors=errors,
                                   remaining=max(matched - offset - len(items), 0))

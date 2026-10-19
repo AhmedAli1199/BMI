@@ -456,7 +456,7 @@ def resolve_batch(db: Session, batch_id: str) -> dict:
         item.status = action.outcome
         item.resolved_action = action_id
         item.reviewed_at = datetime.now(timezone.utc)
-        item.review_note = "Resolved via batch confirm (SALES-002)."
+        item.review_note = "Confirmed with the rest of the batch."  # SALES-002
 
         if item.kind == "business_card_new":
             added += 1

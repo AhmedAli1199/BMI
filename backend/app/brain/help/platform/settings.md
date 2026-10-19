@@ -47,7 +47,7 @@ Takes you to Microsoft to sign in, then back to Settings with a message saying w
 Forgets your Outlook connection. Mail merges can't send from your mailbox until you connect again.
 
 ### Connect Xero / Reconnect (Xero)
-Administrators only. Signs in to BMI's Xero (read-only - nothing is ever written to Xero). After connecting, the invoices are synced straight away and then every hour. **Reconnect** appears if the connection has a problem. These buttons don't appear when Xero is linked through BMI's n8n workflow.
+Administrators only. Signs in to BMI's Xero. The Brain reads invoices from Xero, and the only thing it adds there is a draft invoice when someone makes one from a booking. After connecting, the invoices are synced straight away and then every hour. **Reconnect** appears if the connection has a problem. These buttons don't appear when Xero is connected automatically on the server.
 
 ### Sync now
 Administrators and data managers. Fetches the latest invoices from Xero straight away instead of waiting for the hourly sync. A message says how many invoices changed.
@@ -56,7 +56,7 @@ Administrators and data managers. Fetches the latest invoices from Xero straight
 Administrators and data managers. Reads every invoice again from the start. It's needed once so the invoice matcher can see what each invoice is for, and takes a minute or two.
 
 ### Disconnect (Xero)
-Administrators only. Forgets the Xero connection. Invoices already copied stay in the app. Not available when Xero is linked through the n8n workflow (it has to be removed on the server).
+Administrators only. Forgets the Xero connection. Invoices already copied stay in the app. Not available when Xero is connected automatically on the server (whoever runs BMI Brain has to switch that off).
 
 ### "Recently Active" sort
 Decides what the dashboard's **Recently Active Contacts** list counts as active:
@@ -148,7 +148,7 @@ A: In **Settings**, under **Appearance**, open the **Theme** picker and choose *
 ## If something doesn't work
 - **I can't see Team & access or Sections people see.** They're for administrators only. Other people who open those pages see "Administrators only".
 - **I can't see the Integrations section.** Xero is shown to administrators and data managers only.
-- **There's no Connect Xero or Disconnect button.** Only administrators can connect or disconnect Xero. If Xero is linked through BMI's n8n workflow, those buttons never show.
+- **There's no Connect Xero or Disconnect button.** Only administrators can connect or disconnect Xero. If Xero is connected automatically on the server, those buttons never show.
 - **Connect Outlook isn't there and it says "Not available yet".** The Microsoft sign-in hasn't been set up on the server. Ask an administrator.
 - **Create account is greyed out.** Fill in name, email and a temporary password, pick a role, and give at least one database grant (unless they're an administrator).
 - **It won't save the password.** Passwords need at least 8 characters.

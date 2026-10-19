@@ -1,6 +1,7 @@
 """Settings › Integrations - connecting Xero (admins only)."""
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +17,7 @@ from app.roles import CAN_USE_AUTOMATIONS
 from app.services import outlook, xero
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
+logger = logging.getLogger("app.api.integrations")
 
 
 def _staff(user: User = Depends(current_user)) -> User:
@@ -80,12 +82,16 @@ def xero_callback(payload: CallbackIn, db: Session = Depends(get_db)) -> dict:
     try:
         user_id, return_to = outlook.read_state(payload.state)
         conn = xero.complete_sign_in(db, payload.code, user_id)
-    except (outlook.OutlookAuthError, xero.XeroAuthError, xero.XeroNotConfigured) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except outlook.OutlookAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc   # our own plain sentences (outlook.read_state)
+    except (xero.XeroAuthError, xero.XeroNotConfigured) as exc:
+        logger.warning("xero sign-in failed: %s", exc)
+        raise HTTPException(status_code=400, detail=xero.plain_problem(exc)) from exc
     try:
         result = xero.sync(db)
     except Exception as exc:  # connected fine; the hourly sync will retry
-        result = {"error": str(exc)[:200]}
+        logger.warning("first xero sync after sign-in failed: %s", exc)
+        result = {"error": xero.plain_problem(exc)}
     return {"organisation": conn.tenant_name, "return_to": return_to, **result}
 
 
@@ -103,7 +109,7 @@ def xero_sync_now(full: bool = False, db: Session = Depends(get_db), _: User = D
 def xero_disconnect(db: Session = Depends(get_db), _: User = Depends(_admin)) -> None:
     """Forgets the connection. Invoices already copied stay (they're history)."""
     if xero.webhook_mode():
-        raise HTTPException(status_code=400, detail="Xero is linked through the n8n token workflow. To disconnect, remove the token webhook setting on the server.")
+        raise HTTPException(status_code=400, detail="Xero is connected automatically on the server, so it can't be disconnected here. Ask whoever runs BMI Brain to switch it off.")
     conn = xero.connection(db)
     if conn:
         db.delete(conn)

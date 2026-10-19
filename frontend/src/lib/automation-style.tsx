@@ -251,23 +251,77 @@ export function styleForKind(kind: string): AutomationStyle {
   return STYLES[kind] ?? FALLBACK;
 }
 
-/** Best-effort plain-English gloss for the handful of cron shapes this app
- * actually uses (see app/automations/scheduler.py's registered jobs) - not
- * a general cron parser. Falls back to the raw expression for anything it
- * doesn't recognize rather than guessing wrong. */
-export function humanizeCron(cron: string): string {
-  const everyNMinutes = cron.match(/^\*\/(\d+) \* \* \* \*$/);
-  if (everyNMinutes) return `Every ${everyNMinutes[1]} minutes`;
-  const everyNHours = cron.match(/^0 \*\/(\d+) \* \* \*$/);
-  if (everyNHours) return `Every ${everyNHours[1]} hours`;
-  if (cron === "0 0 * * *") return "Daily at midnight UTC";
-  const hh = (h: string) => `${h.padStart(2, "0")}:00`;
-  const daily = cron.match(/^0 (\d{1,2}) \* \* \*$/);
-  if (daily) return `Daily at ${hh(daily[1])} UTC`;
-  const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const weekly = cron.match(/^0 (\d{1,2}) \* \* ([0-6])$/);
-  if (weekly) return `${DAYS[Number(weekly[2])]}s at ${hh(weekly[1])} UTC`;
-  const weekdayHours = cron.match(/^0 (\d{1,2})-(\d{1,2}) \* \* 1-5$/);
-  if (weekdayHours) return `Hourly, ${hh(weekdayHours[1])}–${hh(weekdayHours[2])} UTC weekdays`;
-  return cron;
+const CRON_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** A UTC time of day as UK clock time today (GMT in winter, BST in summer), plus how many days it moved. */
+function ukTime(hour: number, minute: number, now: Date): { text: string; shift: number } {
+  const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hour, minute));
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", day: "numeric", hourCycle: "h23",
+  }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const ukDay = Number(get("day"));
+  const shift = ukDay === at.getUTCDate() ? 0 : 1; // the UK clock is level with UTC or an hour ahead
+  return { text: `${get("hour")}:${get("minute")}`, shift };
+}
+
+function cronDays(dow: string, shift: number): string | null {
+  const name = (d: string) => {
+    const n = d === "7" ? 0 : Number(d);
+    return Number.isInteger(n) && n >= 0 && n <= 6 ? CRON_DAYS[(n + shift + 7) % 7] : null;
+  };
+  const list = dow.includes("-") ? dow.split("-") : dow.split(",");
+  const names = list.map(name);
+  if (names.some((n) => n === null)) return null;
+  if (dow.includes("-")) return `${names[0]} to ${names[1]}`;
+  return names.length === 1 ? `every ${names[0]}` : `on ${names.join(", ")}`;
+}
+
+/** A job's schedule in plain words, in UK time. Jobs run on UTC cron times (see backend
+ * app/automations/scheduler.py); this turns every shape the app uses into words and converts the
+ * time to the UK clock for today's date (an hour later in summer). Mirrors the backend's
+ * app/automations/status.py schedule_words. Never shows the raw code. */
+export function humanizeCron(cron: string, now: Date = new Date()): string {
+  const custom = "On a custom schedule";
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 5) return custom;
+  const [minute, hour, dom, month, dow] = fields;
+  if (month !== "*") return custom;
+  const isNum = (v: string) => /^\d+$/.test(v);
+  if (minute === "*" && hour === "*" && dom === "*" && dow === "*") return "Every minute";
+  if (/^\*\/\d+$/.test(minute) && hour === "*" && dom === "*" && dow === "*") {
+    const n = minute.slice(2);
+    return n === "1" ? "Every minute" : `Every ${n} minutes`;
+  }
+  if (isNum(minute) && hour === "*" && dom === "*" && dow === "*") {
+    return Number(minute) === 0 ? "Every hour, on the hour" : `Every hour at ${Number(minute)} minutes past`;
+  }
+  if (isNum(minute) && /^\*\/\d+$/.test(hour) && dom === "*" && dow === "*") return `Every ${hour.slice(2)} hours`;
+  if (!isNum(minute)) return custom;
+  const m = Number(minute);
+  let when: string;
+  let shift = 0;
+  if (/^\d+(,\d+)*$/.test(hour)) {
+    const times = hour.split(",").map((h) => ukTime(Number(h), m, now));
+    shift = times[0].shift;
+    when = `at ${times.map((t) => t.text).join(", ")} UK time`;
+  } else if (/^\d+-\d+$/.test(hour)) {
+    const [first, last] = hour.split("-").map(Number);
+    const start = ukTime(first, m, now);
+    shift = start.shift;
+    when = `every hour from ${start.text} to ${ukTime(last, m, now).text} UK time`;
+  } else {
+    return custom;
+  }
+  let out: string;
+  if (dow !== "*") {
+    const days = cronDays(dow, shift);
+    if (!days) return custom;
+    out = `${when}, ${days}`;
+  } else if (dom !== "*") {
+    out = `${when}, on day ${dom} of the month`;
+  } else {
+    out = when.startsWith("at ") ? `Every day ${when}` : when;
+  }
+  return out.charAt(0).toUpperCase() + out.slice(1);
 }

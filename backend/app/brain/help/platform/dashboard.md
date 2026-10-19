@@ -37,7 +37,7 @@ Pressing a tile switches the whole app to that database (the same as the databas
 Switches back to all the databases you can see. It doesn't appear if you can only see one database.
 
 ### Add database
-Administrators only. Opens **Add a database** to create a new title or list that contacts and companies can be filed under, like OnBoard, Selling Travel and Prospects. Give it a **Name**, check the **Internal key** (filled in for you and permanent once created), add a **Description**, and pick a **Color** and **Icon**. Press **Add database**. The new tile appears straight away. Nobody else can see it until they're given access under Team & access.
+Administrators only. Opens **Add a database** to create a new title or list that contacts and companies can be filed under, like OnBoard, Selling Travel and Prospects. Give it a **Name**, check the **Short name** (filled in for you, and it can't be changed later), add a **Description**, and pick a **Color** and **Icon**. Press **Add database**. The new tile appears straight away. Nobody else can see it until they're given access under Team & access.
 
 ### Total Contacts / Companies / Groups
 Each total opens that list.
@@ -57,11 +57,11 @@ Opens that contact's or company's page.
 ## How it works
 - Everything is limited to what you can see. Administrators see every database. Everyone else sees only the databases (or the group and its sub-groups) they were given under Team & access. If you have access to one group, the contact total counts only that group's contacts.
 - Choosing a database (with a tile or the switcher at the top) narrows every figure to it. Companies are counted per company record, and a company's contact count only counts contacts in the chosen database.
-- **Recently Active Contacts** follows your own setting in **Settings** under **Dashboard**:
+- **Recently Active Contacts** follows your own setting in **Settings** under **Dashboard** (the **Change this in Settings** link under the list's title takes you there):
   - **Last record edit** (the default): the contacts most recently added or edited, including edits made in Act! before the move. Every contact has a date, so the list is never empty.
   - **Last note or call**: the contacts with the latest note or logged call or meeting. Contacts with no notes or history don't appear at all.
 - **Top Companies** ranks companies by how many contacts they have on file; companies with none are left out.
-- **Overnight Activity** comes from the Review Queue and only includes suggestions you're allowed to see there: your databases, and for a salesperson only the kinds meant for sales (their own renewals, for example).
+- **Overnight Activity** comes from the Review Queue and only includes suggestions you're allowed to see there: your databases, and for a salesperson only the kinds meant for sales (their own renewals, for example). It doesn't show at all if an administrator has hidden the Review Queue for you (Settings > Sections). Each item shows the name of its card type, as in the Review Queue.
 - If your account has no database access at all, the page says "No database access yet" instead of showing figures.
 
 ## Common questions
