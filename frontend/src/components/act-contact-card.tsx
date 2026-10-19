@@ -589,7 +589,7 @@ export function ActContactCard({
               />
             ) : (
               <span className="font-medium text-foreground truncate min-w-0 text-left">
-                {contact.birthdate ? new Date(contact.birthdate).toLocaleDateString() : EMPTY}
+                {contact.birthdate ? new Date(contact.birthdate).toLocaleDateString("en-GB", { timeZone: "Europe/London" }) : EMPTY}
               </span>
             )}
           </div>
@@ -600,7 +600,7 @@ export function ActContactCard({
               <span className="text-muted-foreground">Last Meeting</span>
               <span className="font-semibold text-foreground">
                 {contact.last_meet_date
-                  ? new Date(contact.last_meet_date).toLocaleDateString()
+                  ? new Date(contact.last_meet_date).toLocaleDateString("en-GB", { timeZone: "Europe/London" })
                   : EMPTY}
               </span>
             </div>
@@ -608,7 +608,7 @@ export function ActContactCard({
               <span className="text-muted-foreground">Last Reach</span>
               <span className="font-semibold text-foreground">
                 {contact.last_reach_date
-                  ? new Date(contact.last_reach_date).toLocaleDateString()
+                  ? new Date(contact.last_reach_date).toLocaleDateString("en-GB", { timeZone: "Europe/London" })
                   : EMPTY}
               </span>
             </div>
@@ -616,7 +616,7 @@ export function ActContactCard({
               <span className="text-muted-foreground">Last Attempt</span>
               <span className="font-semibold text-foreground">
                 {contact.last_attempt_date
-                  ? new Date(contact.last_attempt_date).toLocaleDateString()
+                  ? new Date(contact.last_attempt_date).toLocaleDateString("en-GB", { timeZone: "Europe/London" })
                   : EMPTY}
               </span>
             </div>
@@ -624,7 +624,7 @@ export function ActContactCard({
               <span className="text-muted-foreground">Letter Sent</span>
               <span className="font-semibold text-foreground">
                 {contact.last_letter_date
-                  ? new Date(contact.last_letter_date).toLocaleDateString()
+                  ? new Date(contact.last_letter_date).toLocaleDateString("en-GB", { timeZone: "Europe/London" })
                   : EMPTY}
               </span>
             </div>

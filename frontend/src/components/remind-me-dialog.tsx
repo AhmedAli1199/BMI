@@ -88,7 +88,7 @@ export function RemindMeDialog({
           email_me: emailMe,
         });
         toast.success(
-          `Reminder set for ${due.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+          `Reminder set for ${due.toLocaleString("en-GB", { timeZone: "Europe/London",  weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
         );
         setOpen(false);
         setNote("");

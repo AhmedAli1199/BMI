@@ -62,8 +62,8 @@ function formatCost(usd: number): string {
 function formatBucketLabel(iso: string, granularity: string): string {
   const d = new Date(iso);
   return granularity === "hour"
-    ? d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" })
-    : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    ? d.toLocaleString("en-GB", { timeZone: "Europe/London",  month: "short", day: "numeric", hour: "numeric" })
+    : d.toLocaleDateString("en-GB", { timeZone: "Europe/London",  month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Deliberately not linked from anywhere a reviewer visits day to day -

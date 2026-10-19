@@ -3,33 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BadgePoundSterling,
-  Banknote,
-  Building2,
-  CalendarClock,
-  CalendarDays,
-  CalendarRange,
-  ChevronRight,
-  ClipboardCheck,
-  Coins,
-  Ellipsis,
-  FileText,
-  HeartPulse,
-  House,
-  LayoutDashboard,
-  Mail,
-  MessageSquareText,
-  Mic,
-  Newspaper,
-  ReceiptText,
-  Send,
-  Settings,
-  Tags,
-  Users,
-  Workflow,
-  type LucideIcon,
-} from "lucide-react";
+import { BadgePoundSterling, Banknote, Building2, CalendarClock, CalendarDays, CalendarRange, ChevronRight, CircleHelp, ClipboardCheck, Coins, Ellipsis, FileText, HeartPulse, House, LayoutDashboard, Mail, MessageSquareText, Mic, Newspaper, ReceiptText, Send, Settings, Tags, Users, Workflow, type LucideIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -286,6 +260,19 @@ export function AppSidebar({
               </p>
             </div>
             <div className="flex items-center gap-1">
+              <Button
+                nativeButton={false}
+                size="icon-sm"
+                variant="outline"
+                title="Help Centre"
+                aria-label="Help Centre"
+                render={<Link href="/help" />}
+                className={`border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+                  pathname.startsWith("/help") ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""
+                }`}
+              >
+                <CircleHelp className="size-4" />
+              </Button>
               <Button
                 nativeButton={false}
                 size="icon-sm"

@@ -266,7 +266,7 @@ export default async function CompanyDetailPage({
                     <div className="flex items-center gap-1.5">
                       <time>
                         {n.act_created_at
-                          ? new Date(n.act_created_at).toLocaleDateString()
+                          ? new Date(n.act_created_at).toLocaleDateString("en-GB", { timeZone: "Europe/London" })
                           : ""}
                       </time>
                       <DeleteItemButton

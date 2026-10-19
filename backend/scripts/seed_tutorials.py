@@ -90,6 +90,12 @@ def main() -> None:
             for n in db.scalars(select(Notification).where(Notification.link.contains(key))).all():
                 db.delete(n)
             db.delete(d)
+        # and the demo people's reminders (the help-centre screenshots set one each take)
+        from app.models import Reminder
+        for email in (p[1] for p in PEOPLE):
+            if (u0 := db.scalar(select(User).where(User.email == email))):
+                for r in db.scalars(select(Reminder).where(Reminder.user_id == u0.id)).all():
+                    db.delete(r)
         db.flush()
         for name, email, role, approves, access, rep_code in PEOPLE:
             u = db.scalar(select(User).where(User.email == email))

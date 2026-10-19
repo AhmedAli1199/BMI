@@ -21,7 +21,7 @@ function ago(iso: string | null) {
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return new Date(iso).toLocaleDateString("en-GB", { timeZone: "Europe/London",  day: "numeric", month: "short" });
 }
 
 /** The bell in the top bar. Polls once a minute (and whenever the tab

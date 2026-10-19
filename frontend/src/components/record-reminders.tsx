@@ -21,7 +21,7 @@ export function RecordReminders({ reminders }: { reminders: Reminder[] }) {
           <div key={r.id} className="flex flex-wrap items-center gap-2 text-sm">
             <BellRing className={`size-4 shrink-0 ${overdue ? "text-destructive" : "text-[var(--warn)]"}`} />
             <span className={`font-medium ${overdue ? "text-destructive" : ""}`}>
-              {due.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              {due.toLocaleString("en-GB", { timeZone: "Europe/London",  weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
             </span>
             <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.note || "Reminder"}</span>
             <ReminderDoneButton id={r.id} />

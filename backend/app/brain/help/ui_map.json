@@ -372,6 +372,30 @@
    ]
   },
   {
+   "route": "/help/[slug]",
+   "page": "app/(app)/help/[slug]/page.tsx",
+   "files": [
+    "app/(app)/help/[slug]/page.tsx",
+    "components/empty-state.tsx",
+    "components/help/ask-the-brain.tsx",
+    "components/help/help-home.tsx",
+    "components/help/help-text.tsx",
+    "components/help/was-it-helpful.tsx",
+    "components/page-header.tsx"
+   ]
+  },
+  {
+   "route": "/help",
+   "page": "app/(app)/help/page.tsx",
+   "files": [
+    "app/(app)/help/page.tsx",
+    "components/empty-state.tsx",
+    "components/help/ask-the-brain.tsx",
+    "components/help/help-home.tsx",
+    "components/page-header.tsx"
+   ]
+  },
+  {
    "route": "/mail-merge/[id]",
    "page": "app/(app)/mail-merge/[id]/page.tsx",
    "files": [
@@ -1501,6 +1525,48 @@
    "src": "app/(app)/groups/page.tsx:111",
    "kind": "link",
    "label": "Next"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:49",
+   "kind": "heading",
+   "label": "Step by step"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:63",
+   "kind": "link",
+   "label": "Open the picture full size"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:77",
+   "kind": "heading",
+   "label": "Good to know"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:88",
+   "kind": "heading",
+   "label": "What happens next"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:96",
+   "kind": "heading",
+   "label": "If something's not right"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:114",
+   "kind": "heading",
+   "label": "Related articles"
+  },
+  {
+   "file": "app/(app)/help/[slug]/page.tsx",
+   "src": "app/(app)/help/[slug]/page.tsx:124",
+   "kind": "link",
+   "label": "← All articles"
   },
   {
    "file": "app/(app)/mail-merge/[id]/page.tsx",
@@ -5556,6 +5622,48 @@
    "src": "components/group-members-table.tsx:209",
    "kind": "button",
    "label": "Loading"
+  },
+  {
+   "file": "components/help/help-home.tsx",
+   "src": "components/help/help-home.tsx:37",
+   "kind": "heading",
+   "label": "What do you need to do?"
+  },
+  {
+   "file": "components/help/help-home.tsx",
+   "src": "components/help/help-home.tsx:39",
+   "kind": "field",
+   "label": "Search the Help Centre"
+  },
+  {
+   "file": "components/help/help-home.tsx",
+   "src": "components/help/help-home.tsx:62",
+   "kind": "heading",
+   "label": "Start here"
+  },
+  {
+   "file": "components/help/help-home.tsx",
+   "src": "components/help/help-home.tsx:109",
+   "kind": "link",
+   "label": "min read"
+  },
+  {
+   "file": "components/help/was-it-helpful.tsx",
+   "src": "components/help/was-it-helpful.tsx:18",
+   "kind": "button",
+   "label": "Yes"
+  },
+  {
+   "file": "components/help/was-it-helpful.tsx",
+   "src": "components/help/was-it-helpful.tsx:19",
+   "kind": "button",
+   "label": "Not really"
+  },
+  {
+   "file": "components/help/was-it-helpful.tsx",
+   "src": "components/help/was-it-helpful.tsx:29",
+   "kind": "button",
+   "label": "Tell the team"
   },
   {
    "file": "components/interactive-contact-table.tsx",
