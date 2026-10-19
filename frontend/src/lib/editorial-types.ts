@@ -18,7 +18,7 @@ export type IssueDetail = Issue & {
   last_year: (IssueRef & { booked_gbp: number; orders: number }) | null; prev_issue: IssueRef | null; next_issue: IssueRef | null; can_delete: boolean;
 };
 export type PlannerRow = { title_id: string; title_name: string; issues: Issue[] };
-export type PlannerBrand = { key: string; name: string; short: string; can_edit: boolean; titles: { id: string; name: string; slug: string }[]; seed_available: number; rows: PlannerRow[]; undated: Issue[]; about: string | null };
+export type PlannerBrand = { key: string; name: string; short: string; can_edit: boolean; titles: { id: string; name: string; slug: string }[]; seed_available: number; published_plan?: boolean; rows: PlannerRow[]; undated: Issue[]; about: string | null };
 export type Planner = { year: number; years: number[]; today: string; brands: PlannerBrand[] };
 export type Deadline = { date: string; days: number; what: string; type: "editorial" | "advertising" | "copy" | "publication" | "event" | "milestone"; issue: Issue };
 export type NextYearRow = { id: string; title_name: string; kind: IssueKind; old_name: string; new_name: string; old_date: string; new_date: string; features: number };
@@ -26,8 +26,10 @@ export type NextYearRow = { id: string; title_name: string; kind: IssueKind; old
 export const KIND_LABELS: Record<IssueKind, string> = { issue: "Issue", guide: "Guide / special", event: "Event", awards: "Awards" };
 export const FORMAT_LABELS: Record<IssueFormat, string> = { print_digital: "Print and digital", print: "Print only", digital: "Digital only", event: "Event", awards: "Awards" };
 
-/** "Issue 105" for numbered issues, the name otherwise. */
-export const issueLabel = (i: { name: string; kind: string }) => (/^\d+$/.test(i.name.trim()) ? `Issue ${i.name}` : i.name);
+const NUMBER_WORD: Record<string, string> = { issue: "Issue", guide: "Issue", event: "Event", awards: "Awards" };
+
+/** "Issue 105" for numbered issues (or the kind's own word, e.g. "Event 3"), the name otherwise. */
+export const issueLabel = (i: { name: string; kind: string }) => (/^\d+$/.test(i.name.trim()) ? `${NUMBER_WORD[i.kind] ?? "Issue"} ${i.name.trim()}` : i.name);
 
 export type PitchCompany = {
   feature?: string | null;

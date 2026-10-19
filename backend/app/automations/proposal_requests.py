@@ -316,7 +316,8 @@ def queue(db: Session, mailbox: str, owner: User | None, msg: ParsedMessage, inf
             "ai_drafted": ai, "confidence": info.get("confidence"),
             "facets": {"magazine": short_name(title) if title else "Not sure",
                        "type": TYPES.get(info.get("request_type"), "General enquiry"),
-                       "client": "In the CRM" if (contact or company) else "New prospect"},
+                       "client": "In the CRM" if (contact or company) else "New prospect",
+                       "salesperson": owner_label(owner)},
             "sort_date": received.date().isoformat() if received else date.today().isoformat(),
         },
     )
@@ -324,10 +325,29 @@ def queue(db: Session, mailbox: str, owner: User | None, msg: ParsedMessage, inf
     return item
 
 
+def owner_label(owner: User | None) -> str:
+    """The "Salesperson" filter value on a card - the same name the proposal requests report shows."""
+    return (owner.name or owner.email) if owner else "No owner"
+
+
+def stamp_salesperson(db: Session, limit: int = 500) -> int:
+    """Cards queued before the "Salesperson" filter existed get it filled in. Caller commits."""
+    items = db.scalars(select(ReviewQueueItem).where(
+        ReviewQueueItem.kind == KIND, ReviewQueueItem.payload.has_key("facets"),
+        ~ReviewQueueItem.payload["facets"].has_key("salesperson")).limit(limit)).all()
+    for item in items:
+        p = item.payload or {}
+        owner = db.get(User, uuid.UUID(p["owner_user_id"])) if p.get("owner_user_id") else None
+        item.payload = {**p, "facets": {**(p.get("facets") or {}), "salesperson": owner_label(owner)}}
+    return len(items)
+
+
 def scan() -> None:
     now = datetime.now(timezone.utc)
     db = SessionLocal()
     try:
+        if stamp_salesperson(db):
+            db.commit()
         from app.graph_client import GraphRequestError, list_messages_since
 
         boxes = runtime_settings.get_csv(db, "proposal_request_mailboxes")
@@ -540,7 +560,7 @@ register(ReviewKind(
     handler=_handle,
     redraft=_redraft,
     audience="sales",
-    facets=(("magazine", "Magazine"), ("type", "Type of request"), ("client", "Client")),
+    facets=(("magazine", "Magazine"), ("type", "Type of request"), ("client", "Client"), ("salesperson", "Salesperson")),
     date_sort_label="date received",
 ))
 

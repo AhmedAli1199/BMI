@@ -5,6 +5,12 @@ Each morning, for every issue whose advertising deadline is N days away (N from
 sold that title in the last year get one in-app notification: the deadline, what's
 booked so far, and how many of last year's advertisers haven't rebooked - linking
 to the issue page, where "Who should we pitch?" lists them.
+
+Catch-up: if the job didn't run on a reminder day (the server was down, or the issue
+was added late), the next run sends the nearest reminder it has passed, once - so a
+deadline 5 days away with the 7-day reminder missed still gets one (saying "in 5
+days"), but never the 14-day one as well. What was sent is kept per issue, deadline
+and reminder day (AutomationState), so nothing goes twice.
 """
 from __future__ import annotations
 
@@ -76,18 +82,20 @@ def remind(db: Session, today: date | None = None) -> int:
     days = _days(db)
     if not days:
         return 0
-    targets = [today + timedelta(days=n) for n in days]
-    eds = db.scalars(select(SalesEdition).where(SalesEdition.kind.in_(PLAN_KINDS), SalesEdition.ad_deadline.in_(targets)))
+    eds = db.scalars(select(SalesEdition).where(SalesEdition.kind.in_(PLAN_KINDS), SalesEdition.ad_deadline >= today,
+                                                SalesEdition.ad_deadline <= today + timedelta(days=max(days))))
     sent = 0
     for e in eds:
         t = db.get(SalesTitle, e.title_id)
         brand = B.brand_for_title_slug(t.slug) if t else None
         if not brand:
             continue
-        key = f"editorial_deadline:{e.id}:{e.ad_deadline.isoformat()}:{(e.ad_deadline - today).days}"
+        n = (e.ad_deadline - today).days
+        # The nearest reminder day already reached (e.g. 7 when the deadline is 5 days away) - sent once.
+        step = min(r for r in days if r >= n)
+        key = f"editorial_deadline:{e.id}:{e.ad_deadline.isoformat()}:{step}"
         if db.get(AutomationState, key):
             continue
-        n = (e.ad_deadline - today).days
         booked = db.execute(select(func.count(), func.coalesce(func.sum(SalesOrder.value_gbp), 0))
                             .where(SalesOrder.edition_id == e.id, SalesOrder.status == BOOKED)).one()
         lapsed = _lapsed(db, e)
@@ -100,7 +108,7 @@ def remind(db: Session, today: date | None = None) -> int:
         for uid in _recipients(db, brand, t.id, today):
             create_notification(db, uid, "editorial_deadline", title, body, f"/editorial/issues/{e.id}", email=False)
             sent += 1
-        db.add(AutomationState(key=key, value={"sent": today.isoformat()}))
+        db.add(AutomationState(key=key, value={"sent": today.isoformat(), "days_before": n}))
     db.commit()
     return sent
 

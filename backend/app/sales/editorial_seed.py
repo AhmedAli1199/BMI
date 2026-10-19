@@ -157,6 +157,11 @@ def _brand_editions(db: Session, brand_key: str, year: int) -> list[SalesEdition
     return list(db.scalars(select(SalesEdition).where(SalesEdition.title_id.in_(ids), SalesEdition.year == year))) if ids else []
 
 
+def has_published_plan(brand_key: str, year: int) -> bool:
+    """Whether we hold a published plan (features list / media kit) for this brand and year at all."""
+    return year == SEED_YEAR and any(i.year == year for i in ISSUES.get(brand_key, []))
+
+
 def seed_available(db: Session, brand_key: str, year: int) -> int:
     items = [i for i in ISSUES.get(brand_key, []) if i.year == year]
     if year != SEED_YEAR or not items:

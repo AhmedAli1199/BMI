@@ -68,7 +68,9 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
   const [shots, setShots] = useState<Shot[]>([]);
   const [mode, setMode] = useState<null | "pick" | "area">(null);
   const [screen, setScreen] = useState<HTMLCanvasElement | null>(null);
-  const [marking, setMarking] = useState<{ key: string; canvas: HTMLCanvasElement; label: string } | null>(null);
+  // A picture being marked up: a new screenshot (Cancel drops it), a crop from "Point at it" (Cancel keeps it as it is),
+  // or a screenshot already attached, opened again from its thumbnail (`replace` = its key; Cancel leaves it as it was).
+  const [marking, setMarking] = useState<{ key: string; canvas: HTMLCanvasElement; label: string; replace?: string; keepOnCancel?: boolean } | null>(null);
   const [intro, setIntro] = useState<{ configured: boolean; questions: string[]; guide: string | null } | null>(null);
   const [loading, setLoading] = useState(!!conversationId);
   const scroller = useRef<HTMLDivElement>(null);
@@ -162,6 +164,23 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
     setShots((s) => [...s, { key: newKey(), ...d, label, canvas }].slice(-3));
   }
 
+  function replaceShot(key: string, canvas: HTMLCanvasElement) {
+    const d = toDataUrl(canvas);
+    setShots((s) => s.map((x) => (x.key === key ? { ...x, ...d, canvas } : x)));
+  }
+
+  function markedUp(c: HTMLCanvasElement) {
+    if (!marking) return;
+    if (marking.replace) replaceShot(marking.replace, c);
+    else addShot(c, marking.label);
+    setMarking(null);
+  }
+
+  function cancelMarking() {
+    if (marking?.keepOnCancel && !marking.replace) addShot(marking.canvas, marking.label);
+    setMarking(null);
+  }
+
   async function picked(el: Element, d: FeedbackElement) {
     setMode(null);
     setElements((xs) => [...xs, { ...d, key: newKey() }].slice(-4));
@@ -171,7 +190,8 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
       const box = { x: Math.max(0, r.left - pad), y: Math.max(0, r.top - pad), w: 0, h: 0 };
       box.w = Math.min(innerWidth - box.x, r.width + pad * 2);
       box.h = Math.min(innerHeight - box.y, r.height + pad * 2);
-      if (box.w > 4 && box.h > 4) addShot(crop(await captureScreen(), box), d.label);
+      // the crop goes through mark-up like a screenshot; Cancel keeps it as it is
+      if (box.w > 4 && box.h > 4) setMarking({ key: newKey(), canvas: crop(await captureScreen(), box), label: d.label, keepOnCancel: true });
     } catch { /* the description is enough */ }
   }
 
@@ -190,7 +210,7 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
       {mode === "pick" && <PickOverlay onPick={picked} onCancel={() => { setMode(null); }} />}
       {mode === "area" && <AreaOverlay screen={screen} onCancel={() => { setMode(null); setScreen(null); }}
         onDone={(box) => { const s = screen; setMode(null); setScreen(null); if (s) setMarking({ key: newKey(), canvas: box ? crop(s, box) : s, label: box ? "Part of the screen" : "The whole screen" }); }} />}
-      {marking && <AnnotateDialog key={marking.key} image={marking.canvas} open onCancel={() => setMarking(null)} onDone={(c) => { addShot(c, marking.label); setMarking(null); }} />}
+      {marking && <AnnotateDialog key={marking.key} image={marking.canvas} open onCancel={cancelMarking} onDone={markedUp} />}
 
       <div ref={scroller} className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto ${variant === "page" ? "px-2 py-4 sm:px-6" : "px-4 py-4"}`} aria-live="polite">
         {loading && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Opening…</p>}
@@ -253,8 +273,17 @@ export function BrainChat({ variant, conversationId, onConversation, seed, handl
             ))}
             {shots.map((s) => (
               <span key={s.key} className="group relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={s.data} alt={s.label} className="h-10 w-14 rounded border border-border object-cover object-top" />
+                {s.canvas ? (
+                  <button type="button" aria-label={`Mark up ${s.label} again`} title="Click to draw on it again"
+                    onClick={() => setMarking({ key: newKey(), canvas: s.canvas!, label: s.label, replace: s.key })}
+                    className="block rounded focus-visible:outline-2 focus-visible:outline-ring">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.data} alt={s.label} className="h-10 w-14 rounded border border-border object-cover object-top hover:border-primary" />
+                  </button>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.data} alt={s.label} className="h-10 w-14 rounded border border-border object-cover object-top" />
+                )}
                 <button type="button" aria-label="Remove this screenshot" onClick={() => setShots(shots.filter((x) => x.key !== s.key))}
                   className="absolute -right-1.5 -top-1.5 hidden size-4 items-center justify-center rounded-full bg-foreground text-background group-hover:flex"><X className="size-2.5" /></button>
               </span>

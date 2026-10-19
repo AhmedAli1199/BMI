@@ -241,6 +241,8 @@ class EditionCosts(BaseModel):
     by_category: dict[str, float] = {}
     by_booking: list[CostByBooking] = []
     categories: dict[str, str] = COST_CATEGORIES
+    # Whether the person asking may add, change or remove lines (same rule the server applies when they try).
+    can_edit: bool = False
 
 
 class EditionDetail(EditionSummary):
@@ -453,6 +455,7 @@ class Dashboard(BaseModel):
     pace: list[PaceRow]
     weekly: list[WeekPoint]
     activity_days: int
+    activity_since: date | None = None  # the first day the activity table counts (bookings from then on)
     activity: list[ActivityRow]
     unattributed: Unattributed
     unattributed_year: int
@@ -961,7 +964,7 @@ def dashboard(basis: str | None = None, db: Session = Depends(get_db)) -> Dashbo
     )
     return Dashboard(
         as_of=today, year_to_date=ytd, threshold_pct=threshold, min_prior_gbp=min_gbp, min_prior_orders=min_orders,
-        pace=pace, weekly=weekly, activity_days=ACTIVITY_DAYS, activity=activity,
+        pace=pace, weekly=weekly, activity_days=ACTIVITY_DAYS, activity_since=since, activity=activity,
         unattributed=Unattributed(orders=un[0], value_gbp=round(float(un[1]), 2)), unattributed_year=cur_year,
         unattributed_label=period_label(cur_year, financial, start_month),
     )
@@ -1071,7 +1074,7 @@ def compare_editions(a: uuid.UUID, b: uuid.UUID, db: Session = Depends(get_db)) 
 
 
 @router.get("/editions/{edition_id}", response_model=EditionDetail)
-def get_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionDetail:
+def get_edition(edition_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> EditionDetail:
     ed = _get_edition(db, edition_id)
     summary = _edition_summaries(db, [ed], date.today())[0]
     orders = db.scalars(select(SalesOrder).where(SalesOrder.edition_id == ed.id)
@@ -1096,7 +1099,7 @@ def get_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> Edition
         **summary.model_dump(),
         notes=ed.notes, source=f"{ed.source_file} › {ed.source_sheet}" if ed.source_file else None,
         digital_url=ed.digital_url, renews_from=ref(equivalent_editions(db, [ed]).get(ed.id)),
-        costs=_edition_costs(db, ed, summary.booked_gbp),
+        costs=_edition_costs(db, ed, summary.booked_gbp, identity),
         orders_list=orders_out, by_rep=sorted(by_rep.values(), key=lambda c: -c.amount_gbp),
         cancelled_or_moved=sum(1 for o in orders_out if o.status in ("cancelled", "moved")),
         next_edition=ref(nxt),
@@ -1142,7 +1145,17 @@ def update_edition(edition_id: uuid.UUID, payload: EditionPatch, db: Session = D
     return _edition_summaries(db, [ed], date.today())[0]
 
 
-def _edition_costs(db: Session, ed: SalesEdition, booked: float) -> EditionCosts:
+def _may_edit_costs(db: Session, ed: SalesEdition, identity: Identity) -> bool:
+    from app.api.routes.commission import can_edit_costs
+
+    try:
+        can_edit_costs(db, ed, identity)
+    except HTTPException:
+        return False
+    return True
+
+
+def _edition_costs(db: Session, ed: SalesEdition, booked: float, identity: Identity) -> EditionCosts:
     rows = db.scalars(select(SalesEditionCost).where(SalesEditionCost.edition_id == ed.id)
                       .order_by(SalesEditionCost.sort_order, SalesEditionCost.created_at)).all()
     cost_rows = [r for r in rows if r.kind == "cost"]
@@ -1177,7 +1190,7 @@ def _edition_costs(db: Session, ed: SalesEdition, booked: float) -> EditionCosts
                            amount_inc_vat_gbp=float(r.amount_inc_vat_gbp) if r.amount_inc_vat_gbp is not None else None,
                            category=r.category, budget_gbp=float(r.budget_gbp) if r.budget_gbp is not None else None, order=oref(r.order_id))
                for r in rows],
-        total_costs_gbp=costs, other_income_gbp=income,
+        total_costs_gbp=costs, other_income_gbp=income, can_edit=_may_edit_costs(db, ed, identity),
         # A sponsorship "income" line restates the bookings on TBTM sheets, so
         # profit is bookings - costs; other income is shown, not added.
         profit_gbp=round(booked - costs, 2) if has_costs else None,
@@ -1210,9 +1223,9 @@ def _costs_editable(db: Session, ed: SalesEdition, identity: Identity) -> None:
 
 
 @router.get("/editions/{edition_id}/costs", response_model=EditionCosts)
-def get_costs(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> EditionCosts:
+def get_costs(edition_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> EditionCosts:
     ed = _get_edition(db, edition_id)
-    return _edition_costs(db, ed, _edition_summaries(db, [ed], date.today())[0].booked_gbp)
+    return _edition_costs(db, ed, _edition_summaries(db, [ed], date.today())[0].booked_gbp, identity)
 
 
 @router.post("/editions/{edition_id}/costs", response_model=EditionCosts, status_code=201)
@@ -1224,7 +1237,7 @@ def add_cost(edition_id: uuid.UUID, payload: CostLineIn, db: Session = Depends(g
     db.add(SalesEditionCost(id=uuid.uuid4(), edition_id=ed.id, sort_order=last + 1,
                             **{**payload.model_dump(), "label": payload.label.strip()}))
     db.commit()
-    return get_costs(edition_id, db)
+    return get_costs(edition_id, db, identity)
 
 
 @router.put("/editions/{edition_id}/costs/{cost_id}", response_model=EditionCosts)
@@ -1239,7 +1252,7 @@ def update_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, payload: CostLineIn, 
     for k, v in payload.model_dump().items():
         setattr(line, k, v.strip() if isinstance(v, str) else v)
     db.commit()
-    return get_costs(edition_id, db)
+    return get_costs(edition_id, db, identity)
 
 
 @router.delete("/editions/{edition_id}/costs/{cost_id}", response_model=EditionCosts)
@@ -1250,7 +1263,7 @@ def delete_cost(edition_id: uuid.UUID, cost_id: uuid.UUID, db: Session = Depends
         _costs_editable(db, _get_edition(db, edition_id), identity)
         db.delete(line)
         db.commit()
-    return get_costs(edition_id, db)
+    return get_costs(edition_id, db, identity)
 
 
 class CostReportRow(BaseModel):
@@ -1500,13 +1513,13 @@ EXPORT_STATUS = {"booked": "", "pencilled": "Pencilled", "cancelled": "CANX", "c
 
 
 @router.get("/editions/{edition_id}/export")
-def export_edition(edition_id: uuid.UUID, db: Session = Depends(get_db)) -> StreamingResponse:
+def export_edition(edition_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> StreamingResponse:
     """The edition as an .xlsx in the SOR sheet's own layout, so finance
     can keep working from a familiar sheet during the switch-over."""
     import openpyxl
     from openpyxl.styles import Alignment, Font, PatternFill
 
-    detail = get_edition(edition_id, db)
+    detail = get_edition(edition_id, db, identity)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = detail.name[:31]
@@ -1724,8 +1737,8 @@ def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends
         if locked or payload.credits is not None:
             from app.models import SalesDeal
             deal = db.get(SalesDeal, order.deal_id)
-            raise HTTPException(status_code=409, detail=f"This item is part of order {deal.number if deal else ''}. Change the client, issue, "
-                                                        "price or salesperson on the order, so the confirmation and every item stay in step.")
+            raise HTTPException(status_code=409, detail=f"This item is part of booking {deal.number if deal else ''}. Change the client, issue, "
+                                                        "price or salesperson on the booking, so the confirmation and every item stay in step.")
     before = {k: getattr(order, k) for k in _AUDITED}
     old_rep, old_value = order.rep_id, float(order.value_gbp or 0)
     for k, v in data.items():
@@ -1768,6 +1781,11 @@ def delete_order(order_id: uuid.UUID, db: Session = Depends(get_db), identity: I
     if not _is_staff(identity):
         raise HTTPException(status_code=403, detail="Only administrators and data managers can delete a booking - mark it cancelled instead.")
     order = _get_order(db, order_id)
+    if order.deal_id:
+        from app.models import SalesDeal
+        deal = db.get(SalesDeal, order.deal_id)
+        raise HTTPException(status_code=409, detail=f"This item is part of booking {deal.number if deal else ''}. "
+                                                    "Remove it or cancel it on the booking, so the confirmation stays in step.")
     db.delete(order)
     db.commit()
 

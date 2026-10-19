@@ -20,7 +20,7 @@ from app.api.routes.automations import require_staff
 from app.api.routes.review_queue import _apply_scope
 from app.automations import get_kind
 from app.automations.scheduler import all_jobs, is_enabled, plain_run_error
-from app.automations.workstreams import KIND_COST_PREFIX, KIND_JOB, WORKSTREAMS, get_workstream
+from app.automations.workstreams import KIND_COST_PREFIX, KIND_JOB, WORKSTREAMS, get_workstream, kinds_for_job, source_for
 from app.core.identity import Identity
 from app.db.session import get_db
 from app.models import AutomationJobRun, LlmUsageEvent, ReviewQueueItem, User
@@ -54,6 +54,8 @@ class JobSummary(BaseModel):
     label: str
     cron: str
     enabled: bool
+    # False for a job that doesn't make review cards (its "found" count would always be 0)
+    makes_cards: bool = True
     last_run: JobRunOut | None = None
 
 
@@ -83,6 +85,9 @@ class AutomationStats(Totals):
     label: str
     description: str
     job: JobSummary | None = None
+    # For a kind no scheduled job makes: where its cards come from (short label + one sentence).
+    source_label: str | None = None
+    source_text: str | None = None
     daily_new: list[int]
 
 
@@ -165,7 +170,7 @@ def _job_lookup(db: Session) -> dict[str, JobSummary]:
     for j in all_jobs():
         run = latest.get(j.id)
         out[j.id] = JobSummary(
-            id=j.id, label=j.label, cron=j.cron, enabled=is_enabled(j),
+            id=j.id, label=j.label, cron=j.cron, enabled=is_enabled(j), makes_cards=bool(kinds_for_job(j.id)),
             last_run=_run_out(run) if run else None,
         )
     return out
@@ -303,9 +308,11 @@ def workstream_stats(
             continue
         r = per_kind.get(k, {})
         job_id = KIND_JOB.get(k)
+        source = None if job_id else source_for(k)
         automations.append(AutomationStats(
             kind=k, label=kd.label, description=kd.description,
             job=jobs.get(job_id) if job_id else None,
+            source_label=source[0] if source else None, source_text=source[1] if source else None,
             pending=r.get("pending", 0), oldest_pending_at=r.get("oldest_pending_at"),
             new=r.get("new", 0), resolved=r.get("resolved", 0),
             approved=r.get("approved", 0), rejected=r.get("rejected", 0),

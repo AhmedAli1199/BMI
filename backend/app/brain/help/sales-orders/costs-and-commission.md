@@ -88,14 +88,14 @@ In **What's paid**. Advances already paid for this month come off the cheque amo
 
 ### Settings box (Commission plans)
 - **A booking counts in the month**: its issue publishes or event runs (the default), or it was booked.
-- **New business means no spend in the last <n> months** (24 by default).
+- **New business means no spend in the last <n> months** (24 by default). You can clear the box while typing; **Save** checks it's a whole number from 1 to 120.
 - **A new customer's first deal is**: everything on their first invoice (BMI's rule), or bookings within a number of days.
 - **Event profit is worked out from**: the whole event's income, or only their own sales on it.
 - **Held back for PAYE/NIC** (35% by default).
 **Save** applies it (unapproved months are worked out again); **Undo** puts back what was there. Admins only.
 
 ### Add a product / pencil (Commission plans)
-Admins only. Opens a side panel for one product group: **Product group**, **Titles it covers**, **Rate on their revenue (%)** (required), **Extra on new business (%)**, **New business rate changes for issues from** and **...to (%)**, **Bonus per new customer (£)**, **Bonus per new contract-publishing guide (£)**, **Bonus when a title's yearly revenue passes (£)** and **...this much (£)**, **Share of each event's profit (%)**, **Bonus per event attendance (£)**, **Only issues named with** / **Except issues named with**, **Applies from** / **Until**, and **Notes**. Leave a box empty if it doesn't apply. **Save**, **Cancel**, or **Remove** (asks first).
+Admins only. Opens a side panel for one product group: **Product group**, **Titles it covers**, **Rate on their revenue (%)** (required), **Extra on new business (%)**, **New business rate changes for issues from** and **...to (%)**, **Bonus per new customer (£)**, **Bonus per new contract-publishing guide (£)**, **Bonus when a title's revenue in a calendar year passes (£)** and **...this much (£)**, **Share of each event's profit (%)**, **Bonus per event attendance (£)**, **Only issues named with** / **Except issues named with**, **Applies from** / **Until**, and **Notes**. Leave a box empty if it doesn't apply. **Save**, **Cancel**, or **Remove** (asks first).
 
 ### New business tick box on a booking
 On a booking's edit panel, the salesperson on the booking (or a manager) ticks **New business** themselves. **Use the suggestion** goes back to the automatic one.
@@ -107,7 +107,7 @@ On a booking's edit panel, the salesperson on the booking (or a manager) ticks *
 - **Their revenue** is the salesperson's credited share of each booking, after any agency's cut. Cancelled, contra and moved bookings earn nothing.
 - **Commission** = their revenue x the plan's rate for that title. A title not in their plan uses their standard rate (2% by default) and is flagged "not in plan". A rule limited by issue names (for example "Hub") wins over the title's general rule.
 - **New business:** the salesperson ticks it on the booking; managers check it each month. Until someone ticks it, the Brain suggests it: new if the customer had no booked spend or paid invoice in the look-back (24 months). Everything on a new customer's first invoice counts. If a similar name has spent recently, it's "Needs a decision", earns no top-up, and the month can't be approved until it's decided.
-- **Bonuses:** per new customer; per new contract-publishing guide (ticked on the guide's edition page, paid when it publishes); when a title's revenue for the calendar year passes a set amount (paid once, in the month it passes); and per event attendance.
+- **Bonuses:** per new customer; per new contract-publishing guide (ticked on the guide's edition page, paid when it publishes); when a title's revenue for the calendar year (1 January to 31 December, as in Matt's note - even when the sales screens show the July-June financial year) passes a set amount (paid once, in the month it passes); and per event attendance.
 - **Event profit share:** paid in the month the event's costs are signed off. A loss pays £0 profit share (their own commission on sales still applies).
 - **What's paid:** total, less retention for PAYE/NIC (35% by default), less advances, gives the cheque amount.
 - **Approving** freezes the month. If bookings for an approved month change later, the difference appears once, as an adjustment on the next statement.

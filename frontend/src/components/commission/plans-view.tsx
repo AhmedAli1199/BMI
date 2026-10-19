@@ -48,7 +48,7 @@ export function PlansView({ data }: { data: CommissionPlans }) {
                         {r.new_business_rate_change_on && r.new_business_rate_after != null ? ` (${pctLabel(r.new_business_rate_after)} for issues from ${fmtDate(r.new_business_rate_change_on)})` : ""}
                         {r.new_client_bonus_gbp ? ` · ${fmtGBP(r.new_client_bonus_gbp)} per new customer` : ""}
                         {r.new_guide_bonus_gbp ? ` · ${fmtGBP(r.new_guide_bonus_gbp)} per new contract-publishing guide` : ""}
-                        {r.threshold_bonus_gbp && r.threshold_gbp ? ` · ${fmtGBP(r.threshold_bonus_gbp)} when a title passes ${fmtGBP(r.threshold_gbp)} in a year` : ""}
+                        {r.threshold_bonus_gbp && r.threshold_gbp ? ` · ${fmtGBP(r.threshold_bonus_gbp)} when a title passes ${fmtGBP(r.threshold_gbp)} in a calendar year` : ""}
                         {r.event_profit_rate ? ` · ${pctLabel(r.event_profit_rate)} of each event's profit` : ""}
                         {r.attendance_bonus_gbp ? ` · ${fmtGBP(r.attendance_bonus_gbp)} per event attendance` : ""}
                       </p>
@@ -81,8 +81,25 @@ export function PlansView({ data }: { data: CommissionPlans }) {
 function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; canEdit: boolean }) {
   const router = useRouter();
   const [s, setS] = useState(settings);
+  // typed as text so the boxes can be empty while someone types; checked on Save
+  const [lookback, setLookback] = useState(String(settings.lookback_months));
+  const [days, setDays] = useState(String(settings.first_deal_days));
   const [pending, start] = useTransition();
-  const dirty = JSON.stringify(s) !== JSON.stringify(settings);
+  const dirty = JSON.stringify(s) !== JSON.stringify(settings) || lookback !== String(settings.lookback_months) || days !== String(settings.first_deal_days);
+  const save = () => {
+    const months = Number(lookback);
+    if (lookback.trim() === "" || !Number.isInteger(months) || months < 1 || months > 120) {
+      return toast.error("Enter the new business look-back as a whole number of months, from 1 to 120.");
+    }
+    const d = s.first_deal_rule === "days" ? Number(days) : s.first_deal_days;
+    if (s.first_deal_rule === "days" && (days.trim() === "" || !Number.isInteger(d) || d < 0 || d > 366)) {
+      return toast.error("Enter the first deal's days as a whole number, from 0 to 366.");
+    }
+    start(async () => {
+      try { await saveCommissionSettings({ ...s, lookback_months: months, first_deal_days: d }); toast.success("Saved - unapproved months are worked out again"); router.refresh(); }
+      catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
+    });
+  };
   return (
     <section className="rounded-xl border border-border/80 bg-card p-4 shadow-2xs" aria-labelledby="cs-h">
       <h2 id="cs-h" className="mb-3 flex items-center gap-1 text-sm font-bold">How the plans are applied <InfoHint>These are the answers to BMI&apos;s open questions about the structure, so a change here is all it takes when a rule is clarified.</InfoHint></h2>
@@ -94,7 +111,7 @@ function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; can
           </select>
         </label>
         <label className={labelCls}>New business means no spend in the last
-          <span className="flex items-center gap-2"><Input type="number" min={1} max={120} disabled={!canEdit} value={s.lookback_months} onChange={(e) => setS({ ...s, lookback_months: Number(e.target.value) || 24 })} className="h-8 w-20 text-sm" /><span className="font-normal">months</span></span>
+          <span className="flex items-center gap-2"><Input type="number" min={1} max={120} disabled={!canEdit} value={lookback} onChange={(e) => setLookback(e.target.value)} className="h-8 w-20 text-sm" /><span className="font-normal">months</span></span>
         </label>
         <label className={labelCls}>
           <span className="flex items-center gap-1">A new customer&apos;s first deal is <InfoHint>Matt&apos;s rule: everything on the new customer&apos;s first invoice gets the new business rate. Items added later on a different invoice don&apos;t.</InfoHint></span>
@@ -103,7 +120,7 @@ function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; can
             <option value="days">bookings within a number of days</option>
           </select>
           {s.first_deal_rule === "days" && (
-            <span className="flex items-center gap-2"><Input type="number" min={0} max={366} disabled={!canEdit} value={s.first_deal_days} onChange={(e) => setS({ ...s, first_deal_days: Number(e.target.value) || 0 })} className="h-8 w-20 text-sm" aria-label="Days" /><span className="font-normal">days after the first booking</span></span>
+            <span className="flex items-center gap-2"><Input type="number" min={0} max={366} disabled={!canEdit} value={days} onChange={(e) => setDays(e.target.value)} className="h-8 w-20 text-sm" aria-label="Days" /><span className="font-normal">days after the first booking</span></span>
           )}
         </label>
         <label className={labelCls}>Event profit is worked out from
@@ -119,11 +136,8 @@ function SettingsCard({ settings, canEdit }: { settings: CommissionSettings; can
       </div>
       {canEdit && dirty && (
         <div className="mt-3 flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setS(settings)}>Undo</Button>
-          <Button size="sm" disabled={pending} onClick={() => start(async () => {
-            try { await saveCommissionSettings(s); toast.success("Saved - unapproved months are worked out again"); router.refresh(); }
-            catch (e) { toast.error(friendlyError(e, "Couldn't save")); }
-          })}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save</Button>
+          <Button size="sm" variant="ghost" onClick={() => { setS(settings); setLookback(String(settings.lookback_months)); setDays(String(settings.first_deal_days)); }}>Undo</Button>
+          <Button size="sm" disabled={pending} onClick={save}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save</Button>
         </div>
       )}
     </section>
@@ -195,7 +209,7 @@ function RuleForm({ rep, rule, titles, onDone }: { rep: Rep; rule: CommissionRul
         <div className="grid grid-cols-2 gap-3">
           <label className={labelCls}>Bonus per new customer (£)<Input inputMode="decimal" value={f.client} onChange={set("client")} className="h-8 text-sm" /></label>
           <label className={labelCls}>Bonus per new contract-publishing guide (£)<Input inputMode="decimal" value={f.guide} onChange={set("guide")} className="h-8 text-sm" /></label>
-          <label className={labelCls}>Bonus when a title&apos;s yearly revenue passes (£)<Input inputMode="decimal" value={f.tBonus} onChange={set("tBonus")} placeholder="Bonus" className="h-8 text-sm" /></label>
+          <label className={labelCls}><span className="flex items-center gap-1">Bonus when a title&apos;s revenue in a calendar year passes (£) <InfoHint>Counted from 1 January to 31 December, as in Matt&apos;s note (&ldquo;passes £8,000 in a calendar year&rdquo;), even when the sales screens show the July to June financial year. Paid in the month the total is passed.</InfoHint></span><Input inputMode="decimal" value={f.tBonus} onChange={set("tBonus")} placeholder="Bonus" className="h-8 text-sm" /></label>
           <label className={labelCls}>...this much (£)<Input inputMode="decimal" value={f.threshold} onChange={set("threshold")} placeholder="8000" className="h-8 text-sm" /></label>
           <label className={labelCls}>Share of each event&apos;s profit (%)<Input inputMode="decimal" value={f.event} onChange={set("event")} className="h-8 text-sm" /></label>
           <label className={labelCls}><span className="flex items-center gap-1">Bonus per event attendance (£) <InfoHint>For example £75 for each Selling Travel Connect attendance. The number is entered for each event on the statement.</InfoHint></span><Input inputMode="decimal" value={f.attend} onChange={set("attend")} placeholder="75" className="h-8 text-sm" /></label>

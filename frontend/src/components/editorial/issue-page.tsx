@@ -42,8 +42,8 @@ export function IssuePage({ issue, pitch }: { issue: IssueDetail; pitch: PitchLi
         description={[issue.title_name, KIND_LABELS[issue.kind], issue.period_label, issue.format && FORMAT_LABELS[issue.format]].filter(Boolean).join(" · ")}
         actions={
           <>
-            {issue.prev_issue && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/editorial/issues/${issue.prev_issue.id}`} />}><ArrowLeft className="size-3.5" /> {issue.prev_issue.name}</Button>}
-            {issue.next_issue && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/editorial/issues/${issue.next_issue.id}`} />}>{issue.next_issue.name} <ArrowRight className="size-3.5" /></Button>}
+            {issue.prev_issue && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/editorial/issues/${issue.prev_issue.id}`} />}><ArrowLeft className="size-3.5" /> {issueLabel({ name: issue.prev_issue.name, kind: issue.kind })}</Button>}
+            {issue.next_issue && <Button size="sm" variant="ghost" className="gap-1" nativeButton={false} render={<Link href={`/editorial/issues/${issue.next_issue.id}`} />}>{issueLabel({ name: issue.next_issue.name, kind: issue.kind })} <ArrowRight className="size-3.5" /></Button>}
             <Button size="sm" variant="outline" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/editions/${issue.id}`} />}><FileText className="size-3.5" /> Bookings in the order register</Button>
             <Button size="sm" className="gap-1.5" nativeButton={false} render={<Link href={`/sales/proposals/new?edition=${issue.id}`} />}>Pitch this issue</Button>
           </>
@@ -108,7 +108,7 @@ function DateRow({ label, value, hint }: { label: string; value: string | null; 
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto_7rem] items-center gap-3 px-4 py-2.5 text-sm">
       <span className="font-medium">{label}{hint && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{hint}</span>}</span>
-      <span className="tabular-nums">{value ? fmtDay(value, true) : <span className="text-muted-foreground">Not set</span>}</span>
+      <span className="tabular-nums">{value ? fmtDay(value, true) : <span className="text-muted-foreground">No date yet</span>}</span>
       <span className="text-right text-xs font-semibold" style={{ color: d !== null && d >= 0 ? countdownColor(d) : undefined }}>{d === null ? "" : d < 0 ? <span className="font-normal text-muted-foreground">Done</span> : daysLabel(d)}</span>
     </li>
   );
@@ -156,7 +156,7 @@ function KeyDates({ issue, canEdit, isPrint }: { issue: IssueDetail; canEdit: bo
         <ul className="divide-y divide-border/60">
           {[...allDates.map(([k, label, hint]) => ({ label, hint, value: issue[k as keyof IssueDetail] as string | null })),
             ...issue.milestones.map((m) => ({ label: m.label, hint: "", value: m.date }))]
-            .filter((r) => r.value || r.label.startsWith("Publication") || r.label === "Advertising deadline")
+            // every key date shows, dated or not - an undated one says "No date yet" (it sorts last)
             .sort((a, b) => (a.value ?? "9999").localeCompare(b.value ?? "9999"))
             .map((r) => <DateRow key={r.label} label={r.label} value={r.value} hint={r.hint || undefined} />)}
         </ul>

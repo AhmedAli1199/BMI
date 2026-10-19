@@ -96,7 +96,7 @@ def _difference_groups(explained: bool):
                 select(1).where(g.c.ed == SalesOrder.edition_id, g.c.ck == client_key).exists())
 
 
-XERO_STATES = ("paid", "part_paid", "unpaid", "overdue", "voided", "not_in_xero")
+XERO_STATES = ("draft", "paid", "part_paid", "unpaid", "overdue", "voided", "not_in_xero")
 
 
 def xero_state():

@@ -43,6 +43,7 @@ export default async function SalesDashboardPage({ searchParams }: { searchParam
   const basis = rawBasis === "calendar" || rawBasis === "financial" ? `?basis=${rawBasis}` : "";
   const [d, hidden] = await Promise.all([backendFetch<SalesDashboard>(`/api/sales/dashboard${basis}`), hiddenSections()]);
   const ytd = d.year_to_date;
+  const activitySince = d.activity_since ?? "";
   const behind = d.pace.filter((p) => p.state === "behind").length;
   const ahead = d.pace.filter((p) => p.state === "ahead").length;
   const weeklyTotal = d.weekly.reduce((s, w) => s + w.value_gbp, 0);
@@ -185,7 +186,7 @@ export default async function SalesDashboardPage({ searchParams }: { searchParam
               {d.activity.map((a) => (
                 <tr key={a.rep.id} className="border-b border-border/60 last:border-0 hover:bg-accent/40">
                   <td className="px-4 py-2.5">
-                    <Link href={`/sales/bookings?rep=${a.rep.id}`} className="font-semibold text-foreground hover:text-primary hover:underline">
+                    <Link href={`/sales/bookings?rep=${a.rep.id}&status=booked&booked_from=${activitySince}`} className="font-semibold text-foreground hover:text-primary hover:underline">
                       {a.rep.name}
                     </Link>
                     {!a.rep.active && <span className="text-xs text-muted-foreground"> · former</span>}

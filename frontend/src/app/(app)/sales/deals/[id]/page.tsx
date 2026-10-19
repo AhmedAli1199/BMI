@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, CalendarClock, ShieldAlert, ShieldCheck, ExternalLink } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
-import type { Deal, DealScheduleRow } from "@/lib/deals-types";
+import type { Deal, DealScheduleRow, DealSettings } from "@/lib/deals-types";
+import type { SalesMeta } from "@/lib/sales-types";
 import { DealActions } from "@/components/deals/deal-actions";
 import { InvoiceDue, LockControls } from "@/components/deals/deal-invoicing";
 import { XeroInvoiceButton } from "@/components/deals/xero-invoice-button";
@@ -48,6 +49,13 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
   } catch {
     notFound();
   }
+  // A locked booking's hand-offs are changed on this page (the edit form is closed), so the editor needs the routing table.
+  const [handoffMeta, handoffSettings] = d.locked && (d.can_edit || d.can_approve)
+    ? await Promise.all([
+        backendFetch<SalesMeta>("/api/sales/meta").catch(() => null),
+        backendFetch<DealSettings>("/api/sales/deals/settings").catch(() => null),
+      ])
+    : [null, null];
   const t = d.totals;
   const live = d.schedule.filter((r) => r.status !== "cancelled");
   const ready = live.filter((r) => r.ready_to_invoice);
@@ -227,7 +235,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </table>
       </section>
 
-      <DealHandoffs deal={d} />
+      <DealHandoffs deal={d} titles={handoffMeta?.titles ?? []} routes={handoffSettings?.handoff_routes} productionEmails={handoffSettings?.production_emails ?? ""} />
 
       <section className="grid gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-2xs sm:grid-cols-2 lg:grid-cols-4" aria-label="Details">
         <Detail label="Their contact">{[d.contact_name, d.contact_email].filter(Boolean).join("\n")}</Detail>

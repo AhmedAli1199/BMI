@@ -13,7 +13,7 @@ Proposals are where a salesperson puts together an offer for a client. You pick 
 - Buttons across the top: **Report**, **How you write**, **Examples library** and **New proposal**.
 - If you haven't set up your writing style yet, a strip invites you to teach the Brain how you write, with a **Start** link.
 - A table of proposals: Client (click to open), Campaign, Title, Total (before VAT), Status and By (who made it). Status is a grey **Draft** badge, or a coloured **Sent <date>** badge.
-- Salespeople see only the proposals they made. Admins and data managers see everyone's. The list shows the latest 200.
+- Salespeople see only the proposals they made. Admins and data managers see everyone's. The list shows the newest 200; **Show more** at the bottom adds the next 200.
 
 **New proposal**
 - Client (required), Who it's for (optional contact), Title, Which issue, Word template and Campaign name.
@@ -118,7 +118,7 @@ Opens **Email the proposal**: To, Cc (optional), Subject, a message (or, when se
 For a proposal you sent another way. Choose **Emailed the downloaded file** or **Another way**, set the follow-up days, and press **Log it**.
 
 ### Delete draft
-Deletes a draft (it asks first). Sent proposals are kept on record and can't be deleted.
+Deletes a draft (it asks first). Sent proposals are kept on record and can't be deleted. If it can't be deleted, a message says so and the draft stays.
 
 ### They said yes: make the booking / They chose <option>: make the booking
 Shown once a proposal is sent. Opens a new booking already filled in from the proposal: the client, contact, products, issues and discounts. If the proposal has options, there's one button per option. Check the issues and prices, then confirm the booking as usual.

@@ -38,9 +38,9 @@ Searches client, invoice number, order reference, size, notes, reason for differ
 ### Filters (All items)
 - **Year**, **Type** (Print, Digital, Events, Awards), **Title**
 - **Salesperson** - includes bookings the person shares a credit on
-- **Status** - Booked, Cancelled, Contra, Moved
+- **Status** - Booked, Pencilled (held for the client, not confirmed yet), Cancelled, Contra, Moved
 - **Invoice** - Invoiced / Awaiting invoice (live bookings with a value and no invoice number)
-- **Payment (Xero)** - Paid, Part paid, Unpaid, Overdue, Voided, Not found in Xero
+- **Payment (Xero)** - Draft in Xero (the invoice is made in Xero but not sent to the client yet), Paid, Part paid, Unpaid, Overdue, Voided, Not found in Xero
 - **CRM company** - Linked / Not linked
 - **Import check** - Needs a check / No issues
 - **Filler ads** - Filler ads / Sold space
@@ -61,12 +61,13 @@ Opens the item sheet on the right. Clicking the CRM company opens the company; c
 - **Size / product**, **Series**, **Page / position**, **Value (£)**, **Rate (US$)**, **Booked on**.
 - **Credited to** and **Split** - share a booking between salespeople. **Add person** adds another share and the bin beside a share (**Remove this share**) takes it off; the shares total is shown in amber if it doesn't match the value. **Go back to one salesperson** undoes the split.
 - **Invoice** - **Invoice number**, **Invoiced (£)**, **Invoiced on**, **Agency cut (£)** and **Reason for difference**. When the item is linked to a Xero invoice the amount and date come from Xero and can't be typed. **Open in Xero**, picking an invoice from Xero, and undoing a match are covered in the "Invoicing" guide.
-- **Status** - **Booked**, **Cancelled**, **Contra** or **Moved**. For Moved, choose the edition under **Moved to** (this year's or next year's editions of the same title).
+- **Status** - **Booked**, **Pencilled**, **Cancelled**, **Contra** or **Moved**. Pencilled items are held for the client but not counted in totals or commission. For Moved, choose the edition under **Moved to** (this year's or next year's editions of the same title).
 - **Notes** and the **Filler ad** tick box.
 - **Mark checked** - on items the spreadsheet import flagged, once you've checked them.
 - **Show change history** - who changed what, and when.
 - **Save changes** (or **Add item**), **Cancel**.
-- **Delete** - administrators and data managers only. It can't be undone; use **Cancelled** to keep a record instead.
+- **Delete** - administrators and data managers only, and only for an item with no booking behind it. It can't be undone; use **Cancelled** to keep a record instead. For an item that belongs to a booking, **Remove it on the booking** opens the booking in a new tab instead.
+- On an item that belongs to a booking, the client, CRM company, value, booking date, agency cut and salesperson are shown but can't be typed in; **Change this on the booking** opens the booking in a new tab.
 
 ### Financial year / Calendar year and year buttons (Renewals)
 Choose which year counts as "this year". Financial years run July to June. Last year's advertisers are the ones who booked into the previous year's editions.
@@ -137,7 +138,8 @@ A: Their new booking may be under a different client name and not linked to the 
 
 ## If something doesn't work
 - **"This item is part of order <number>. Change the client, issue, price or salesperson on the order..."** Open the booking (the link at the top of the item sheet says "Part of Order <number>") and make the change there.
-- **Delete is missing.** Only administrators and data managers can delete items.
+- **Delete is missing.** Only administrators and data managers can delete items, and an item that belongs to a booking is removed or cancelled on the booking (**Remove it on the booking**).
+- **"This item is part of booking N..."** Open the booking (**Change this on the booking**) and change it there.
 - **"Only administrators and data managers can delete a booking - mark it cancelled instead."** Use **Cancelled** instead.
 - **"Enter the client's name."** The client box is empty.
 - **"Amounts must be numbers, e.g. 1250 or 1250.50."** Remove any letters from the money boxes.

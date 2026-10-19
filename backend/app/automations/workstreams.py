@@ -82,6 +82,22 @@ KIND_JOB: dict[str, str | None] = {
     "proposal_request": "proposal_request_scan",
 }
 
+# Where the cards come from for a kind no scheduled job makes (KIND_JOB None): a short label for the table's
+# Scanner column and a sentence for its detail panel.
+KIND_SOURCE: dict[str, tuple[str, str]] = {
+    "business_card_new": ("Photo upload", "Made when someone uploads a photo of a business card, not by a scheduled scanner."),
+    "business_card_existing": ("Photo upload", "Made when someone uploads a photo of a business card, not by a scheduled scanner."),
+    "returned_copy": ("Photo upload", "Made when someone uploads photos of returned post, not by a scheduled scanner."),
+    "order_check": ("When a booking is confirmed", "Made when a salesperson confirms a booking, so accounts can check it before invoicing."),
+    "booking_change": ("When a change is asked for", "Made when someone asks to change a booking accounts have already checked."),
+    "online_booking": ("Online booking forms", "Made when a client fills in one of BMI's online booking forms."),
+    "call_notes": ("After a call", "Made when the notetaker finishes a call and its notes are ready."),
+}
+
+
+def source_for(kind: str) -> tuple[str, str]:
+    return KIND_SOURCE.get(kind, ("Made in the app", "Made by something people do in the app, not by a scheduled scanner."))
+
 
 # Which llm_usage_events.purpose prefix belongs to which kind, for the
 # per-automation AI cost figure. A prefix shared by several kinds (the

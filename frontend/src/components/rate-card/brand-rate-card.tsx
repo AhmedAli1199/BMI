@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCheck, Download, FolderPlus, Loader2, PackageOpen, Pencil, Plus, Printer, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -234,24 +234,38 @@ function PriceCell({ item, canEdit, onChanged }: { item: RateItem; canEdit: bool
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   const [pending, start] = useTransition();
+  const done = useRef(false); // Enter or Escape already handled it - the blur that follows does nothing
   const sub = item.price_type === "from" ? "starting price" : item.unit !== "each" ? { month: "per month", week: "per week", year: "per year", event: "per event", entry: "per entry" }[item.unit] : null;
   const main = item.price_gbp == null ? "On request" : `£${item.price_gbp.toLocaleString("en-GB", { minimumFractionDigits: item.price_gbp % 1 ? 2 : 0 })}`;
 
   if (editing) {
-    const save = () => {
+    const save = (fromBlur = false) => {
       const n = Number(value.replace(/[£,\s]/g, ""));
-      if (value.trim() === "" || Number.isNaN(n) || n < 0) return toast.error("Type a price in pounds, e.g. 2990");
-      if (item.price_gbp && (n > item.price_gbp * 5 || n < item.price_gbp / 5) && !window.confirm(`Change ${item.product} from £${item.price_gbp.toLocaleString("en-GB")} to £${n.toLocaleString("en-GB")}? That's a big change.`)) return;
+      if (fromBlur && (value.trim() === "" || n === item.price_gbp)) return setEditing(false); // nothing changed
+      if (value.trim() === "" || Number.isNaN(n) || n < 0) {
+        if (fromBlur) setEditing(false);
+        return toast.error(fromBlur ? "Price not changed - type a price in pounds, e.g. 2990" : "Type a price in pounds, e.g. 2990");
+      }
+      done.current = true; // the confirm box below takes the focus - don't save twice
+      if (item.price_gbp && (n > item.price_gbp * 5 || n < item.price_gbp / 5) && !window.confirm(`Change ${item.product} from £${item.price_gbp.toLocaleString("en-GB")} to £${n.toLocaleString("en-GB")}? That's a big change.`)) {
+        done.current = false;
+        if (fromBlur) setEditing(false);
+        return;
+      }
       start(async () => {
         try { await editRateItem(item.id, { price_gbp: n, price_type: item.price_type === "poa" ? "fixed" : item.price_type }); toast.success(`${item.product}: £${n.toLocaleString("en-GB")}`); setEditing(false); onChanged(); }
-        catch (e) { toast.error(friendlyError(e, "Couldn't save the price")); }
+        catch (e) { done.current = false; toast.error(friendlyError(e, "Couldn't save the price")); }
       });
     };
     return (
       <span className="inline-flex items-center gap-1">
         <span className="text-sm text-muted-foreground">£</span>
         <Input autoFocus aria-label={`New price for ${item.product}`} inputMode="decimal" value={value} disabled={pending} onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }} onBlur={() => !pending && setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") { done.current = true; setEditing(false); }
+          }}
+          onBlur={() => { if (!pending && !done.current) save(true); }}
           className="h-8 w-28 text-right tabular-nums" />
       </span>
     );
@@ -263,7 +277,7 @@ function PriceCell({ item, canEdit, onChanged }: { item: RateItem; canEdit: bool
     </>
   );
   return canEdit ? (
-    <button type="button" onClick={() => { setValue(item.price_gbp != null ? String(item.price_gbp) : ""); setEditing(true); }} title="Click to change the price"
+    <button type="button" onClick={() => { setValue(item.price_gbp != null ? String(item.price_gbp) : ""); done.current = false; setEditing(true); }} title="Click to change the price, then press Enter or click away to save (Escape cancels)"
       className="rounded-md px-2 py-0.5 text-right hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">{content}</button>
   ) : <span className="px-2">{content}</span>;
 }

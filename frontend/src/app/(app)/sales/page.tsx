@@ -264,7 +264,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
         {[
           { href: "/sales/renewals", icon: RefreshCcw, title: "Renewals", text: `${ov.renewal_candidates} of last year's advertisers haven't rebooked yet` },
           { href: "/sales/invoicing", icon: FileWarning, title: "Invoicing", text: `${ov.uninvoiced_count} bookings awaiting an invoice` },
-          { href: fy ? `/sales/editions?year=${new Date(ov.period_end).getFullYear()}` : `/sales/editions?year=${year}`, icon: CalendarClock, title: "All editions", text: "Every issue, month and event, with its bookings" },
+          { href: fy ? `/sales/editions?from=${ov.period_start}&to=${ov.period_end}` : `/sales/editions?year=${year}`, icon: CalendarClock, title: "All editions", text: "Every issue, month and event, with its bookings" },
         ].map((l) => (
           <Link key={l.href} href={l.href} className="group flex items-start gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-2xs transition-colors hover:border-primary/40">
             <l.icon className="mt-0.5 size-4 text-primary" aria-hidden="true" />

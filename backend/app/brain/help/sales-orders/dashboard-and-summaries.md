@@ -39,7 +39,7 @@ Changes which year the uncredited warning uses. Financial years run July to June
 Open the edition page. The smaller link under **Last cycle, same point** opens last cycle's equivalent edition.
 
 ### Salesperson names in Team activity
-Open All items filtered to that person. This shows all their bookings, not just the last 30 days - add a **Booked on** date filter there to narrow it.
+Open All items filtered to that person's live bookings taken in the same last 30 days (the **Booked on** filter is set for you), so the list matches the numbers in the table.
 
 ### Run now (next to the brief)
 Writes this week's brief straight away, without waiting for Monday. If this week's brief already exists it is rewritten with the latest figures, and nobody is notified again. Administrators and data managers only.

@@ -43,7 +43,14 @@ export function WritingProfile({ initial }: { initial: WritingProfileState }) {
 
   const apply = (next: WritingProfileState, keepEdits = false) => { setSt(next); if (!keepEdits) { setProf(next.profile); setDirty(false); } };
   const edit = (patch: Partial<WritingProfileData>) => { setProf({ ...prof, ...patch }); setDirty(true); };
-  const run = (label: string, fn: () => Promise<void>) => start(async () => { setBusy(label); try { await fn(); } finally { setBusy(null); } });
+  const FAIL: Record<string, string> = {
+    sent: "Couldn't read your sent proposals", paste: "Couldn't add that example", del: "Couldn't remove that example", notes: "Couldn't save the note",
+    build: "Couldn't work out your style", save: "Couldn't save your changes", reset: "Couldn't go back to the standard style", learn: "Couldn't save that",
+  };
+  const run = (label: string, fn: () => Promise<void>) => start(async () => {
+    setBusy(label);
+    try { await fn(); } catch (e) { toast.error(friendlyError(e, FAIL[label] ?? "Something went wrong - please try again")); } finally { setBusy(null); }
+  });
 
   async function upload(files: FileList) {
     for (const f of Array.from(files)) {

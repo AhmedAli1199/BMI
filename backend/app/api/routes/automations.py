@@ -23,6 +23,7 @@ from app.automations.morning_queue import build_today_queue
 from app.automations.returned_copy import process_returned_copy_photo
 from app.automations.scheduler import all_jobs, is_enabled, run_job
 from app.automations.settings_registry import AUTOMATION_SETTING_DEFS, get_def
+from app.automations.workstreams import kinds_for_job
 from app.core.config import settings
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
@@ -74,6 +75,7 @@ def list_jobs(_staff: Identity = Depends(require_staff)) -> list[ScheduledJobOut
             cron=j.cron,
             enabled=is_enabled(j),
             has_cursor=j.cursor_prefix is not None,
+            makes_cards=bool(kinds_for_job(j.id)),
         )
         for j in all_jobs()
     ]

@@ -13,7 +13,7 @@ This page holds everything the editorial plan knows about one issue, guide, even
 - **Title:** "<brand>: <issue>" (a numbered issue shows as "Issue 105"), and a line with the part of the brand, the kind (Issue, Guide / special, Event, Awards), the months it covers and its format.
 - **Buttons along the right:** the previous and next issue, **Bookings in the order register** and **Pitch this issue**.
 - **"Please check these dates."** - an amber banner when some dates were worked out from the usual rules, estimated from the month, or copied from last year.
-- **Key dates:** each date with its countdown. For issues and guides: **Advertising deadline** (last day to book an advert), **Editorial deadline** (copy from the editorial team), **Copy & artwork deadline** (advertisers' artwork due) and **Publication date**. For events it's **Event day**, for awards **Ceremony**. Any other key dates (entries close, voting opens, press day...) are listed too, in date order. The countdown turns red with two days or fewer to go, amber within a week, and says "Done" once the date has passed. "Not set" means no date yet. Hover the info icon by the heading to see the brand's usual deadline rules.
+- **Key dates:** each date with its countdown. For issues and guides: **Advertising deadline** (last day to book an advert), **Editorial deadline** (copy from the editorial team), **Copy & artwork deadline** (advertisers' artwork due) and **Publication date**. For events it's **Event day**, for awards **Ceremony**. Any other key dates (entries close, voting opens, press day...) are listed too, in date order. The countdown turns red with two days or fewer to go, amber within a week, and says "Done" once the date has passed. Every key date is listed, dated or not; "No date yet" means it hasn't got one (an undated event still shows its **Event day**). Hover the info icon by the heading to see the brand's usual deadline rules.
 - **Features:** the numbered list of what the issue will cover, with a status (**Planned**, **Confirmed** in green, **Dropped** in red and struck through) and an **Open to sponsors** badge where a client can sponsor it. The heading line counts planned, confirmed and open-to-sponsors features.
 - **Who should we pitch?** - suggestions from the order register, in three tabs (see below).
 - **Regular sections in every issue (<number>)** - a fold-out list of the brand's standing sections, if any are set, with a link to the brand's settings.
@@ -25,7 +25,7 @@ This page holds everything the editorial plan knows about one issue, guide, even
 
 ## Buttons and controls
 ### Previous / next issue (arrow buttons with the issue name)
-Step to the issue before or after this one in the same part of the brand, by date (across years). Only shown when this issue has a date and there is one either side.
+Labelled like the issue's title, for example "Issue 104". Step to the issue before or after this one in the same part of the brand, by date (across years). Only shown when this issue has a date and there is one either side.
 
 ### Bookings in the order register
 Opens this issue's edition page in the order register, with every booking, costs and invoicing.

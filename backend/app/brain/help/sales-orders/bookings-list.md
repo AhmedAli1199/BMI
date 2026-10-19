@@ -31,7 +31,7 @@ Type a client name, booking number, PO number, contact name or agency name. A nu
 Tick **Pencilled**, **Confirmed** and/or **Cancelled** to show only those.
 
 ### Whose: Only my bookings
-Shows bookings where you are the main salesperson, or that you created.
+Shows bookings where you are the main salesperson, you share the booking with someone else (a split), or you created it.
 
 ### To invoice
 - **Due to invoice now**: confirmed bookings with at least one item that has reached its invoice date and has no invoice yet.
@@ -126,6 +126,5 @@ A: Press **Hand-offs** (administrators only), fill in that magazine's row and pr
 - **Confirmation details fields are greyed out.** Only administrators can change them.
 - **"Booking N already exists, so the next number has to be higher."** The next booking number must be above the highest number already used.
 - **"... doesn't look like an email address."** One of the addresses you typed in Confirmation details or Hand-offs is missing an @. Separate addresses with commas.
-- **A booking I share with someone doesn't appear under Only my bookings or the Salesperson filter.** Both filters look at the main salesperson (and, for Only my bookings, who created it), not at shared splits.
 - **"No bookings here yet".** Nothing matches your filters. Clear the chips, or start one with **New booking**.
 - **Save on an online form is greyed out.** Give the form a name and choose a title.

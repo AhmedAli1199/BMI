@@ -358,6 +358,11 @@ def _check_out(db: Session, d: SalesDeal) -> dict | None:
 
 # ---- list / read -------------------------------------------------------------------------------------
 
+def _in_split(rep_id: uuid.UUID):
+    """The booking is shared with this salesperson (split holds [{"rep_id": "...", "pct": ...}])."""
+    return SalesDeal.split.contains([{"rep_id": str(rep_id)}])
+
+
 @router.get("")
 def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_id: list[uuid.UUID] = Query(default=[]),
                title_id: list[uuid.UUID] = Query(default=[]), company_id: uuid.UUID | None = None, year: int | None = None,
@@ -374,9 +379,13 @@ def list_deals(q: str | None = None, status: list[str] = Query(default=[]), rep_
         stmt = stmt.where(SalesDeal.status.in_([s for s in status if s in DEAL_STATUSES]))
     if mine:
         me = _my_rep(db, identity)
-        stmt = stmt.where(or_(SalesDeal.rep_id == (me.id if me else None), SalesDeal.created_by_user_id == identity.user_uuid))
+        conds = [SalesDeal.created_by_user_id == identity.user_uuid]
+        if me:
+            conds += [SalesDeal.rep_id == me.id, _in_split(me.id)]
+        stmt = stmt.where(or_(*conds))
     if rep_id:
-        stmt = stmt.where(SalesDeal.rep_id.in_(rep_id))
+        # the main salesperson, or anyone sharing the booking
+        stmt = stmt.where(or_(SalesDeal.rep_id.in_(rep_id), *[_in_split(r) for r in rep_id]))
     if title_id:
         stmt = stmt.where(SalesDeal.id.in_(select(SalesOrder.deal_id).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
                                            .where(SalesEdition.title_id.in_(title_id))))
@@ -824,8 +833,11 @@ def unbooked_ad(p: UnbookedAdIn, db: Session = Depends(get_db), identity: Identi
         db.add(o)
         db.commit()
         return {"ok": True, "order_id": str(o.id), "message": "Recorded as a filler on this issue."}
-    if not rep or not rep.user_id:
+    if not rep:
         raise HTTPException(422, "Choose the salesperson who should make the booking.")
+    if not rep.user_id:
+        raise HTTPException(422, f"{rep.name} can't sign in to the Brain, so they can't be asked to make the booking here. "
+                                 "Choose someone who can sign in, or tell them yourself.")
     from app.api.routes.sales import edition_label
     title = db.get(SalesTitle, ed.title_id)
     q = f"edition={ed.id}" + (f"&company={company.id}" if company else "")

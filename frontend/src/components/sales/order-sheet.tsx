@@ -31,6 +31,7 @@ import { friendlyError } from "@/lib/errors";
 const SIZES = ["FP", "1/2", "1/4", "DPS", "Banner", "Listing", "Advertorial", "Insert", "Partner", "Sponsor", "One ticket", "Table"];
 const STATUSES: { value: OrderStatus; label: string; hint: string }[] = [
   { value: "booked", label: "Booked", hint: "A live booking - counts towards the edition's total." },
+  { value: "pencilled", label: "Pencilled", hint: "Held for the client but not confirmed yet - not counted in the edition's total or commission." },
   { value: "cancelled", label: "Cancelled", hint: "The sheet's CANX. Kept on record, not counted." },
   { value: "contra", label: "Contra", hint: "A free swap with a partner - no money changes hands, not counted." },
   { value: "moved", label: "Moved", hint: "Carried to another edition. Re-enter it there so it counts once." },
@@ -89,6 +90,24 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+/** For an item that belongs to a booking: the field is set there, so open the booking (in a new tab) to change it. */
+function OnBooking({ deal }: { deal: { id: string; label: string } }) {
+  return (
+    <a href={`/sales/deals/${deal.id}`} target="_blank" rel="noreferrer" className="self-start text-xs font-semibold text-primary hover:underline">
+      Change this on the booking
+    </a>
+  );
+}
+
+function ReadOnlyValue({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+      <span className="text-sm text-foreground">{value}</span>
+    </div>
+  );
+}
+
 export function OrderSheet({
   target,
   reps,
@@ -113,6 +132,8 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const existing = target.mode === "edit" ? target.order : null;
+  // An item that belongs to a booking takes its client, price, date and salesperson from the booking.
+  const owned = existing?.deal ?? null;
   const d = existing ?? (target.mode === "create" ? target.defaults : undefined) ?? {};
   const titleId = existing ? existing.title_id : (target as { titleId: string }).titleId;
 
@@ -198,9 +219,18 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
       notes: notes.trim() || null,
       filler,
     };
-    if (company) input.company_id = company.id;
+    if (owned) {
+      // set by the booking - send them back unchanged
+      delete input.rep_id;
+      delete input.booked_on;
+      delete input.agency_commission_gbp;
+      delete input.value_gbp;
+      delete input.client_name;
+    } else if (company) input.company_id = company.id;
     else if (existing?.company) input.clear_company = true;
-    if (split) input.credits = credits.map((c) => ({ rep_id: c.rep_id, amount_gbp: num(c.amount) || 0 }));
+    if (owned) {
+      // credits follow the booking
+    } else if (split) input.credits = credits.map((c) => ({ rep_id: c.rep_id, amount_gbp: num(c.amount) || 0 }));
     else if (initialSplit) input.credits = repId && numbers.value ? [{ rep_id: repId, amount_gbp: numbers.value }] : [];
 
     startTransition(async () => {
@@ -277,6 +307,26 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
           </div>
         )}
 
+        {owned ? (
+          <Group title="Client">
+            <div className="grid grid-cols-2 gap-3">
+              <ReadOnlyValue label="Client" value={existing?.client_name} />
+              <ReadOnlyValue
+                label="CRM company"
+                value={
+                  existing?.company ? (
+                    <a href={`/companies/${existing.company.id}`} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                      {existing.company.label}
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">Not linked</span>
+                  )
+                }
+              />
+            </div>
+            <OnBooking deal={owned} />
+          </Group>
+        ) : (
         <Group title="Client">
           <Field label="Client (as it should appear on the order)" htmlFor="os-client" hint="Start typing to reuse a name already in the register - it keeps one advertiser from appearing under three spellings.">
             <div className="relative">
@@ -325,6 +375,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
             <EntityPicker label="company" placeholder="Search CRM companies…" search={searchCompaniesForOrder} value={company} onChange={setCompany} viewHref={(id) => `/companies/${id}`} />
           </div>
         </Group>
+        )}
 
         <Group title="What was sold">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -345,19 +396,32 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field label="Value (£)" htmlFor="os-value" hint="The £ value of the booking - what counts towards the edition's total and commission.">
-              <Input id="os-value" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="1250" />
+              <Input id="os-value" inputMode="decimal" value={value} disabled={!!owned} onChange={(e) => setValue(e.target.value)} placeholder="1250" />
             </Field>
             <Field label="Rate (US$)" htmlFor="os-usd" hint="Only for bookings quoted in dollars - the £ value is still what's counted.">
               <Input id="os-usd" inputMode="decimal" value={rateUsd} onChange={(e) => setRateUsd(e.target.value)} placeholder="Optional" />
             </Field>
             <Field label="Booked on" htmlFor="os-date">
-              <Input id="os-date" type="date" value={bookedOn} onChange={(e) => setBookedOn(e.target.value)} />
+              <Input id="os-date" type="date" value={bookedOn} disabled={!!owned} onChange={(e) => setBookedOn(e.target.value)} />
             </Field>
           </div>
+          {owned && <OnBooking deal={owned} />}
         </Group>
 
         <Group title="Salesperson">
-          {!split ? (
+          {owned ? (
+            <>
+              <ReadOnlyValue
+                label={(existing?.credits.length ?? 0) > 1 ? "Shared between" : "Credited to"}
+                value={
+                  (existing?.credits.length ?? 0) > 1
+                    ? existing!.credits.map((c) => `${reps.find((r) => r.id === c.rep_id)?.name ?? "Another salesperson"} (${fmtGBP(c.amount_gbp)})`).join(", ")
+                    : existing?.rep?.name ?? <span className="text-muted-foreground">Not assigned</span>
+                }
+              />
+              <OnBooking deal={owned} />
+            </>
+          ) : !split ? (
             <div className="flex items-end gap-2">
               <Field label="Credited to" htmlFor="os-rep" className="flex-1">
                 <select id="os-rep" className={selectCls} value={repId} onChange={(e) => setRepId(e.target.value)}>
@@ -426,7 +490,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         {existing?.deal && (
           <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
             Part of <a href={`/sales/deals/${existing.deal.id}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">{existing.deal.label}</a>.
-            Change its client, issue, price or salesperson on the order, so the confirmation and every item stay in step. Invoice details can be changed here.
+            Its client, issue, price and salesperson are set on the booking, so the confirmation and every item stay in step. Invoice details can be changed here.
           </p>
         )}
         {existing && existing.status === "booked" && (
@@ -473,7 +537,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Field label="Agency cut (£)" htmlFor="os-agency" hint="What an agency kept (e.g. 10%), so the invoice is lower than the booking. Stops it showing as a mismatch.">
-              <Input id="os-agency" inputMode="decimal" value={agency} onChange={(e) => setAgency(e.target.value)} placeholder="Optional" />
+              <Input id="os-agency" inputMode="decimal" value={agency} disabled={!!owned} onChange={(e) => setAgency(e.target.value)} placeholder="Optional" />
             </Field>
             <Field label="Reason for difference" htmlFor="os-invnote" className="col-span-1 sm:col-span-2" hint="Why the invoice differs from the booking, or when the rest will be invoiced - the sheet's own column. A difference with a reason shows as part-invoiced, not as a problem.">
               <Input id="os-invnote" value={invNote} onChange={(e) => setInvNote(e.target.value)} placeholder="e.g. to be on next quarter invoice" />
@@ -482,7 +546,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         </Group>
 
         <Group title="Status">
-          <div role="radiogroup" aria-label="Booking status" className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          <div role="radiogroup" aria-label="Booking status" className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {STATUSES.map((s) => (
               <button
                 key={s.value}
@@ -572,10 +636,15 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
 
       <SheetFooter className="flex-row items-center justify-between gap-2 border-t border-border/70 px-5 py-3">
         <div>
-          {existing && canDelete && (
+          {existing && canDelete && !owned && (
             <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={remove} disabled={pending}>
               <Trash2 className="size-3.5" aria-hidden="true" /> Delete
             </Button>
+          )}
+          {existing && canDelete && owned && (
+            <a href={`/sales/deals/${owned.id}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary hover:underline">
+              Remove it on the booking
+            </a>
           )}
         </div>
         <div className="flex gap-2">

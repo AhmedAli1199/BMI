@@ -610,6 +610,8 @@ class ScheduledJobOut(BaseModel):
     cron: str
     enabled: bool
     has_cursor: bool = False
+    # False for a job that keeps data up to date without making review cards - it never "finds" anything to show.
+    makes_cards: bool = True
 
 
 class AutomationSettingOut(BaseModel):

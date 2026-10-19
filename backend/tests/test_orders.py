@@ -128,7 +128,7 @@ def test_editing_an_order_keeps_items_in_step_and_protects_invoiced_ones(w, clie
     w["db"].flush()
     # the item's price can't be changed on its own
     r = client.patch(f"/api/sales/orders/{news.id}", json={"value_gbp": 10}, headers=w["h"])
-    assert r.status_code == 409 and "part of order" in r.json()["detail"]
+    assert r.status_code == 409 and "part of booking" in r.json()["detail"]
     assert client.patch(f"/api/sales/orders/{news.id}", json={"invoice_note": "raised"}, headers=w["h"]).status_code == 200
     # drop the news story and the online article from the order, switch to item prices
     lines = d["lines"][:1] + d["lines"][2:3]

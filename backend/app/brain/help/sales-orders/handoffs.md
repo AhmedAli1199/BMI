@@ -40,6 +40,9 @@ Where else the item runs: choose **Online**, **Newsletter**, **Social media**, *
 ### Save and tell editorial (booking page)
 Appears under an item that's **Waiting for the format**. Type the format in the box and press it. Editorial get the email straight away. This works even when the booking is locked, because it doesn't change the invoice. The salesperson on the booking, whoever made it, Accounts or a manager can do it.
 
+### Change hand-off (locked booking page)
+On a booking Accounts have checked (locked), each item has **Change hand-off**. It opens the same **After it's sold** editor as the booking form: **Hand off to**, the editorial and production addresses, **Format or style** and **Also appears**. Press **Save hand-off**, or **Cancel**. It doesn't change the invoice, so it works on a locked booking. A team that hasn't had the item yet is sent it; a team that already has it gets one email marked as a change. The salesperson on the booking, whoever made it, Accounts or a manager can do it. The item's issue, dates and copy due date are still changed through **Request a change**.
+
 ### Send / Send again (booking page)
 Next to each team under an item, once hand-offs can go: the booking is confirmed and Accounts have checked it (or, if the accounts check is switched off, as soon as it's confirmed). **Send** sends that item to that team now (for example after an address was added or an email didn't go). **Send again** shows once it has gone to that team, and re-sends it to that team only. Other items, and other teams on the same item, aren't sent anything. The salesperson on the booking, whoever made it, Accounts or a manager can press it. The message afterwards says how many teams it went to, or "Nothing to send: no team or address for these items."
 
@@ -106,4 +109,4 @@ A: Under **Also appears**, press **+ Online, newsletter, social…**, choose whe
 - **"That item isn't on this booking any more."** The item was removed. Refresh the page.
 - **I can't open the Hand-offs routing table.** Only administrators can see and change it.
 - **"... doesn't look like an email address."** An address in the routing table is mistyped. Fix it and save.
-- **I can't change the team or addresses on a locked booking.** The booking form is locked once Accounts have checked it. Only the format box works there. Ask Accounts to unlock it, or use **Request a change**.
+- **I can't change the team or addresses on a locked booking.** Use **Change hand-off** on the booking page. For anything else on a locked booking (the issue, dates, prices), use **Request a change**.
