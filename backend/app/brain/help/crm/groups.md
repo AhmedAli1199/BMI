@@ -17,7 +17,8 @@ Groups are named lists of contacts, as in Act!: circulation lists, award panels,
 **A group's page**
 - A **Groups** link above the name to go back to the list.
 - The group's name and description, with **Export**, **Mail merge**, **Edit** and **Delete**.
-- **Members (<n>)**: a table of **Name**, **Company** and **Job title**, with a tick box on each row.
+- **Members (<n>)**: everyone in the group and its sub-groups - the same people **Export** and **Mail merge** use. If the group has sub-groups, a line underneath says how many are in this group itself. A table of **Name**, **Company** and **Job title**, with a tick box on each row. Someone who is only in a sub-group has a small "in <sub-group>" label next to their name; click it to open that sub-group.
+- Members load 200 at a time. Below the table, "Showing <n> of <total>" and **Show <n> more** loads the next lot.
 
 ## Buttons and controls
 
@@ -46,8 +47,8 @@ Change the group's **Name** and **Description**, then **Save changes**. You can'
 Asks "Delete <group>?" and then deletes the group after you press **Delete**. The contacts themselves are not deleted, only their membership of this group. Sub-groups are kept but are no longer nested under it. This can't be undone.
 
 ### Tick boxes and the selection bar
-Tick members (the top box ticks them all). A bar appears with "<n> contacts selected" and:
-- **Remove from this group**: takes all the ticked people out in one go. The list keeps your place.
+Tick members (the top box ticks all the members shown so far). A bar appears with "<n> contacts selected" and:
+- **Remove from this group**: takes all the ticked people out in one go. The list keeps your place. People who are only in a sub-group aren't removed - you're told how many were left, and need to open the sub-group to remove them.
 - **Add to group**: copy them into another group (this group isn't offered). People already there are left as they are.
 - **New group**: start a new, smaller group from them. Type a **Group name** and optional description, then **Create group**.
 - **Export**: just the ticked people, to Excel.
@@ -61,7 +62,7 @@ Click a name (or anywhere on the row) to open the contact. Click the company to 
 ## How it works
 - Groups belong to one database (one title's contact book).
 - What you see is limited by your access in Settings > Users. Someone given one group sees only that group and its sub-groups. Opening a group outside your access shows "not found". Administrators see everything.
-- A group includes its sub-groups for **Export**, **Mail merge** and the contacts lookup. The members table on the group's page shows the people put directly in this group.
+- A group includes its sub-groups for **Export**, **Mail merge**, the contacts lookup and the members table on the group's page.
 - Adding people to a group never removes them from the other groups they're in.
 - Ways to put people in a group: tick them on Contacts or another group and use **Add to group** or **New group**; use **Add to group** on a contact's Groups tab; or choose a group when importing a file.
 
@@ -90,6 +91,7 @@ A: No. Only the group and its memberships go. The people stay in the CRM and in 
 ## If something doesn't work
 - **Create group is greyed out**: type a name.
 - **The group doesn't open ("not found")**: it's outside the databases or group you've been given.
-- **The member count on the group's page is lower than in Mail merge or Export**: the page lists people directly in this group; Mail merge and Export also include its sub-groups. Very large groups show the first 500 members on the page.
+- **The member count on the group's list is lower than on the group's page**: the Groups list counts people put directly in each group; the group's page, Mail merge and Export also include its sub-groups.
+- **Not everyone is in the table**: members load 200 at a time - press **Show <n> more** below the table.
 - **There's no Bulk update in a group**: bulk update is on the Contacts list. Look the group up there with **Advanced search** (In group), then use **Bulk update**.
-- **"No members yet"**: nobody has been put in this group directly. Its sub-groups may still have members.
+- **"No members yet"**: nobody is in this group or any of its sub-groups.

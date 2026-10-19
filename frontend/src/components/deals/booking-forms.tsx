@@ -21,7 +21,7 @@ const SOURCES = { jotform: "Jotform", stova: "Stova", other: "Another form" } as
 
 const blank = (): BookingFormInput => ({ name: "", source: "jotform", active: true, title_id: null, edition_id: null, rate_id: null, rep_id: null, description: "", unit_price: null });
 
-/** Online booking forms (Jotform, Stova): each entry arrives in the Review Queue ready to become a booking. */
+/** Online booking forms (Jotform, Stova): each entry waits in the Review Queue; "Create booking" there adds it as a confirmed booking. */
 export function BookingFormsButton({ forms, titles, reps }: { forms: BookingForm[]; titles: SalesTitle[]; reps: SalesRep[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -49,8 +49,8 @@ export function BookingFormsButton({ forms, titles, reps }: { forms: BookingForm
           <SheetHeader className="border-b border-border/70">
             <SheetTitle>{editing ? (editing.id ? "Change form" : "Add a form") : "Online booking forms"}</SheetTitle>
             <SheetDescription>
-              {editing ? "What each entry becomes. Entries arrive in the Review Queue under Online bookings, ready to turn into a booking without retyping."
-                : "Jotform and Stova forms (awards entries, event seats, the Quiz). Each entry arrives in the Review Queue, ready to become a booking."}
+              {editing ? "What each entry becomes. Entries wait in the Review Queue under Online bookings. Pressing Create booking there adds it straight away as a confirmed booking, without retyping."
+                : "Jotform and Stova forms (awards entries, event seats, the Quiz). Each entry waits in the Review Queue. Pressing Create booking there adds it as a confirmed booking, not a pencilled one."}
             </SheetDescription>
           </SheetHeader>
 

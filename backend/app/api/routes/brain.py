@@ -418,7 +418,7 @@ def to_feedback(mid: uuid.UUID, p: ToFeedbackIn, background: BackgroundTasks, db
     m.rating = -1
     for uid in db.scalars(select(User.id).where(User.role == "admin", User.is_active.is_(True), User.id != user.id)):
         create_notification(db, uid, "feedback", f"The assistant couldn't help {user.name} (#{f.number})", (q.text if q else "")[:200] or None,
-                            link=f"/feedback?open={f.id}", email=False)
+                            link=f"/feedback?open={f.id}")
     db.commit()
     db.refresh(f)
     background.add_task(fb._sync_later, f.id)

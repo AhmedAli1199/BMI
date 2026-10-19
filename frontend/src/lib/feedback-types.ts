@@ -50,6 +50,8 @@ export type FeedbackBoard = {
 
 export type FeedbackPin = {
   id: string; number: number; kind: FeedbackKind; kind_label: string; message: string; user_name: string; status: FeedbackStatus; me_too: number;
+  /** You sent it - so there's no "Me too" for you. */
+  mine: boolean; me_too_mine: boolean;
   elements: Pick<FeedbackElement, "label" | "selector" | "rect" | "viewport">[];
 };
 

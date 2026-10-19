@@ -6,7 +6,7 @@ sources: ["frontend/src/app/(app)/calls/page.tsx", "frontend/src/app/(app)/calls
 ---
 
 ## What this screen is for
-BMI Notetaker is a guest that joins your Google Meet or Microsoft Teams call, records it, and writes up the notes when it ends: a summary, the next step, key points, decisions, money and dates mentioned, who's doing what, and the full transcript. **Meetings** is a shared calendar of everyone's connected Google and Outlook meetings, showing what the notetaker will do with each. **Recorded calls** lists the calls it has been in. Notes can be saved onto the contact's history in one click.
+BMI Notetaker is a guest that joins your Google Meet or Microsoft Teams call, records it, and writes up the notes when it ends: a summary, the next step, key points, decisions, money and dates mentioned, who's doing what, and the full transcript. **Meetings** is a calendar of connected Google and Outlook meetings, showing what the notetaker will do with each: administrators and data managers see everyone's (the description says "Everyone's meetings in one shared calendar"), everyone else sees their own ("Your meetings from your connected calendar"). **Recorded calls** lists the calls it has been in. Notes can be saved onto the contact's history in one click.
 
 ## What you see
 **Meetings** (Call notes > **Meetings**)

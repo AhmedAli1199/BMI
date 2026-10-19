@@ -65,7 +65,7 @@ export async function OrdersExplorer({
         <p className="text-xs text-muted-foreground" aria-live="polite">
           <span className="font-semibold text-foreground tabular-nums">{data.total.toLocaleString("en-GB")}</span>{" "}
           {data.total === 1 ? "booking" : "bookings"} ·{" "}
-          <span className="font-semibold text-foreground tabular-nums">{fmtGBP(data.total_value_gbp)}</span> total value
+          <span className="font-semibold text-foreground tabular-nums">{fmtGBP(data.total_value_gbp)}</span> booked value (live bookings only)
         </p>
         <OrdersTable orders={data.items} reps={meta.reps} canDelete={canDelete} year={year} showEdition={showEdition} sortable emptyText={emptyText} />
         <Pagination total={data.total} pageSize={size} sizes={SIZES} />

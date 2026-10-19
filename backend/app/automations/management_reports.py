@@ -3,7 +3,7 @@
 Two jobs, both read-only over the order register (nothing here writes to
 sales tables, the CRM or Xero):
 
-- management_alerts_scan (daily): any edition still selling that has
+- management_alerts_scan (every weekday): any edition still selling that has
   booked >= sales_pace_threshold_pct below its equivalent edition at the
   same point before publication (see app/sales/analytics.py::edition_pace,
   the same calculation the dashboard uses) fires one alert to leadership.
@@ -408,7 +408,7 @@ def weekly_management_summary() -> None:
 register_job(ScheduledJob(
     id="management_alerts_scan",
     label="Behind-last-cycle alerts",
-    description="Daily: alerts leadership when an issue or event has booked far less than its equivalent edition had at the same point last cycle.",  # SALES-028
+    description="Every weekday: alerts leadership when an issue or event has booked far less than its equivalent edition had at the same point last cycle.",  # SALES-028
     cron="15 7 * * 1-5",
     func=scan_management_alerts,
     enabled_flag="automations_management_alerts_enabled",

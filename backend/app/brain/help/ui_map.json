@@ -1351,13 +1351,19 @@
   },
   {
    "file": "app/(app)/companies/page.tsx",
-   "src": "app/(app)/companies/page.tsx:129",
+   "src": "app/(app)/companies/page.tsx:71",
+   "kind": "link",
+   "label": "Show all companies"
+  },
+  {
+   "file": "app/(app)/companies/page.tsx",
+   "src": "app/(app)/companies/page.tsx:144",
    "kind": "link",
    "label": "Previous"
   },
   {
    "file": "app/(app)/companies/page.tsx",
-   "src": "app/(app)/companies/page.tsx:137",
+   "src": "app/(app)/companies/page.tsx:152",
    "kind": "link",
    "label": "Next"
   },
@@ -1424,21 +1430,21 @@
   },
   {
    "file": "app/(app)/data-health/page.tsx",
-   "src": "app/(app)/data-health/page.tsx:75",
+   "src": "app/(app)/data-health/page.tsx:83",
    "kind": "link",
    "label": "Fix"
   },
   {
    "file": "app/(app)/data-health/page.tsx",
-   "src": "app/(app)/data-health/page.tsx:170",
+   "src": "app/(app)/data-health/page.tsx:180",
    "kind": "heading",
    "label": "Record completeness"
   },
   {
    "file": "app/(app)/data-health/page.tsx",
-   "src": "app/(app)/data-health/page.tsx:187",
+   "src": "app/(app)/data-health/page.tsx:197",
    "kind": "heading",
-   "label": "Automation hygiene backlog"
+   "label": "Waiting for review"
   },
   {
    "file": "app/(app)/editorial/page.tsx",
@@ -1463,7 +1469,7 @@
    "src": "app/(app)/editorial/page.tsx:113",
    "kind": "hint",
    "label": "",
-   "hint": "Admins and data managers can change every brand. Each brand's publishers can change their own brand's plan. Everyone can view it."
+   "hint": "Admins and data managers can change every brand. Each brand's publishers can change their own brand's plan. Anyone with Editorial plan in their menu can view it - an administrator chooses who under Settings > Sections people see."
   },
   {
    "file": "app/(app)/groups/[id]/page.tsx",
@@ -3927,7 +3933,7 @@
    "file": "components/deals/deal-actions.tsx",
    "src": "components/deals/deal-actions.tsx:127",
    "kind": "button",
-   "label": "Send to accounts"
+   "label": "Yes, send to accounts"
   },
   {
    "file": "components/deals/deal-actions.tsx",
@@ -5497,9 +5503,21 @@
   },
   {
    "file": "components/group-members-table.tsx",
-   "src": "components/group-members-table.tsx:101",
+   "src": "components/group-members-table.tsx:136",
    "kind": "button",
    "label": "Removing"
+  },
+  {
+   "file": "components/group-members-table.tsx",
+   "src": "components/group-members-table.tsx:183",
+   "kind": "link",
+   "label": "in"
+  },
+  {
+   "file": "components/group-members-table.tsx",
+   "src": "components/group-members-table.tsx:209",
+   "kind": "button",
+   "label": "Loading"
   },
   {
    "file": "components/interactive-contact-table.tsx",
@@ -7560,7 +7578,7 @@
    "file": "components/sales/proposal-editor.tsx",
    "src": "components/sales/proposal-editor.tsx:224",
    "kind": "button",
-   "label": "They chose … : make the order"
+   "label": "They chose … : make the booking"
   },
   {
    "file": "components/sales/proposal-editor.tsx",
@@ -7893,14 +7911,14 @@
    "file": "components/sales/renewals-table.tsx",
    "src": "components/sales/renewals-table.tsx:89",
    "kind": "field",
-   "label": "Book renewals into “New booking” opens the booking form for this advertiser, filled in from their last booking and set t"
+   "label": "Book renewals into “New booking” opens the booking form for this advertiser with their company name and address, how the"
   },
   {
    "file": "components/sales/renewals-table.tsx",
    "src": "components/sales/renewals-table.tsx:104",
    "kind": "hint",
    "label": "",
-   "hint": "“New booking” opens the booking form for this advertiser, filled in from their last booking and set to this edition - adjust anything before saving. Advertisers not linked to a CRM company get a single item instead."
+   "hint": "“New booking” opens the booking form for this advertiser with their company name and address, how their last booking was invoiced (invoice to, invoice email, agency) and one empty item in this edition - add what they're buying and the price before saving. Advertisers not linked to a CRM company get a single item with last year's size, value and salesperson instead."
   },
   {
    "file": "components/sales/renewals-table.tsx",
@@ -8243,25 +8261,25 @@
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:67",
+   "src": "components/xero-connection-card.tsx:68",
    "kind": "button",
    "label": "Reconnect"
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:73",
+   "src": "components/xero-connection-card.tsx:76",
    "kind": "button",
    "label": "Sync now"
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:91",
+   "src": "components/xero-connection-card.tsx:94",
    "kind": "button",
    "label": "Re-read all invoices"
   },
   {
    "file": "components/xero-connection-card.tsx",
-   "src": "components/xero-connection-card.tsx:111",
+   "src": "components/xero-connection-card.tsx:114",
    "kind": "button",
    "label": "Disconnect"
   }

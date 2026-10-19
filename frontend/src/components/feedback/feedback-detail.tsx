@@ -143,7 +143,13 @@ export function FeedbackDetail({ id, onClose, onChange, onDeleted }: {
                 </div>
                 <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-sm" placeholder="A note for them (optional), e.g. what was changed" aria-label="Note" />
                 <Button size="sm" className="self-start" disabled={pending || (status === shown.status && note === (shown.status_note ?? ""))}
-                  onClick={() => run(() => setFeedbackStatus(shown.id, status, note || null), "Saved. They'll get a notification.")}>Save</Button>
+                  onClick={() => {
+                    // Only a change of status is sent on, to whoever sent it and anyone who said me too (not you).
+                    const others = (shown.mine ? 0 : 1) + shown.me_too.length - (shown.me_too_mine ? 1 : 0);
+                    const notifies = status !== shown.status && others > 0;
+                    run(() => setFeedbackStatus(shown.id, status, note || null),
+                      notifies ? `Saved. ${others === 1 ? "They'll" : `The ${others} people following it will`} get a notification.` : "Saved.");
+                  }}>Save</Button>
                 {shown.github_error && (
                   <p className="flex items-center gap-2 text-xs text-[var(--warn)]">{shown.github_error}
                     <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={pending} onClick={() => run(() => retryFeedbackGithub(shown.id), "Sent to GitHub")}><RefreshCw className="size-3" /> Try again</Button>

@@ -72,7 +72,7 @@ Opens a side panel with what every order confirmation and schedule of works carr
 Administrators only. Opens "Who gets the hand-offs": the editorial and production email addresses for each magazine, plus an **Every magazine** row used when a magazine has no row of its own. The booking form suggests these addresses on each item. Once accounts have checked a booking, each item is emailed to editorial (sponsored content, social media) or production (adverts, banners, HTML emails). Separate several addresses with commas. Press **Save**.
 
 ### Online forms
-Administrators and data managers only. Opens "Online booking forms", the list of connected Jotform and Stova forms (awards entries, event seats, the Quiz). Each entry someone sends arrives in the Review Queue under Online bookings, ready to become a booking without retyping.
+Administrators and data managers only. Opens "Online booking forms", the list of connected Jotform and Stova forms (awards entries, event seats, the Quiz). Each entry someone sends waits in the Review Queue under Online bookings. Pressing **Create booking** on it there adds it straight away as a confirmed booking (not a pencilled one), without retyping; **Not a booking** turns it down.
 - Each form shows what each entry becomes, how many entries have come in, a **see them** link (opens the Review Queue in a new tab), its address and a **Copy** button.
 - Pencil button (**Change <form name>**): edit the form.
 - Bin button (**Remove <form name>**): removes the form after you confirm. Entries sent to its address after that are turned away. Bookings already made stay.

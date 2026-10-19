@@ -502,12 +502,23 @@ class DataHealthMetric(BaseModel):
     # the frontend can route "Fix now" straight into that kind's queue
     # instead of a bare contacts/companies filter.
     review_kind: str | None = None
+    # What `total` counts, for the "x% of ..." line (e.g. "contacts with an
+    # email address"). Empty when the metric is a review backlog (total 0).
+    total_label: str = ""
+    # Where "Fix" goes: the list already filtered to the records with the problem.
+    fix_href: str | None = None
 
 
 class DataHealthStats(BaseModel):
     total_contacts: int
     total_companies: int
     metrics: list[DataHealthMetric]
+
+
+class GroupMemberItem(ContactListItem):
+    # Set when the person is only in a sub-group of this group (not in it directly).
+    via_group_id: uuid.UUID | None = None
+    via_group_name: str | None = None
 
 
 class GroupDetail(BaseModel):
@@ -517,7 +528,13 @@ class GroupDetail(BaseModel):
     name: str
     description: str | None = None
     parent_group_id: uuid.UUID | None = None
-    members: list[ContactListItem] = []
+    # One page of everyone in the group and its sub-groups (the same people Export and Mail merge use).
+    members: list[GroupMemberItem] = []
+    member_count: int = 0          # everyone, sub-groups included
+    direct_member_count: int = 0   # in this group itself
+    has_sub_groups: bool = False
+    members_page: int = 1
+    members_page_size: int = 200
 
 
 class GroupsPage(Page):

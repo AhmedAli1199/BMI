@@ -47,7 +47,7 @@ Takes you to Microsoft to sign in, then back to Settings with a message saying w
 Forgets your Outlook connection. Mail merges can't send from your mailbox until you connect again.
 
 ### Connect Xero / Reconnect (Xero)
-Administrators only. Signs in to BMI's Xero. The Brain reads invoices from Xero, and the only thing it adds there is a draft invoice when someone makes one from a booking. After connecting, the invoices are synced straight away and then every hour. **Reconnect** appears if the connection has a problem. These buttons don't appear when Xero is connected automatically on the server.
+Administrators only. Signs in to BMI's Xero. The Brain reads invoices from Xero, and the only thing it adds there is a draft invoice when someone makes one from a booking. After connecting, the invoices are synced straight away and then every hour. Once connected, **Reconnect** is always there: press it to sign in to Xero again, for example after a problem or to switch account. These buttons don't appear when Xero is connected automatically on the server.
 
 ### Sync now
 Administrators and data managers. Fetches the latest invoices from Xero straight away instead of waiting for the hourly sync. A message says how many invoices changed.
@@ -64,7 +64,7 @@ Decides what the dashboard's **Recently Active Contacts** list counts as active:
 - **Last note or call** - a contact shows only once a note, call or meeting has been logged.
 
 ### Email me notifications
-**On** (the default) emails you each notification from the automation mailbox as well as showing it under the bell. **Off** keeps them in the app only. Some notifications, such as feedback updates, only ever appear under the bell.
+**On** (the default) emails you each notification from the automation mailbox as well as showing it under the bell. **Off** keeps them in the app only. This covers feedback updates too. A few notifications, such as call-note updates and editorial deadline alerts, only ever appear under the bell.
 
 ### Record my meetings
 What the notetaker does with meetings on your connected calendar that have a Meet or Teams link:

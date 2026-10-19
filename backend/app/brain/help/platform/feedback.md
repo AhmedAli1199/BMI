@@ -22,7 +22,7 @@ Every page has a **Feedback** button at the bottom right. Use it to tell the tea
   - **Everyone's feedback** at the top opens the board in a new tab.
 
 ### The board (Feedback)
-- Four count tiles: **Open**, **New**, **Looking at it** and **Fixed**. Press one to filter.
+- Five count tiles: **Open**, **New**, **Looking at it**, **Fixed** and **Won't do**. Press one to filter.
 - Tabs: **Open**, **New**, **Looking at it**, **Fixed**, **Won't do** and **All**.
 - A search box ("Search words, a page, a person or #12").
 - Filters: **Every kind**, **Every page** (with how many open on each), the sort (**Newest first**, **Most votes first**, **Recently changed**, **Oldest first**) and **Only mine**.
@@ -57,7 +57,7 @@ Draw an **Arrow** or **Box** to point things out, **Draw** freehand, or use **Hi
 Adds your vote to feedback someone else sent, instead of sending the same thing again. Press it again to take your vote off (it reads **Voted** or **You said me too** while your vote is on). You can't vote on your own.
 
 ### Show the <number> open on this page
-Puts numbered dots on the page where people pointed. Click a dot to see what was said, with **Me too** and **Open it**. The strip at the bottom says how many are open and how many aren't on screen right now; its cross (**Hide the dots**) removes them.
+Puts numbered dots on the page where people pointed. Click a dot to see what was said, with **Me too** and **Open it** (on your own feedback it says "You sent this" instead of **Me too**). The strip at the bottom says how many are open and how many aren't on screen right now; its cross (**Hide the dots**) removes them.
 
 ### Send
 Sends it. You need at least some words, something pointed at, or a screenshot. You'll see "Thanks, that's feedback #<number>" with **See it** (opens it on the board) and **Send more**.
@@ -87,10 +87,10 @@ Opens the full details in a side panel:
 ## How it works
 - With each piece of feedback the app saves the page, what you pointed at (its label, the heading it's under, and where it's made in the app's code), your browser, screen, zoom and theme, and any errors from the last few minutes, so it can be fixed quickly. Everyone at BMI can see your feedback.
 - Administrators get a notification (under the bell) for each new piece of feedback.
-- When an administrator or data manager changes the status, the sender and everyone who said Me too get a notification. Saving only a new note, without changing the status, doesn't send one.
+- When an administrator or data manager changes the status, the sender and everyone who said Me too get a notification. Saving only a new note, without changing the status, doesn't send one. After **Save** you're told whether anyone will be notified ("Saved. They'll get a notification." or just "Saved.").
 - A new comment notifies the sender and everyone who voted (except the person commenting).
-- Feedback notifications appear under the bell only; they're never emailed.
-- **Open** means New or Looking at it. The count tiles always show the whole board, whatever filters you've chosen.
+- Feedback notifications appear under the bell, and are emailed as well unless you've turned off **Email me notifications** in your settings.
+- **Open** means New or Looking at it. The count tiles follow the kind, page, search and **Only mine** filters you've chosen (not the status tab), so they show how many of each status those filters hold.
 - You can delete your own feedback while it's still New. After that, only administrators and data managers can.
 - If GitHub is switched on, each new piece becomes a GitHub issue labelled with its kind, with the screenshots. Edits, comments and status changes are passed on, and **Fixed** or **Won't do** closes the issue.
 - When you press **This didn't help** on an Ask the Brain answer, the question and answer arrive here as an **I don't understand this** piece of feedback.
@@ -106,7 +106,7 @@ A: Press **Me too** on their feedback (it shows under "Already reported?" as you
 A: In the mark-up window, choose **Hide** and drag over the private part. It's blacked out before it's sent. To change a screenshot you've already added, click it in the panel.
 
 **Q: How do I know when my feedback is fixed?**
-A: You'll get a notification under the bell when its status changes. On the board, tick **Only mine** to see everything you've sent and where it's up to.
+A: You'll get a notification under the bell (and by email, if you have email notifications on) when its status changes. On the board, tick **Only mine** to see everything you've sent and where it's up to.
 
 **Q: How do I see what's already been said about this page?**
 A: The number on the **Feedback** button shows how many are open. Open the panel and press **Show the <number> open on this page** to see them as dots.

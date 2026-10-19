@@ -196,7 +196,9 @@ export async function markInvoiceNotBooking(invoiceId: string, note: string | nu
   revalidatePath("/sales/invoicing");
 }
 
-export async function putBackInvoice(invoiceId: string): Promise<void> {
-  await backendFetch(`/api/sales/xero/not-a-booking/${invoiceId}/put-back`, { method: "POST" });
+/** `matching_on`: whether Xero invoice matching is switched on, so the screen can say what happens next. */
+export async function putBackInvoice(invoiceId: string): Promise<{ matching_on: boolean }> {
+  const r = await backendFetch<{ ok: boolean; matching_on?: boolean }>(`/api/sales/xero/not-a-booking/${invoiceId}/put-back`, { method: "POST" });
   revalidatePath("/sales/invoicing");
+  return { matching_on: !!r?.matching_on };
 }

@@ -13,7 +13,7 @@ sources: ["frontend/src/app/(app)/sales/bookings/page.tsx", "frontend/src/app/(a
 - **Header** with **New booking**.
 - **Filter sidebar** on the left, with a count beside each option.
 - A search box, **Export**, and the active filters as chips you can remove.
-- A line with the number of bookings and their total value.
+- A line with the number of bookings and their booked value (live bookings only).
 - **The table:** **Client** (with its CRM company underneath, and a warning triangle if the imported row needs a check), **Edition** (with its date), **Booked** (date), **What** (size, series, page), **Rep** (initials; shared bookings show every person, for example "SW / KH"), **Value**, **Invoice** and **Status**.
   - **Invoice** shows the invoice number, an amber amount if the invoice differs from the booking with no reason given, "explained" if a reason is recorded, and the payment state from Xero (Paid, Part paid, Unpaid, Overdue, Voided, Draft in Xero). With no invoice yet it shows "Not yet", or an amber **Overdue** once the issue is out or the event has run. "—" means there's nothing to invoice.
   - **Status** is a coloured pill: Booked (green), Pencilled (amber), Cancelled (red), Contra, or Moved (with where it moved to). For cancelled and moved items the sheet's own words are shown underneath.
@@ -81,7 +81,7 @@ Show renewals for that title.
 Choose the edition that **New booking** should use. It starts on the next open edition.
 
 ### New booking (on a renewal row)
-For an advertiser linked to a CRM company, this opens the full booking form for that company with the chosen edition. For one not linked, it opens the item sheet with the client, salesperson, size and last value filled in - adjust anything and click **Add item**.
+For an advertiser linked to a CRM company, this opens the full booking form for that company: the client name and confirmation address from the company, the invoice details and agency from their last booking (invoice to, invoice email, agency and agency %), and one empty item in the chosen edition - add what they're buying and the price before saving. For one not linked, it opens the item sheet with the client, salesperson, size and last value filled in - adjust anything and click **Add item**.
 
 ### <problem> Open the booking to fix it.
 Opens the booking with the odd date in a new tab.
@@ -90,7 +90,7 @@ Opens the booking with the odd date in a new tab.
 Opens the automations page where the renewal outreach is set up.
 
 ## How it works
-- **Total value** in the line above the All items table adds up every row that matches your filters, whatever its status. The footer only adds up live (Booked) bookings on the current page.
+- The **booked value (live bookings only)** in the line above the All items table adds up the live (Booked) rows that match your filters, across every page. The footer adds up the live bookings on the current page the same way. The count of bookings includes every status.
 - **Live bookings** are those with the status Booked. Cancelled (the sheet's CANX), contra (a free swap with a partner) and moved bookings are kept on record but not counted anywhere.
 - **Overdue** means the edition has published or the event has run, and the item still has no invoice number.
 - **An invoice difference** is shown when the invoiced amount differs from the value (after any agency cut) by more than £1. If a reason is recorded it's "explained".

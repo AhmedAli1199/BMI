@@ -1962,13 +1962,15 @@ def mark_invoice_not_booking(invoice_id: uuid.UUID, payload: NotBookingIn, db: S
 
 @router.post("/xero/not-a-booking/{invoice_id}/put-back")
 def put_back_invoice(invoice_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
-    """Undo "Not a booking": the invoice is matched against bookings again on the next hourly run."""
+    """Undo "Not a booking": the invoice is matched against bookings again on the next hourly run - if
+    Xero invoice matching is switched on (`matching_on` tells the screen which to say)."""
+    from app.automations import runtime_settings
     from app.automations.xero_matching import put_back_not_booking
 
     if not put_back_not_booking(db, invoice_id):
         raise HTTPException(status_code=404, detail="That invoice isn't marked as not a booking.")
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "matching_on": runtime_settings.get_bool(db, "automations_xero_match_enabled")}
 
 
 @router.get("/orders/{order_id}/changes", response_model=list[FieldChangeOut])

@@ -110,7 +110,7 @@ export default async function EditorialPage({ searchParams }: { searchParams: Pr
       )}
       <p className="flex items-center gap-1 text-xs text-muted-foreground print-hide">
         Who can change the plan
-        <InfoHint>Admins and data managers can change every brand. Each brand&apos;s publishers can change their own brand&apos;s plan. Everyone can view it.</InfoHint>
+        <InfoHint>Admins and data managers can change every brand. Each brand&apos;s publishers can change their own brand&apos;s plan. Anyone with Editorial plan in their menu can view it - an administrator chooses who under Settings &gt; Sections people see.</InfoHint>
       </p>
     </div>
   );

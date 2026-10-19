@@ -46,10 +46,16 @@ from app.core.visibility import company_clause, contact_clause  # noqa: E402
 router = APIRouter(prefix="/companies", tags=["companies"])
 
 
+def _no_industry():
+    """Matches the Data Health "Companies without an industry" count."""
+    return Company.industry.is_(None) | (Company.industry == "")
+
+
 @router.get("", response_model=CompaniesPage)
 def list_companies(
     q: str | None = Query(None, description="Search by company name"),
     source_db: str | None = Query(None),
+    missing: str | None = Query(None, description='"industry" - only companies with no industry filled in'),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -69,6 +75,8 @@ def list_companies(
         stmt = stmt.where(Company.source_db == source_db)
     if q:
         stmt = stmt.where(Company.name.ilike(f"%{q}%"))
+    if missing == "industry":
+        stmt = stmt.where(_no_industry())
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
@@ -94,6 +102,7 @@ def get_company_position(
     company_id: uuid.UUID,
     q: str | None = Query(None),
     source_db: str | None = Query(None),
+    missing: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> CompanyPosition:
     """Powers the VCR-style record stepper on the company detail page - see
@@ -103,6 +112,8 @@ def get_company_position(
         stmt = stmt.where(Company.source_db == source_db)
     if q:
         stmt = stmt.where(Company.name.ilike(f"%{q}%"))
+    if missing == "industry":
+        stmt = stmt.where(_no_industry())
     ids = [str(row) for row in db.scalars(stmt).all()]
     first_id = ids[0] if ids else None
     last_id = ids[-1] if ids else None

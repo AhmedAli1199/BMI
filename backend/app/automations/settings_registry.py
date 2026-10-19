@@ -230,7 +230,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     # ---- SALES-002 - business card dedupe & group assignment ----
     AutomationSettingDef(
         key="teams_webhook_url", label="Microsoft Teams webhook URL",
-        description="Optional incoming webhook URL to post automated notifications and daily review summaries to Teams.",
+        description="Optional incoming webhook URL. When set, the Brain posts three things to that Teams channel: the \"behind last cycle\" sales alerts, the Monday sales summary, and a line each time a batch of business cards is confirmed.",
         group="Notifications & Alerts", type="text",
     ),
 
@@ -435,7 +435,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="automations_invoice_reminders_enabled", label="Ready to invoice reminders",
-        description="Daily: when a booked item reaches the date it should be invoiced (from the booking's \"when to invoice\", or a date accounts set), accounts get a Ready to invoice card. Follows issue dates, so a moved issue moves its reminder.",
+        description="Every weekday: when a booked item reaches the date it should be invoiced (from the booking's \"when to invoice\", or a date accounts set), accounts get a Ready to invoice card. Follows issue dates, so a moved issue moves its reminder.",
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
@@ -450,7 +450,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="automations_allocation_reminders_enabled", label="Reminders for items still to be allocated",
-        description="Daily: when a booking still has items with no issue chosen, the salesperson gets a Review Queue reminder as their 'decide by' date, or the title's next booking deadline, gets close.",
+        description="Every weekday: when a booking still has items with no issue chosen, the salesperson gets a Review Queue reminder as their 'decide by' date, or the title's next booking deadline, gets close.",
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
@@ -460,7 +460,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     ),
     AutomationSettingDef(
         key="automations_sor_issue_check_enabled", label="Order register check when an issue goes to press",
-        description="Daily: once an issue's copy deadline has passed, accounts get one Review Queue item listing anything in its order register that needs a look - items with no booking, items that don't match their booking, pencilled items, and packages for that title still to be allocated.",
+        description="Every weekday: once an issue's copy deadline has passed, accounts get one Review Queue item listing anything in its order register that needs a look - items with no booking, items that don't match their booking, pencilled items, and packages for that title still to be allocated.",
         group="Sales Order Register", type="bool",
     ),
     AutomationSettingDef(
@@ -511,7 +511,7 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
     # ---- SALES-026/028 - management reporting ----
     AutomationSettingDef(
         key="automations_management_alerts_enabled", label="Behind-last-cycle alerts active",
-        description="Daily: alerts leadership when an open issue or event has booked far less than its equivalent edition had at the same point last cycle.",
+        description="Every weekday: alerts leadership when an open issue or event has booked far less than its equivalent edition had at the same point last cycle.",
         group="Management Reporting", type="bool",
     ),
     AutomationSettingDef(

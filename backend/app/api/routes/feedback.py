@@ -97,7 +97,8 @@ def _notify(db: Session, f: Feedback, title: str, body: str | None, skip: uuid.U
     people |= {m.get("user_id") for m in f.me_too or [] if m.get("user_id")}
     for uid in people - {str(skip) if skip else ""}:
         try:
-            create_notification(db, uuid.UUID(uid), "feedback", title, body, link=f"/feedback?open={f.id}", email=False)
+            # Emailed too unless they've turned off "Email me notifications" (send_pending_emails checks).
+            create_notification(db, uuid.UUID(uid), "feedback", title, body, link=f"/feedback?open={f.id}")
         except ValueError:
             continue
 
@@ -174,10 +175,10 @@ def send(p: FeedbackIn, background: BackgroundTasks, db: Session = Depends(get_d
     for i, (ctype, raw, img) in enumerate(pics):
         db.add(FeedbackImage(id=uuid.uuid4(), feedback_id=f.id, position=i, label=(img.label or f"Screenshot {i + 1}")[:300],
                              content_type=ctype, data=raw, width=img.width, height=img.height))
-    # Let the people who look after the app know (in the app, no email).
+    # Let the people who look after the app know - by email too, unless they've turned that off.
     for uid in db.scalars(select(User.id).where(User.role == "admin", User.is_active.is_(True), User.id != user.id)):
         create_notification(db, uid, "feedback", f"New feedback #{f.number} from {user.name}", (f.message or "")[:200] or None,
-                            link=f"/feedback?open={f.id}", email=False)
+                            link=f"/feedback?open={f.id}")
     db.commit()
     db.refresh(f)
     background.add_task(_sync_later, f.id)
@@ -229,7 +230,9 @@ def board(status: str | None = None, kind: str | None = None, path: str | None =
         stmt = stmt.order_by(Feedback.created_at.desc())
     rows = list(db.scalars(stmt.offset(offset).limit(limit)))
     imgs = _images_for(db, [r.id for r in rows])
-    counts = dict(db.execute(select(Feedback.status, func.count()).group_by(Feedback.status)).all())
+    # The tiles follow every filter except the status one, so they say how many of each status these filters hold.
+    counted = _filtered(db, None, kind, path, mine, q, user).subquery()
+    counts = dict(db.execute(select(counted.c.status, func.count()).group_by(counted.c.status)).all())
     pages = [{"path": p, "title": t, "count": n} for p, t, n in db.execute(
         select(Feedback.page_path, func.max(Feedback.page_title), func.count()).where(Feedback.status.in_(("new", "looking")))
         .group_by(Feedback.page_path).order_by(func.count().desc()).limit(30)).all()]
@@ -261,6 +264,8 @@ def pins(path: str, db: Session = Depends(get_db), user: User = Depends(current_
                            .order_by(Feedback.created_at.desc()).limit(50)))
     return [{"id": str(f.id), "number": f.number, "kind": f.kind, "kind_label": text.KIND_LABEL.get(f.kind, f.kind),
              "message": (f.message or "")[:200], "user_name": f.user_name, "status": f.status, "me_too": len(f.me_too or []),
+             "mine": bool(f.user_id and f.user_id == user.id),
+             "me_too_mine": any(m.get("user_id") == str(user.id) for m in f.me_too or []),
              "elements": [{"label": e.get("label"), "selector": e.get("selector"), "rect": e.get("rect"), "viewport": e.get("viewport")}
                           for e in f.elements or []]} for f in rows]
 
@@ -411,7 +416,7 @@ def edit(fid: uuid.UUID, p: EditIn, background: BackgroundTasks, db: Session = D
 def delete(fid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
     f = _get(db, fid)
     if not (_is_manager(user) or (f.user_id == user.id and f.status == "new")):
-        raise HTTPException(403, "Only administrators can delete feedback once someone is looking at it.")
+        raise HTTPException(403, "Only administrators and data managers can delete feedback once someone is looking at it.")
     db.delete(f)
     db.commit()
     return {"ok": True}
@@ -420,7 +425,7 @@ def delete(fid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(c
 @router.post("/{fid}/github")
 def retry_github(fid: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user)) -> dict:
     if not _is_manager(user):
-        raise HTTPException(403, "Only administrators can do this.")
+        raise HTTPException(403, "Only administrators and data managers can do this.")
     if not github.enabled():
         raise HTTPException(422, "GitHub isn't connected yet.")
     f = _get(db, fid)

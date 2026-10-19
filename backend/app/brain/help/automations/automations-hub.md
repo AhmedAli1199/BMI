@@ -6,7 +6,7 @@ sources: ["frontend/src/app/(app)/automations/page.tsx", "frontend/src/app/(app)
 ---
 
 ## What this screen is for
-The Automations Hub is where administrators and data managers keep an eye on the Brain's background helpers. Each helper (a "scanner") reads mailboxes, the CRM or the order register on a timetable and puts suggestions in the Review Queue. Nothing it suggests is done until a person approves it. The Hub shows how much is waiting, how quickly the team deals with it, whether each scanner is switched on and working, and what the requests to the Brain cost.
+The Automations Hub is where administrators and data managers keep an eye on the Brain's background helpers. Each helper (a "scanner") reads mailboxes, the CRM or the order register on a timetable and puts suggestions in the Review Queue. Most of what it suggests waits until a person approves it; a few safe things happen on their own - the email summary note on a record, linking an order-register client to a company with exactly the same name, and (if switched on) filling in clear Xero invoice links. The header says this too, and each setting on Scanners & Settings says what it does by itself. The Hub shows how much is waiting, how quickly the team deals with it, whether each scanner is switched on and working, and what the requests to the Brain cost.
 
 Open it from the menu: **Automations** (under The Brain) > **Overview**, one page per group of automations, and **Scanners & Settings**. Salespeople don't see the Hub. Their **Today** list and **Review Queue** are separate sidebar items.
 

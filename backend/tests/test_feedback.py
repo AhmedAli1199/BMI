@@ -69,6 +69,68 @@ def test_send_and_see_it_on_the_board(client, db_session):
     assert client.delete(f"/api/feedback/{f['id']}", headers=sh).status_code == 403   # no longer new
 
 
+def test_pins_say_which_are_yours_so_there_is_no_me_too_on_them(client, db_session):
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    tom = make_user(db_session, role="sales", name="Tom")
+    db_session.flush()
+    sh, th = identity_headers(sally), identity_headers(tom)
+    f = _send(client, sh).json()
+    mine = client.get("/api/feedback/pins", params={"path": "/sales/deals/new"}, headers=sh).json()[0]
+    assert mine["mine"] is True and mine["me_too_mine"] is False
+    theirs = client.get("/api/feedback/pins", params={"path": "/sales/deals/new"}, headers=th).json()[0]
+    assert theirs["mine"] is False
+    client.post(f"/api/feedback/{f['id']}/me-too", headers=th)
+    assert client.get("/api/feedback/pins", params={"path": "/sales/deals/new"}, headers=th).json()[0]["me_too_mine"] is True
+
+
+def test_count_tiles_follow_the_filters_except_status(client, db_session):
+    admin = make_user(db_session, role="admin", name="Ahmed")
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    tom = make_user(db_session, role="sales", name="Tom")
+    db_session.flush()
+    sh, th, ah = identity_headers(sally), identity_headers(tom), identity_headers(admin)
+    a = _send(client, sh).json()
+    _send(client, sh, kind="idea", message="An idea", images=[], elements=[])
+    _send(client, th, message="Tom's problem", images=[], elements=[])
+    client.put(f"/api/feedback/{a['id']}/status", json={"status": "wont_do"}, headers=ah)
+
+    everything = client.get("/api/feedback", params={"status": "new"}, headers=sh).json()["counts"]
+    assert everything == {"new": 2, "looking": 0, "fixed": 0, "wont_do": 1}       # the status tab doesn't narrow the tiles
+    only_mine = client.get("/api/feedback", params={"mine": True}, headers=sh).json()["counts"]
+    assert only_mine["new"] == 1 and only_mine["wont_do"] == 1
+    ideas = client.get("/api/feedback", params={"kind": "idea"}, headers=sh).json()["counts"]
+    assert ideas == {"new": 1, "looking": 0, "fixed": 0, "wont_do": 0}
+
+
+def test_feedback_notifications_are_emailed_unless_turned_off(client, db_session):
+    admin = make_user(db_session, role="admin", name="Ahmed")
+    quiet = make_user(db_session, role="admin", name="Quiet Admin")
+    quiet.preferences = {"email_notifications": "off"}
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    db_session.flush()
+    _send(client, identity_headers(sally))
+    n = db_session.query(Notification).filter_by(user_id=admin.id, kind="feedback").one()
+    assert n.email_status == "pending"                                   # goes out by email as well as the bell
+    from app.services.notify import send_pending_emails
+
+    send_pending_emails(db_session)
+    q = db_session.query(Notification).filter_by(user_id=quiet.id, kind="feedback").one()
+    assert q.email_status == "skipped"                                   # their "Email me notifications" is off
+
+
+def test_data_managers_are_named_in_the_feedback_permission_messages(client, db_session):
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    tom = make_user(db_session, role="sales", name="Tom")
+    admin = make_user(db_session, role="admin", name="Ahmed")
+    db_session.flush()
+    f = _send(client, identity_headers(sally)).json()
+    client.put(f"/api/feedback/{f['id']}/status", json={"status": "looking"}, headers=identity_headers(admin))
+    r = client.delete(f"/api/feedback/{f['id']}", headers=identity_headers(sally))
+    assert r.status_code == 403 and "data managers" in r.json()["detail"]
+    r = client.post(f"/api/feedback/{f['id']}/github", headers=identity_headers(tom))
+    assert r.status_code == 403 and "data managers" in r.json()["detail"]
+
+
 def test_download_feedback(client, db_session):
     sally = make_user(db_session, role="sales", name="Sally Parker")
     db_session.flush()

@@ -120,7 +120,7 @@ For a proposal you sent another way. Choose **Emailed the downloaded file** or *
 ### Delete draft
 Deletes a draft (it asks first). Sent proposals are kept on record and can't be deleted.
 
-### They said yes: make the booking / They chose <option>: make the order
+### They said yes: make the booking / They chose <option>: make the booking
 Shown once a proposal is sent. Opens a new booking already filled in from the proposal: the client, contact, products, issues and discounts. If the proposal has options, there's one button per option. Check the issues and prices, then confirm the booking as usual.
 
 ## How it works

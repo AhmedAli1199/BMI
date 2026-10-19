@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from app.core.identity import Identity, get_identity
 from app.core.guards import need_staff
 from app.api.schemas import (
-    ContactListItem,
     GroupCreate,
     GroupDetail,
     GroupListItem,
+    GroupMemberItem,
     GroupMembersAddRequest,
     GroupMembersAddResult,
     GroupMembersRemoveRequest,
@@ -86,20 +86,66 @@ def list_groups(
     return GroupsPage(items=items, total=total, page=page, page_size=page_size)
 
 
+MEMBERS_PAGE_SIZE = 200
+
+
 @router.get("/{group_id}", response_model=GroupDetail)
-def get_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> GroupDetail:
+def get_group(
+    group_id: uuid.UUID,
+    page: int = Query(1, ge=1, description="Page of the member list"),
+    page_size: int = Query(MEMBERS_PAGE_SIZE, ge=1, le=500),
+    offset: int | None = Query(None, ge=0, description="Start after this many members (overrides page) - for 'Show more'"),
+    db: Session = Depends(get_db),
+) -> GroupDetail:
+    return _group_detail(db, group_id, page, page_size, offset)
+
+
+def _group_detail(db: Session, group_id: uuid.UUID, page: int = 1, page_size: int = MEMBERS_PAGE_SIZE,
+                  offset: int | None = None) -> GroupDetail:
+    """The group plus one page of its members - everyone in it *and its sub-groups*, the same people Export and
+    Mail merge use (contact_lookup's group filter). Someone only in a sub-group is marked with which one."""
+    from sqlalchemy import case
+    from sqlalchemy.dialects.postgresql import aggregate_order_by
+
+    from app.services.contact_lookup import _group_subtree
+
     group = db.get(Group, group_id)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    members = db.execute(
-        select(Contact, Company.name.label("company_name"))
-        .join(GroupMembership, GroupMembership.contact_id == Contact.id)
+    subtree = _group_subtree(db, group_id)
+    sub_group = GroupMembership.group_id != group_id
+    per_contact = (
+        select(
+            GroupMembership.contact_id.label("cid"),
+            func.bool_or(GroupMembership.group_id == group_id).label("direct"),
+            # The first sub-group by name, for the "in <sub-group>" mark.
+            func.array_agg(aggregate_order_by(case((sub_group, Group.id)), Group.name)).label("via_ids"),
+            func.array_agg(aggregate_order_by(case((sub_group, Group.name)), Group.name)).label("via_names"),
+        )
+        .join(Group, Group.id == GroupMembership.group_id)
+        .where(GroupMembership.group_id.in_(subtree))
+        .group_by(GroupMembership.contact_id)
+        .subquery()
+    )
+    visible = contact_clause(db)
+    where = [visible] if visible is not None else []
+    base = select(Contact.id).join(per_contact, per_contact.c.cid == Contact.id).where(*where)
+    member_count = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    direct_count = db.scalar(select(func.count()).select_from(base.where(per_contact.c.direct.is_(True)).subquery())) or 0
+
+    rows = db.execute(
+        select(Contact, Company.name.label("company_name"), per_contact.c.direct, per_contact.c.via_ids, per_contact.c.via_names)
+        .join(per_contact, per_contact.c.cid == Contact.id)
         .outerjoin(Company, Contact.company_id == Company.id)
-        .where(GroupMembership.group_id == group_id, *([contact_clause(db)] if contact_clause(db) is not None else []))
-        .order_by(Contact.last_name.asc().nulls_last())
-        .limit(500)
+        .where(*where)
+        .order_by(Contact.last_name.asc().nulls_last(), Contact.first_name.asc().nulls_last(), Contact.id)
+        .offset(offset if offset is not None else (page - 1) * page_size)
+        .limit(page_size)
     ).all()
+
+    def first(values) -> object | None:
+        return next((v for v in values or [] if v is not None), None)
 
     return GroupDetail(
         id=group.id,
@@ -107,13 +153,20 @@ def get_group(group_id: uuid.UUID, db: Session = Depends(get_db)) -> GroupDetail
         name=group.name,
         description=group.description,
         parent_group_id=group.parent_group_id,
+        member_count=member_count,
+        direct_member_count=direct_count,
+        has_sub_groups=len(subtree) > 1,
+        members_page=page,
+        members_page_size=page_size,
         members=[
-            ContactListItem(
+            GroupMemberItem(
                 id=c.id, source_db=c.source_db, full_name=c.full_name,
                 first_name=c.first_name, last_name=c.last_name,
                 job_title=c.job_title, company_id=c.company_id, company_name=company_name,
+                via_group_id=None if direct else first(via_ids),
+                via_group_name=None if direct else first(via_names),
             )
-            for c, company_name in members
+            for c, company_name, direct, via_ids, via_names in rows
         ],
     )
 
@@ -192,7 +245,7 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db)) -> GroupDe
         valid = db.scalars(select(Contact.id).where(Contact.id.in_(set(payload.contact_ids)))).all()
         db.add_all(GroupMembership(id=uuid.uuid4(), group_id=group.id, contact_id=cid) for cid in valid)
     db.commit()
-    return get_group(group.id, db)
+    return _group_detail(db, group.id)
 
 
 @router.patch("/{group_id}", response_model=GroupDetail)
@@ -209,7 +262,7 @@ def update_group(group_id: uuid.UUID, payload: GroupUpdate, db: Session = Depend
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(group, field, value)
     db.commit()
-    return get_group(group_id, db)
+    return _group_detail(db, group_id)
 
 
 @router.delete("/{group_id}", status_code=204, response_model=None)

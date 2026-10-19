@@ -84,3 +84,57 @@ def test_data_health_missing_industry_company(client, db_session):
     assert resp.status_code == 200
     missing = next(m for m in resp.json()["metrics"] if m["key"] == "missing_industry")
     assert missing["count"] >= 1
+
+
+def _metric(body, key):
+    return next(m for m in body["metrics"] if m["key"] == key)
+
+
+def test_unsubscribed_or_bounced_counts_each_contact_once_against_contacts_with_email(client, db_session):
+    both = _make_contact(db_session, first_name="Both", is_unsubscribed=True, has_bounced=True)
+    bounced = _make_contact(db_session, first_name="Bounced", has_bounced=True)
+    fine = _make_contact(db_session, first_name="Fine")
+    _make_contact(db_session, first_name="NoEmail")
+    for c in (both, bounced, fine):
+        db_session.add(Email(id=uuid.uuid4(), source_db="manual", source_act_id=str(uuid.uuid4()), contact_id=c.id,
+                             address=f"{c.first_name}@x.com"))
+    db_session.flush()
+
+    body = client.get("/api/dashboard/data-health").json()
+    m = _metric(body, "unsubscribed")
+    assert m["count"] == 2                       # bounced counts too; the one with both counts once
+    assert m["total"] == 3                       # measured against contacts with an email address
+    assert m["total_label"] == "contacts with an email address"
+    assert m["fix_href"].startswith("/contacts?conds=") and "match=any" in m["fix_href"]
+    assert _metric(body, "missing_email")["total"] == body["total_contacts"]
+
+
+def test_fix_links_open_the_filtered_lists_and_backlogs_have_no_percentage(client, db_session):
+    body = client.get("/api/dashboard/data-health").json()
+    assert "is_empty" in _metric(body, "missing_email")["fix_href"]
+    assert _metric(body, "missing_industry")["fix_href"] == "/companies?missing=industry"
+    dup = _metric(body, "duplicate_contact")
+    assert dup["total"] == 0 and dup["fix_href"] == "/automations/review?kind=duplicate_contact"
+
+
+def test_contact_fix_links_match_the_counts_on_the_contacts_list(client, db_session):
+    from urllib.parse import parse_qs, urlparse
+
+    with_phone = _make_contact(db_session, first_name="Has", last_name="Phone")
+    db_session.add(Phone(id=uuid.uuid4(), source_db="manual", source_act_id=str(uuid.uuid4()), contact_id=with_phone.id, number="0123"))
+    _make_contact(db_session, first_name="Zed", last_name="Nophone", is_unsubscribed=True)
+    db_session.flush()
+    body = client.get("/api/dashboard/data-health").json()
+    for key in ("missing_phone", "missing_email", "unsubscribed"):
+        qs = parse_qs(urlparse(_metric(body, key)["fix_href"]).query)
+        resp = client.get("/api/contacts", params={"conds": qs["conds"][0], "match": qs.get("match", [""])[0]})
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["total"] == _metric(body, key)["count"], key
+
+
+def test_companies_list_can_show_only_those_without_an_industry(client, db_session):
+    _make_company(db_session, name="Blank Co", industry="")
+    _make_company(db_session, name="None Co", industry=None)
+    _make_company(db_session, name="Full Co", industry="Airline")
+    names = {c["name"] for c in client.get("/api/companies", params={"missing": "industry", "page_size": 200}).json()["items"]}
+    assert {"Blank Co", "None Co"} <= names and "Full Co" not in names
