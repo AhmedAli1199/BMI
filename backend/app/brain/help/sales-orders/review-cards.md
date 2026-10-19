@@ -77,6 +77,8 @@ Drafted emails: a renewal for last year's advertisers, or a reply to a client wh
 - **Log to CRM only**: logs it on the CRM without sending, so you can send it another way.
 - **Skip this year** (renewals) or **Let it go** (save the sale): closes it without sending.
 
+Renewal cards link the advertiser's CRM company, last year's booking, the issue to offer and the previous ad online, each in a new tab. Filter renewals by **Salesperson**, **Title**, **Price** (on this year's rate card or not) and **Recipient** (has an email address or not), and sort by renewal date.
+
 ## How it works
 - Most cards update themselves. A booking check always shows the latest version of the booking. It is withdrawn if the booking goes back to pencilled. A Ready to invoice card closes when nothing on it is due any more. An Invoice to booking card closes if someone types that invoice number on a booking first.
 - Ready to invoice cards are made each weekday at about 7am and whenever a booking is saved. Accounts also get a bell notification and an email. Booking checks arrive when a salesperson presses Confirm, also with a notification.

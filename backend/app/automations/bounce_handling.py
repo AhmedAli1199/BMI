@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,6 +24,7 @@ from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.contact_match import find_contact_by_email
 from app.automations.llm import extract_json
 from app.automations.mail_parsing import ParsedMessage, looks_like_bounce, looks_like_ooo, parse_message
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
@@ -70,10 +72,10 @@ def _handle_bounce_uncertain(db: Session, item: ReviewQueueItem, action_id: str,
             f"{f' Reviewer note: {note}' if note else ''}"
             f"\n\nOriginal message:\n{item.payload.get('original_text', '(not captured)')}",
         )
-    elif action_id == "not_a_bounce":
-        pass  # No CRM write - the reviewer is telling us our guess was wrong.
+    elif action_id in ("not_a_bounce", "keep_temporary"):
+        pass  # No CRM write - our guess was wrong, or the failure was only temporary.
     else:
-        raise ValueError(f"Unknown action {action_id!r} for bounce_uncertain")
+        raise ValueError("That button doesn't apply to this card.")
 
 
 def _handle_bounce_unmatched(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
@@ -93,10 +95,10 @@ def _handle_bounce_unmatched(db: Session, item: ReviewQueueItem, action_id: str,
             f"(automatic match wasn't confident enough).",
         )
         item.entity_type, item.entity_id = "contact", contact.id
-    elif action_id == "ignore":
+    elif action_id in ("ignore", "keep_temporary"):
         pass
     else:
-        raise ValueError(f"Unknown action {action_id!r} for bounce_unmatched")
+        raise ValueError("That button doesn't apply to this card.")
 
 
 def _handle_ooo_ambiguous(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
@@ -142,15 +144,76 @@ def _handle_ooo_ambiguous(db: Session, item: ReviewQueueItem, action_id: str, in
         raise ValueError(f"Unknown action {action_id!r} for ooo_ambiguous")
 
 
+_SEVERITY_TEXT = {"hard": "Hard bounce (the address doesn't work)", "soft": "Soft bounce (temporary - the address may still work)"}
+
+
+def _bounce_buttons(payload: dict) -> dict:
+    """A soft (temporary) bounce isn't a reason to unsubscribe anyone, so its main button is
+    "Keep - it was temporary" and unsubscribing becomes a second choice. A hard bounce keeps
+    unsubscribe / match as the main button and doesn't offer "temporary" at all."""
+    if payload.get("severity") == "soft":
+        return {"primary_action": "keep_temporary", "hidden_actions": []}
+    return {"primary_action": None, "hidden_actions": ["keep_temporary"]}
+
+
+def _received_day(item: ReviewQueueItem) -> str | None:
+    return rf.iso_day(item.payload.get("received_at")) or rf.iso_day(item.created_at)
+
+
+def _derive_bounce(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    severity = {"hard": "Hard bounce", "soft": "Soft bounce"}.get(p.get("severity") or "", rf.NOT_SET)
+    facets = {"severity": severity, "mailbox": p.get("mailbox") or rf.NOT_SET}
+    links: list[dict | None] = []
+    if item.kind == "bounce_uncertain":
+        facets["database"] = rf.database_name(db, item.source_db)
+        links.append(rf.company_link(db, rf.contact_of(db, item.entity_id)))
+    else:
+        address = next((d.get("value") for d in p.get("details") or [] if d.get("key") == "address"), None)
+        if address and address != "-":
+            links.append({"key": "search", "label": "Look for them", "value": f"Search contacts for \"{address}\"",
+                          "href": f"/contacts?q={quote(address)}"})
+    return {"facets": facets, "sort_date": _received_day(item), "details": rf.with_links(p.get("details"), links),
+            **_bounce_buttons(p)}
+
+
+def _derive_ooo(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    suggested = p.get("suggested_contact") or {}
+    if suggested.get("id"):
+        replacement = "Named, already in the CRM"
+    elif p.get("replacements"):
+        replacement = "Named, not in the CRM yet"
+    else:
+        replacement = "No one named"
+    links: list[dict | None] = [rf.company_link(db, rf.contact_of(db, item.entity_id))]
+    if suggested.get("id"):
+        links.append({"key": "replacement_link", "label": "Suggested replacement", "value": suggested.get("label") or "Open contact",
+                      "href": f"/contacts/{suggested['id']}"})
+    return {
+        "facets": {"replacement": replacement, "return": "Return date given" if p.get("return_date") else "No return date",
+                   "database": rf.database_name(db, item.source_db), "mailbox": p.get("mailbox") or rf.NOT_SET},
+        "sort_date": _received_day(item),
+        "details": rf.with_links(p.get("details"), links),
+    }
+
+
+_BOUNCE_FACETS = (("severity", "Bounce type"), ("database", "Database"), ("mailbox", "Mailbox"))
+
 register(ReviewKind(
     kind="bounce_uncertain",
     label="Ambiguous Delivery Bounces",
     description="Delivery failures requiring human confirmation before updating subscriber deliverability status.",
     actions=[
         ReviewAction(id="confirm_hard_bounce", label="Confirm & unsubscribe", style="primary", outcome="approved", requires_note=False),
+        # The main button on a soft bounce (see _bounce_buttons) - changes nothing on the contact.
+        ReviewAction(id="keep_temporary", label="Keep - it was temporary", style="secondary", outcome="rejected", reopenable=True),
         ReviewAction(id="not_a_bounce", label="Not a bounce, ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_bounce_uncertain,
+    facets=_BOUNCE_FACETS,
+    date_sort_label="date received",
+    derive_facets=_derive_bounce,
 ))
 
 register(ReviewKind(
@@ -159,9 +222,13 @@ register(ReviewKind(
     description="Delivery failures for addresses not currently indexed in the active contact database.",
     actions=[
         ReviewAction(id="match_contact", label="Match to a contact", style="primary", outcome="approved", requires_contact_picker=True),
+        ReviewAction(id="keep_temporary", label="Keep - it was temporary", style="secondary", outcome="rejected", reopenable=True),
         ReviewAction(id="ignore", label="Ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_bounce_unmatched,
+    facets=(("severity", "Bounce type"), ("mailbox", "Mailbox")),
+    date_sort_label="date received",
+    derive_facets=_derive_bounce,
 ))
 
 register(ReviewKind(
@@ -180,6 +247,9 @@ register(ReviewKind(
         ReviewAction(id="temporary_ignore", label="Temporary leave, ignore", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_ooo_ambiguous,
+    facets=(("replacement", "Replacement"), ("return", "Return date"), ("database", "Database"), ("mailbox", "Mailbox")),
+    date_sort_label="date received",
+    derive_facets=_derive_ooo,
 ))
 
 
@@ -291,7 +361,7 @@ def _classify_ooo(msg: ParsedMessage) -> dict:
     }
 
 
-def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
+def _handle_candidate_bounce(db: Session, msg: ParsedMessage, mailbox: str | None = None) -> bool:
     """Queues a review item for a message that looks like a delivery-failure
     notification. Always queues - even a maximally-confident hard bounce
     still needs a human to click "confirm & unsubscribe" (see
@@ -302,7 +372,7 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
     severity, confidence = _classify_bounce_severity(msg)
 
     if contact:
-        db.add(ReviewQueueItem(
+        db.add(rf.stamp(db, ReviewQueueItem(
             id=uuid.uuid4(), kind="bounce_uncertain", source_db=contact.source_db,
             entity_type="contact", entity_id=contact.id,
             payload={
@@ -311,22 +381,24 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
                 "details": [
                     {"key": "address", "label": "Failed address", "value": failed_address or "-"},
                     {"key": "subject", "label": "Original subject", "value": msg.subject},
-                    {"key": "severity", "label": "Classified as", "value": severity},
+                    {"key": "severity", "label": "Classified as", "value": _SEVERITY_TEXT[severity]},
                 ],
                 "related_entities": [
                     {"type": "contact", "id": str(contact.id), "label": contact.full_name or failed_address or "contact"}
                 ],
                 "original_text": msg.body_text,
                 "message_id": msg.message_id,
+                "mailbox": mailbox,
+                "received_at": msg.received_at.isoformat() if msg.received_at else None,
                 "confidence": confidence,
                 # Also top-level, not just inside `details` - lets Queue
                 # Insights (review_queue.py's _bucket_condition) query it
                 # directly instead of unpacking the details array.
                 "severity": severity,
             },
-        ))
+        )))
     else:
-        db.add(ReviewQueueItem(
+        db.add(rf.stamp(db, ReviewQueueItem(
             id=uuid.uuid4(), kind="bounce_unmatched",
             entity_type=None, entity_id=None,
             payload={
@@ -334,18 +406,20 @@ def _handle_candidate_bounce(db: Session, msg: ParsedMessage) -> bool:
                 "details": [
                     {"key": "address", "label": "Failed address", "value": failed_address or "-"},
                     {"key": "subject", "label": "Original subject", "value": msg.subject},
-                    {"key": "severity", "label": "Classified as", "value": severity},
+                    {"key": "severity", "label": "Classified as", "value": _SEVERITY_TEXT[severity]},
                 ],
                 "original_text": msg.body_text,
                 "message_id": msg.message_id,
+                "mailbox": mailbox,
+                "received_at": msg.received_at.isoformat() if msg.received_at else None,
                 "confidence": confidence,
                 "severity": severity,
             },
-        ))
+        )))
     return True
 
 
-def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts: set[uuid.UUID]) -> bool:
+def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts: set[uuid.UUID], mailbox: str | None = None) -> bool:
     """Queues a review item for a message that looks like an out-of-office
     / auto-reply, but only when the sender is someone already in the CRM -
     an auto-reply from an address we have no contact for isn't something a
@@ -419,7 +493,7 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts:
     # replacement this message gave us as the researched candidate - the
     # same shape dedupe.py's duplicate_contact producer uses.
     if classification["is_departure"]:
-        db.add(ReviewQueueItem(
+        db.add(rf.stamp(db, ReviewQueueItem(
             id=uuid.uuid4(), kind="departure_unconfirmed", source_db=original.source_db,
             entity_type="contact", entity_id=original.id,
             payload={
@@ -440,15 +514,17 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts:
                 ),
                 "original_text": msg.body_text,
                 "message_id": msg.message_id,
+                "mailbox": mailbox,
+                "received_at": msg.received_at.isoformat() if msg.received_at else None,
                 "replacements": replacements,
                 "prefill": ooo_prefill,
                 "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
             },
-        ))
+        )))
         pending_ooo_contacts.add(original.id)
         return True
 
-    db.add(ReviewQueueItem(
+    db.add(rf.stamp(db, ReviewQueueItem(
         id=uuid.uuid4(), kind="ooo_ambiguous", source_db=original.source_db,
         entity_type="contact", entity_id=original.id,
         payload={
@@ -468,12 +544,14 @@ def _handle_candidate_ooo(db: Session, msg: ParsedMessage, pending_ooo_contacts:
             "suggested_contact": suggested_contact,
             "original_text": msg.body_text,
             "message_id": msg.message_id,
+            "mailbox": mailbox,
+            "received_at": msg.received_at.isoformat() if msg.received_at else None,
             "return_date": return_date,
             "replacements": replacements,
             "prefill": ooo_prefill,
             "confidence": max(classification["confidence"], 0.65) if replacement_contact else classification["confidence"],
         },
-    ))
+    )))
     pending_ooo_contacts.add(original.id)
     return True
 
@@ -495,6 +573,9 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
     now = datetime.now(timezone.utc)
     db = SessionLocal()
     try:
+        # Cards queued before these kinds had filters get them now (bounded per run).
+        if rf.backfill(db, ["bounce_uncertain", "bounce_unmatched", "ooo_ambiguous", "departure_unconfirmed"]):
+            db.commit()
         mailboxes = _scan_mailboxes(db)
         if not mailboxes:
             logger.info("bounce_ooo scan: no mailboxes configured (GRAPH_SCAN_MAILBOXES / Automations Settings) - nothing to scan.")
@@ -568,13 +649,13 @@ def scan_mailbox_for_bounces_and_ooo() -> None:
                     processed_upto = msg
                     continue
                 if looks_like_bounce(msg):
-                    queued = _handle_candidate_bounce(db, msg)
+                    queued = _handle_candidate_bounce(db, msg, mailbox)
                 elif looks_like_ooo(msg):
                     if ooo_llm_calls_used >= ooo_llm_max:
                         capped_out = True
                         break
                     ooo_llm_calls_used += 1
-                    queued = _handle_candidate_ooo(db, msg, pending_ooo_contacts)
+                    queued = _handle_candidate_ooo(db, msg, pending_ooo_contacts, mailbox)
                 else:
                     queued = False
                 if queued:

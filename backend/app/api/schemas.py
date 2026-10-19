@@ -664,10 +664,11 @@ class BulkReviewActionRequest(BaseModel):
 
 
 class BulkReviewActionResult(BaseModel):
-    matched: int  # how many pending items matched kind/status before this ran
+    matched: int  # how many pending items matched the filters before this ran
     succeeded: int
     failed: int
-    errors: list[str] = []  # "<item id>: <message>" for whichever items failed, capped
+    errors: list[str] = []  # "<card summary>: <plain message>" for whichever items failed, capped
+    remaining: int = 0  # matching cards this call didn't get to (a call handles at most 500) - call again with offset=<failed so far>
 
 
 # ---- LLM usage / cost dashboard ----------------------------------------

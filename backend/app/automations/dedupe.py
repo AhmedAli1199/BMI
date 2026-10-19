@@ -35,6 +35,7 @@ from difflib import SequenceMatcher
 from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.registry import ReviewAction, ReviewKind, register
 from app.automations.scheduler import ScheduledJob, register_job
@@ -294,6 +295,34 @@ def _handle_duplicate(db: Session, item: ReviewQueueItem, action_id: str, input_
         raise ValueError(f"Unknown action {action_id!r} for duplicate_contact")
 
 
+def _match_word(details: list[dict], key: str) -> str:
+    """"Yes" / "No" / "No data" from the score's own detail rows ("Similar name" for a fuzzy company name)."""
+    row = next((d for d in details if d.get("key") == key), None)
+    if not row:
+        return rf.NOT_SET
+    value = str(row.get("value") or "")
+    if value in ("Yes", "No"):
+        return value
+    if value.startswith("Unknown"):
+        return "No data"
+    return "Similar name"
+
+
+def _derive_duplicate(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    details = p.get("details") or []
+    links = []
+    for n, e in enumerate([e for e in p.get("related_entities") or [] if e.get("type") == "contact"][:2], start=1):
+        row = rf.company_link(db, rf.contact_of(db, e.get("id")), label=f"{e.get('label') or 'Contact'}'s company")
+        if row:
+            links.append({**row, "key": f"company_link_{n}"})
+    return {
+        "facets": {"database": rf.database_name(db, item.source_db), "same_email": _match_word(details, "same_email"),
+                   "same_company": _match_word(details, "same_company")},
+        "details": rf.with_links(details, links),
+    }
+
+
 register(ReviewKind(
     kind="duplicate_contact",
     label="Duplicate Contact Resolution",
@@ -307,6 +336,8 @@ register(ReviewKind(
         ReviewAction(id="not_duplicate", label="Keep as separate contacts", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_duplicate,
+    facets=(("database", "Database"), ("same_email", "Same email"), ("same_company", "Same company")),
+    derive_facets=_derive_duplicate,
 ))
 
 
@@ -351,6 +382,7 @@ def scan_for_duplicates() -> None:
             if len(ids) == 2:
                 already_queued_pairs.add(frozenset(ids))
 
+        rf.backfill(db, ["duplicate_contact"])  # older cards get their filters; committed with the rest below
         cursor = get_state(db, _DEDUPE_CURSOR_KEY).get("last_contact_id")
 
         # Fetch this run's page of "a" contacts first, as a plain id list -
@@ -453,7 +485,7 @@ def scan_for_duplicates() -> None:
             if confidence < dedupe_confidence_floor:
                 continue
 
-            db.add(ReviewQueueItem(
+            db.add(rf.stamp(db, ReviewQueueItem(
                 id=uuid.uuid4(),
                 kind="duplicate_contact", source_db=survivor.source_db,
                 entity_type="contact",
@@ -472,7 +504,7 @@ def scan_for_duplicates() -> None:
                     "candidate": {"contact_id": str(candidate_contact.id), "label": _label(candidate_contact)},
                     "confidence": round(confidence, 2),
                 },
-            ))
+            )))
             queued += 1
 
         db.commit()

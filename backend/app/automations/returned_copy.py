@@ -15,12 +15,13 @@ code savings.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from urllib.parse import quote
 
 from sqlalchemy.orm import Session
 
 from app.automations.llm import extract_json_from_image, is_vision_configured
+from app.automations import review_facets as rf
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.automations.vision_intake import MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
 from app.models import Address, Company, Contact, ReviewQueueItem
@@ -130,6 +131,21 @@ def _handle_returned_copy(db: Session, item: ReviewQueueItem, action_id: str, in
         raise ValueError(f"Unknown action {action_id!r} for returned_copy")
 
 
+def _derive_returned_copy(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    matched_type = p.get("matched_entity_type")
+    links: list[dict | None] = []
+    if matched_type == "contact":
+        links.append(rf.company_link(db, rf.contact_of(db, p.get("matched_entity_id")), label="Their company in the CRM"))
+    return {
+        "facets": {"match": {"contact": "Matched a contact", "company": "Matched a company"}.get(matched_type or "", "No match found"),
+                   "reason": "Reason given on the label" if (p.get("label") or {}).get("return_reason") else "No reason given",
+                   "database": rf.database_name(db, p.get("source_db") or item.source_db)},
+        "sort_date": rf.iso_day(item.created_at) or date.today().isoformat(),
+        "details": rf.with_links(p.get("details"), links),
+    }
+
+
 register(ReviewKind(
     kind="returned_copy",
     label="Returned Print Copies",
@@ -150,6 +166,9 @@ register(ReviewKind(
         ReviewAction(id="dismiss", label="Dismiss (no match)", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_returned_copy,
+    facets=(("match", "Match"), ("reason", "Return reason"), ("database", "Database")),
+    date_sort_label="upload date",
+    derive_facets=_derive_returned_copy,
 ))
 
 
@@ -202,6 +221,7 @@ def process_returned_copy_photo(
             "error": "Couldn't detect any readable returned-mail labels in this photo - please try a clearer photo.",
         }
 
+    rf.backfill(db, ["returned_copy"])  # older cards get their filters too
     queued = 0
     matched_count = 0
     for label in valid_labels:
@@ -240,7 +260,7 @@ def process_returned_copy_photo(
             if search_for:
                 details.append({"key": "search", "label": "Look for them", "value": f"Search contacts for \"{search_for}\"",
                                 "href": f"/contacts?q={quote(search_for)}"})
-            db.add(ReviewQueueItem(
+            db.add(rf.stamp(db, ReviewQueueItem(
                 id=uuid.uuid4(), kind="returned_copy", source_db=source_db, entity_type=None, entity_id=None,
                 payload={
                     "summary": f"Returned copy for \"{display_name}\" - no match found in {source_db}",
@@ -253,12 +273,12 @@ def process_returned_copy_photo(
                     "confidence": None,
                     "source_db": source_db,
                 },
-            ))
+            )))
             queued += 1
         else:
             matched_count += 1
             matched_label = matched.full_name if contact else matched.name
-            db.add(ReviewQueueItem(
+            db.add(rf.stamp(db, ReviewQueueItem(
                 id=uuid.uuid4(), kind="returned_copy", source_db=source_db,
                 entity_type=matched_type, entity_id=matched.id,
                 payload={
@@ -271,7 +291,7 @@ def process_returned_copy_photo(
                     "confidence": 0.85 if contact else 0.75,
                     "source_db": source_db,
                 },
-            ))
+            )))
             queued += 1
 
     db.commit()

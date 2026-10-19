@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations import review_facets as rf
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
 from app.models import Contact, Note, ReviewQueueItem
 
@@ -98,6 +99,21 @@ def _handle_departure(db: Session, item: ReviewQueueItem, action_id: str, input_
         raise ValueError(f"Unknown action {action_id!r} for departure_unconfirmed")
 
 
+def _derive_departure(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    if (p.get("candidate") or {}).get("contact_id"):
+        successor = "Suggested, already in the CRM"
+    elif p.get("replacements"):
+        successor = "Named, not in the CRM yet"
+    else:
+        successor = "No one named"
+    return {
+        "facets": {"successor": successor, "database": rf.database_name(db, item.source_db), "mailbox": p.get("mailbox") or rf.NOT_SET},
+        "sort_date": rf.iso_day(p.get("received_at")) or rf.iso_day(item.created_at),
+        "details": rf.with_links(p.get("details"), [rf.company_link(db, rf.contact_of(db, item.entity_id))]),
+    }
+
+
 register(ReviewKind(
     kind="departure_unconfirmed",
     label="Executive Role Departures",
@@ -118,6 +134,9 @@ register(ReviewKind(
         ReviewAction(id="dismiss_false_alarm", label="Dismiss (contact remains)", style="secondary", outcome="rejected", reopenable=True, confirm_message="Dismiss this departure signal?"),
     ],
     handler=_handle_departure,
+    facets=(("successor", "Successor"), ("database", "Database"), ("mailbox", "Mailbox")),
+    date_sort_label="date received",
+    derive_facets=_derive_departure,
 ))
 
 

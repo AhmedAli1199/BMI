@@ -33,7 +33,7 @@ confirming.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -42,6 +42,7 @@ from app.api.schemas import MANUAL_SOURCE_DB
 from app.automations.contact_match import find_contact_by_email
 from app.automations.group_allowlist import ALLOWLISTED_GROUPS, suggest_groups
 from app.automations.llm import extract_json_from_image, is_vision_configured
+from app.automations import review_facets as rf
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, get_action, get_kind, register
 from app.automations.teams_notify import post_summary
 from app.automations.vision_intake import MATCH_THRESHOLD, MAX_IMAGE_BYTES, encode_image_data_url, find_similar_company, find_similar_contact
@@ -267,6 +268,30 @@ def _handle_existing_contact(db: Session, item: ReviewQueueItem, action_id: str,
         raise ValueError(f"Unknown action {action_id!r} for business_card_existing")
 
 
+def _derive_card(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    card = p.get("card") or {}
+    source_db = p.get("source_db") or item.source_db
+    facets = {"event": (p.get("show_context") or "").strip() or "No event given", "database": rf.database_name(db, source_db)}
+    links: list[dict | None] = []
+    if item.kind == "business_card_new":
+        company = None
+        if "company_match_id" in p:
+            company = db.get(Company, uuid.UUID(p["company_match_id"])) if p["company_match_id"] else None
+        elif card.get("company"):
+            company = find_similar_company(db, name=card.get("company"), source_db=source_db or MANUAL_SOURCE_DB)
+        facets["company"] = ("Company already in the CRM" if company else "New company") if card.get("company") else "No company on the card"
+        if company:
+            links.append({"key": "company_link", "label": "Company in the CRM", "value": company.name, "href": f"/companies/{company.id}"})
+    else:
+        contact = rf.contact_of(db, item.entity_id)
+        facets["changes"] = "Has changes" if p.get("changed_fields") else "No changes"
+        facets["owner"] = rf.owner_name(db, contact)
+        links.append(rf.company_link(db, contact, label="Their company in the CRM"))
+    return {"facets": facets, "sort_date": rf.iso_day(item.created_at) or date.today().isoformat(),
+            "details": rf.with_links(p.get("details"), links)}
+
+
 register(ReviewKind(
     kind="business_card_new",
     label="New Business Card Leads",
@@ -281,6 +306,9 @@ register(ReviewKind(
         ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_new_contact,
+    facets=(("event", "Event"), ("company", "Company"), ("database", "Database")),
+    date_sort_label="upload date",
+    derive_facets=_derive_card,
 ))
 
 register(ReviewKind(
@@ -293,6 +321,9 @@ register(ReviewKind(
         ReviewAction(id="dismiss", label="Skip", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle_existing_contact,
+    facets=(("event", "Event"), ("changes", "Changes on the card"), ("owner", "Contact owner"), ("database", "Database")),
+    date_sort_label="upload date",
+    derive_facets=_derive_card,
 ))
 
 
@@ -316,6 +347,7 @@ def process_business_card_photo(
     raw_cards = result.get("cards", []) if isinstance(result, dict) else []
     cards, skipped_duplicates = _dedupe_within_batch(db, raw_cards)
     batch_id = str(uuid.uuid4())
+    rf.backfill(db, ["business_card_new", "business_card_existing"])  # older cards get their filters too
     queued = 0
     for card in cards:
         full_name = " ".join(filter(None, [card.get("first_name"), card.get("last_name")])) or None
@@ -345,10 +377,11 @@ def process_business_card_photo(
             company_match = find_similar_company(db, name=card.get("company"), source_db=source_db) if card.get("company") else None
             suggested = suggest_groups(db, source_db, company_match.id) if company_match else []
             extra_payload["suggested_groups"] = [g.name for g in suggested]
+            extra_payload["company_match_id"] = str(company_match.id) if company_match else None
             if suggested:
                 details.append({"key": "suggested_groups", "label": "Suggested groups", "value": ", ".join(g.name for g in suggested)})
 
-        db.add(ReviewQueueItem(
+        db.add(rf.stamp(db, ReviewQueueItem(
             id=uuid.uuid4(),
             kind=kind, source_db=source_db,
             entity_type="contact" if match else None,
@@ -368,7 +401,7 @@ def process_business_card_photo(
                 "confidence": 0.5 if card.get("needs_review") else 0.85,
                 **extra_payload,
             },
-        ))
+        )))
         queued += 1
 
     db.commit()
