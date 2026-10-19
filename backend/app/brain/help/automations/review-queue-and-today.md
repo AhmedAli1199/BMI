@@ -10,28 +10,28 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 
 ## What you see
 **Review Queue**
-- The title shows the chosen automation's name, or "Review Queue", plus how many cards are waiting.
+- The title shows the chosen automation's name, or "Review Queue", plus how many cards the list holds with your filters, search and Queue Insights group applied.
 - Tabs: **Pending** (the working queue), **Approved**, **Rejected** and **Snoozed** (what was decided, read-only).
 - A row of chips: **All**, then one chip per kind of card, each with its waiting count. Kinds with nothing waiting are greyed and sit at the end.
 - The sort buttons on the right.
 - When one kind is chosen, you may also see:
-  - **Filter by:** drop-downs for that kind (for example Salesperson, Title, Magazine), with a count beside each option. Chosen filters show as removable chips.
+  - **Filter by:** drop-downs for that kind (for example Salesperson, Title, Bounce type, Mailbox, Database), with a count beside each option. Chosen filters show as removable chips. Every kind has filters. A card queued before its kind had filters shows under "Not set" until that automation next runs and fills it in.
   - **Queue Insights:** quick groups for duplicates (High confidence (≥90%), Medium confidence (70–89%), Low confidence (<70%)), bounces (Hard bounce, Soft bounce) and out-of-office replies (Has a named replacement, Absence only, no replacement named).
   - **Bulk action (<number>)** on the Pending tab.
 - A search box: "Search by contact or company...".
-- The cards. Up to 100 are shown at a time.
+- The cards, 50 at a time. When there are more, "Showing 1–50 of <number>" and **Previous** / **Next** move through the rest.
 
 **Each pending card**
 - The kind of card in capitals. Some cards also show "<number>% confidence": green at 75% or more, amber from 45%, red below. Then how long ago it arrived.
 - A one-line summary, and **View contact record** or **View company record** if it's about one. On a follow-up card this opens the contact (or company) the calendar activity is for.
-- The details. Blue values are links.
+- The details. Blue values are links to every record the card mentions (the contact, their company, the booking, a suggested replacement and so on).
 - **Every record this affects (<number>)**: every contact or company it would touch.
 - **Researched candidate:** for a departure, the suggested successor.
 - Fold-outs: **Original message** (the email or label it came from), **Drafted note** or **Draft email** (what the Brain wrote for you), and **Original email excerpt**.
 - The action buttons. Every link on a card opens in a new tab, so you keep your place.
 - When you act, the card turns green with the button's name and "Recorded on the CRM. Moving to the next item…", then disappears.
 
-**Approved, Rejected and Snoozed rows** show what was pressed, by whom ("· no reviewer recorded" if nobody was signed in), when, and any note. They also show **Open contact record** / **Open company record**, the person's name, company, email and phone, the details and the **Original message**.
+**Approved, Rejected and Snoozed rows** show what was pressed (with a tick for approved and a cross for rejected), by whom ("· no reviewer recorded" if nobody was signed in), when, and any note. They also show **Open contact record** / **Open company record**, the person's name, company, email and phone, the details and the **Original message**. Every link opens in a new tab.
 
 **Today**
 - The title "Today", with a count. On the Everyone view the line starts "Everyone's list."
@@ -59,13 +59,16 @@ Click one to show only that group, for example only Hard bounce. Click it again,
 Type a name and press Enter. It searches the card headlines (and email subjects). **Clear** removes the search.
 
 ### Bulk action (<number>) > <action> all (<number>)
-Only on the Pending tab, once one kind is chosen. It applies one button to every waiting card of that kind that matches your **Filter by:** choices and search. Only buttons that need nothing typed or picked per card are offered. "Assign different contact", "Merge records", "Create contact" and "Record invoice" don't appear, for example.
-- A button that needs a note asks for one note, used on every card.
-- Others ask you to confirm first ("… This can't be undone in bulk.").
-- Afterwards a message says how many worked and how many failed.
+Only on the Pending tab, once one kind is chosen. It applies one button to every waiting card of that kind that matches your **Filter by:** choices, search and **Queue Insights** group - exactly the cards the list is counting. Only buttons that need nothing typed or picked per card are offered. "Assign different contact", "Merge records", "Create contact" and "Record invoice" don't appear, for example.
+- A window says how many cards it will change. A button that needs a note asks for one **Note (added to every card)** here. Press **Confirm** to go ahead, or **Cancel**.
+- Big selections are done 500 at a time, with "Done <number> of <number>…" while it works. Keep the window open until it finishes.
+- Afterwards a message says how many worked and how many couldn't be done, and why.
+
+### Previous / Next
+Move to the next or previous 50 cards. Changing a filter, the sort, the tab or the kind goes back to the first page. If the cards on a page have all been dealt with since you opened it, "Nothing left on this page." shows with **Go to the first page**.
 
 ### Action buttons on a card
-Each kind has its own buttons. See the "How each automation works" guide and the Sales Orders "Review cards" guide. In general:
+Each kind has its own buttons. The main one comes first. Some cards lead with a different button: a soft bounce leads with **Keep - it was temporary**, because a temporary failure is no reason to unsubscribe anyone. See the "How each automation works" guide and the Sales Orders "Review cards" guide. In general:
 - A button that needs nothing more works straight away.
 - A button that needs more opens a small form under the card. The form may ask for a **Note** ("Why, or any context worth keeping on the record…"), a **Contact** search, **Which one do you want to keep?** (for a merge), or typed fields. Press **Confirm <action>**, or **Cancel**.
 - A risky button (for example **Confirm successor** or **Dismiss (contact remains)**) shows a warning with **Cancel** and **Confirm**.
@@ -110,8 +113,8 @@ A: Click its chip, for example **Overdue Follow-ups**. Use **Filter by:** and th
 A:
 1. Click the **Ambiguous Delivery Bounces** chip.
 2. Click **Soft bounce** under **Queue Insights** to check them.
-3. Press **Bulk action (<number>)** > **Not a bounce, ignore all (<number>)** and confirm.
-Note that bulk actions follow **Filter by:** and search, but not the Queue Insights chip (see below).
+3. Press **Bulk action (<number>)** > **Keep - it was temporary all (<number>)**, check the number in the window and press **Confirm**.
+Only the soft bounces are touched: bulk actions follow the Queue Insights chip, **Filter by:** and search.
 
 **Q: How do I send a renewal email?**
 A: Press **Send from my Outlook** on the card. Check **Send to**, edit the draft, then press the send button. It goes from your mailbox and is logged on the company.
@@ -133,11 +136,12 @@ A: In **Review the draft**, type "make it shorter" in **Ask for a revision (opti
 
 ## If something doesn't work
 - **No Bulk action button**: choose one kind chip first, and be on the Pending tab. If the kind's buttons all need something typed or picked per card, there's nothing to apply in bulk.
-- **A bulk action touched more cards than expected**: bulk actions ignore a selected **Queue Insights** chip and apply to every waiting card of that kind that matches your **Filter by:** choices and search. Use **Filter by:** or the search box to narrow it instead.
+- **A bulk action touched more cards than expected**: it applies to every waiting card of that kind matching your **Filter by:** choices, search and **Queue Insights** chip - the number in the window - not only the 50 on the page.
+- **"… more cards are still waiting. Run it again to do the rest."**: a very large selection stopped part-way. Press the bulk action again to carry on.
 - **"Already resolved … someone else may have just handled this."**: a colleague got there first. Refresh the page.
 - **"Confirm …" is greyed out**: fill in the required fields. That might be the **Note**, a **Contact**, **Which one do you want to keep?** or a starred field.
 - **"Connect your Outlook first"** when sending: connect your mailbox in Settings > Email, or use the log-only button and send it yourself.
 - **"The draft is empty"** / **"Enter the email address to send this to."**: write something, or fill in **Send to**.
 - **I can't see a kind my colleague sees**: kinds depend on your role and the Accounts permission (see How it works).
-- **Only 100 cards show**: the page shows the first 100. Use filters or search to reach the rest.
+- **Only 50 cards show**: use **Next** at the bottom, or filters and search, to reach the rest.
 - **"This card can't be reopened, because what was decided on it has already been carried out."**: the button pressed on it has already changed something (or the card was closed automatically). Make any further change on the record itself.

@@ -318,6 +318,10 @@ export type ReviewPayload = {
   suggested_contact?: { id: string; label: string } | null;
   /** Buttons that need a contact picked on this card only (the automation couldn't match the record itself). */
   pick_contact_for?: string[];
+  /** This card's main button, when it isn't the kind's usual one (a soft bounce leads with "Keep - it was temporary"). */
+  primary_action?: string | null;
+  /** Buttons that make no sense on this card (a hard bounce doesn't offer "temporary"). */
+  hidden_actions?: string[];
   candidate?: ReviewCandidate | null;
   confidence?: number | null;
   /** Keyed to match ReviewAction.extra_fields[].key exactly - whatever an

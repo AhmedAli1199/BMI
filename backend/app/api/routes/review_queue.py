@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Float, String, and_, cast, func, or_, select, text
+from sqlalchemy import Float, String, and_, case, cast, func, literal, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -26,6 +26,7 @@ from app.api.schemas import (
     UserSummary,
 )
 from app.automations import all_kinds, get_action, get_kind
+from app.automations.review_facets import NOT_SET
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import Company, Contact, Email, Phone, ReviewQueueItem, User
@@ -310,7 +311,10 @@ def _parse_facets(raw: list[str]) -> dict[str, list[str]]:
 
 
 def _facet_expr(key: str):
-    return ReviewQueueItem.payload["facets"][key].astext
+    # A card queued before its kind had filters has no "facets" at all - it shows under "Not set"
+    # (and can be filtered to) until the kind's next scan fills it in (see review_facets.backfill).
+    return case((ReviewQueueItem.payload.has_key("facets"), ReviewQueueItem.payload["facets"][key].astext),
+                else_=literal(NOT_SET))
 
 
 def _apply_filters(stmt, *, kind, status, q, bucket, facets: dict[str, list[str]], skip: str | None = None):
@@ -320,10 +324,10 @@ def _apply_filters(stmt, *, kind, status, q, bucket, facets: dict[str, list[str]
         stmt = stmt.where(ReviewQueueItem.status == status)
     if bucket:
         if not kind:
-            raise HTTPException(status_code=400, detail="bucket requires kind to be set too.")
+            raise HTTPException(status_code=400, detail="Pick a kind of card before choosing a Queue Insights group.")
         condition = _bucket_condition(kind, bucket)
         if condition is None:
-            raise HTTPException(status_code=400, detail=f"{bucket!r} is not a Queue Insights bucket for {kind!r}.")
+            raise HTTPException(status_code=400, detail="That Queue Insights group doesn't exist for this kind of card.")
         stmt = stmt.where(condition)
     if q and q.strip():
         needle = f"%{q.strip()}%"
@@ -557,12 +561,19 @@ def redraft_review_item(
     return RedraftResult(draft=new_draft)
 
 
+# One bulk call does at most this many cards; the screen calls again for the rest.
+BULK_MAX_PER_CALL = 500
+BULK_COMMIT_EVERY = 100
+
+
 @router.post("/bulk-actions/{action_id}", response_model=BulkReviewActionResult)
 def bulk_resolve_review_items(
     action_id: str,
     kind: str = Query(..., description="Bulk actions always target one kind's action list - the same kind the queue view is filtered to."),
     facet: list[str] = Query(default=[], description="The same 'key:value' filters the list is showing - only those items are touched."),
     q: str | None = Query(None, description="The same search the list is showing."),
+    bucket: str | None = Query(None, description="The Queue Insights group the list is showing (e.g. 'soft' bounces) - only those items are touched."),
+    offset: int = Query(0, ge=0, description="Skip this many matching cards (oldest first) - the ones earlier calls of the same run couldn't do."),
     payload: BulkReviewActionRequest = BulkReviewActionRequest(),
     db: Session = Depends(get_db),
     identity: Identity = Depends(get_identity),
@@ -590,16 +601,21 @@ def bulk_resolve_review_items(
     rolls back only itself - it never discards the items already resolved
     successfully in the same batch, the way a single db.rollback() on a
     shared session would.
+
+    Very large selections: one call handles at most BULK_MAX_PER_CALL cards
+    (oldest first), saving every BULK_COMMIT_EVERY so finished work is kept
+    even if the request is cut off. `remaining` says how many matching cards
+    this call didn't get to; the screen calls again (passing how many failed
+    so far as `offset`, since failed cards stay waiting at the front) until
+    it reaches 0.
     """
     kind_def = get_kind(kind)
-    if not kind_def:
-        raise HTTPException(status_code=404, detail=f"No automation is registered for kind {kind!r}")
     visible_kinds = _visible_kinds(identity, db)
-    if visible_kinds is not None and kind not in visible_kinds:
-        raise HTTPException(status_code=404, detail=f"No automation is registered for kind {kind!r}")
+    if not kind_def or (visible_kinds is not None and kind not in visible_kinds):
+        raise HTTPException(status_code=404, detail="This kind of card doesn't exist, or you don't have access to it.")
     action = get_action(kind, action_id)
     if not action:
-        raise HTTPException(status_code=400, detail=f"{action_id!r} is not a valid action for {kind!r}")
+        raise HTTPException(status_code=400, detail="That button isn't available for this kind of card.")
 
     if action.requires_contact_picker or action.requires_related_entity_choice:
         raise HTTPException(status_code=400, detail=f"\"{action.label}\" needs a per-item choice and can't be applied in bulk.")
@@ -612,14 +628,14 @@ def bulk_resolve_review_items(
     if payload.note:
         input_data["note"] = payload.note
 
-    items = db.scalars(
-        _apply_filters(_apply_scope(select(ReviewQueueItem), identity, db), kind=kind, status="pending", q=q, bucket=None,
-                       facets=_parse_facets(facet))
-    ).all()
+    stmt = _apply_filters(_apply_scope(select(ReviewQueueItem), identity, db), kind=kind, status="pending", q=q, bucket=bucket,
+                          facets=_parse_facets(facet))
+    matched = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = db.scalars(stmt.order_by(ReviewQueueItem.created_at, ReviewQueueItem.id).offset(offset).limit(BULK_MAX_PER_CALL)).all()
 
-    succeeded = 0
+    succeeded = failed = 0
     errors: list[str] = []
-    for item in items:
+    for n, item in enumerate(items, start=1):
         try:
             with db.begin_nested():
                 kind_def.handler(db, item, action_id, input_data)
@@ -630,11 +646,15 @@ def bulk_resolve_review_items(
                 item.reviewed_by_user_id = identity.user_uuid
             succeeded += 1
         except ValueError as e:
+            failed += 1
             if len(errors) < 20:  # cap - a batch that's failing wholesale doesn't need a 500-line response
-                errors.append(f"{item.id}: {e}")
+                errors.append(f"{(item.payload or {}).get('summary') or 'A card'}: {e}")
+        if n % BULK_COMMIT_EVERY == 0:
+            db.commit()
 
     db.commit()
-    return BulkReviewActionResult(matched=len(items), succeeded=succeeded, failed=len(items) - succeeded, errors=errors)
+    return BulkReviewActionResult(matched=matched, succeeded=succeeded, failed=failed, errors=errors,
+                                  remaining=max(matched - offset - len(items), 0))
 
 
 @router.post("/{item_id}/reopen", response_model=ReviewQueueItemOut)

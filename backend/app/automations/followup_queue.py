@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
@@ -123,6 +124,23 @@ def _redraft_followup(db: Session, item: ReviewQueueItem, extra_instructions: st
     return draft
 
 
+def _derive_followup(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    activity = db.get(Activity, item.entity_id) if item.entity_id else None
+    related = next((e for e in p.get("related_entities") or [] if e.get("type") == "contact"), None)
+    links = [rf.company_link(db, rf.contact_of(db, related.get("id")), label="Their company") if related else None]
+    return {
+        "facets": {
+            "type": (activity.activity_type if activity else None) or "Follow-up",
+            "priority": ((activity.priority if activity else None) or "normal").capitalize(),
+            "organiser": (activity.organized_by_name if activity else None) or "No one recorded",
+            "database": rf.database_name(db, item.source_db),
+        },
+        "sort_date": rf.iso_day(p.get("due_at")),
+        "details": rf.with_links(p.get("details"), links),
+    }
+
+
 register(ReviewKind(
     kind="followup_due",
     label="Overdue Follow-ups",
@@ -138,6 +156,9 @@ register(ReviewKind(
     handler=_handle_followup,
     redraft=_redraft_followup,
     audience="sales",
+    facets=(("type", "Type"), ("priority", "Priority"), ("organiser", "Organised by"), ("database", "Database")),
+    date_sort_label="due date",
+    derive_facets=_derive_followup,
 ))
 
 
@@ -214,6 +235,7 @@ def scan_for_due_followups() -> None:
         window_start = now - timedelta(days=runtime_settings.get_int(db, "followup_lookback_days"))
         window_end = now + timedelta(days=runtime_settings.get_int(db, "followup_lookahead_days"))
         max_per_run = runtime_settings.get_int(db, "followup_max_per_run")
+        rf.backfill(db, ["followup_due"])  # older cards get their filters; committed with the rest below
 
         already_queued = set(
             db.scalars(
@@ -262,7 +284,7 @@ def scan_for_due_followups() -> None:
             entity_type = "contact" if contact else "company"
             related_id = str(contact.id) if contact else str(company.id) if company else None
 
-            db.add(ReviewQueueItem(
+            db.add(rf.stamp(db, ReviewQueueItem(
                 id=uuid.uuid4(),
                 kind="followup_due", source_db=activity.source_db,
                 entity_type="activity",
@@ -286,7 +308,7 @@ def scan_for_due_followups() -> None:
                     # signal_triggers.py's identical addition.
                     "due_at": activity.start_at.isoformat(),
                 },
-            ))
+            )))
             queued_count += 1
 
         db.commit()

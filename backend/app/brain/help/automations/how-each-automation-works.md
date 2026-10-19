@@ -19,11 +19,14 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Reads**: new mail in those inboxes since the last run. Rule checks pick out bounce notices and auto-replies, and the Brain confirms the doubtful ones. At most **Max out-of-office analyses per cycle** auto-replies are checked per run.
 - **Makes** one of four cards. There is only one waiting auto-reply card per person at a time.
 - **Ambiguous Delivery Bounces** (the address belongs to a contact; marked Hard or Soft bounce):
-  - **Confirm & unsubscribe** marks the contact unsubscribed and adds a "Bounce" note.
+  - **Confirm & unsubscribe** marks the contact unsubscribed and adds a "Bounce" note. It is the main button on a hard bounce (the address doesn't work).
+  - **Keep - it was temporary** changes nothing. It is the main button on a soft bounce (mailbox full, server busy), where unsubscribing becomes the second choice. Hard bounces don't offer it.
   - **Not a bounce, ignore** changes nothing.
 - **Unmatched Delivery Bounces** (no contact has that address):
   - **Match to a contact** asks you to pick the contact. It then unsubscribes them and adds a note.
-  - **Ignore** changes nothing.
+  - **Keep - it was temporary** (soft bounces, where it is the main button) and **Ignore** change nothing.
+  - **Look for them** searches the contacts for the address, in a new tab.
+- Filters: bounces by **Bounce type**, **Mailbox** and **Database** (matched bounces); out-of-office replies by **Replacement**, **Return date**, **Database** and **Mailbox**; departures by **Successor**, **Database** and **Mailbox**. All sort by the date the email arrived. Cards link the contact, their company and any suggested replacement.
 - **Out-of-Office & Handover Notes** (a contact is away, with any replacement they named):
   - **Confirm replacement** asks you to pick the replacement, then adds a "Handover" note to both people.
   - **Create as new contact** asks for **Full name** and optional **Email**. It adds the replacement at the same company, with notes on both.
@@ -41,6 +44,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Makes**: **Duplicate Contact Resolution** cards scoring above **Match sensitivity threshold (0.0–1.0)**, up to **Max duplicate pairs queued per run**.
 - **Merge records**: pick **Which one do you want to keep?**, then confirm. Notes, history, activities, opportunities, emails, phones, addresses and groups move to the one you keep. The other is marked as merged, not deleted. This can't be undone from the screen.
 - **Keep as separate contacts** changes no records, and the scan remembers it: that pair isn't suggested again.
+- Filters: **Database**, **Same email** and **Same company** (Yes, No, Similar name or No data). Both contacts and their companies are linked.
 
 ### Business card and returned-copy uploads (Business Cards & Photos)
 - **When**: someone uses **Upload business card(s)** or **Upload returned copy label(s)**. There is no schedule, and it needs the Brain to read photos.
@@ -56,6 +60,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
   - **Retire (moved/closed)** (optional **Reason**) marks the record retired.
   - **Dismiss (no match)** changes nothing.
   - When a label matches nobody, **Update address** and **Retire (moved/closed)** also ask you to pick the **Contact** it was for. The card's **Look for them** link searches the contacts in a new tab.
+- Filters: new cards by **Event**, **Company** (already in the CRM, new, or none on the card) and **Database**; updates by **Event**, **Changes on the card**, **Contact owner** and **Database**; returned copies by **Match**, **Return reason** and **Database**. All sort by upload date, and link the matched contact and company.
 
 ### Inbound contact capture scan (Lead & Contact Capture)
 - **When**: every 30 minutes. **Switch**: **Inbound lead capture active**, with **Enquiry mailboxes (mailbox:database)**.
@@ -63,6 +68,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Makes**: **Inbound Lead Capture**, one per sender at a time, with a guessed company and suggested groups.
 - **Create contact** asks for **Full name**, and optionally **Job title**, **Company**, **Phone**, **Mobile**, **Groups to add (comma-separated)** and **Subscribe to newsletter**. A shared inbox also asks **Which BMI title does this belong to?**. It adds the contact (and the company if new) in the database the mailbox is set up for (the part after the colon in **Enquiry mailboxes (mailbox:database)**), the groups, and an "Inbound enquiry" note with the email. For a shared inbox (set up as "mailbox:*") the contact goes in the database you choose on the card.
 - **Not a lead, ignore** changes nothing.
+- Filters: **Mailbox**, **Intent** (High intent or General enquiry), **Company** and **Database**. Sorted by the date the email arrived. The suggested company is linked.
 
 ### Email exchange summary scan (feeds Sales & Follow-ups)
 - **When**: every 4 hours. **Switch**: **Email exchange logging active**, with **Monitored rep inboxes**.
@@ -74,12 +80,14 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Makes**: a **Commercial Signals** card per budget, renewal date or promised call-back. It appears **Opportunity lead time (days)** before its date, or **Undated signal follow-up delay (days)** after it was spotted if it has no date. Each comes with a drafted follow-up. These also show on **Today**.
 - **Approve & log to CRM** opens **Review the draft**, then saves it as a "Follow-up needed" note. Nothing is sent.
 - **Dismiss signal** closes it for good.
+- Filters: **Type**, **Contact owner**, **Date** (has a date or not) and **Database**. Sorted by due date. The contact and their company are linked.
 
 ### Personal touchpoint reminder scan (Sales & Follow-ups)
 - **When**: daily 06:00. **Switch**: **Personal touchpoints active**.
 - **Makes**: **Personal Touchpoint Reminders** for light personal occasions (back from leave, birthdays, anniversaries), with a warm, no-sales draft. Bereavement and illness are never picked up. These also show on **Today**.
 - **Approve & log to CRM** saves the draft as a "Personal touchpoint" note.
 - **Skip this occasion** closes it for good.
+- Filters: **Contact owner**, **Date** and **Database**. Sorted by due date.
 
 ### Follow-up due scan (Sales & Follow-ups)
 - **When**: hourly 07:00–18:00, Monday to Friday. **Switch**: **Follow-up queue active**.
@@ -88,6 +96,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Approve & log to CRM** saves the draft to the record's history and marks the activity done.
 - **Defer to next working day** moves the activity to tomorrow (Monday if it's Friday).
 - **Dismiss** leaves the activity as it is, and the scan doesn't bring it back - unless the activity is moved to a new date.
+- Filters: **Type**, **Priority**, **Organised by** and **Database**. Sorted by due date. The contact (or company) and the contact's company are linked.
 
 ### Proposal requests (Sales & Follow-ups)
 - **When**: every 10 minutes. **Switch**: **Spot proposal requests**, with **Inboxes to read**.

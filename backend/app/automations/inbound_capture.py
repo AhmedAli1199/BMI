@@ -39,6 +39,7 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.company_match import domain_of, suggest_company
 from app.automations.contact_match import find_contact_by_email
@@ -183,6 +184,30 @@ def _handle_create_contact(db: Session, item: ReviewQueueItem, action_id: str, i
     item.entity_type, item.entity_id = "contact", contact.id
 
 
+def _derive_inbound(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    source_db = p.get("source_db") or item.source_db
+    suggested = next((d.get("value") for d in p.get("details") or [] if d.get("key") == "suggested_company"), None)
+    if source_db == "*":
+        company = "Shared inbox - not checked"
+    elif "company_id" in p:
+        company = "Company found in the CRM" if p["company_id"] else "No company match"
+    elif suggested:  # a card queued before company_id was kept: read it off the detail row
+        company = "No company match" if suggested.startswith("(none") else "Company found in the CRM"
+    else:
+        company = rf.NOT_SET
+    links = []
+    if p.get("company_id"):
+        links.append({"key": "company_link", "label": "Suggested company in the CRM", "value": suggested or "Open company",
+                      "href": f"/companies/{p['company_id']}"})
+    return {
+        "facets": {"mailbox": p.get("mailbox") or rf.NOT_SET, "intent": "High intent" if p.get("is_high_intent") else "General enquiry",
+                   "company": company, "database": rf.database_name(db, source_db)},
+        "sort_date": rf.iso_day(p.get("received_at")) or rf.iso_day(item.created_at),
+        "details": rf.with_links(p.get("details"), links),
+    }
+
+
 register(ReviewKind(
     kind="inbound_contact_unmatched",
     label="Inbound Lead Capture",
@@ -208,6 +233,9 @@ register(ReviewKind(
     ],
     handler=_handle_create_contact,
     audience="sales",
+    facets=(("mailbox", "Mailbox"), ("intent", "Intent"), ("company", "Company"), ("database", "Database")),
+    date_sort_label="date received",
+    derive_facets=_derive_inbound,
 ))
 
 
@@ -309,6 +337,9 @@ def scan_inbound_contacts() -> None:
     now = datetime.now(timezone.utc)
     db = SessionLocal()
     try:
+        # Cards queued before this kind had filters get them now (bounded per run).
+        if rf.backfill(db, ["inbound_contact_unmatched"]):
+            db.commit()
         mailbox_pairs = _parse_mailbox_config(db)
         if not mailbox_pairs:
             logger.info("inbound_capture scan: no mailboxes configured (GRAPH_INBOUND_CAPTURE_MAILBOXES / Automations Settings) - nothing to scan.")
@@ -458,7 +489,7 @@ def scan_inbound_contacts() -> None:
                 # payload.source_db == "*", a shared inbox with nothing to
                 # prefill since the whole point is the reviewer must pick).
 
-                db.add(ReviewQueueItem(
+                db.add(rf.stamp(db, ReviewQueueItem(
                     id=uuid.uuid4(), kind="inbound_contact_unmatched",
                     source_db=source_db if source_db != "*" else None,
                     entity_type=None, entity_id=None,
@@ -477,8 +508,11 @@ def scan_inbound_contacts() -> None:
                         "is_high_intent": is_high_intent,
                         "confidence": intent_confidence,
                         "prefill": prefill,
+                        "mailbox": mailbox,
+                        "received_at": msg.received_at.isoformat() if msg.received_at else None,
+                        "company_id": str(company.id) if company else None,
                     },
-                ))
+                )))
                 pending_senders.add(sender)
                 queued_this_mailbox += 1
 

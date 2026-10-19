@@ -35,6 +35,9 @@ const STATUS_TABS = [
   { value: "snoozed", label: "Snoozed" },
 ] as const;
 
+/** Cards per page - "Previous" / "Next" move through the rest. */
+const PAGE_SIZE = 50;
+
 const SORT_OPTIONS = [
   { value: "recent", label: "Most recent", icon: Clock },
   { value: "confidence_asc", label: "Confidence: low → high", icon: ArrowUpNarrowWide },
@@ -44,9 +47,10 @@ const SORT_OPTIONS = [
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string; bucket?: string; facet?: string | string[] }>;
+  searchParams: Promise<{ kind?: string; status?: string; sort?: string; q?: string; bucket?: string; facet?: string | string[]; page?: string }>;
 }) {
-  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ, bucket: activeBucket, facet: rawFacet } = await searchParams;
+  const { kind: activeKind, status: rawStatus, sort: rawSort, q: rawQ, bucket: activeBucket, facet: rawFacet, page: rawPage } = await searchParams;
+  const pageNumber = Math.max(1, Number.parseInt(rawPage || "1", 10) || 1);
   const activeStatus = STATUS_TABS.some((t) => t.value === rawStatus) ? rawStatus! : "pending";
   const activeQuery = (rawQ || "").trim();
   const chosenFacets = ([] as string[]).concat(rawFacet ?? []).filter((f) => f.includes(":"));
@@ -72,7 +76,7 @@ export default async function ReviewQueuePage({
   const [counts, page, insights, facets] = await Promise.all([
     backendFetch<ReviewQueueCounts[]>("/api/review-queue/counts"),
     backendFetch<Page<ReviewQueueItem>>(
-      `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page_size=100${activeKind ? `&kind=${activeKind}` : ""}${
+      `/api/review-queue?status=${activeStatus}&sort=${activeSort}&page=${pageNumber}&page_size=${PAGE_SIZE}${activeKind ? `&kind=${activeKind}` : ""}${
         activeQuery ? `&q=${encodeURIComponent(activeQuery)}` : ""
       }${activeBucket ? `&bucket=${activeBucket}` : ""}${facetQuery}`
     ),
@@ -98,10 +102,17 @@ export default async function ReviewQueuePage({
 
   const countFor = (k: string) => counts.find((c) => c.kind === k)?.pending ?? 0;
   const totalPending = counts.reduce((sum, c) => sum + c.pending, 0);
+  // The count in the subtitle is what the list below actually holds, with every filter applied.
+  const isFiltered = Boolean(activeKind || activeQuery || activeBucket || chosenFacets.length > 0);
+  const firstShown = page.total === 0 ? 0 : (page.page - 1) * page.page_size + 1;
+  const lastShown = Math.min(page.page * page.page_size, page.total);
+  const lastPage = Math.max(1, Math.ceil(page.total / page.page_size));
+  const plural = page.total === 1 ? "" : "s";
   const activeStyle = activeKind ? styleForKind(activeKind) : null;
 
   // One place that builds every link on this page, so each control keeps the others' choices.
-  const hrefFor = (o: { status?: string; kind?: string | null; sort?: string; bucket?: string | null; facets?: string[] } = {}) => {
+  // Any change of filter, sort or tab goes back to the first page; only the paging links keep a page number.
+  const hrefFor = (o: { status?: string; kind?: string | null; sort?: string; bucket?: string | null; facets?: string[]; page?: number } = {}) => {
     const kind = o.kind === undefined ? activeKind : o.kind || undefined;
     const sort = o.sort ?? activeSort;
     const bucket = o.bucket === undefined ? activeBucket : o.bucket || undefined;
@@ -114,6 +125,7 @@ export default async function ReviewQueuePage({
     if (bucket) p.set("bucket", bucket);
     if (activeQuery) p.set("q", activeQuery);
     fs.forEach((f) => p.append("facet", f));
+    if (o.page && o.page > 1) p.set("page", String(o.page));
     return `/automations/review?${p}`;
   };
   const statusHref = (status: string) => hrefFor({ status });
@@ -134,10 +146,17 @@ export default async function ReviewQueuePage({
         section="The Brain"
         title={activeDef ? activeDef.label : "Review Queue"}
         description={
-          <>
-            {totalPending.toLocaleString()} item{totalPending === 1 ? "" : "s"} waiting
-            {activeKind ? " in this filter" : " across every automation"} - work through them in any order.
-          </>
+          activeStatus === "pending" ? (
+            <>
+              {page.total.toLocaleString()} item{plural} waiting
+              {isFiltered ? " in this filter" : " across every automation"} - work through them in any order.
+            </>
+          ) : (
+            <>
+              {page.total.toLocaleString()} {activeStatus} item{plural}
+              {isFiltered ? " in this filter" : ""}.
+            </>
+          )
         }
       />
 
@@ -349,14 +368,14 @@ export default async function ReviewQueuePage({
           kind (an action's meaning is per-kind, so there's no single
           "approve all" across every automation at once) and only on the
           pending tab (approved/rejected have nothing left to act on).
-          Always scoped to the current kind + pending, mirroring exactly
-          what the kind chips above already filtered the list to. */}
+          Always scoped to the current kind + pending, and to the same
+          filters, search and Queue Insights group as the list. */}
       {activeStatus === "pending" && activeKind && kindByName.get(activeKind) && (
         <div className="flex justify-end">
           <BulkReviewActions
             kind={kindByName.get(activeKind)!}
-            pendingCount={chosenFacets.length > 0 || activeQuery ? page.total : countFor(activeKind)}
-            filters={{ facets: chosenFacets, q: activeQuery || undefined }}
+            pendingCount={page.total}
+            filters={{ facets: chosenFacets, q: activeQuery || undefined, bucket: activeBucket || undefined }}
           />
         </div>
       )}
@@ -402,6 +421,14 @@ export default async function ReviewQueuePage({
             }
             return <ReviewItemCard key={item.id} item={item} kind={kind} />;
           })
+        ) : page.total > 0 ? (
+          // Past the last page (cards were dealt with since the link was made).
+          <p className="text-sm text-muted-foreground">
+            Nothing left on this page.{" "}
+            <Link href={hrefFor()} className="font-semibold text-primary hover:underline">
+              Go to the first page
+            </Link>
+          </p>
         ) : (
           <Card className="editorial-card relative overflow-hidden">
             <div
@@ -436,6 +463,29 @@ export default async function ReviewQueuePage({
           </Card>
         )}
       </div>
+
+      {page.total > page.page_size && (
+        <nav aria-label="Pages" className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4 text-xs">
+          <span className="tabular-nums text-muted-foreground">
+            Showing {firstShown.toLocaleString()}–{lastShown.toLocaleString()} of {page.total.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-2">
+            {page.page > 1 ? (
+              <Link href={hrefFor({ page: page.page - 1 })} className="rounded-lg border border-border/70 px-3 py-1.5 font-semibold text-foreground hover:border-primary/50">
+                Previous
+              </Link>
+            ) : null}
+            <span className="tabular-nums text-muted-foreground">
+              Page {page.page} of {lastPage}
+            </span>
+            {page.page < lastPage ? (
+              <Link href={hrefFor({ page: page.page + 1 })} className="rounded-lg border border-border/70 px-3 py-1.5 font-semibold text-foreground hover:border-primary/50">
+                Next
+              </Link>
+            ) : null}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
@@ -476,8 +526,17 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
             <div className="min-w-0">
               <p className="text-sm font-bold text-foreground">{item.payload.summary || "Review item"}</p>
               <p className="text-xs text-muted-foreground">
-                <span className={item.status === "approved" ? "font-semibold text-emerald-600" : item.status === "snoozed" ? "font-semibold text-muted-foreground" : "font-semibold text-rose-600"}>
-                  {item.status === "approved" ? <Check className="mr-0.5 inline size-3" /> : null}
+                <span
+                  className={
+                    item.status === "approved"
+                      ? "font-semibold text-[var(--ok)]"
+                      : item.status === "snoozed"
+                      ? "font-semibold text-muted-foreground"
+                      : "font-semibold text-destructive"
+                  }
+                >
+                  {item.status === "approved" ? <Check className="mr-0.5 inline size-3" aria-hidden="true" /> : null}
+                  {item.status === "rejected" ? <X className="mr-0.5 inline size-3" aria-hidden="true" /> : null}
                   {action?.label || (item.resolved_action && SYSTEM_OUTCOMES[item.resolved_action]) || item.resolved_action || item.status}
                 </span>
                 {item.reviewed_by ? ` by ${item.reviewed_by.name}` : " · no reviewer recorded"}
@@ -492,7 +551,8 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
                   className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                 >
                   Open {recordLink.label} record
-                  <ExternalLink className="size-3" />
+                  <ExternalLink className="size-3" aria-hidden="true" />
+                  <span className="sr-only">(opens in a new tab)</span>
                 </Link>
               )}
             </div>
@@ -505,6 +565,8 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
         {entity && (
           <Link
             href={`/${entity.type === "contact" ? "contacts" : "companies"}/${entity.id}`}
+            target="_blank"
+            rel="noreferrer"
             className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs transition-colors hover:border-primary/40 hover:bg-muted/40"
           >
             <span className="flex items-center gap-1.5 font-semibold text-foreground">
@@ -530,6 +592,7 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
                 {entity.phone}
               </span>
             )}
+            <span className="sr-only">(opens in a new tab)</span>
           </Link>
         )}
 
@@ -538,7 +601,16 @@ function ResolvedItemRow({ item, kind }: { item: ReviewQueueItem; kind: ReviewKi
             {item.payload.details!.map((d, i) => (
               <div key={d.key ?? i} className="flex items-baseline justify-between gap-2 sm:justify-start">
                 <dt className="shrink-0 text-muted-foreground">{d.label}</dt>
-                <dd className="whitespace-pre-wrap break-words text-right font-medium text-foreground sm:text-left">{d.value}</dd>
+                <dd className="whitespace-pre-wrap break-words text-right font-medium text-foreground sm:text-left">
+                  {d.href ? (
+                    <Link href={d.href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      {d.value}
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </Link>
+                  ) : (
+                    d.value
+                  )}
+                </dd>
               </div>
             ))}
           </dl>

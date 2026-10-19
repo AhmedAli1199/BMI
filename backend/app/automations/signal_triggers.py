@@ -35,6 +35,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
@@ -184,6 +185,21 @@ def _redraft_signal_trigger(db: Session, item: ReviewQueueItem, extra_instructio
     return draft
 
 
+def _derive_signal(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    contact = rf.contact_of(db, item.entity_id)
+    return {
+        "facets": {
+            "type": _SIGNAL_TYPE_LABELS.get(p.get("signal_type") or "", rf.NOT_SET),
+            "owner": rf.owner_name(db, contact),
+            "dated": "Has a date" if p.get("due_date") else "No date given",
+            "database": rf.database_name(db, item.source_db),
+        },
+        "sort_date": rf.iso_day(p.get("due_date")),
+        "details": rf.with_links(p.get("details"), [rf.company_link(db, contact, label="Their company")]),
+    }
+
+
 register(ReviewKind(
     kind="signal_trigger",
     label="Commercial Signals",
@@ -195,6 +211,9 @@ register(ReviewKind(
     handler=_handle_signal_trigger,
     redraft=_redraft_signal_trigger,
     audience="sales",
+    facets=(("type", "Type"), ("owner", "Contact owner"), ("dated", "Date"), ("database", "Database")),
+    date_sort_label="due date",
+    derive_facets=_derive_signal,
 ))
 
 
@@ -228,6 +247,7 @@ def scan_signal_triggers() -> None:
         no_date_delay_days = runtime_settings.get_int(db, "sales012_no_date_delay_days")
         max_per_run = runtime_settings.get_int(db, "sales012_max_per_run")
 
+        rf.backfill(db, ["signal_trigger"])  # older cards get their filters; committed with the rest below
         already_queued = _already_queued_signal_ids(db)
         candidates = (
             db.query(EmailSignal)
@@ -252,7 +272,7 @@ def scan_signal_triggers() -> None:
             label = _SIGNAL_TYPE_LABELS.get(signal.signal_type, signal.signal_type)
             contact_label = contact.full_name or contact.first_name or "a contact"
             draft, was_ai = _draft_followup_text(signal, contact_label)
-            db.add(ReviewQueueItem(
+            db.add(rf.stamp(db, ReviewQueueItem(
                 id=uuid.uuid4(), kind="signal_trigger", source_db=contact.source_db,
                 entity_type="contact", entity_id=contact.id,
                 payload={
@@ -284,7 +304,7 @@ def scan_signal_triggers() -> None:
                     "signal_type": signal.signal_type,
                     "due_date": signal.due_date.isoformat() if signal.due_date else None,
                 },
-            ))
+            )))
             # Audit stamp on the contact's own record the moment a trigger
             # fires - separate from (and independent of) the Note written
             # later if/when the reviewer approves the draft, so there's a

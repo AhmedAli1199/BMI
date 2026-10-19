@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
@@ -342,9 +343,11 @@ def _renewal_facts(db: Session, title: SalesTitle, ed: SalesEdition, order: Sale
 def _renewal_details(order: SalesOrder, last_label: str, total: float, count: int, rep: SalesRep | None,
                      facts: dict, was_ai: bool) -> list[dict]:
     return [
-        {"key": "client", "label": "Advertiser", "value": order.client_name},
+        {"key": "client", "label": "Advertiser", "value": order.client_name,
+         **({"href": f"/companies/{order.company_id}"} if order.company_id else {})},
         {"key": "last", "label": "Last booking", "value": f"{order.size or 'Space'} in {last_label}"
-                                                          + (f", booked {order.booked_on:%d %b %Y}" if order.booked_on else "")},
+                                                          + (f", booked {order.booked_on:%d %b %Y}" if order.booked_on else ""),
+         "href": f"/sales/orders/{order.id}"},
         {"key": "value", "label": "Spent with this title last year", "value": f"{_money(total)} across {count} booking(s)"},
         {"key": "rep", "label": "Their salesperson", "value": rep.name if rep else "-"},
         ({"key": "issue", "label": "Issue to offer", "value": f"{facts['issue']['label']} - " + "; ".join(
@@ -353,7 +356,8 @@ def _renewal_details(order: SalesOrder, last_label: str, total: float, count: in
           "href": f"/editorial/issues/{facts['issue']['id']}"}
          if facts.get("issue") else {"key": "issue", "label": "Issue to offer", "value": "No upcoming issue in the editorial plan"}),
         {"key": "price", "label": "This year's price", "value": facts["price_note"]},
-        {"key": "link", "label": "Previous ad online", "value": facts["link"] or facts["link_note"]},
+        {"key": "link", "label": "Previous ad online", "value": facts["link"] or facts["link_note"],
+         **({"href": facts["link"]} if facts["link"] else {})},
         {"key": "to", "label": "Suggested recipient", "value": (f"{facts['suggested_to_name']} <{facts['suggested_to']}>".strip()
                                                                if facts["suggested_to"] else "No contact with an email at this company yet")},
         {"key": "draft_source", "label": "Draft", "value": "Drafted by the Brain" if was_ai else "From the template (the Brain isn't switched on)"},
@@ -394,7 +398,7 @@ def queue_renewal(db: Session, title: SalesTitle, order: SalesOrder, ed: SalesEd
             "dedupe_key": key, "due_date": due.isoformat() if due else None,
         },
     )
-    db.add(item)
+    db.add(rf.stamp(db, item))
     seen.add(key)
     return item
 
@@ -488,10 +492,27 @@ def _redraft_renewal(db: Session, item: ReviewQueueItem, extra: str) -> str:
         item.payload = {**p, "details": _renewal_details(order, p.get("last_edition_label", ""), p.get("total", 0),
                                                         p.get("count", 1), rep, facts, True),
                         "suggested_to": p.get("suggested_to") or facts["suggested_to"]}
+        rf.stamp(db, item)  # the price / recipient filters follow the refreshed facts
     draft, _ = _renewal_draft(p.get("client_name", ""), p.get("title_name", ""), p.get("last_edition_label", ""),
                               p.get("size"), extra, price=facts.get("price"), link=facts.get("link"), issue=facts.get("issue_text"),
                               sender=(facts.get("owner_name") or "").split(" ")[0] or None)
     return draft
+
+
+def _derive_renewal(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    details = {d.get("key"): d for d in p.get("details") or []}
+    rep_name = (details.get("rep") or {}).get("value")
+    price = str((details.get("price") or {}).get("value") or "")
+    return {
+        "facets": {
+            "salesperson": p.get("owner_name") or (rep_name if rep_name and rep_name != "-" else None) or "House account",
+            "title": p.get("title_name") or rf.NOT_SET,
+            "price": rf.NOT_SET if not price else "Not on the rate card" if price.startswith("Not on") else "On this year's rate card",
+            "recipient": "Has an email address" if p.get("suggested_to") else "No email address yet",
+        },
+        "sort_date": rf.iso_day(p.get("due_date")),
+    }
 
 
 register(ReviewKind(
@@ -507,6 +528,9 @@ register(ReviewKind(
     handler=_handle_renewal,
     redraft=_redraft_renewal,
     audience="sales",
+    facets=(("salesperson", "Salesperson"), ("title", "Title"), ("price", "Price"), ("recipient", "Recipient")),
+    date_sort_label="renewal date",
+    derive_facets=_derive_renewal,
 ))
 
 
@@ -539,6 +563,7 @@ def scan_renewals() -> None:
         max_per_run = runtime_settings.get_int(db, "sor_renewal_max_per_run")
         seen = set(db.scalars(select(ReviewQueueItem.payload["dedupe_key"].astext).where(ReviewQueueItem.kind == RENEWAL_KIND)).all())
         reps = {r.id: r for r in db.scalars(select(SalesRep))}
+        rf.backfill(db, [RENEWAL_KIND])  # older cards get their filters; committed with the rest below
         queued: list[ReviewQueueItem] = []
         for title in db.scalars(select(SalesTitle).where(SalesTitle.active.is_(True)).order_by(SalesTitle.sort_order)):
             rows, _, _ = renewal_candidates(db, title.id, target_year, financial, start_month, today)

@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.llm import extract_json, is_configured
 from app.automations.registry import ReviewAction, ReviewKind, register
@@ -132,6 +133,20 @@ def _redraft_touchpoint(db: Session, item: ReviewQueueItem, extra_instructions: 
     return draft
 
 
+def _derive_touchpoint(db: Session, item: ReviewQueueItem) -> dict:
+    p = item.payload or {}
+    contact = rf.contact_of(db, item.entity_id)
+    return {
+        "facets": {
+            "owner": rf.owner_name(db, contact),
+            "dated": "Has a date" if p.get("due_date") else "No date given",
+            "database": rf.database_name(db, item.source_db),
+        },
+        "sort_date": rf.iso_day(p.get("due_date")),
+        "details": rf.with_links(p.get("details"), [rf.company_link(db, contact, label="Their company")]),
+    }
+
+
 register(ReviewKind(
     kind="personal_touchpoint_due",
     label="Personal Touchpoint Reminders",
@@ -143,6 +158,9 @@ register(ReviewKind(
     handler=_handle_touchpoint,
     redraft=_redraft_touchpoint,
     audience="sales",
+    facets=(("owner", "Contact owner"), ("dated", "Date"), ("database", "Database")),
+    date_sort_label="due date",
+    derive_facets=_derive_touchpoint,
 ))
 
 
@@ -176,6 +194,7 @@ def scan_personal_touchpoints() -> None:
         no_date_delay_days = runtime_settings.get_int(db, "sales005_no_date_delay_days")
         max_per_run = runtime_settings.get_int(db, "sales005_max_per_run")
 
+        rf.backfill(db, ["personal_touchpoint_due"])  # older cards get their filters; committed with the rest below
         already_queued = _already_queued_signal_ids(db)
         candidates = (
             db.query(EmailSignal)
@@ -199,7 +218,7 @@ def scan_personal_touchpoints() -> None:
 
             contact_label = contact.full_name or contact.first_name or "a contact"
             draft, was_ai = _draft_touchpoint_text(signal, contact_label)
-            db.add(ReviewQueueItem(
+            db.add(rf.stamp(db, ReviewQueueItem(
                 id=uuid.uuid4(), kind="personal_touchpoint_due", source_db=contact.source_db,
                 entity_type="contact", entity_id=contact.id,
                 payload={
@@ -216,7 +235,7 @@ def scan_personal_touchpoints() -> None:
                     "confidence": signal.confidence,
                     "due_date": signal.due_date.isoformat() if signal.due_date else None,
                 },
-            ))
+            )))
             db.add(HistoryEntry(
                 id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()),
                 entity_type="contact", entity_id=contact.id,

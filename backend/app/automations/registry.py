@@ -30,6 +30,9 @@ so the generic UI can render it without per-kind frontend code):
       "related_entities": [{"type": "contact"|"company", "id": "...", "label": "..."}],
       "suggested_contact": {"id": "...", "label": "..."} | None,
       "confidence": 0.0-1.0 | None,
+      "facets": {"<facet key>": "readable value"}, "sort_date": "YYYY-MM-DD" | None,
+      "primary_action": "<action id>" | None,   # this card's main button, when it differs from the kind's
+      "hidden_actions": ["<action id>", ...],    # buttons that make no sense on this card
     }
 
 None of these keys are enforced by the schema (payload is a plain JSONB
@@ -147,6 +150,10 @@ class ReviewKind:
     # When set, the screen offers "latest first / oldest first" sorting on
     # payload["sort_date"] (an ISO date), named like "booking" or "invoice".
     date_sort_label: str | None = None
+    # Optional: (db, item) -> the keys to merge into item.payload so it carries its filter values
+    # ("facets"), its "sort_date" and any extra record links. Lets a scan fill in cards queued before
+    # the kind had filters (see review_facets.backfill) using the same code that stamps new cards.
+    derive_facets: Callable[[Session, ReviewQueueItem], dict] | None = None
     # "accounts": only people with the Accounts permission see and act on these (see app/sales/accounts.py) -
     # whatever their role. Until someone has that permission, administrators/data managers do.
     approver: Literal["accounts"] | None = None

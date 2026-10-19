@@ -31,7 +31,7 @@ import { styleForKind } from "@/lib/automation-style";
 import { reviewRecordLink } from "@/lib/automation-format";
 import { resolveReviewItem, searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
 import { DraftReviewDialog } from "@/components/draft-review-dialog";
-import type { CompanyListItem, GroupListItem, ReviewAction, ReviewKind, ReviewQueueItem } from "@/lib/types";
+import type { CompanyListItem, GroupListItem, ReviewAction, ReviewKind, ReviewPayload, ReviewQueueItem } from "@/lib/types";
 import { friendlyError } from "@/lib/errors";
 
 /** Kind+action combos whose payload.original_text is an AI-drafted note/
@@ -58,6 +58,20 @@ const DRAFT_LOG_ONLY_ACTIONS: Record<string, string> = {
   proposal_request: "replied",
 };
 
+/** The buttons this card shows, main one first. A card can lead with a different button than its kind usually
+ * does (payload.primary_action - a soft bounce leads with "Keep - it was temporary", not unsubscribe) and drop
+ * ones that make no sense for it (payload.hidden_actions). A destructive button keeps its warning style. */
+function cardActions(actions: ReviewAction[], payload: ReviewPayload): ReviewAction[] {
+  const hidden = new Set(payload.hidden_actions ?? []);
+  const shown = actions.filter((a) => !hidden.has(a.id));
+  const lead = payload.primary_action ? shown.find((a) => a.id === payload.primary_action) : undefined;
+  if (!lead) return shown;
+  return [lead, ...shown.filter((a) => a !== lead)].map((a): ReviewAction => {
+    if (a.style === "destructive") return a;
+    return { ...a, style: a === lead ? "primary" : "secondary" };
+  });
+}
+
 const STYLE_CLASSES: Record<ReviewAction["style"], string> = {
   primary: "",
   secondary: "",
@@ -74,9 +88,9 @@ function needsContactPicker(action: ReviewAction, payload: ReviewQueueItem["payl
 }
 
 function confidenceTone(confidence: number): { dot: string; text: string } {
-  if (confidence >= 0.75) return { dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" };
-  if (confidence >= 0.45) return { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400" };
-  return { dot: "bg-rose-500", text: "text-rose-600 dark:text-rose-400" };
+  if (confidence >= 0.75) return { dot: "bg-[var(--ok)]", text: "text-[var(--ok)]" };
+  if (confidence >= 0.45) return { dot: "bg-[var(--warn)]", text: "text-[var(--warn)]" };
+  return { dot: "bg-[var(--bad)]", text: "text-[var(--bad)]" };
 }
 
 function timeAgo(iso: string): string {
@@ -366,9 +380,9 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
 
   if (justResolvedLabel) {
     return (
-      <Card className="editorial-card overflow-hidden border-emerald-500/30 bg-emerald-500/5">
+      <Card className="editorial-card overflow-hidden border-[color-mix(in_oklab,var(--ok)_30%,transparent)] bg-[color-mix(in_oklab,var(--ok)_5%,transparent)]">
         <CardContent className="flex items-center gap-3 p-5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--ok)_15%,transparent)] text-[var(--ok)]">
             <CheckCircle2 className="size-5" />
           </span>
           <div>
@@ -415,7 +429,8 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
                 className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
               >
                 View {recordLink.label} record
-                <ExternalLink className="size-3" />
+                <ExternalLink className="size-3" aria-hidden="true" />
+                <span className="sr-only"> (opens in a new tab)</span>
               </Link>
             )}
           </div>
@@ -436,6 +451,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
                   {d.href ? (
                     <Link href={d.href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       {d.value}
+                      <span className="sr-only"> (opens in a new tab)</span>
                     </Link>
                   ) : (
                     d.value
@@ -466,6 +482,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
                   <Badge variant="secondary" className="cursor-pointer text-[11px] hover:bg-secondary/70">
                     {e.label}
                   </Badge>
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </Link>
               ))}
             </div>
@@ -486,6 +503,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
                 className="font-semibold text-primary hover:underline"
               >
                 {payload.candidate.label || "View candidate"}
+                <span className="sr-only"> (opens in a new tab)</span>
               </Link>
               {payload.candidate.source && (
                 <span className="text-muted-foreground"> · via {payload.candidate.source}</span>
@@ -535,7 +553,7 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
           {kind.kind === "invoice_due" && typeof payload.deal_id === "string" && (
             <XeroInvoiceButton dealId={payload.deal_id} orderIds={(payload.order_ids as string[] | undefined) ?? undefined} />
           )}
-          {kind.actions.map((action) => (
+          {cardActions(kind.actions, payload).map((action) => (
             <Button
               key={action.id}
               size="sm"
@@ -1091,7 +1109,7 @@ function ExpandedActionForm({
       <span className="text-xs font-bold text-foreground">{action.label}</span>
       {action.confirm_message && (
         <span className="flex items-start gap-1.5 text-xs text-muted-foreground">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" />
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-[var(--warn)]" />
           {action.confirm_message}
         </span>
       )}

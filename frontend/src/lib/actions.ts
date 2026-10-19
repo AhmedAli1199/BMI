@@ -605,13 +605,16 @@ export async function bulkResolveReviewItems(
   kind: string,
   actionId: string,
   note?: string,
-  /** The filters the list is showing - only those items are touched. */
-  filters?: { facets?: string[]; q?: string }
-): Promise<{ matched: number; succeeded: number; failed: number; errors: string[] }> {
+  /** The filters, search and Queue Insights group the list is showing - only those items are touched.
+   * `offset` skips cards an earlier round of the same run couldn't do (they stay waiting, oldest first). */
+  filters?: { facets?: string[]; q?: string; bucket?: string; offset?: number }
+): Promise<{ matched: number; succeeded: number; failed: number; errors: string[]; remaining: number }> {
   const params = new URLSearchParams({ kind });
   (filters?.facets ?? []).forEach((f) => params.append("facet", f));
   if (filters?.q) params.set("q", filters.q);
-  const result = await backendFetch<{ matched: number; succeeded: number; failed: number; errors: string[] }>(
+  if (filters?.bucket) params.set("bucket", filters.bucket);
+  if (filters?.offset) params.set("offset", String(filters.offset));
+  const result = await backendFetch<{ matched: number; succeeded: number; failed: number; errors: string[]; remaining: number }>(
     `/api/review-queue/bulk-actions/${actionId}?${params}`,
     {
       method: "POST",
