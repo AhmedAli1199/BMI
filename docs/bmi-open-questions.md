@@ -62,7 +62,10 @@ a record of what was decided and why.
 - [ ] **Delivery stages and expected timings for sold work.** (SALES-027.)
       e.g. booked -> artwork received -> in production -> published, and how
       long each should take, per product type; plus who owns each stage.
-- [ ] **Reps' current pipeline spreadsheets/notebooks.** (SALES-024 migration.)
+- [ ] **Reps' current pipeline spreadsheets/notebooks.** (SALES-024 migration.) PARTLY ANSWERED (Clare, 21 Oct):
+      most reps use pen and paper plus an Outlook folder per client; only Sally keeps a spreadsheet (Clare
+      sent a newer copy - still to be added to the repo). One rep "doesn't have time to keep updating an
+      external document", so the pipeline must fill itself from notes, emails and calls, not ask for typing.
 - [ ] **Example contact with the "useful box" and "Ad agency" fields filled in**,
       to identify which imported Act! fields they are.
 - [ ] **Which Act! contact fields hold ABTA number, Type (e.g. Travel Counsellor) and
@@ -70,14 +73,35 @@ a record of what was decided and why.
       a list of "field name -> what it means" (or a screenshot of an Act! contact's
       custom-fields tab) lets us show them by name. (Act! user feedback B1-B3.)
 - [ ] **Who in editorial needs logins**, for the Editorial role.
-- [ ] **Teams / Zoom call transcripts - available, and from which platform?**
-      (SALES-008 call-note capture, spec §6 item 3.)
+- [x] **Teams / Zoom call transcripts - available, and from which platform?** ANSWERED (Matt, Oct 2026):
+      Outlook calendars; Teams first, then Zoom. Zoom plan: one signed-in notetaker account (Zoom user on
+      automation@bmipublishing.co.uk) whose ZAK token the bot joins with, so nobody from BMI has to connect Zoom
+      or be in the call; one Zoom app, sent to Zoom for review (4-6 weeks) before it can join clients' meetings.
+- [ ] **Onboard Hospitality: how recent must the last ACT note be to keep a client with its salesperson?**
+      We suggested the last two years (older = new business for Craig). Matt didn't answer this one (20 Oct).
 - [ ] **Successor research method for departures** - an enrichment provider,
       or manual-assist only? (CS-003/004, spec §6 item 5.)
 - [ ] **Wufoo subscription forms -> enquiries@ as well?** and **do hard-bounce
       reports land in the shared mailboxes or with the sender?**
 
 ## Answered
+
+- [x] **Which salesperson gets which client** (Matt, 20 Oct 2026). In this order:
+      1. By product: The Business Travel Magazine and its events (incl. The Business Travel People Awards) ->
+         Kirsty; Selling Travel Connect events -> Steve.
+      2. Existing clients stay with whoever looks after them now: last ACT note or last booking, per magazine
+         (Sue keeps her long-standing Onboard Hospitality clients).
+      3. New Onboard Hospitality business -> Craig.
+      4. Selling Travel by the destination the client promotes, not its office (Visit Malta = Malta):
+         - **Sally Parker:** North America, Caribbean, UK, Pacific.
+         - **Steve Thompson:** all events (worldwide), Spain, Indian Ocean, Middle East, Gulf States.
+         - **David Wilcox:** Asia, Africa, Australasia, India and the sub-continent (incl. Sri Lanka),
+           Western Europe, Eastern Europe, Scandinavia, Mexico and Central America, South America, Ocean &
+           River Cruise, Channel Islands, and the Accessibility Awards.
+      5. Clients covering many regions (tour operators): whoever had the last contact with them in ACT. New
+         clients the Brain finds: whoever takes it first.
+      6. Not sure -> ask once with a suggestion and remember. Each client shows who looks after it on each
+         magazine and why; changeable any time.
 
 - [x] **Dedicated inbound-enquiry mailbox for SALES-011, and which database?**
       (Sep 2026) `enquiries@bmipublishing.co.uk`, monitored by Shani and Kay,
