@@ -2,7 +2,7 @@
 title: Sales Orders cards in the Review Queue
 screens: ["/automations/review"]
 summary: Every kind of Review Queue card that comes from Sales Orders - booking checks, Ready to invoice, change requests, invoice matching and more - and what each button on them does.
-sources: ["frontend/src/components/review-item-card.tsx", "frontend/src/app/(app)/automations/review/page.tsx", "frontend/src/components/sales/invoice-match-panel.tsx", "frontend/src/components/deals/xero-invoice-button.tsx", "backend/app/automations/order_checks.py", "backend/app/automations/invoice_due.py", "backend/app/automations/booking_changes.py", "backend/app/automations/allocations.py", "backend/app/automations/sor_checks.py", "backend/app/automations/xero_matching.py", "backend/app/automations/booking_forms.py", "backend/app/automations/sales_orders.py", "backend/app/automations/save_the_sale.py", "backend/app/automations/workstreams.py", "backend/app/api/routes/review_queue.py", "backend/app/sales/accounts.py"]
+sources: ["frontend/src/components/review-item-card.tsx", "frontend/src/app/(app)/automations/review/page.tsx", "frontend/src/components/sales/invoice-match-panel.tsx", "frontend/src/components/deals/xero-invoice-button.tsx", "backend/app/automations/order_checks.py", "backend/app/automations/invoice_due.py", "backend/app/automations/booking_changes.py", "backend/app/automations/allocations.py", "backend/app/automations/sor_checks.py", "backend/app/automations/xero_matching.py", "backend/app/automations/booking_forms.py", "backend/app/automations/sales_orders.py", "backend/app/automations/save_the_sale.py", "backend/app/automations/client_owners.py", "backend/app/automations/workstreams.py", "backend/app/api/routes/review_queue.py", "backend/app/sales/accounts.py"]
 ---
 
 ## What this screen is for
@@ -43,6 +43,13 @@ A salesperson wants to change or cancel a checked booking. It shows who asked an
 A booking with items sold but no issue chosen, as the "decide by" date or the title's next booking deadline gets close. Links go to the booking, the client and the next issue. Filters: Salesperson, Title, When. Sorted by decide-by date.
 - **All allocated**: closes it. It only works once every item has an issue. The card also closes by itself when they're all allocated.
 - **Remind me next week**: hides it for 7 days.
+
+### Who looks after a client (administrators and data managers)
+A client the Brain couldn't place with a salesperson by the agreed rules, usually a Selling Travel client with no destination it can find. It asks once per client and magazine, at most 50 new cards a night, most recently active first. The card links to the client (and its website), says why it isn't sure, and gives a suggestion if someone was in touch long ago. Filters: Magazine, Suggestion, Why. Sorted by last contact (Latest contact first or Oldest contact first).
+- **Use the suggestion**: that salesperson looks after the client. Also works for several cards at once.
+- **Someone else**: pick the **Salesperson** from the drop-down (that magazine's team).
+- **Not now**: closes the card without deciding. It isn't asked again; change it on the company page instead.
+- Your answer is kept for good, the same as pressing **Change** on the company page. The card closes by itself if a note or booking settles it first.
 
 ### Issue gone to press (Accounts)
 A few days after an issue's copy deadline: anything in its order register worth a look before invoicing. That means items with no booking, items that don't match their booking, items still pencilled, confirmations never sent, and packages for that title still to allocate. It also shows how many items are still to invoice and how many filler ads there are. Each row links to the item, booking or issue. Up to 40 rows are shown, then "And more". Filters: Title, What it found. Sorted by issue date.

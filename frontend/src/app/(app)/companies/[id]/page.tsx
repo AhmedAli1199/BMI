@@ -30,6 +30,8 @@ import { getCompanyFieldChanges } from "@/lib/actions";
 import { canUseAutomations } from "@/lib/access";
 import type { CompanyBookings, SalesMeta } from "@/lib/sales-types";
 import { CompanyBookingsPanel } from "@/components/sales/company-bookings";
+import { CompanyOwners } from "@/components/company-owners";
+import { getClientOwners } from "@/lib/client-owners";
 
 export default async function CompanyDetailPage({
   params,
@@ -71,9 +73,10 @@ export default async function CompanyDetailPage({
   }
 
   const customEntries = customFieldEntries(company.custom_fields, company.custom_field_labels);
-  const [bookings, salesMeta] = await Promise.all([
+  const [bookings, salesMeta, owners] = await Promise.all([
     backendFetch<CompanyBookings>(`/api/sales/companies/${id}/orders`).catch(() => null),
     backendFetch<SalesMeta>("/api/sales/meta").catch(() => null),
+    getClientOwners(id).catch(() => null),
   ]);
 
   return (
@@ -128,6 +131,8 @@ export default async function CompanyDetailPage({
         <RecordReminders reminders={reminders} />
 
         <ActCompanyCard company={company} />
+
+        {owners && <CompanyOwners companyId={company.id} initial={owners} />}
 
         <FieldChangeHistory entityId={company.id} fetchChanges={getCompanyFieldChanges} />
 

@@ -2,7 +2,7 @@
 title: Companies
 screens: ["/companies", "/companies/[id]"]
 summary: The list of client and prospect companies, and each company's page with its details, people, history, notes and everything it has booked.
-sources: ["frontend/src/app/(app)/companies/page.tsx", "frontend/src/app/(app)/companies/[id]/page.tsx", "frontend/src/components/company-form-dialog.tsx", "frontend/src/components/act-company-card.tsx", "frontend/src/components/act-subbar.tsx", "frontend/src/components/add-existing-contact-picker.tsx", "frontend/src/components/contact-form-dialog.tsx", "frontend/src/components/touchpoint-bar.tsx", "frontend/src/components/unified-activity-timeline.tsx", "frontend/src/components/field-change-history.tsx", "frontend/src/components/remind-me-dialog.tsx", "frontend/src/components/record-reminders.tsx", "frontend/src/components/sales/company-bookings.tsx", "frontend/src/components/sales/orders-table.tsx", "frontend/src/components/sales/order-sheet.tsx", "backend/app/api/routes/companies.py", "backend/app/api/routes/sales.py", "backend/app/core/visibility.py"]
+sources: ["frontend/src/app/(app)/companies/page.tsx", "frontend/src/app/(app)/companies/[id]/page.tsx", "frontend/src/components/company-form-dialog.tsx", "frontend/src/components/act-company-card.tsx", "frontend/src/components/act-subbar.tsx", "frontend/src/components/add-existing-contact-picker.tsx", "frontend/src/components/contact-form-dialog.tsx", "frontend/src/components/touchpoint-bar.tsx", "frontend/src/components/unified-activity-timeline.tsx", "frontend/src/components/field-change-history.tsx", "frontend/src/components/company-owners.tsx", "backend/app/sales/ownership.py", "backend/app/sales/regions.py", "frontend/src/components/remind-me-dialog.tsx", "frontend/src/components/record-reminders.tsx", "frontend/src/components/sales/company-bookings.tsx", "frontend/src/components/sales/orders-table.tsx", "frontend/src/components/sales/order-sheet.tsx", "backend/app/api/routes/companies.py", "backend/app/api/routes/sales.py", "backend/app/core/visibility.py"]
 ---
 
 ## What this screen is for
@@ -18,6 +18,7 @@ Companies lists every account in the CRM: advertisers, agencies and prospects, a
 - On the right: **Remind me**, **Mail merge**, **Build a proposal**, **New booking**, and **Previous company** / **Next company** arrows with "3 of 5".
 - An amber strip with your own reminders about this company, if any.
 - **Company details** in three columns (empty fields are hidden until you press **Edit Company**): Company Profile (Name, Industry, Phone, E-mail, Web Site), Headquarters Address, and Account Status & Scope (Category, Territory, Region, Employees, plus how many Linked Contacts and Logged Notes).
+- **Who looks after them**: one line per magazine (Onboard Hospitality for Onboard companies; The Business Travel Magazine, Selling Travel, Selling Travel events and the Accessibility Awards for Selling Travel and Prospects companies), with the salesperson ("Nobody yet" if no one), a label saying which rule decided it (By product, Last contact, Last booking, By region, New business, Nobody yet, Not sure yet, Chosen by a person) and why in plain words.
 - **History of changes**.
 - Tabs, each with a count: **Associated Contacts (<n>)**, **Activity & History (<n>)**, **Company Notes (<n>)**, **Bookings (<n>)** and **User Fields (<n>)**.
 
@@ -59,6 +60,9 @@ Opens the blank booking form with this company already chosen (see the "New book
 ### Edit Company, Save Changes, Cancel
 **Edit Company** makes the card editable: Name, Industry, Phone, E-mail, Web Site, the address, Category, Territory, Region and Employees. **Save Changes** saves; **Cancel** throws the changes away. The copy icon next to the phone or email copies it; the Web Site link opens the site in a new tab.
 
+### Who looks after them, Change, Back to the rules
+The (i) next to the heading explains the rules. **Change** (administrators and data managers only) opens a side panel with a drop-down per magazine: pick the salesperson, or "Nobody yet (whoever takes it first)", and press **Save**. Your choice is kept; the nightly check won't change it. **Back to the rules** (shown under a magazine someone chose) lets the rules decide again. The Business Travel Magazine, Selling Travel events and the Accessibility Awards always go to Kirsty, Steve and David, so they aren't in the panel.
+
 ### History of changes
 Who changed which company field, from what to what, and when. Adding, changing or removing a phone number, email or address is listed too.
 
@@ -89,6 +93,8 @@ The Act! custom fields with a value on this company, with their names tidied up 
 - A booking links to a company when its client name matches the company exactly, or when someone confirms a suggested match in the Review Queue, or when it's linked from the booking or item itself. Only linked bookings show on the Bookings tab.
 - Every edit to the company's own fields is recorded in **History of changes**, with who made it.
 - **Add existing contact** moves the person to this company; they're no longer linked to their old one.
+- **Who looks after them** follows the rules agreed with Matt, in this order: (1) by product - The Business Travel Magazine and its events (including the Business Travel People Awards) are Kirsty's, Selling Travel events (Connect and the rest, worldwide) are Steve's, the Accessibility Awards are David's; (2) an existing client stays with whoever from that magazine's team was last in touch (a note, call, email or meeting in Act! or BMI Brain, on the company or any of its people) or last booked them, in the last 2 years (Automations > Sales Order Register > "Recent contact (years)"); (3) Onboard Hospitality: anyone else is new business for Craig; (4) Selling Travel: by the destination the client promotes, not where its office is (Visit Malta is a Malta client) - Sally: North America, Caribbean, UK, Pacific; Steve: Spain, Indian Ocean, Middle East and Gulf; David: Asia, Africa, Australasia, India and the sub-continent, Western and Eastern Europe, Scandinavia, Mexico and Central America, South America, ocean and river cruise, Channel Islands. The destination is read from the company's name, website and description. A client covering several regions goes to whoever was last in touch, however long ago; if nobody has been, to whoever takes it first. (5) Not sure (no destination found but the client is active, or someone was in touch long ago) -> administrators get a "Who looks after a client" card in the Review Queue, with a suggestion. It's worked out again every night, and each time the page is opened.
+- Renewal reminders go to whoever looks after the client on that magazine, if they have a login.
 - Deleting a company (not offered on this page) never deletes its people or bookings; they're just unlinked.
 
 ## Common questions
@@ -113,6 +119,12 @@ A: Press **Mail merge** on the company page. Everyone there is chosen; untick an
 **Q: How do I start a proposal or a booking for this company?**
 A: Press **Build a proposal** or **New booking** at the top of the company page.
 
+**Q: Who looks after this client, and why?**
+A: See **Who looks after them** under the company details: the salesperson for each magazine and the rule that decided it.
+
+**Q: The wrong person looks after a client. How do I change it?**
+A: Administrators and data managers press **Change** next to **Who looks after them**, pick the salesperson and press **Save**. It's kept until someone presses **Back to the rules**.
+
 **Q: How do I log a call with the company rather than a person?**
 A: Click the **Activity & History** tab, press the "Log or schedule →" bar, choose **Log**, pick the type and result, and press **Save**.
 
@@ -122,5 +134,8 @@ A: Click the **Activity & History** tab, press the "Log or schedule →" bar, ch
 - **Add to company is greyed out**: pick a person from the search first.
 - **Add company is greyed out**: type a name.
 - **A person I just added with Add existing contact isn't in the list**: reload the page.
+- **No Change button next to Who looks after them**: only administrators and data managers can change it.
+- **Selling Travel says "Not sure yet"**: the Brain couldn't find the destination. Answer the card in the Review Queue, or press **Change**.
+- **Someone left long ago still looks after a client**: only active salespeople count; their old notes don't. If they still show, someone chose them - press **Change**, then **Back to the rules**.
 - **The record arrows are greyed out**: you opened the company directly rather than from the list.
 - **I can't delete a company here**: there's no delete button on the company page.

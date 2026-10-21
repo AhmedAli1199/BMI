@@ -50,7 +50,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         label="Revenue & Orders",
         tagline="Renewals, uninvoiced bookings and client matching, all run on the Sales Order Register.",
         kinds=("renewal_due", "sor_invoice_missing", "sor_client_match", "sor_invoice_match", "order_check", "booking_change", "allocation_due", "invoice_due",
-               "sor_issue_check", "online_booking", "save_the_sale"),
+               "sor_issue_check", "online_booking", "save_the_sale", "client_owner"),
     ),
 )
 
@@ -80,6 +80,7 @@ KIND_JOB: dict[str, str | None] = {
     "save_the_sale": "save_the_sale_scan",
     "call_notes": None,
     "proposal_request": "proposal_request_scan",
+    "client_owner": "client_owner_refresh",
 }
 
 # Where the cards come from for a kind no scheduled job makes (KIND_JOB None): a short label for the table's

@@ -62,6 +62,9 @@ class HistoryEntry(Base, UUIDPk, ProvenanceMixin):
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
 
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    # Who wrote it in Act! (TBL_*.CREATEUSERID's name) - migration/backfill_note_authors.py. Null on rows made in
+    # BMI Brain (created_by_user_id says who) and until the backfill has run.
+    act_author: Mapped[str | None] = mapped_column(String(120))
 
     # New as of the CRM's own "Log History" UI - null/false on migrated rows.
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)

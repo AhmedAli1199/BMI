@@ -94,9 +94,10 @@ def _resolve(env: ToolEnv, client: str) -> tuple[Company | None, list[Company]]:
 
 @brain_tool("Looking at the client")
 def crm_client_snapshot(env: ToolEnv, client: str) -> dict:
-    """Everything about one client at a glance: who they are, their people, what they've bought (latest first, with
-    the rate paid), totals by year, their bookings, open opportunities, what's coming up, and the latest notes
-    and call notes. Use it for "what did X last buy", "what's their budget", "when did we last speak".
+    """Everything about one client at a glance: who they are, who looks after them on each magazine and why, their
+    people, what they've bought (latest first, with the rate paid), totals by year, their bookings, open
+    opportunities, what's coming up, and the latest notes and call notes. Use it for "what did X last buy", "what's
+    their budget", "when did we last speak", "who looks after X".
 
     Args:
       client: the company name, or a company/contact id from crm_find or the page
@@ -140,6 +141,10 @@ def crm_client_snapshot(env: ToolEnv, client: str) -> dict:
         "booked_by_year": by_year, "year_basis": "financial years from July" if financial else "calendar years",
     }
     if co:
+        from app.sales.ownership import owners_for
+
+        out["looked_after_by"] = [{"magazine": o["magazine"], "salesperson": o["rep_name"] or "Nobody yet", "why": o["reason"]}
+                                  for o in owners_for(db, co, fresh=False)]
         people = db.scalars(select(Contact).where(Contact.company_id == co.id).order_by(Contact.last_reach_date.desc().nulls_last()).limit(8)).all()
         out["people"] = [{"name": p.full_name, "job_title": p.job_title, "email": _email(env, p.id), "link": f"/contacts/{p.id}"}
                          for p in people if vis.can_see_contact(db, p.id, env.identity)]

@@ -216,7 +216,13 @@ function computeInitialFields(
     initial["groups"] = suggestedGroups.join(", ");
   }
 
-  // 7. Initialize every extra_field so inputs are strictly controlled
+  // 7. A drop-down's starting choice, set by the card (payload.field_defaults)
+  const defaults = payload.field_defaults as Record<string, string> | undefined;
+  for (const f of action.extra_fields) {
+    if (f.field_type === "select" && defaults?.[f.key] && !initial[f.key]) initial[f.key] = defaults[f.key];
+  }
+
+  // 8. Initialize every extra_field so inputs are strictly controlled
   for (const f of action.extra_fields) {
     if (!(f.key in initial)) {
       initial[f.key] = f.field_type === "bool" ? "false" : "";
@@ -1193,6 +1199,20 @@ function ExpandedActionForm({
                 onChange={(e) => setFields({ ...fields, [f.key]: e.target.checked ? "true" : "false" })}
               />
               {f.label}
+            </label>
+          );
+        }
+
+        if (f.field_type === "select") {
+          const options = ((payload.field_options as Record<string, { value: string; label: string }[]> | undefined)?.[f.key]) ?? [];
+          return (
+            <label key={f.key} className="flex flex-col gap-1.5 text-xs">
+              <span className="font-medium">{f.label}</span>
+              <select className="h-8 w-56 rounded-md border border-input bg-background px-2 text-sm"
+                value={fields[f.key] ?? ""} onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}>
+                <option value="">Choose…</option>
+                {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </label>
           );
         }

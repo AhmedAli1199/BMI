@@ -38,5 +38,8 @@ class Note(Base, UUIDPk, ProvenanceMixin):
     is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     act_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Who wrote it in Act! (TBL_*.CREATEUSERID's name) - migration/backfill_note_authors.py. Null on rows made in
+    # BMI Brain (created_by_user_id says who) and until the backfill has run.
+    act_author: Mapped[str | None] = mapped_column(String(120))
 
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)

@@ -20,6 +20,7 @@ from app.models.management import ManagementAlert, WeeklySummary
 from app.models.messaging import MailAccount, MailAttachment, MailMerge, MailMergeRecipient, MailTemplate, Notification, Reminder
 from app.models.note import Note
 from app.models.opportunity import Opportunity
+from app.models.ownership import ClientOwner
 from app.models.contact_tools import BulkEdit, ContactImport
 from app.models.feedback import Feedback, FeedbackImage
 from app.models.brain import BrainAction, BrainConversation, BrainImage, BrainMessage
@@ -32,6 +33,7 @@ from app.models.xero import XeroConnection, XeroInvoice
 from app.models.user_access import UserAccess
 
 __all__ = [
+    "ClientOwner",
     "BookingForm",
     "ProposalExample",
     "WritingProfile",

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -36,6 +37,7 @@ from app.api.routes._creators import creator_summary, resolve_creators
 from app.api.routes._publications import resolve_source_db
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
+from app.sales import ownership
 from app.services.field_audit import company_names_for, readable_value, record_field_changes
 from app.contacts.fields import labels_for_record
 from app.models import Activity, Company, Contact, Email, FieldChange, HistoryEntry, Note, Opportunity, User
@@ -435,3 +437,53 @@ def delete_company(company_id: uuid.UUID, db: Session = Depends(get_db),
     db.execute(HistoryEntry.__table__.delete().where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == company_id))
     db.delete(company)
     db.commit()
+
+
+# ---- Who looks after them (app/sales/ownership.py) --------------------------------------------------------------
+
+class OwnerChange(BaseModel):
+    rep_id: uuid.UUID | None = None   # None = nobody yet (whoever takes it first)
+    back_to_rules: bool = False       # forget the person's choice and use the rules again
+
+
+def _owners_out(db: Session, company: Company, identity: Identity) -> dict:
+    from app.models import SalesRep
+    from app.roles import CAN_USE_AUTOMATIONS
+
+    rows = ownership.owners_for(db, company)
+    db.commit()
+    reps = db.scalars(select(SalesRep).where(SalesRep.active.is_(True)).order_by(SalesRep.name)).all()
+    return {"owners": rows, "can_change": not identity.is_known or identity.role in CAN_USE_AUTOMATIONS,
+            "people": [{"id": str(r.id), "name": r.name} for r in reps]}
+
+
+@router.get("/{company_id}/owners")
+def company_owners(company_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Who looks after the client on each magazine, and why."""
+    company = db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return _owners_out(db, company, identity)
+
+
+@router.put("/{company_id}/owners/{area}")
+def change_company_owner(company_id: uuid.UUID, area: str, payload: OwnerChange, db: Session = Depends(get_db),
+                         identity: Identity = Depends(get_identity)) -> dict:
+    from app.models import SalesRep
+
+    need_staff(identity, "Only administrators and data managers can change who looks after a client.")
+    company = db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    rep = db.get(SalesRep, payload.rep_id) if payload.rep_id else None
+    if payload.rep_id and not rep:
+        raise HTTPException(status_code=400, detail="That salesperson isn't in BMI Brain any more. Choose someone else.")
+    user = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    try:
+        ownership.choose(db, company, area, rep, user.id if user else None, user.name if user else None, payload.back_to_rules)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    from app.automations.client_owners import settle
+
+    settle(db)
+    return _owners_out(db, company, identity)

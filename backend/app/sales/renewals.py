@@ -144,8 +144,15 @@ def rebooked(db: Session, title_id: uuid.UUID, year: int, client_name: str, comp
 
 
 def owner_user_id(db: Session, order: SalesOrder) -> uuid.UUID | None:
-    """The rep who sold it last time (if their login is linked), else the
-    CRM company's owner."""
+    """Whoever looks after the client on this magazine (app/sales/ownership.py), else the rep who sold it last
+    time (if their login is linked), else the CRM company's owner."""
+    from app.sales.ownership import owner_rep
+
+    edition = db.get(SalesEdition, order.edition_id) if order.edition_id else None
+    title = db.get(SalesTitle, edition.title_id) if edition else None
+    looks_after = owner_rep(db, order.company_id, title.slug if title else None)
+    if looks_after and looks_after.user_id and looks_after.active:
+        return looks_after.user_id
     if order.rep_id:
         rep = db.get(SalesRep, order.rep_id)
         if rep and rep.user_id:

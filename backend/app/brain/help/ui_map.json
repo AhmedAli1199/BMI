@@ -175,6 +175,7 @@
     "components/act-company-card.tsx",
     "components/add-existing-contact-picker.tsx",
     "components/commission/booking-new-business.tsx",
+    "components/company-owners.tsx",
     "components/contact-form-dialog.tsx",
     "components/delete-item-button.tsx",
     "components/entity-avatar.tsx",
@@ -1316,61 +1317,61 @@
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:93",
+   "src": "app/(app)/companies/[id]/page.tsx:96",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:103",
+   "src": "app/(app)/companies/[id]/page.tsx:106",
    "kind": "button",
    "label": "Build a proposal"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:113",
+   "src": "app/(app)/companies/[id]/page.tsx:116",
    "kind": "button",
    "label": "New booking"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:138",
+   "src": "app/(app)/companies/[id]/page.tsx:143",
    "kind": "tab",
    "label": "Associated Contacts ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:145",
+   "src": "app/(app)/companies/[id]/page.tsx:150",
    "kind": "tab",
    "label": "Activity & History ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:151",
+   "src": "app/(app)/companies/[id]/page.tsx:156",
    "kind": "tab",
    "label": "Company Notes ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:158",
+   "src": "app/(app)/companies/[id]/page.tsx:163",
    "kind": "tab",
    "label": "Bookings ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:166",
+   "src": "app/(app)/companies/[id]/page.tsx:171",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:180",
+   "src": "app/(app)/companies/[id]/page.tsx:185",
    "kind": "heading",
    "label": "Contacts linked to"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:301",
+   "src": "app/(app)/companies/[id]/page.tsx:306",
    "kind": "heading",
    "label": "Extra fields from Act!"
   },
@@ -3359,6 +3360,55 @@
    "src": "components/company-form-dialog.tsx:137",
    "kind": "button",
    "label": "Saving"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:56",
+   "kind": "heading",
+   "label": "Who looks after them Worked out by the agreed rules: The Business Travel Magazine is Kirsty's, Selling Travel events are"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:58",
+   "kind": "hint",
+   "label": "",
+   "hint": "Worked out by the agreed rules: The Business Travel Magazine is Kirsty's, Selling Travel events are Steve's and the Accessibility Awards are David's. Otherwise a client stays with whoever was last in touch or last booked them in the last two years; new Onboard Hospitality business is Craig's, and Selling Travel goes by the destination the client promotes. Checked again every night."
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:65",
+   "kind": "button",
+   "label": "Change"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:84",
+   "kind": "panel",
+   "label": "Who looks after them"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:90",
+   "kind": "field",
+   "label": "Nobody yet (whoever takes it first)"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:98",
+   "kind": "button",
+   "label": "Back to the rules"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:106",
+   "kind": "button",
+   "label": "Cancel"
+  },
+  {
+   "file": "components/company-owners.tsx",
+   "src": "components/company-owners.tsx:107",
+   "kind": "button",
+   "label": "Save"
   },
   {
    "file": "components/contact-form-dialog.tsx",
@@ -6958,115 +7008,121 @@
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:425",
+   "src": "components/review-item-card.tsx:431",
    "kind": "link",
    "label": "View … record (opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:452",
+   "src": "components/review-item-card.tsx:458",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:481",
+   "src": "components/review-item-card.tsx:487",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:499",
+   "src": "components/review-item-card.tsx:505",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:579",
+   "src": "components/review-item-card.tsx:585",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:583",
+   "src": "components/review-item-card.tsx:589",
    "kind": "button",
    "label": "Working"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:747",
+   "src": "components/review-item-card.tsx:753",
    "kind": "link",
    "label": "View company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:760",
+   "src": "components/review-item-card.tsx:766",
    "kind": "button",
    "label": "Remove company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:791",
+   "src": "components/review-item-card.tsx:797",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:966",
+   "src": "components/review-item-card.tsx:972",
    "kind": "button",
    "label": "Clear groups"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:990",
+   "src": "components/review-item-card.tsx:996",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1119",
+   "src": "components/review-item-card.tsx:1125",
    "kind": "field",
    "label": "Which one do you want to keep?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1137",
+   "src": "components/review-item-card.tsx:1143",
    "kind": "link",
    "label": "View"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1167",
+   "src": "components/review-item-card.tsx:1173",
    "kind": "field",
    "label": "Contact"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1248",
+   "src": "components/review-item-card.tsx:1209",
+   "kind": "field",
+   "label": "Choose"
+  },
+  {
+   "file": "components/review-item-card.tsx",
+   "src": "components/review-item-card.tsx:1268",
    "kind": "field",
    "label": "Which BMI title does this belong to?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1286",
+   "src": "components/review-item-card.tsx:1306",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1302",
+   "src": "components/review-item-card.tsx:1322",
    "kind": "field",
    "label": "Note"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1314",
+   "src": "components/review-item-card.tsx:1334",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1317",
+   "src": "components/review-item-card.tsx:1337",
    "kind": "button",
    "label": "Working"
   },

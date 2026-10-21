@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  UserRoundCheck,
   Link2,
   ShieldCheck,
   GitPullRequestArrow,
@@ -229,6 +230,13 @@ Object.assign(STYLES, {
     chipBg: "border-chart-5/30 bg-chart-5/10",
     accent: "bg-chart-5",
     ring: "hover:border-chart-5/60",
+  },
+  client_owner: {
+    icon: UserRoundCheck,
+    color: "text-chart-4",
+    chipBg: "border-chart-4/30 bg-chart-4/10",
+    accent: "bg-chart-4",
+    ring: "hover:border-chart-4/60",
   },
   order_check: {
     icon: ShieldCheck,

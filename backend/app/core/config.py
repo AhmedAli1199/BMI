@@ -275,6 +275,12 @@ class Settings(BaseSettings):
     orders_copy_accounts_on_create: bool = True   # every new booking: a note to accounts, and the confirmation emailed to the Accounts addresses
     automations_allocation_reminders_enabled: bool = False   # remind salespeople about items still to be allocated
     orders_allocate_remind_days: int = 14
+    # Who looks after each client (app/sales/ownership.py): worked out every night; "not sure" ones are asked in the
+    # Review Queue, at most ownership_max_questions new ones a night. A note or booking older than
+    # ownership_recent_years doesn't keep a client with that salesperson (2 for now - Matt to confirm).
+    automations_client_owners_enabled: bool = True
+    ownership_recent_years: int = 2
+    ownership_max_questions: int = 50
     automations_sor_issue_check_enabled: bool = False   # accounts' order-register check once an issue has gone to press
     sor_issue_check_after_days: int = 2
     automations_sor_renewal_scan_enabled: bool = False

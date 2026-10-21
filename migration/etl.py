@@ -552,10 +552,12 @@ def _migrate_channel(cur, conn, ids, source_db, table, sa_table, constraint, lab
 
 
 def _migrate_notes(cur, conn, ids, source_db, refresh=False):
+    author_expr = discover_accessor_name_expr(cur, alias="au")  # who wrote it (ownership rules need it)
     cur.execute(
-        "SELECT n.NOTEID, n.NOTETEXT, n.ISPRIVATE, n.CREATEDATE, nt.NAME AS TYPENAME, "
+        f"SELECT n.NOTEID, n.NOTETEXT, n.ISPRIVATE, n.CREATEDATE, nt.NAME AS TYPENAME, {author_expr} AS AUTHOR, "
         "cn.CONTACTID, cmn.COMPANYID, gn.GROUPID, on_.OPPORTUNITYID "
         "FROM TBL_NOTE n "
+        "LEFT JOIN TBL_ACCESSOR au ON au.ACCESSORID = n.CREATEUSERID "
         "LEFT JOIN TBL_NOTETYPE nt ON nt.NOTETYPEID = n.NOTETYPEID "
         "LEFT JOIN TBL_CONTACT_NOTE cn ON cn.NOTEID = n.NOTEID "
         "LEFT JOIN TBL_COMPANY_NOTE cmn ON cmn.NOTEID = n.NOTEID "
@@ -584,16 +586,18 @@ def _migrate_notes(cur, conn, ids, source_db, refresh=False):
             "id": ids.get_or_create("note", r["NOTEID"]), "source_db": source_db, "source_act_id": to_uuid_str(r["NOTEID"]),
             "entity_type": entity_type, "entity_id": entity_id,
             "note_type": r["TYPENAME"], "body": r["NOTETEXT"], "is_private": bool(r["ISPRIVATE"]),
-            "act_created_at": r["CREATEDATE"],
+            "act_created_at": r["CREATEDATE"], "act_author": (r["AUTHOR"] or "").strip()[:120] or None,
         })
     bulk_upsert(conn, Note.__table__, rows, "uq_notes_source", "notes", refresh=refresh)
 
 
 def _migrate_history(cur, conn, ids, source_db, refresh=False):
+    author_expr = discover_accessor_name_expr(cur, alias="au")
     cur.execute(
-        "SELECT h.HISTORYID, h.REGARDING, h.DETAILS, h.STARTTIME, h.DURATION, "
+        f"SELECT h.HISTORYID, h.REGARDING, h.DETAILS, h.STARTTIME, h.DURATION, {author_expr} AS AUTHOR, "
         "ht.NAME AS TYPENAME, ch.CONTACTID, cmh.COMPANYID, gh.GROUPID, oh.OPPORTUNITYID "
         "FROM TBL_HISTORY h "
+        "LEFT JOIN TBL_ACCESSOR au ON au.ACCESSORID = h.CREATEUSERID "
         "JOIN TBL_HISTORYTYPE ht ON ht.HISTORYTYPEID = h.HISTORYTYPEID "
         "LEFT JOIN TBL_CONTACT_HISTORY ch ON ch.HISTORYID = h.HISTORYID "
         "LEFT JOIN TBL_COMPANY_HISTORY cmh ON cmh.HISTORYID = h.HISTORYID "
@@ -626,7 +630,7 @@ def _migrate_history(cur, conn, ids, source_db, refresh=False):
             "id": ids.get_or_create("history", r["HISTORYID"]), "source_db": source_db, "source_act_id": to_uuid_str(r["HISTORYID"]),
             "entity_type": entity_type, "entity_id": entity_id,
             "history_type": r["TYPENAME"], "subject": r["REGARDING"], "details": r["DETAILS"],
-            "duration_minutes": r["DURATION"], "occurred_at": r["STARTTIME"],
+            "duration_minutes": r["DURATION"], "occurred_at": r["STARTTIME"], "act_author": (r["AUTHOR"] or "").strip()[:120] or None,
         })
     print(f"  history_entries: dropped {dropped_noise} rows as Act! system noise "
           f"(type not in HISTORY_TYPES_KEPT), {dropped_unlinked} as unlinked to any migrated contact/company")

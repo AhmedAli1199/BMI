@@ -459,6 +459,21 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Sales Order Register", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_client_owners_enabled", label="Work out who looks after each client",
+        description="Every night: works out which salesperson looks after each client on each magazine, by the agreed rules (product, who was last in touch or last booked them, new business, Selling Travel regions). Clients it isn't sure of are asked about in the Review Queue.",
+        group="Sales Order Register", type="bool",
+    ),
+    AutomationSettingDef(
+        key="ownership_recent_years", label="Recent contact (years)",
+        description="A note, call, email or booking within this many years keeps a client with that salesperson. Older than that, Onboard Hospitality clients count as new business and Selling Travel clients go by region.",
+        group="Sales Order Register", type="int", min=1, max=10,
+    ),
+    AutomationSettingDef(
+        key="ownership_max_questions", label="New questions a night",
+        description="At most this many new 'Who looks after this client?' cards each night, most recently active clients first.",
+        group="Sales Order Register", type="int", min=0, max=1000,
+    ),
+    AutomationSettingDef(
         key="automations_sor_issue_check_enabled", label="Order register check when an issue goes to press",
         description="Every weekday: once an issue's copy deadline has passed, accounts get one Review Queue item listing anything in its order register that needs a look - items with no booking, items that don't match their booking, pencilled items, and packages for that title still to be allocated.",
         group="Sales Order Register", type="bool",

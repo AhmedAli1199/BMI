@@ -71,7 +71,9 @@ class ExtraField:
     label: str
     placeholder: str = ""
     required: bool = True
-    field_type: Literal["text", "bool", "date"] = "text"
+    # "select": a drop-down. Its choices come from the card itself - payload["field_options"][key], a list of
+    # {"value", "label"} - and payload["field_defaults"][key] picks one to start with.
+    field_type: Literal["text", "bool", "date", "select"] = "text"
 
 
 @dataclass(frozen=True)
