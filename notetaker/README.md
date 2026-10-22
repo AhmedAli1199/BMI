@@ -104,10 +104,13 @@ into that app in the console. Nothing is set in Environment.
 2. **Features → Embed**: switch on **Meeting SDK**, and **"Are you developing a meeting bot or AI notetaker use case?"**.
    This is what the notetaker is, and it means Zoom's "on behalf of" sign-in rather than a shared account.
 3. **Scopes**: `user:read:user` ("View a user") and `user:read:token` ("View a user's token").
-4. In the console: **Apps → Edit** the app, paste its **Client ID** and **Client Secret**, and **Save**. Use the Development
+4. **Features → Access**: copy the **Secret Token**, switch on **Event Subscription**, add the event **App deauthorized**
+   and, as the endpoint, the app's event address from its card in the console (`https://<notetaker>/hooks/zoom/<app id>`).
+   Zoom checks the address when you save; the notetaker answers that check.
+5. In the console: **Apps → Edit** the app, paste its **Client ID**, **Client Secret** and **Secret Token**, and **Save**. Use the Development
    keys until Zoom approves the app, then the Production ones. Within a minute the app's card says **Zoom: on**, or why
    Zoom refused the keys.
-5. Each person connects their Zoom from their app. The app sends them to Zoom's sign-in
+6. Each person connects their Zoom from their app. The app sends them to Zoom's sign-in
    (`https://zoom.us/oauth/authorize?response_type=code&client_id=<GET /v1/zoom's client_id>&redirect_uri=<its callback>`),
    then hands the code to the notetaker:
 
@@ -118,6 +121,12 @@ GET    /v1/zoom/connections/{zoom_user_id}   is it still connected?
 DELETE /v1/zoom/connections/{zoom_user_id}   disconnect
 POST   /v1/meetings                          {"meeting_url": "<zoom link>", "zoom_user_id": "...", ...}
 ```
+
+**Who holds the Zoom sign-ins.** The notetaker does (`notetaker/zoomapi.py`): it swaps the code for tokens with the app's
+own Zoom keys, keeps the refresh token encrypted (Zoom gives a new one each refresh), and hands the meeting bot a fresh
+"on behalf of" token for each Zoom call when it asks (`POST /hooks/zoom-tokens`, signed by the bot). Disconnecting
+revokes the token at Zoom. If someone removes the app in Zoom, Zoom's `app_deauthorized` event (checked with
+`x-zm-signature`) deletes their sign-in, and the app gets a `zoom.disconnected` webhook.
 
 **How it works inside.** The meeting bot (Attendee) holds one set of Zoom keys per "project". So an app with Zoom keys
 gets a project of its own there, and all of that app's bots run in it. The `attendee-sync` container

@@ -91,6 +91,8 @@
             <input name="zoom_client_id" autocomplete="off" placeholder="e.g. Ot_syquQQk2zwZYfhRC3Nw"></label>
           <label>Zoom app's Client Secret <span class="muted small" style="font-weight:400" id="zoomNote">Checked with Zoom within a minute of saving.</span>
             <input name="zoom_client_secret" type="password" autocomplete="off" placeholder="Paste the Client Secret"></label>
+          <label class="span2">Zoom app's Secret Token (for Zoom's "app removed" notice) <span class="muted small" style="font-weight:400" id="zoomEvents">In the Zoom app: Features, Access, Secret Token. Then turn on Event Subscription there, add the event "App deauthorized" and paste this app's event address, shown on its card.</span>
+            <input name="zoom_webhook_secret" type="password" autocomplete="off" placeholder="Paste the Secret Token"></label>
           <label class="span2 row" id="removeZoomRow" style="flex-direction:row;font-weight:400;display:none"><input type="checkbox" name="remove_zoom" style="width:auto"> Turn Zoom off for this app (removes its Zoom keys)</label>
           <label>Most calls at once for this app (optional)<input name="max_concurrent" type="number" min="1" placeholder="No limit of its own"></label>
           <span></span>
@@ -177,6 +179,7 @@ function openForm(app) {
   f.elements.zoom_client_secret.placeholder = app && app.zoom_secret_hint ? `Saved (${app.zoom_secret_hint}) - leave blank to keep it` : "Paste the Client Secret";
   $("#removeZoomRow").style.display = app && app.zoom_client_id ? "flex" : "none";
   if (app) f.elements.zoom_client_id.value = app.zoom_client_id || "";
+  f.elements.zoom_webhook_secret.placeholder = app && app.has_zoom_webhook_secret ? "Saved - leave blank to keep it" : "Paste the Secret Token";
   styleOptions(app ? app.notes_style : "general"); $("#appForm").style.display = "block"; f.elements.name.focus();
 }
 $("#newApp").onclick = () => openForm(null);
@@ -185,6 +188,7 @@ $("#appEdit").onsubmit = async (e) => {
   e.preventDefault(); const f = e.target, body = Object.fromEntries(new FormData(f)); body.retention_days = Number(body.retention_days || 30);
   body.max_concurrent = body.max_concurrent ? Number(body.max_concurrent) : null;
   body.gemini_api_key = body.remove_key ? "" : (body.gemini_api_key || null); delete body.remove_key;
+  body.zoom_webhook_secret = body.remove_zoom ? "" : (body.zoom_webhook_secret || null);
   if (body.remove_zoom) { body.zoom_client_id = ""; body.zoom_client_secret = ""; }
   else { body.zoom_client_id = (body.zoom_client_id || "").trim() || null; body.zoom_client_secret = body.zoom_client_secret || null; }   // empty = keep
   delete body.remove_zoom;
@@ -207,7 +211,8 @@ function showKeys(r, isNew) {
 
 function zoomLine(a) {
   if (!a.zoom_client_id) return "off (Meet and Teams only)";
-  if (a.zoom_status === "ready") return `<b style="color:var(--ok)">on</b>`;
+  if (a.zoom_status === "ready") return `<b style="color:var(--ok)">on</b>` + (a.has_zoom_webhook_secret
+    ? ` (Zoom event address: <code>${esc(a.zoom_events_url)}</code>)` : ` <span style="color:var(--warn)">- add the Zoom app's Secret Token so removals in Zoom are handled</span>`);
   if (a.zoom_status === "error") return `<b style="color:var(--bad)">${esc(a.zoom_error || "Zoom didn't accept the keys")}</b>`;
   return "being set up (takes up to a minute)";
 }
@@ -242,7 +247,7 @@ async function act(what, a) {
     if (what === "test") { await api(`/admin/apps/${a.id}/test-webhook`, { method: "POST" }); toast("Test sent - check the deliveries in a few seconds"); openDeliveries.add(a.id); setTimeout(load, 4000); return; }
     if (what === "key" && confirm(`Make a new key for ${a.name}? The old one stops working straight away.`)) return showKeys(await api(`/admin/apps/${a.id}/rotate-key`, { method: "POST" }), false);
     if (what === "secret" && confirm(`Make a new webhook secret for ${a.name}? Update the app's setting straight after, or it will reject results.`)) return showKeys(await api(`/admin/apps/${a.id}/rotate-secret`, { method: "POST" }), false);
-    if (what === "toggle") { await api(`/admin/apps/${a.id}`, { method: "PATCH", body: JSON.stringify({ ...a, gemini_api_key: null, zoom_client_id: null, zoom_client_secret: null, is_active: !a.is_active }) }); toast(a.is_active ? "Switched off" : "Switched on"); return load(); }
+    if (what === "toggle") { await api(`/admin/apps/${a.id}`, { method: "PATCH", body: JSON.stringify({ ...a, gemini_api_key: null, zoom_client_id: null, zoom_client_secret: null, zoom_webhook_secret: null, is_active: !a.is_active }) }); toast(a.is_active ? "Switched off" : "Switched on"); return load(); }
     if (what === "delete" && confirm(`Delete ${a.name} and all its calls? This can't be undone.`)) { await api(`/admin/apps/${a.id}`, { method: "DELETE" }); toast("Deleted"); return load(); }
   } catch (e) { toast(e.message); }
 }

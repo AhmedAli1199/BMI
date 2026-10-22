@@ -10,7 +10,7 @@ import logging
 import httpx
 
 from notetaker import engine, states
-from notetaker.bots.base import BotRequest, BotResult, BotUpdate, Utterance, ZoomConnectError
+from notetaker.bots.base import BotRequest, BotResult, BotUpdate, Utterance
 from notetaker.config import settings
 
 log = logging.getLogger(__name__)
@@ -107,7 +107,8 @@ class AttendeeBot:
         if req.zoom_user_id:
             # Zoom lets a notetaker in only "on behalf of" a signed-in person who's in the call; it waits up to
             # 10 minutes for them to join.
-            body["zoom_settings"] = {"onbehalf_token": {"zoom_oauth_connection_user_id": req.zoom_user_id}}
+            # the notetaker holds the person's Zoom sign-in and hands the bot a fresh token as it joins
+            body["callback_settings"] = {"zoom_tokens_url": f"{settings.public_url}/hooks/zoom-tokens"}
             body["automatic_leave_settings"]["authorized_user_not_in_meeting_timeout_seconds"] = 600
         r = self.http.post(f"{self.base}/api/v1/bots", json=body, headers=self._h(req.bot_key))
         r.raise_for_status()
@@ -159,40 +160,6 @@ class AttendeeBot:
             status = states.NOT_ADMITTED if sub in NOT_ADMITTED_SUBTYPES else states.FAILED
         detail = FRIENDLY.get(sub or "") or ("The notetaker ran into a problem in the call." if status == states.FAILED else None)
         return BotUpdate(bot_id=bot_id, status=status, detail=detail, ready=state == "ended")
-
-    # ---- Zoom sign-ins ---------------------------------------------------------------------------------
-
-    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict, key: str | None = None) -> dict:
-        try:
-            r = self.http.post(f"{self.base}/api/v1/zoom_oauth_connections", headers=self._h(key), json={
-                "authorization_code": authorization_code, "redirect_uri": redirect_uri, "metadata": metadata,
-                "is_local_recording_token_supported": False, "is_onbehalf_token_supported": True})
-        except httpx.HTTPError:
-            raise ZoomConnectError("The notetaker couldn't reach Zoom just now. Please try again in a minute.")
-        if r.status_code >= 400:
-            text = r.text or ""
-            log.warning("Connecting Zoom failed: %s %s", r.status_code, text[:300])
-            if "missing the following required scopes" in text:
-                raise ZoomConnectError("The Zoom app is missing a permission. The Zoom app needs 'View a user' and "
-                                       "'View a user's token' under Scopes - ask whoever set up the Zoom app.")
-            if "No Zoom OAuth App" in text:
-                raise ZoomConnectError("Zoom isn't set up for this app yet. Ask whoever runs the notetaker to add its Zoom keys (Apps, Edit).")
-            if "not active" in text:
-                raise ZoomConnectError("That Zoom account isn't active. Sign in to Zoom once to activate it, then try again.")
-            raise ZoomConnectError("Zoom didn't accept the sign-in. Please try connecting again.")
-        c = r.json()
-        return {"id": c["id"], "zoom_user_id": c["user_id"], "state": c.get("state") or "connected"}
-
-    def zoom_state(self, bot_connection_id: str, key: str | None = None) -> str | None:
-        r = self.http.get(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}", headers=self._h(key))
-        if r.status_code == 404:
-            return "disconnected"
-        return r.json().get("state") if r.status_code == 200 else None
-
-    def disconnect_zoom(self, bot_connection_id: str, key: str | None = None) -> None:
-        r = self.http.delete(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}", headers=self._h(key))
-        if r.status_code >= 400 and r.status_code != 404:
-            log.warning("Disconnecting Zoom failed: %s %s", r.status_code, (r.text or "")[:300])
 
     def fetch_result(self, bot_id: str, key: str | None = None) -> BotResult:
         h = self._h(key)

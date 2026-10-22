@@ -145,6 +145,7 @@ def _app_view(db: Session, c: Client) -> dict:
     return jsonable_encoder({
         "gemini_key_hint": c.gemini_key_hint, "has_gemini_key": bool(c.gemini_key_enc), "max_concurrent": c.max_concurrent,
         "zoom_client_id": c.zoom_client_id, "zoom_secret_hint": c.zoom_secret_hint, "zoom_status": c.zoom_status, "zoom_error": c.zoom_error,
+        "has_zoom_webhook_secret": bool(c.zoom_webhook_secret_enc), "zoom_events_url": f"{settings.public_url}/hooks/zoom/{c.id}",
         "usage_month": usage(db, c.id),
         "id": c.id, "name": c.name, "webhook_url": c.webhook_url, "bot_name": c.bot_name, "chat_message": c.chat_message,
         "notes_style": c.notes_style or "general", "summary_instructions": c.summary_instructions, "retention_days": c.retention_days,
@@ -176,6 +177,8 @@ class AppIn(BaseModel):
     # Zoom: this app's own Zoom app (Client ID + Client Secret). Leave out to keep; "" for both removes Zoom.
     zoom_client_id: str | None = None
     zoom_client_secret: str | None = None
+    # The Zoom app's Secret Token (Features > Access) for its events - leave out to keep, "" to remove.
+    zoom_webhook_secret: str | None = None
 
 
 def _clean(body: AppIn) -> dict:
@@ -207,14 +210,16 @@ def _set_gemini_key(c: Client, key: str | None) -> None:
     c.gemini_key_enc, c.gemini_key_hint = encrypt(key), "…" + key[-4:]
 
 
-def _set_zoom(c: Client, client_id: str | None, secret: str | None) -> None:
+def _set_zoom(c: Client, client_id: str | None, secret: str | None, webhook_secret: str | None = None) -> None:
     """The keys are checked with Zoom by attendee-sync within a minute, which sets zoom_status to ready or error."""
     from notetaker.security import encrypt
+    if webhook_secret is not None:
+        c.zoom_webhook_secret_enc = encrypt(webhook_secret.strip()) if webhook_secret.strip() else None
     if client_id is None and secret is None:
         return
     cid, sec = (client_id or "").strip(), (secret or "").strip()
     if client_id is not None and not cid:   # removed
-        c.zoom_client_id = c.zoom_secret_enc = c.zoom_secret_hint = None
+        c.zoom_client_id = c.zoom_secret_enc = c.zoom_secret_hint = c.zoom_webhook_secret_enc = None
         c.zoom_status = c.zoom_error = None
         return
     new_id = bool(cid) and cid != c.zoom_client_id
@@ -247,7 +252,7 @@ def create_app(body: AppIn, db: Session = Depends(_get_db)):
     data = _clean(body)
     c, key = create_client(db, data.pop("name"), data.pop("webhook_url"), **data)
     _set_gemini_key(c, body.gemini_api_key)
-    _set_zoom(c, body.zoom_client_id, body.zoom_client_secret)
+    _set_zoom(c, body.zoom_client_id, body.zoom_client_secret, body.zoom_webhook_secret)
     return {"app": _app_view(db, c), **_integration(c, key, c.webhook_secret)}
 
 
@@ -263,7 +268,7 @@ def update_app(app_id: str, body: AppIn, db: Session = Depends(_get_db)):
     for k, v in _clean(body).items():
         setattr(c, k, v)
     _set_gemini_key(c, body.gemini_api_key)
-    _set_zoom(c, body.zoom_client_id, body.zoom_client_secret)
+    _set_zoom(c, body.zoom_client_id, body.zoom_client_secret, body.zoom_webhook_secret)
     return _app_view(db, c)
 
 

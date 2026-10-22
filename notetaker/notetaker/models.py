@@ -43,6 +43,7 @@ class Client(Base):
     zoom_client_id: Mapped[str | None] = mapped_column(String(100))
     zoom_secret_enc: Mapped[str | None] = mapped_column(Text)
     zoom_secret_hint: Mapped[str | None] = mapped_column(String(12))
+    zoom_webhook_secret_enc: Mapped[str | None] = mapped_column(Text)   # the Zoom app's Secret Token (Features > Access), for its events
     zoom_status: Mapped[str | None] = mapped_column(String(20))   # None (off) | pending | ready | error
     zoom_error: Mapped[str | None] = mapped_column(Text)
     bot_project_id: Mapped[str | None] = mapped_column(String(64))
@@ -126,15 +127,18 @@ class OutboxMessage(Base):
 
 
 class ZoomConnection(Base):
-    """Someone's Zoom, connected from a client app ("Connect Zoom"). The meeting bot keeps the sign-in itself
-    (zoom_oauth_connections); we keep which app it belongs to, so an app can only send bots on behalf of its own
-    people."""
+    """Someone's Zoom, connected from a client app ("Connect Zoom"). The notetaker holds the sign-in itself
+    (notetaker/zoomapi.py): the refresh token, encrypted, made with the app's own Zoom keys - so an app can only send
+    bots on behalf of its own people, and disconnecting revokes it at Zoom."""
     __tablename__ = "zoom_connections"
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), index=True)
     zoom_user_id: Mapped[str] = mapped_column(String(100), index=True)
-    bot_connection_id: Mapped[str] = mapped_column(String(100))   # the meeting bot's id for it
+    account_id: Mapped[str | None] = mapped_column(String(100))
+    refresh_token_enc: Mapped[str | None] = mapped_column(Text)
+    bot_connection_id: Mapped[str] = mapped_column(String(100), default="")   # no longer used (the meeting bot held it before)
     external_user: Mapped[str | None] = mapped_column(String(200))   # the app's own id for the person
     state: Mapped[str] = mapped_column(String(20), default="connected")   # connected | disconnected
+    last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

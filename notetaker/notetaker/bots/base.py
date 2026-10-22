@@ -19,10 +19,6 @@ class BotRequest:
     bot_key: str | None = None        # the app's own bot project key, if it has one (Zoom keys of its own)
 
 
-class ZoomConnectError(Exception):
-    """A plain-language reason Zoom couldn't be connected."""
-
-
 @dataclass
 class BotUpdate:
     """A provider's webhook, turned into our terms."""
@@ -56,7 +52,4 @@ class MeetingBot(Protocol):
     def parse_webhook(self, body: bytes, headers: dict[str, str], secrets: list[str] | None = None) -> BotUpdate | None: ...
     def fetch_result(self, bot_id: str, key: str | None = None) -> BotResult: ...
     def poll(self, bot_id: str, key: str | None = None) -> BotUpdate | None: ...
-    # Zoom sign-ins ("Connect Zoom"): returns {"id": the bot's id for it, "zoom_user_id", "state"}
-    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict, key: str | None = None) -> dict: ...
-    def zoom_state(self, bot_connection_id: str, key: str | None = None) -> str | None: ...
-    def disconnect_zoom(self, bot_connection_id: str, key: str | None = None) -> None: ...
+

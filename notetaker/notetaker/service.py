@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from notetaker import outbox, states
-from notetaker.bots.base import BotRequest, BotUpdate, ZoomConnectError
+from notetaker.bots.base import BotRequest, BotUpdate
 from notetaker.config import settings
 from notetaker.models import Client, Meeting, MeetingEvent, ProcessedHook, ZoomConnection, now
 from notetaker.providers import get_bot
@@ -212,54 +212,116 @@ def _zoom_user(db: Session, client: Client, zoom_user_id: str | None) -> str:
 
 
 def zoom_view(c: ZoomConnection) -> dict:
-    return {"zoom_user_id": c.zoom_user_id, "state": c.state, "external_user": c.external_user,
+    return {"zoom_user_id": c.zoom_user_id, "state": c.state, "external_user": c.external_user, "last_error": c.last_error,
             "created_at": c.created_at, "updated_at": c.updated_at}
 
 
+def _zoom_keys(client: Client) -> tuple[str, str]:
+    from notetaker.security import decrypt
+    return client.zoom_client_id, decrypt(client.zoom_secret_enc)
+
+
 def connect_zoom(db: Session, client: Client, authorization_code: str, redirect_uri: str, external_user: str | None) -> ZoomConnection:
+    """Finish "Connect Zoom": swap the code for tokens with the app's own Zoom keys and keep the refresh token."""
+    from notetaker import zoomapi
+    from notetaker.security import encrypt
     if not zoom_ready(client):
         raise InputError(ZOOM_OFF)
+    cid, secret = _zoom_keys(client)
     try:
-        got = get_bot().connect_zoom(authorization_code, redirect_uri, {"notetaker_client": client.id, "external_user": external_user or ""},
-                                     key=bot_key(client))
-    except ZoomConnectError as e:
+        tokens = zoomapi.exchange_code(cid, secret, authorization_code, redirect_uri)
+        user = zoomapi.me(tokens["access_token"])
+    except (zoomapi.ZoomCallError, zoomapi.ZoomAuthError) as e:
         raise InputError(str(e))
-    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == got["zoom_user_id"]))
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == user["id"]))
     if c is None:
-        # the same Zoom account can't belong to two apps - the meeting bot keeps one sign-in per Zoom account
-        other = db.scalar(select(ZoomConnection).where(ZoomConnection.zoom_user_id == got["zoom_user_id"]))
-        if other:
-            raise InputError("That Zoom account is already connected to another app on this notetaker. Use a different Zoom account.")
-        c = ZoomConnection(client_id=client.id, zoom_user_id=got["zoom_user_id"])
+        c = ZoomConnection(client_id=client.id, zoom_user_id=user["id"], bot_connection_id="")
         db.add(c)
-    c.bot_connection_id, c.external_user, c.state = got["id"], external_user, got.get("state") or "connected"
+    c.refresh_token_enc, c.account_id = encrypt(tokens["refresh_token"]), user.get("account_id")
+    c.external_user, c.state, c.last_error = external_user, "connected", None
     db.flush()
     return c
 
 
+def _lost(db: Session, client: Client, c: ZoomConnection, why: str) -> None:
+    """The sign-in stopped working (removed in Zoom, revoked): forget it and tell the app."""
+    c.state, c.last_error, c.refresh_token_enc = "disconnected", why, None
+    outbox.enqueue(db, client, "zoom.disconnected", {"zoom_user_id": c.zoom_user_id, "external_user": c.external_user, "reason": why})
+
+
+def zoom_access(db: Session, client: Client, c: ZoomConnection) -> str:
+    """A fresh access token for this person (Zoom hands out a new refresh token each time - saved here, with the
+    row locked so two calls can't use the same one)."""
+    from notetaker import zoomapi
+    from notetaker.security import decrypt, encrypt
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.id == c.id).with_for_update()) or c
+    if not c.refresh_token_enc:
+        raise zoomapi.ZoomAuthError("This person's Zoom needs connecting again.")
+    cid, secret = _zoom_keys(client)
+    try:
+        t = zoomapi.refresh(cid, secret, decrypt(c.refresh_token_enc))
+    except zoomapi.ZoomAuthError as e:
+        _lost(db, client, c, str(e))
+        raise
+    c.refresh_token_enc = encrypt(t["refresh_token"])
+    return t["access_token"]
+
+
 def zoom_connection(db: Session, client: Client, zoom_user_id: str, refresh: bool = True) -> ZoomConnection | None:
+    """refresh: check with Zoom that the sign-in still works."""
+    from notetaker import zoomapi
     c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
-    if c and refresh:
+    if c and refresh and c.state == "connected":
         try:
-            state = get_bot().zoom_state(c.bot_connection_id, key=bot_key(client))
-        except Exception:
-            log.warning("Couldn't check Zoom connection %s", c.id, exc_info=True)
-            state = None
-        if state and state != c.state:
-            c.state = state
+            zoom_access(db, client, c)
+        except zoomapi.ZoomAuthError:
+            pass
+        except zoomapi.ZoomCallError:
+            log.warning("Couldn't check Zoom connection %s", c.id)
     return c
 
 
 def disconnect_zoom(db: Session, client: Client, zoom_user_id: str) -> bool:
+    """Revokes the sign-in at Zoom, then forgets it."""
+    from notetaker import zoomapi
+    from notetaker.security import decrypt
     c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
     if not c:
         return False
-    try:
-        get_bot().disconnect_zoom(c.bot_connection_id, key=bot_key(client))
-    except Exception:
-        log.warning("Couldn't remove Zoom connection %s from the meeting bot", c.id, exc_info=True)
+    if c.refresh_token_enc and client.zoom_client_id and client.zoom_secret_enc:
+        cid, secret = _zoom_keys(client)
+        zoomapi.revoke(cid, secret, decrypt(c.refresh_token_enc))
     db.delete(c)
     return True
+
+
+def zoom_deauthorized(db: Session, client: Client, zoom_user_id: str) -> int:
+    """Zoom's app_deauthorized: the person removed the app in Zoom. Their sign-in is deleted and the app is told."""
+    n = 0
+    for c in db.scalars(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id)):
+        outbox.enqueue(db, client, "zoom.disconnected", {"zoom_user_id": c.zoom_user_id, "external_user": c.external_user,
+                                                         "reason": "They removed BMI Notetaker from their Zoom account."})
+        db.delete(c)
+        n += 1
+    return n
+
+
+def zoom_tokens_for_bot(db: Session, payload: dict) -> dict:
+    """The meeting bot asks for the "on behalf of" token as it joins a Zoom call (callback_settings.zoom_tokens_url)."""
+    from notetaker import zoomapi
+    mid = (payload.get("bot_metadata") or {}).get("notetaker_meeting_id")
+    m = db.get(Meeting, mid) if mid else None
+    zu = (m.meta or {}).get("_zoom_user_id") if m else None
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == m.client_id, ZoomConnection.zoom_user_id == zu)) if zu else None
+    number = zoomapi.meeting_id_from(m.meeting_url) if m else None
+    if not (m and c and number):
+        log.warning("Zoom token asked for an unknown meeting or person (%s)", mid)
+        return {}
+    try:
+        return {"onbehalf_token": zoomapi.onbehalf_token(zoom_access(db, m.client, c), number)}
+    except (zoomapi.ZoomAuthError, zoomapi.ZoomCallError) as e:
+        db.add(MeetingEvent(meeting_id=m.id, status=m.status, detail=f"Couldn't get Zoom's permission to join: {e}"))
+        return {}
 
 
 def stop(db: Session, m: Meeting) -> None:

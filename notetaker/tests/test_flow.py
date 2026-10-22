@@ -1,3 +1,4 @@
+import pytest
 import base64
 import json
 import os
@@ -249,8 +250,31 @@ def test_zoom_keys_per_app_set_up_in_the_background(api, client_key):
     assert mine["zoom_client_id"] is None   # still listed, so the sync takes Zoom off its project
 
 
-def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key):
+@pytest.fixture
+def fake_zoom(monkeypatch):
+    """Zoom itself, pretend: records what was asked and hands out rotating refresh tokens."""
+    from notetaker import zoomapi
+    calls = {"refreshed": [], "revoked": [], "obf": []}
+    monkeypatch.setattr(zoomapi, "exchange_code", lambda cid, sec, code, ru: (
+        (_ for _ in ()).throw(zoomapi.ZoomCallError("Zoom didn't accept the sign-in. Please try connecting again.")) if code == "bad"
+        else {"access_token": "at0", "refresh_token": f"rt-{code}-0", "scope": "user:read:user user:read:token"}))
+    monkeypatch.setattr(zoomapi, "me", lambda at: {"id": "zu_sally", "account_id": "acc_1", "status": "active"})
+
+    def refresh(cid, sec, rt):
+        if rt == "dead":
+            raise zoomapi.ZoomAuthError("Zoom says this person's sign-in no longer works. They need to press Connect Zoom again.")
+        calls["refreshed"].append((cid, sec, rt))
+        n = int(rt.rsplit("-", 1)[1]) + 1
+        return {"access_token": f"at{n}", "refresh_token": f"{rt.rsplit('-', 1)[0]}-{n}"}
+    monkeypatch.setattr(zoomapi, "refresh", refresh)
+    monkeypatch.setattr(zoomapi, "onbehalf_token", lambda at, mid: calls["obf"].append((at, mid)) or "obf-token")
+    monkeypatch.setattr(zoomapi, "revoke", lambda cid, sec, tok: calls["revoked"].append(tok))
+    return calls
+
+
+def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key, fake_zoom):
     _zoom_on(api, client_key)
+    from notetaker.models import ZoomConnection
     from notetaker.providers import get_bot
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM}, headers=auth(client_key))
     assert r.status_code == 422 and "Connect Zoom first" in r.json()["detail"]      # nobody named
@@ -261,14 +285,28 @@ def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key):
                  headers=auth(client_key))
     assert c.status_code == 201, c.text
     zu = c.json()["zoom_user_id"]
-    assert c.json()["state"] == "connected" and c.json()["external_user"] == "u-1"
-    assert next(iter(get_bot().zoom.values()))["key"] == "att-bmi-key"             # made in the app's own project
+    assert zu == "zu_sally" and c.json()["state"] == "connected" and c.json()["external_user"] == "u-1"
+    with session_scope() as db:
+        row = db.query(ZoomConnection).one()
+        assert row.refresh_token_enc and "rt-sally" not in row.refresh_token_enc       # stored encrypted
 
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu}, headers=auth(client_key))
     assert r.status_code == 201, r.text
     sent = get_bot().created[-1]
     assert r.json()["platform"] == "zoom" and sent.zoom_user_id == zu and sent.bot_key == "att-bmi-key"
     zoom_meeting = r.json()["id"]
+
+    # the bot asks for Zoom's permission as it joins: signed with the app's project secret
+    payload = {"bot_id": "b1", "bot_metadata": {"notetaker_meeting_id": zoom_meeting}, "callback_type": "zoom_tokens", "meeting_url": ZOOM}
+    secret = base64.b64encode(b"bmi-hook").decode()
+    assert api.post("/hooks/zoom-tokens", json=payload, headers={"X-Webhook-Signature": "nope"}).status_code == 401
+    got = api.post("/hooks/zoom-tokens", content=json.dumps(payload), headers={"X-Webhook-Signature": sign(payload, secret),
+                                                                                 "Content-Type": "application/json"})
+    assert got.json() == {"onbehalf_token": "obf-token"} and fake_zoom["obf"] == [("at1", "81234567890")]
+    got = api.post("/hooks/zoom-tokens", content=json.dumps(payload), headers={"X-Webhook-Signature": sign(payload, secret),
+                                                                                 "Content-Type": "application/json"})
+    assert fake_zoom["refreshed"][-1][2] == "rt-sally-1"                           # Zoom's new refresh token was kept
+
     r = api.post("/v1/meetings", json={"meeting_url": MEET, "external_id": "m-own"}, headers=auth(client_key))
     assert get_bot().created[-1].bot_key == "att-bmi-key"                           # all the app's bots go there
     for mid in (zoom_meeting, r.json()["id"]):                                       # free the two test slots
@@ -282,11 +320,57 @@ def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key):
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu}, headers=auth(other))
     assert r.status_code == 422
 
+    # disconnecting revokes it at Zoom
     assert api.get(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).json()["state"] == "connected"
     assert api.delete(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).status_code == 204
+    assert fake_zoom["revoked"] and fake_zoom["revoked"][-1].startswith("rt-sally-")
     assert api.get(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).status_code == 404
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu, "external_id": "z2"}, headers=auth(client_key))
     assert r.status_code == 422
+
+
+def test_a_sign_in_that_stops_working_tells_the_app(api, client_key, fake_zoom):
+    _zoom_on(api, client_key)
+    from notetaker.models import OutboxMessage, ZoomConnection
+    from notetaker.security import encrypt
+    api.post("/v1/zoom/connections", json={"authorization_code": "sally", "redirect_uri": "https://x/cb"}, headers=auth(client_key))
+    with session_scope() as db:
+        db.query(ZoomConnection).one().refresh_token_enc = encrypt("dead")        # e.g. removed in Zoom without telling us
+    assert api.get("/v1/zoom/connections/zu_sally", headers=auth(client_key)).json()["state"] == "disconnected"
+    with session_scope() as db:
+        msg = db.query(OutboxMessage).filter_by(event="zoom.disconnected").one()
+        assert msg.payload["zoom_user_id"] == "zu_sally"
+
+
+def test_zoom_app_removed_in_zoom_is_handled(api, client_key, fake_zoom):
+    import hashlib
+    import hmac
+    import time as _time
+    app_id = _zoom_on(api, client_key)
+    from notetaker.models import OutboxMessage, ZoomConnection
+    app = next(a for a in api.get("/admin/apps", headers=ADMIN).json() if a["id"] == app_id)
+    api.patch(f"/admin/apps/{app_id}", json={**app, "gemini_api_key": None, "zoom_client_id": None, "zoom_client_secret": None,
+                                             "zoom_webhook_secret": "zoom-secret-token"}, headers=ADMIN)
+    app = next(a for a in api.get("/admin/apps", headers=ADMIN).json() if a["id"] == app_id)
+    assert app["has_zoom_webhook_secret"] and app["zoom_events_url"].endswith(f"/hooks/zoom/{app_id}")
+    api.post("/v1/zoom/connections", json={"authorization_code": "sally", "redirect_uri": "https://x/cb", "external_user": "u-1"},
+             headers=auth(client_key))
+
+    def zoom_post(event: dict, secret="zoom-secret-token"):
+        body = json.dumps(event).encode()
+        ts = str(int(_time.time()))
+        sig = "v0=" + hmac.new(secret.encode(), f"v0:{ts}:".encode() + body, hashlib.sha256).hexdigest()
+        return api.post(f"/hooks/zoom/{app_id}", content=body, headers={"x-zm-request-timestamp": ts, "x-zm-signature": sig,
+                                                                         "Content-Type": "application/json"})
+
+    v = zoom_post({"event": "endpoint.url_validation", "payload": {"plainToken": "abc"}}).json()
+    assert v["plainToken"] == "abc" and v["encryptedToken"] == hmac.new(b"zoom-secret-token", b"abc", hashlib.sha256).hexdigest()
+    assert zoom_post({"event": "app_deauthorized", "payload": {"user_id": "zu_sally"}}, secret="wrong").status_code == 401
+    assert zoom_post({"event": "app_deauthorized", "payload": {"user_id": "zu_sally", "account_id": "acc_1"}}).status_code == 200
+    with session_scope() as db:
+        assert db.query(ZoomConnection).count() == 0                                 # their sign-in is gone
+        msg = db.query(OutboxMessage).filter_by(event="zoom.disconnected").one()
+        assert msg.payload == {"zoom_user_id": "zu_sally", "external_user": "u-1", "reason": "They removed BMI Notetaker from their Zoom account."}
 
 
 def test_webhooks_signed_by_an_apps_own_project_are_accepted(api, client_key):
@@ -305,25 +389,20 @@ def test_webhooks_signed_by_an_apps_own_project_are_accepted(api, client_key):
         pass
 
 
-def test_attendee_zoom_bot_and_connection_requests():
+def test_attendee_zoom_bot_asks_the_notetaker_for_zoom_permission():
     sent, seen_auth = [], []
 
     def handler(req: httpx.Request):
         sent.append((req.method, req.url.path, json.loads(req.content) if req.content else None))
         seen_auth.append(req.headers.get("authorization"))
-        if req.url.path.endswith("/zoom_oauth_connections"):
-            return httpx.Response(201, json={"id": "zoc_1", "user_id": "zu_9", "state": "connected"})
         return httpx.Response(201, json={"id": "bot_1"})
 
     from notetaker.bots.base import BotRequest
     bot = AttendeeBot("http://att", api_key="k", webhook_secret="", http=httpx.Client(transport=httpx.MockTransport(handler)))
-    assert bot.connect_zoom("code", "https://x/cb", {}) == {"id": "zoc_1", "zoom_user_id": "zu_9", "state": "connected"}
-    body = sent[-1][2]
-    assert body["is_onbehalf_token_supported"] is True and body["is_local_recording_token_supported"] is False
     bot.create(BotRequest(meeting_id="m1", meeting_url=ZOOM, bot_name="BMI Notetaker", zoom_user_id="zu_9", bot_key="app-key"))
     body = sent[-1][2]
     assert seen_auth[-1] == "Token app-key"                                          # the app's own project
-    assert body["zoom_settings"] == {"onbehalf_token": {"zoom_oauth_connection_user_id": "zu_9"}}
+    assert body["callback_settings"]["zoom_tokens_url"].endswith("/hooks/zoom-tokens") and "zoom_settings" not in body
     assert body["automatic_leave_settings"]["authorized_user_not_in_meeting_timeout_seconds"] == 600
     bot.create(BotRequest(meeting_id="m2", meeting_url=MEET, bot_name="BMI Notetaker"))
-    assert "zoom_settings" not in sent[-1][2] and seen_auth[-1] is None   # no key of its own: the client's default
+    assert "callback_settings" not in sent[-1][2] and seen_auth[-1] is None

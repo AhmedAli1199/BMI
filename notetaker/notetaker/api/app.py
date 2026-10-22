@@ -178,6 +178,49 @@ def zoom_disconnect(zoom_user_id: str, client: Client = Depends(current_client),
     service.disconnect_zoom(db, client, zoom_user_id)
 
 
+# ---- Zoom's side ----------------------------------------------------------------------------------
+
+@app.post("/hooks/zoom-tokens")
+async def zoom_tokens(request: Request, db: Session = Depends(get_db)):
+    """The meeting bot, joining a Zoom call, asks for the "on behalf of" token (signed with its project's secret)."""
+    import json as _json
+    from notetaker.bots.attendee import sign
+    from notetaker import engine
+    body = await request.body()
+    try:
+        payload = _json.loads(body)
+    except ValueError:
+        raise HTTPException(400, "Not JSON.")
+    given = request.headers.get("x-webhook-signature", "")
+    secrets = [x for x in [engine.webhook_secret(), *service.bot_webhook_secrets(db)] if x]
+    if secrets and not any(same(given, sign(payload, sec)) for sec in secrets):
+        raise HTTPException(401, "Not allowed.")
+    return service.zoom_tokens_for_bot(db, payload)
+
+
+@app.post("/hooks/zoom/{app_id}")
+async def zoom_events(app_id: str, request: Request, db: Session = Depends(get_db)):
+    """Zoom's events for one app's Zoom app (Features > Access > Event Subscription), checked with x-zm-signature
+    and the app's Secret Token. app_deauthorized: the person removed the app in Zoom - their sign-in is deleted."""
+    import json as _json
+    from notetaker import zoomapi
+    from notetaker.security import decrypt
+    c = db.get(Client, app_id)
+    if not c or not c.zoom_webhook_secret_enc:
+        raise HTTPException(404, "Not found.")
+    secret = decrypt(c.zoom_webhook_secret_enc)
+    body = await request.body()
+    if not zoomapi.signature_ok(secret, body, request.headers.get("x-zm-request-timestamp", ""), request.headers.get("x-zm-signature", "")):
+        raise HTTPException(401, "Invalid signature.")
+    event = _json.loads(body)
+    kind, p = event.get("event"), event.get("payload") or {}
+    if kind == "endpoint.url_validation":
+        return zoomapi.url_validation(secret, p.get("plainToken", ""))
+    if kind == "app_deauthorized":
+        service.zoom_deauthorized(db, c, p.get("user_id") or "")
+    return {"ok": True}
+
+
 # ---- Meeting bot webhooks ------------------------------------------------------------------------
 
 @app.post("/hooks/attendee")
