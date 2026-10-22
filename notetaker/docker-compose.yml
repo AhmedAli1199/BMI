@@ -121,6 +121,8 @@ services:
     mem_limit: 128m
 
   # S3-compatible storage for Attendee's recordings (SeaweedFS - MinIO no longer publishes free images).
+  # Call audio is encrypted at rest (-filer.encryptVolumeData): AES-256-GCM, a separate key for each chunk, keys kept
+  # in the filer's own store - so the raw volume files on disk can't be read on their own.
   storage:
     image: chrislusf/seaweedfs:3.80
     restart: unless-stopped
@@ -130,7 +132,7 @@ services:
         cat > /tmp/s3.json <<JSON
         {"identities":[{"name":"notetaker","credentials":[{"accessKey":"$${S3_USER}","secretKey":"$${S3_PASSWORD}"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
         JSON
-        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -volume.max=0
+        exec weed server -dir=/data -s3 -s3.port=8333 -s3.config=/tmp/s3.json -volume.max=0 -filer.encryptVolumeData
     environment:
       S3_USER: ${MINIO_USER}
       S3_PASSWORD: ${MINIO_PASSWORD}
