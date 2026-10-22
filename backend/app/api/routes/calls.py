@@ -181,6 +181,16 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Not allowed.")
     msg = json.loads(body)
     data = msg.get("data") or {}
+    if msg.get("event") == "zoom.disconnected":   # removed in Zoom, or the sign-in stopped working
+        from app.models import ZoomConnection
+        from app.services.notify import create_notification
+        for conn in db.scalars(select(ZoomConnection).where(ZoomConnection.zoom_user_id == (data.get("zoom_user_id") or ""))):
+            conn.status, conn.last_error = "error", "Zoom isn't connected any more. Press Reconnect to let the notetaker join your Zoom calls again."
+            create_notification(db, conn.user_id, "call_notes", "Your Zoom was disconnected",
+                                "The notetaker can't join your Zoom calls until you press Reconnect next to Zoom under Your calendars.",
+                                link="/calls/meetings", email=False)
+        db.commit()
+        return {"ok": True}
     call_id = (data.get("metadata") or {}).get("bmi_call_id")
     c = db.get(CallRecording, uuid.UUID(call_id)) if call_id else None
     if not c:

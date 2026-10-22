@@ -46,12 +46,12 @@
  <text x="300" y="394" font-size="13.5" fill="#3a4450">• API + worker: Python FastAPI, SQLAlchemy, httpx</text>
  <text x="300" y="416" font-size="13.5" fill="#3a4450">• Per-app API keys; signed (HMAC) webhooks to apps</text>
  <text x="300" y="438" font-size="13.5" fill="#3a4450">• Writes notes from the transcript (Gemini)</text>
- <text x="300" y="460" font-size="13.5" fill="#3a4450">• Deletes call data after the retention period (30 days)</text>
+ <text x="300" y="460" font-size="13.5" fill="#3a4450">• Holds Zoom sign-ins; revokes them on disconnect</text>
  <rect x="300" y="480" width="340" height="92" rx="8" fill="#eef2f6" stroke="#9aa5b1"/>
  <text x="315" y="504" font-size="13.5" font-weight="700">PostgreSQL</text>
- <text x="315" y="524" font-size="12.5" fill="#3a4450">meetings, transcripts, notes; Zoom user ID per app;</text>
- <text x="315" y="542" font-size="12.5" fill="#3a4450">app secrets encrypted (Fernet / AES)</text>
- <text x="315" y="560" font-size="12.5" fill="#3a4450">No Zoom OAuth tokens stored here</text>
+ <text x="315" y="524" font-size="12.5" fill="#3a4450">meetings, transcripts, notes; each user's Zoom</text>
+ <text x="315" y="542" font-size="12.5" fill="#3a4450">refresh token + app secrets encrypted (Fernet/AES)</text>
+ <text x="315" y="560" font-size="12.5" fill="#3a4450">Access tokens short-lived, never stored</text>
 
  <!-- Attendee -->
  <rect x="740" y="70" width="390" height="520" rx="12" fill="#fff" stroke="#16202a" stroke-width="1.5"/>
@@ -59,14 +59,14 @@
  <text x="760" y="124" font-size="13.5" fill="#3a4450">• Django 5.2 REST API + scheduler</text>
  <text x="760" y="146" font-size="13.5" fill="#3a4450">• Celery workers, one call each</text>
  <text x="760" y="168" font-size="13.5" fill="#3a4450">• Zoom Meeting SDK for Linux (zoom-meeting-sdk)</text>
- <text x="760" y="190" font-size="13.5" fill="#3a4450">• Exchanges the OAuth code, refreshes tokens,</text>
- <text x="760" y="210" font-size="13.5" fill="#3a4450">   gets the On Behalf Of (OBF) token per meeting</text>
+ <text x="760" y="190" font-size="13.5" fill="#3a4450">• Asks the notetaker for the On Behalf Of (OBF)</text>
+ <text x="760" y="210" font-size="13.5" fill="#3a4450">   token as it joins (signed request)</text>
  <text x="760" y="232" font-size="13.5" fill="#3a4450">• Joins as a visible participant "BMI Notetaker"</text>
  <rect x="760" y="256" width="350" height="96" rx="8" fill="#eef2f6" stroke="#9aa5b1"/>
  <text x="775" y="280" font-size="13.5" font-weight="700">PostgreSQL</text>
- <text x="775" y="300" font-size="12.5" fill="#3a4450">Zoom app credentials and each user's Zoom</text>
- <text x="775" y="318" font-size="12.5" fill="#3a4450">refresh token - encrypted at rest (Fernet / AES)</text>
- <text x="775" y="336" font-size="12.5" fill="#3a4450">Access tokens kept in memory, short-lived</text>
+ <text x="775" y="300" font-size="12.5" fill="#3a4450">the Zoom app's SDK keys - encrypted at rest</text>
+ <text x="775" y="318" font-size="12.5" fill="#3a4450">(Fernet / AES); no user tokens stored here</text>
+ <text x="775" y="336" font-size="12.5" fill="#3a4450">bots, recordings metadata</text>
  <rect x="760" y="368" width="168" height="66" rx="8" fill="#eef2f6" stroke="#9aa5b1"/>
  <text x="775" y="394" font-size="13.5" font-weight="700">Redis</text>
  <text x="775" y="414" font-size="12.5" fill="#3a4450">job queue</text>
@@ -85,10 +85,10 @@
  <text x="1220" y="176" font-size="13.5" fill="#16202a">• REST: GET /v2/users/me</text>
  <text x="1220" y="198" font-size="13.5" fill="#16202a">• REST: GET /v2/users/me/token</text>
  <text x="1220" y="218" font-size="13.5" fill="#16202a">   ?type=onbehalf&amp;meeting_id=…</text>
- <text x="1220" y="242" font-size="13.5" fill="#16202a">• Meetings (Meeting SDK join)</text>
+ <text x="1220" y="242" font-size="13.5" fill="#16202a">• POST /oauth/revoke; Meeting SDK join</text>
  <text x="1220" y="272" font-size="13" fill="#5b6672">Scopes: user:read:user,</text>
  <text x="1220" y="290" font-size="13" fill="#5b6672">user:read:token</text>
- <text x="1220" y="318" font-size="13" fill="#5b6672">No Zoom webhooks used</text>
+ <text x="1220" y="318" font-size="13" fill="#5b6672">Event: App deauthorized (x-zm-signature)</text>
 
  <!-- Google -->
  <rect x="1200" y="430" width="300" height="110" rx="12" fill="#fff" stroke="#3a4450"/>
@@ -97,6 +97,8 @@
  <text x="1350" y="508" font-size="13" text-anchor="middle" fill="#5b6672">(text only; paid API, not used for training)</text>
 
  <!-- arrows -->
+ <path d="M 660 360 L 700 360 L 700 40 L 1180 40 L 1180 120 L 1198 120" fill="none" stroke="#0b5cff" stroke-width="2" marker-end="url(#z)"/>
+ <text x="708" y="56" font-size="13" fill="#0b5cff" font-weight="700">④ ⑦ tokens, revoke</text>
  <line x1="210" y1="260" x2="278" y2="180" stroke="#3a4450" stroke-width="2" marker-end="url(#a)"/>
  <text x="150" y="200" font-size="13" font-weight="700">①</text>
  <path d="M 115 230 L 115 -28 L 1350 -28 L 1350 66" fill="none" stroke="#0b5cff" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#z)"/>
@@ -107,7 +109,7 @@
  <text x="668" y="410" font-size="13" font-weight="700">④ ⑥</text>
  <line x1="1130" y1="180" x2="1198" y2="180" stroke="#0b5cff" stroke-width="2" marker-end="url(#z)"/>
  <line x1="1198" y1="220" x2="1130" y2="220" stroke="#0b5cff" stroke-width="2" marker-end="url(#z)"/>
- <text x="1140" y="170" font-size="13" fill="#0b5cff" font-weight="700">④ ⑦</text>
+ <text x="1140" y="170" font-size="13" fill="#0b5cff" font-weight="700">⑦ join</text>
  <path d="M 600 590 L 600 606 L 1350 606 L 1350 544" fill="none" stroke="#3a4450" stroke-width="2" marker-end="url(#a)"/>
  <text x="1000" y="600" font-size="13" font-weight="700">⑨ transcript text</text>
  <line x1="278" y1="560" x2="215" y2="345" stroke="#3a4450" stroke-width="2" marker-end="url(#a)" stroke-dasharray="4 4"/>
@@ -119,15 +121,15 @@
   <li>A signed-in BMI salesperson presses <b>Connect Zoom</b> in BMI Brain.</li>
   <li>The browser goes to Zoom's OAuth page; they sign in to their own Zoom and allow BMI Notetaker. Zoom redirects to https://bmi.rabtaai.com/api/zoom/callback with a code and a signed state (who they are, valid for 15 minutes).</li>
   <li>BMI Brain checks the state and passes the code to the notetaker service over HTTPS with its API key.</li>
-  <li>The meeting bot exchanges the code at zoom.us/oauth/token, checks the scopes, reads GET /v2/users/me, and stores only the refresh token, encrypted. BMI Brain stores just the BMI user ↔ Zoom user ID link.</li>
+  <li>The notetaker exchanges the code at zoom.us/oauth/token with the app's own keys, checks the scopes, reads GET /v2/users/me, and stores only the refresh token, encrypted (Zoom rotates it on each refresh). BMI Brain stores just the BMI user ↔ Zoom user ID link.</li>
  </ol></div>
  <div><h3>Join a Zoom call and write the notes</h3><ol start="5">
   <li>For a Zoom meeting a connected BMI person is in (from their calendar, or a link they paste), BMI Brain books the notetaker with that person's Zoom user ID.</li>
   <li>The notetaker asks the meeting bot to join, on behalf of that user.</li>
-  <li>The bot gets a short-lived access token and an OBF token for that meeting from Zoom, joins with the Meeting SDK as "BMI Notetaker", and waits (up to 10 min) for the user to be in the call; it leaves when they leave.</li>
+  <li>As the bot joins, it asks the notetaker (signed request) for permission; the notetaker refreshes the user's token and gets an OBF token for that meeting from GET /v2/users/me/token. The bot joins with the Meeting SDK as "BMI Notetaker" and waits (up to 10 min) for the user to be in the call; it leaves when they leave.</li>
   <li>The audio and transcript are kept privately in the meeting bot's storage.</li>
   <li>The notetaker sends the transcript text to Gemini to write the notes.</li>
-  <li>The notes go back to BMI Brain by a signed (HMAC-SHA256) webhook and show in Call notes. Disconnect in BMI Brain deletes the stored refresh token; removing the app in Zoom revokes it at Zoom.</li>
+  <li>The notes go back to BMI Brain by a signed (HMAC-SHA256) webhook and show in Call notes. Disconnect in BMI Brain revokes the token at Zoom (POST /oauth/revoke) and deletes it. Removing the app in Zoom sends App deauthorized to the notetaker (checked with x-zm-signature): the sign-in is deleted and BMI Brain shows Zoom as disconnected.</li>
  </ol></div>
 </div>
 <div class="legend"><span><b style="background:#0b5cff"></b>traffic to and from Zoom (HTTPS)</span><span><b style="background:#3a4450"></b>BMI services (HTTPS between public services; private Docker network inside the server)</span></div>

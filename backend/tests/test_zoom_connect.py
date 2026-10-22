@@ -100,3 +100,17 @@ def test_zoom_meetings_go_on_behalf_of_the_organiser(db_session, people, zoom_on
 def test_zoom_view_for_the_meetings_page(db_session, zoom_on):
     sally = make_user(db_session, role="sales", name="Sally Parker")
     assert zoom.view(db_session, sally.id) == {"available": True, "connected": False, "status": None, "last_error": None, "connected_at": None}
+
+
+def test_zoom_removed_in_zoom_shows_reconnect(client, db_session, monkeypatch):
+    from app.models import Notification
+    from tests.test_calls import _signed
+    monkeypatch.setattr(settings, "notetaker_webhook_secret", "s3cret")
+    sally = make_user(db_session, role="sales", name="Sally Parker")
+    db_session.add(ZoomConnection(id=uuid.uuid4(), user_id=sally.id, zoom_user_id="zu_sally"))
+    db_session.flush()
+    raw, h = _signed({"id": "m1", "event": "zoom.disconnected", "data": {"zoom_user_id": "zu_sally", "reason": "removed"}}, "s3cret")
+    assert client.post("/api/calls/webhook", content=raw, headers=h).status_code == 200
+    conn = db_session.query(ZoomConnection).filter_by(user_id=sally.id).one()
+    assert conn.status == "error" and "Reconnect" in conn.last_error
+    assert db_session.query(Notification).filter_by(user_id=sally.id, title="Your Zoom was disconnected").count() == 1

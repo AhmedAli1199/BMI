@@ -6,6 +6,9 @@ export const LEGAL = {
   owner: "BMI Publishing Ltd",
   builder: "Cybix",
   supportEmail: "ahmed@cybix.ai",
+  /** Support hours and first reply time, shown on the Support page (Zoom asks for both). */
+  supportHours: "Monday to Friday, 9:00 to 17:30 UK time (closed on UK bank holidays)",
+  firstReply: "within one working day",
   updated: "22 October 2026",
   site: "https://bmi.rabtaai.com",
 };

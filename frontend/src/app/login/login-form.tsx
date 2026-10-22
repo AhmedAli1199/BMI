@@ -39,7 +39,14 @@ export function LoginForm() {
       return;
     }
 
-    router.push(searchParams.get("next") || "/");
+    const next = searchParams.get("next") || "/";
+    // only our own pages; a sign-in link (e.g. Connect Zoom, /api/zoom/connect) needs a full page load
+    const safe = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    if (safe.startsWith("/api/")) {
+      window.location.assign(safe);
+      return;
+    }
+    router.push(safe);
     router.refresh();
   }
 
