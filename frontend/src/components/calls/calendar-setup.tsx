@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarCheck2, CircleAlert, Loader2, RefreshCw, Unplug } from "lucide-react";
 import { toast } from "sonner";
 import type { CalendarSetup as Setup } from "@/lib/calls-types";
-import { disconnectCalendar, setRecordingPreference, syncCalendarsNow } from "@/lib/calls-actions";
+import { disconnectCalendar, disconnectZoom, setRecordingPreference, syncCalendarsNow } from "@/lib/calls-actions";
 import { friendlyError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { InfoHint } from "@/components/sales/info-hint";
@@ -27,9 +27,13 @@ export function CalendarSetup({ setup }: { setup: Setup }) {
   useEffect(() => {
     const ok = params.get("calendar_connected") || params.get("outlook_connected");
     const err = params.get("calendar_error");
+    const zoomOk = params.get("zoom_connected");
+    const zoomErr = params.get("zoom_error");
     if (ok) toast.success(`Calendar connected (${ok}) - its meetings now show on the shared calendar`);
     if (err) toast.error(friendlyError(err, "Your calendar couldn't be connected - please try again."));
-    if (ok || err) router.replace("/calls/meetings");
+    if (zoomOk) toast.success("Zoom connected - the notetaker can now join your Zoom calls");
+    if (zoomErr) toast.error(friendlyError(zoomErr, "Zoom couldn't be connected - please try again."));
+    if (ok || err || zoomOk || zoomErr) router.replace("/calls/meetings");
   }, [params, router]);
 
   const run = (fn: () => Promise<unknown>, ok: string, fallback: string) =>
@@ -84,8 +88,36 @@ export function CalendarSetup({ setup }: { setup: Setup }) {
           );
         })}
       </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2.5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-sm font-semibold">
+            Zoom
+            <InfoHint>Zoom only lets the notetaker into a call on behalf of someone signed in who is in it. Connect your Zoom once: the notetaker then joins your Zoom calls once you&apos;re in, and the recording ends if you leave, so stay to the end. Meet and Teams don&apos;t need this.</InfoHint>
+          </div>
+          {setup.zoom.connected ? (
+            setup.zoom.status === "error" ? (
+              <div className="flex items-center gap-1 text-[11px]" style={{ color: "var(--destructive)" }}><CircleAlert className="size-3" /> {setup.zoom.last_error || "Needs reconnecting"}</div>
+            ) : (
+              <div className="text-[11px] text-muted-foreground">Connected - the notetaker can join your Zoom calls</div>
+            )
+          ) : (
+            <div className="text-[11px] text-muted-foreground">{setup.zoom.available ? "Not connected - Zoom calls you're in aren't recorded" : "Not set up yet - an administrator needs to add it"}</div>
+          )}
+        </div>
+        {setup.zoom.connected ? (
+          <div className="flex gap-1.5">
+            {setup.zoom.status === "error" && <Button size="xs" nativeButton={false} render={<a href="/api/zoom/connect" />}>Reconnect</Button>}
+            <Button size="xs" variant="ghost" className="gap-1" disabled={pending}
+              onClick={() => { if (window.confirm("Disconnect Zoom? The notetaker won't be able to join your Zoom calls.")) run(() => disconnectZoom(), "Disconnected", "Couldn't disconnect Zoom"); }}>
+              <Unplug className="size-3" /> Disconnect
+            </Button>
+          </div>
+        ) : setup.zoom.available ? (
+          <Button size="xs" nativeButton={false} render={<a href="/api/zoom/connect" />}>Connect Zoom</Button>
+        ) : null}
+      </div>
       <fieldset className="mt-4">
-        <legend className="mb-1.5 text-xs font-semibold text-muted-foreground">When I have a meeting with a Meet or Teams link</legend>
+        <legend className="mb-1.5 text-xs font-semibold text-muted-foreground">When I have a meeting with a Meet, Teams or Zoom link</legend>
         <div className="flex flex-wrap gap-2">
           {([["auto", "The notetaker joins automatically"], ["remind", "Just remind me"], ["off", "Do nothing"]] as const).map(([v, label]) => (
             <label key={v} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${setup.preference === v ? "border-primary" : "border-border/70"}`}>

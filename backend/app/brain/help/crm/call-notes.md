@@ -1,8 +1,8 @@
 ---
 title: Call notes and the notetaker
 screens: ["/calls", "/calls/[id]", "/calls/meetings"]
-summary: Send BMI Notetaker into a Meet or Teams call (or let it join from your calendar), read the summary, actions and transcript afterwards, and save them onto the contact's history.
-sources: ["frontend/src/app/(app)/calls/page.tsx", "frontend/src/app/(app)/calls/[id]/page.tsx", "frontend/src/app/(app)/calls/meetings/page.tsx", "frontend/src/components/calls/send-notetaker.tsx", "frontend/src/components/calls/call-actions.tsx", "frontend/src/components/calls/call-status.tsx", "frontend/src/components/calls/calls-tabs.tsx", "frontend/src/components/calls/calendar-setup.tsx", "frontend/src/components/calls/meetings-agenda.tsx", "frontend/src/components/calls/notetaker-check.tsx", "backend/app/api/routes/calls.py", "backend/app/api/routes/calendar.py", "backend/app/services/calendar_sync.py", "backend/app/services/notetaker.py", "backend/app/automations/call_notes.py"]
+summary: Send BMI Notetaker into a Meet, Teams or Zoom call (or let it join from your calendar), read the summary, actions and transcript afterwards, and save them onto the contact's history.
+sources: ["backend/app/services/zoom.py", "backend/app/api/routes/zoom.py", "frontend/src/app/(app)/calls/page.tsx", "frontend/src/app/(app)/calls/[id]/page.tsx", "frontend/src/app/(app)/calls/meetings/page.tsx", "frontend/src/components/calls/send-notetaker.tsx", "frontend/src/components/calls/call-actions.tsx", "frontend/src/components/calls/call-status.tsx", "frontend/src/components/calls/calls-tabs.tsx", "frontend/src/components/calls/calendar-setup.tsx", "frontend/src/components/calls/meetings-agenda.tsx", "frontend/src/components/calls/notetaker-check.tsx", "backend/app/api/routes/calls.py", "backend/app/api/routes/calendar.py", "backend/app/services/calendar_sync.py", "backend/app/services/notetaker.py", "backend/app/automations/call_notes.py"]
 ---
 
 ## What this screen is for
@@ -12,7 +12,7 @@ BMI Notetaker is a guest that joins your Google Meet or Microsoft Teams call, re
 **Meetings** (Call notes > **Meetings**)
 - For administrators, a **Notetaker check** button at the top right.
 - **Send the notetaker**: a box to paste a meeting link.
-- **Your calendars**: Outlook Calendar and Google Calendar, each "Not connected", connected (with the email and when it was last read), or in red if it needs reconnecting. Below: **When I have a meeting with a Meet or Teams link**.
+- **Your calendars**: Outlook Calendar and Google Calendar, each "Not connected", connected (with the email and when it was last read), or in red if it needs reconnecting. Then **Zoom**: "Not connected - Zoom calls you're in aren't recorded" with **Connect Zoom**, "Connected" with **Disconnect**, red with **Reconnect** if Zoom stopped accepting it, or "Not set up yet" if an administrator hasn't added Zoom. Below: **When I have a meeting with a Meet, Teams or Zoom link**.
 - The meetings list, grouped by day, from yesterday to two weeks ahead, with a filter sidebar and search. Each meeting shows the time (or "All day"), title, a lock if it's private, the call type (Google Meet, Microsoft Teams, Zoom), a **link** to join, who from BMI is in it ("(organiser)", "(declined)"), outside guests, the matched contact and company (they open in a new tab), and a coloured line saying what the notetaker will do or did:
   - green: will be recorded, or recorded (notes are in Call notes);
   - amber: in the call now, writing up, or should be joining now;
@@ -32,7 +32,7 @@ BMI Notetaker is a guest that joins your Google Meet or Microsoft Teams call, re
 ## Buttons and controls
 
 ### Send the notetaker: Meeting link, What it's about (optional), Who it's with (optional), Send
-Paste a Google Meet or Teams link, optionally add a title and pick the contact, then press **Send**. The notetaker joins as "BMI Notetaker" and you're taken to the call's page. Someone in the call may need to let it in from the waiting room.
+Paste a Google Meet, Teams or Zoom link, optionally add a title and pick the contact, then press **Send**. The notetaker joins as "BMI Notetaker" and you're taken to the call's page. Someone in the call may need to let it in from the waiting room.
 
 ### Meetings, Recorded calls
 The two tabs of Call notes.
@@ -43,7 +43,10 @@ The two tabs of Call notes.
 ### Check now
 Reads your connected calendars again straight away (they're read every few minutes anyway).
 
-### When I have a meeting with a Meet or Teams link
+### Connect Zoom, Reconnect, Disconnect (Zoom)
+Zoom only lets the notetaker into a call on behalf of someone signed in who is in it. **Connect Zoom** takes you to Zoom's sign-in; allow BMI Notetaker and you come back here with "Zoom connected". You only do it once. **Reconnect** shows if Zoom stopped accepting it (for example you removed the app in your Zoom settings). **Disconnect** removes it; the notetaker can't join your Zoom calls after that.
+
+### When I have a meeting with a Meet, Teams or Zoom link
 Your recording preference:
 - **The notetaker joins automatically**
 - **Just remind me**: a notification about 10 minutes before, so you can press **Record** if you want notes.
@@ -51,7 +54,7 @@ Your recording preference:
 It saves as soon as you choose.
 
 ### Record, Skip, Undo (on a meeting)
-For a meeting that hasn't ended and has a Meet or Teams link. **Record** sends the notetaker to this one meeting; **Skip** stops it for this one meeting. **Undo** goes back to your usual setting. Not shown for private meetings, Zoom, all-day events, meetings with no link, or where everyone from BMI declined.
+For a meeting that hasn't ended and has a Meet, Teams or Zoom link. **Record** sends the notetaker to this one meeting; **Skip** stops it for this one meeting. **Undo** goes back to your usual setting. Not shown for private meetings, all-day events, meetings with no link, Zoom meetings nobody from BMI in it has connected Zoom for, or where everyone from BMI declined.
 
 ### Filters and search (Meetings)
 Search by title, person or company. Filter by **Who from BMI**, **Notetaker** (**Meant to be recorded** / **Not meant to be recorded**), **Call type** (Google Meet, Microsoft Teams, Zoom, No meeting link) and **Whose** (**Only my meetings**).
@@ -80,7 +83,8 @@ After you confirm, removes every meeting on the list and calls off notetakers th
 ## How it works
 - The calendars are read every few minutes. The same meeting in several people's calendars (same link and start time) shows once, with everyone from BMI who's in it. A moved meeting shows at its new time.
 - About 20 minutes before a meeting, everyone at BMI in it gets a notice that the notetaker will join. The notetaker itself is sent a minute or two before the start, the same way as pasting a link by hand, and asks to join a minute or so early (an administrator can change this in Automations > Call notes). A meeting added late is still joined up to 30 minutes after it started.
-- Whose preference counts: if someone from BMI organised the meeting, theirs decides. Otherwise it's recorded if someone from BMI who is going has **The notetaker joins automatically** and nobody going has **Do nothing**; if you disagree, it isn't recorded and you're reminded instead, so anyone can press **Record**. Pressing **Record** always records it. It's not recorded if it was skipped, cancelled, all-day, has no Meet or Teams link (Zoom isn't supported yet), everyone from BMI declined, everyone marked it private, or only BMI people are in it, unless an administrator has switched private or internal meetings on in Automations > Call notes.
+- Whose preference counts: if someone from BMI organised the meeting, theirs decides. Otherwise it's recorded if someone from BMI who is going has **The notetaker joins automatically** and nobody going has **Do nothing**; if you disagree, it isn't recorded and you're reminded instead, so anyone can press **Record**. Pressing **Record** always records it. It's not recorded if it was skipped, cancelled, all-day, has no Meet, Teams or Zoom link, is a Zoom call and nobody from BMI going has connected Zoom, everyone from BMI declined, everyone marked it private, or only BMI people are in it, unless an administrator has switched private or internal meetings on in Automations > Call notes.
+- **Zoom**: the notetaker joins on behalf of someone from BMI going who has connected Zoom, the organiser first. It gets in only once that person has joined the call (it waits up to 10 minutes) and Zoom ends the recording if they leave. Until Zoom has approved BMI's Zoom app, it can only join meetings hosted by the Zoom account that made the app.
 - Private meetings show to others only as "Private meeting".
 - Administrators and data managers see everyone's meetings and calls. Everyone else sees their own meetings, calls they sent, and calls of meetings they were in.
 - When notes are ready, everyone from BMI who was in the meeting gets a notification, and a Call notes card goes to the Review Queue (filters: call type, their interest, whether a contact is linked; sorted by call date) with **Save to history** and **Not needed**. If the notetaker couldn't record, the person who sent it is told.
@@ -89,7 +93,7 @@ After you confirm, removes every meeting on the list and calls off notetakers th
 
 ## Common questions
 **Q: How do I get notes from a call I'm about to have?**
-A: Copy the Meet or Teams link, go to Call notes, paste it into **Meeting link**, pick the contact under **Who it's with (optional)**, and press **Send**. Let "BMI Notetaker" in when it asks.
+A: Copy the Meet, Teams or Zoom link, go to Call notes, paste it into **Meeting link**, pick the contact under **Who it's with (optional)**, and press **Send**. Let "BMI Notetaker" in when it asks.
 
 **Q: How do I get it to join all my client calls automatically?**
 A: On **Meetings**, press **Connect** for your Outlook (or Google) calendar, then choose **The notetaker joins automatically**.
@@ -115,8 +119,10 @@ A: Nobody admitted it from the waiting room. Next time, accept "BMI Notetaker" w
 - **A calendar shows in red**: press **Reconnect** and sign in again.
 - **Save to history is greyed out**: link a **Contact** first.
 - **"The notes aren't ready yet."**: wait until the status says completed; the page refreshes itself.
-- **No Record or Skip buttons on a meeting**: it has ended, is private, is all-day, has no Meet or Teams link, is a Zoom call, everyone at BMI declined, or the notetaker is already in it.
-- **A Zoom meeting isn't recorded**: Zoom isn't supported yet.
+- **No Record or Skip buttons on a meeting**: it has ended, is private, is all-day, has no meeting link, is a Zoom call nobody from BMI in it has connected Zoom for, everyone at BMI declined, or the notetaker is already in it.
+- **A Zoom meeting isn't recorded**: someone from BMI who is in it needs to have pressed **Connect Zoom**, and be in the call: Zoom only lets the notetaker in once they've joined (it waits up to 10 minutes), and the recording ends if they leave.
+- **"Zoom only lets the notetaker in on behalf of someone signed in" when pasting a Zoom link**: press **Connect Zoom** under Your calendars first.
+- **Zoom says "Not set up yet"**: an administrator needs to add the Zoom app's keys to the notetaker.
 - **An internal meeting isn't recorded**: meetings with only BMI people are off unless an administrator switches them on, or you press **Record** on that meeting.
 - **I can't see a colleague's meetings**: only administrators and data managers see everyone's.
 - **No Notetaker check button**: only administrators see it.

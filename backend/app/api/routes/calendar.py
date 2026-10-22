@@ -17,7 +17,7 @@ from app.models.calendar import CalendarAttendance, CalendarConnection, Calendar
 from app.roles import CAN_MANAGE_USERS, CAN_USE_AUTOMATIONS
 from app.services import calendar_providers as cp
 from app.services import calendar_sync as cs
-from app.services import notetaker, outlook
+from app.services import notetaker, outlook, zoom
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -38,7 +38,7 @@ def connections(db: Session = Depends(get_db), user: User = Depends(current_user
     rows = db.scalars(select(CalendarConnection).where(CalendarConnection.user_id == user.id)).all()
     return {"connections": [_conn_view(c) for c in rows], "google_available": cp.google_configured(),
             "microsoft_available": outlook.is_configured(), "notetaker_available": notetaker.configured(),
-            "preference": cs.pref(user)}
+            "preference": cs.pref(user), "zoom": zoom.view(db, user.id)}
 
 
 @router.get("/microsoft/start")
@@ -256,6 +256,15 @@ def health(db: Session = Depends(get_db), user: User = Depends(current_user)):
             checks.append({"label": label, "ok": False, "text": f"Last read {_ago(c.last_synced_at)}."})
         else:
             checks.append({"label": label, "ok": True, "text": f"Read {_ago(c.last_synced_at)}"})
+    from app.models import ZoomConnection
+    zconns = db.scalars(select(ZoomConnection)).all()
+    if notetaker.zoom_info(fresh=True).get("available"):
+        bad = [names.get(z.user_id, "Someone") for z in zconns if z.status != "connected"]
+        checks.append({"label": "Zoom", "ok": not bad, "text": (
+            f"Set up - {len(zconns)} {'person has' if len(zconns) == 1 else 'people have'} connected Zoom" if not bad
+            else f"Needs reconnecting for: {', '.join(bad)}. They press Reconnect next to Zoom under Your calendars.")})
+    else:
+        checks.append({"label": "Zoom", "ok": True, "text": "Off - Zoom meetings aren't recorded until the Zoom app's keys are added to the notetaker."})
     week = cs.now() - timedelta(days=7)
     domains = cs.internal_domains(db)
     missed = []

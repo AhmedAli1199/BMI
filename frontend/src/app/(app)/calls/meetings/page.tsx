@@ -27,7 +27,7 @@ export default async function MeetingsPage() {
         section="Everyday"
         description={`${
           canUseAutomations(session) ? "Everyone's meetings in one shared calendar." : "Your meetings from your connected calendar."
-        } BMI Notetaker joins the ones with a Meet or Teams link and writes up the notes - skip any you don't want recorded.`}
+        } BMI Notetaker joins the ones with a Meet, Teams or Zoom link and writes up the notes - skip any you don't want recorded.`}
         actions={session?.role === "admin" ? <NotetakerCheck /> : undefined}
       />
       <CallsTabs active="meetings" />

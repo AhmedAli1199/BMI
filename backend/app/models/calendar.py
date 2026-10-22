@@ -4,6 +4,8 @@ CalendarConnection  - one person's Google or Outlook calendar (read-only grant, 
 CalendarMeeting     - one real meeting on the shared calendar. The same meeting in several people's
                       calendars is ONE row (matched on meeting link + start time, see calendar_sync).
 CalendarAttendance  - one person's copy of a meeting: their own event id, reply and privacy flag.
+ZoomConnection      - one person's connected Zoom. Zoom lets the notetaker join only on behalf of a signed-in
+                      person in the call; the notetaker keeps the sign-in, we keep whose it is.
 """
 import uuid
 from datetime import datetime
@@ -69,3 +71,14 @@ class CalendarAttendance(Base, UUIDPk):
     response: Mapped[str] = mapped_column(String(20), nullable=False, default="none")   # organizer | accepted | tentative | declined | none
     is_private: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ZoomConnection(Base, UUIDPk):
+    __tablename__ = "zoom_connections"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    zoom_user_id: Mapped[str] = mapped_column(String(100), nullable=False)   # the notetaker's name for it
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="connected")   # connected | error
+    last_error: Mapped[str | None] = mapped_column(Text)
+    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

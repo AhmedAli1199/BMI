@@ -1,4 +1,4 @@
-"""Calls recorded by the notetaker: send it into a Meet or Teams call, follow its progress, read
+"""Calls recorded by the notetaker: send it into a Meet, Teams or Zoom call, follow its progress, read
 the notes, save them to the contact's history."""
 from __future__ import annotations
 
@@ -93,6 +93,14 @@ class CallIn(BaseModel):
 def send_notetaker(body: CallIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     if not notetaker.configured():
         raise HTTPException(409, "The notetaker isn't set up yet. Ask an administrator to connect it.")
+    zoom_user_id = None
+    if "zoom.us/" in body.meeting_url.lower():
+        from app.services import zoom
+        conn = zoom.connection(db, user.id)
+        if not conn or conn.status != "connected":
+            raise HTTPException(422, "Zoom only lets the notetaker in on behalf of someone signed in who's in the call. "
+                                     "Connect your Zoom first (Meetings, Your calendars, Zoom), then send it again - and stay in the call until the end.")
+        zoom_user_id = conn.zoom_user_id
     company_id = body.company_id
     if body.contact_id and not company_id:
         contact = db.get(Contact, body.contact_id)
@@ -104,7 +112,7 @@ def send_notetaker(body: CallIn, db: Session = Depends(get_db), user: User = Dep
     db.flush()
     try:
         m = notetaker.send_bot(meeting_url=c.meeting_url, external_id=str(c.id), title=c.title,
-                               metadata={"bmi_call_id": str(c.id), "bmi_user_id": str(user.id)})
+                               metadata={"bmi_call_id": str(c.id), "bmi_user_id": str(user.id)}, zoom_user_id=zoom_user_id)
     except notetaker.NotetakerError as e:
         db.rollback()
         raise HTTPException(422, str(e))

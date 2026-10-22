@@ -66,7 +66,7 @@ PREFERENCE_DEFS: list[PreferenceDef] = [
     PreferenceDef(
         key="calendar_recording",
         label="Record my meetings",
-        description="What the notetaker does with meetings on your connected calendar that have a Meet or Teams link.",
+        description="What the notetaker does with meetings on your connected calendar that have a Meet, Teams or Zoom link.",
         group="Call notes",
         options=[
             PreferenceOption(value="auto", label="Join automatically", description="BMI Notetaker joins and takes notes - you can still skip any meeting."),

@@ -25,6 +25,7 @@ from app.automations import runtime_settings
 from app.models import CallRecording, Contact, Email, User
 from app.models.calendar import CalendarAttendance, CalendarConnection, CalendarMeeting
 from app.services import calendar_providers as cp
+from app.services import zoom
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ SEND_WINDOW = timedelta(minutes=3)
 LATE_JOIN = timedelta(minutes=30)       # a meeting added late is still joined up to this long after it started
 SYNC_EVERY = timedelta(minutes=4)
 PREF_KEY = "calendar_recording"         # users.preferences: auto | remind | off
-SUPPORTED = {"google_meet", "teams"}
+SUPPORTED = {"google_meet", "teams", "zoom"}
 
 
 def now() -> datetime:
@@ -186,16 +187,18 @@ def should_record(db: Session, m: CalendarMeeting, domains: set[str] | None = No
         return Decision(False, "Cancelled")
     if not m.join_url:
         return Decision(False, "No meeting link")
-    if m.platform == "zoom":
-        return Decision(False, "Zoom calls aren't supported yet")
     if m.platform not in SUPPORTED:
-        return Decision(False, "No Meet or Teams link")
+        return Decision(False, "No Meet, Teams or Zoom link")
+    if m.platform == "zoom" and not zoom.available():
+        return Decision(False, "Zoom isn't set up on the notetaker yet")
     if m.is_all_day:
         return Decision(False, "All-day event")
     atts = attending(db, m)
     going = [a for a in atts if a.response != "declined"]
     if not going:
         return Decision(False, "Everyone at BMI declined")
+    if m.platform == "zoom" and not zoom_person(db, m, going):
+        return Decision(False, "Nobody from BMI in it has connected Zoom - connect it under Your calendars")
     if m.record_override == "skip":
         return Decision(False, "Skipped for this meeting")
     if m.record_override == "record":
@@ -232,6 +235,23 @@ def _by_preference(db: Session, m: CalendarMeeting, going: list[CalendarAttendan
     if "remind" in prefs:
         return Decision(False, "Reminder only", remind=True)
     return Decision(False, "Automatic recording is off for everyone in it")
+
+
+def zoom_person(db: Session, m: CalendarMeeting, going: list[CalendarAttendance] | None = None):
+    """Whose Zoom the notetaker joins a Zoom call with: someone from BMI going who has connected Zoom - the
+    organiser first. Zoom only lets it in once that person is in the call. None if nobody has."""
+    going = going if going is not None else [a for a in attending(db, m) if a.response != "declined"]
+    org_email = (m.organizer_email or "").lower()
+
+    def first(a: CalendarAttendance) -> int:
+        u = db.get(User, a.user_id)
+        return 0 if a.response == "organizer" or (u and org_email and (u.email or "").lower() == org_email) else 1
+
+    for a in sorted(going, key=first):
+        conn = zoom.connection(db, a.user_id)
+        if conn and conn.status == "connected":
+            return conn
+    return None
 
 
 def owner(db: Session, m: CalendarMeeting) -> uuid.UUID | None:
@@ -297,9 +317,11 @@ def plan(db: Session, at: datetime | None = None) -> dict:
             db.add(call)
             db.flush()
             try:
+                zc = zoom_person(db, m) if m.platform == "zoom" else None
                 res = notetaker.send_bot(meeting_url=m.join_url, external_id=f"cal:{m.id}", title=m.title,
                                          end_at=max(m.end_at, join_at + timedelta(minutes=15)),
-                                         metadata={"bmi_call_id": str(call.id), "bmi_calendar_meeting_id": str(m.id)})
+                                         metadata={"bmi_call_id": str(call.id), "bmi_calendar_meeting_id": str(m.id)},
+                                         zoom_user_id=zc.zoom_user_id if zc else None)
             except notetaker.NotetakerError as e:
                 db.delete(call)
                 # Tried again on every sync (every few minutes) until the meeting ends.

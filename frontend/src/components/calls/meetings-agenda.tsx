@@ -106,7 +106,8 @@ export function MeetingsAgenda({ meetings, people }: { meetings: SharedMeeting[]
                           </span>
                         </div>
                       </div>
-                      {!m.private && new Date(m.end_at).getTime() > Date.now() && m.platform && m.platform !== "zoom" && !["Everyone at BMI declined", "No meeting link", "All-day event"].includes(m.decision.reason) &&
+                      {!m.private && new Date(m.end_at).getTime() > Date.now() && m.platform && !["Everyone at BMI declined", "No meeting link", "All-day event", "Zoom isn't set up on the notetaker yet"].includes(m.decision.reason) &&
+                        !m.decision.reason.startsWith("Nobody from BMI in it has connected Zoom") &&
                         (!m.call || m.call.status === "scheduled" || m.call.status === "cancelled") && (
                         <div className="flex gap-1.5 sm:justify-end">
                           {m.decision.record ? (

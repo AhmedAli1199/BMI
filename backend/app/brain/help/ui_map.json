@@ -2670,46 +2670,71 @@
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:43",
+   "src": "components/calls/calendar-setup.tsx:47",
    "kind": "heading",
    "label": "Your calendars Read-only: BMI Brain only looks at your meetings, it never changes them. Meetings with the same link and "
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:45",
+   "src": "components/calls/calendar-setup.tsx:49",
    "kind": "hint",
    "label": "",
    "hint": "Read-only: BMI Brain only looks at your meetings, it never changes them. Meetings with the same link and time in several people's calendars show once, with everyone from BMI who's in it."
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:48",
+   "src": "components/calls/calendar-setup.tsx:52",
    "kind": "button",
    "label": "Check now"
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:74",
+   "src": "components/calls/calendar-setup.tsx:78",
    "kind": "button",
    "label": "Reconnect"
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:75",
+   "src": "components/calls/calendar-setup.tsx:79",
    "kind": "button",
    "label": "Disconnect"
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:81",
+   "src": "components/calls/calendar-setup.tsx:85",
    "kind": "button",
    "label": "Connect"
   },
   {
    "file": "components/calls/calendar-setup.tsx",
-   "src": "components/calls/calendar-setup.tsx:88",
+   "src": "components/calls/calendar-setup.tsx:95",
+   "kind": "hint",
+   "label": "",
+   "hint": "Zoom only lets the notetaker into a call on behalf of someone signed in who is in it. Connect your Zoom once: the notetaker then joins your Zoom calls once you're in, and the recording ends if you leave, so stay to the end. Meet and Teams don't need this."
+  },
+  {
+   "file": "components/calls/calendar-setup.tsx",
+   "src": "components/calls/calendar-setup.tsx:109",
+   "kind": "button",
+   "label": "Reconnect"
+  },
+  {
+   "file": "components/calls/calendar-setup.tsx",
+   "src": "components/calls/calendar-setup.tsx:110",
+   "kind": "button",
+   "label": "Disconnect"
+  },
+  {
+   "file": "components/calls/calendar-setup.tsx",
+   "src": "components/calls/calendar-setup.tsx:116",
+   "kind": "button",
+   "label": "Connect Zoom"
+  },
+  {
+   "file": "components/calls/calendar-setup.tsx",
+   "src": "components/calls/calendar-setup.tsx:120",
    "kind": "heading",
-   "label": "When I have a meeting with a Meet or Teams link"
+   "label": "When I have a meeting with a Meet, Teams or Zoom link"
   },
   {
    "file": "components/calls/call-actions.tsx",
@@ -2731,19 +2756,19 @@
   },
   {
    "file": "components/calls/meetings-agenda.tsx",
-   "src": "components/calls/meetings-agenda.tsx:113",
+   "src": "components/calls/meetings-agenda.tsx:114",
    "kind": "button",
    "label": "Skip"
   },
   {
    "file": "components/calls/meetings-agenda.tsx",
-   "src": "components/calls/meetings-agenda.tsx:115",
+   "src": "components/calls/meetings-agenda.tsx:116",
    "kind": "button",
    "label": "Record"
   },
   {
    "file": "components/calls/meetings-agenda.tsx",
-   "src": "components/calls/meetings-agenda.tsx:117",
+   "src": "components/calls/meetings-agenda.tsx:118",
    "kind": "button",
    "label": "Undo"
   },
@@ -2788,7 +2813,7 @@
    "src": "components/calls/send-notetaker.tsx:43",
    "kind": "hint",
    "label": "",
-   "hint": "It joins the call as \"BMI Notetaker\", records it, and when the call ends you get the notes and the full transcript here. Someone in the call may need to let it in. Google Meet and Microsoft Teams calls only, for now."
+   "hint": "It joins the call as \"BMI Notetaker\", records it, and when the call ends you get the notes and the full transcript here. Someone in the call may need to let it in. For Zoom, connect your Zoom first (under Your calendars) and stay in the call: Zoom only lets it in with you there."
   },
   {
    "file": "components/calls/send-notetaker.tsx",

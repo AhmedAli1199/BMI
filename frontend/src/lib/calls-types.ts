@@ -42,6 +42,8 @@ export type CalendarSetup = {
   microsoft_available: boolean;
   notetaker_available: boolean;
   preference: "auto" | "remind" | "off";
+  /** Zoom lets the notetaker in only on behalf of a signed-in person in the call - each person connects theirs once. */
+  zoom: { available: boolean; connected: boolean; status: "connected" | "error" | null; last_error: string | null; connected_at: string | null };
 };
 export type SharedMeeting = {
   id: string;

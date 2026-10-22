@@ -51,6 +51,11 @@ export async function disconnectCalendar(provider: "google" | "microsoft") {
   revalidatePath("/calls/meetings");
 }
 
+export async function disconnectZoom() {
+  await backendFetch(`/api/zoom/connection`, { method: "DELETE" });
+  revalidatePath("/calls/meetings");
+}
+
 export async function syncCalendarsNow() {
   const r = await backendFetch<{ booked: number; called_off: number }>(`/api/calendar/sync`, { method: "POST" });
   revalidatePath("/calls/meetings");

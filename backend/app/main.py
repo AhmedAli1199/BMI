@@ -42,6 +42,7 @@ from app.api.routes import (
     calls,
     brain,
     calendar,
+    zoom,
     review_queue,
     sales,
     settings as settings_routes,
@@ -127,6 +128,7 @@ api_router.include_router(rate_card.router)
 api_router.include_router(editorial.router)
 api_router.include_router(calls.router)
 api_router.include_router(calendar.router)
+api_router.include_router(zoom.router)
 api_router.include_router(brain.router)
 app.include_router(api_router)
 

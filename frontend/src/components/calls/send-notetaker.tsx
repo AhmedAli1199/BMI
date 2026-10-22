@@ -14,7 +14,7 @@ import { InfoHint } from "@/components/sales/info-hint";
 
 type Option = { id: string; label: string; sublabel?: string | null };
 
-/** Paste a Meet or Teams link and the notetaker joins the call. */
+/** Paste a Meet, Teams or Zoom link and the notetaker joins the call. */
 export function SendNotetaker({ initialContact = null, compact = false }: { initialContact?: Option | null; compact?: boolean }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -40,10 +40,10 @@ export function SendNotetaker({ initialContact = null, compact = false }: { init
     <section aria-labelledby="send-nt" className="rounded-xl border border-border/80 bg-card p-5 shadow-2xs">
       <h2 id="send-nt" className="mb-3 flex items-center gap-1.5 text-sm font-bold">
         <Bot className="size-4 text-primary" aria-hidden="true" /> Send the notetaker
-        <InfoHint>It joins the call as &quot;BMI Notetaker&quot;, records it, and when the call ends you get the notes and the full transcript here. Someone in the call may need to let it in. Google Meet and Microsoft Teams calls only, for now.</InfoHint>
+        <InfoHint>It joins the call as &quot;BMI Notetaker&quot;, records it, and when the call ends you get the notes and the full transcript here. Someone in the call may need to let it in. For Zoom, connect your Zoom first (under Your calendars) and stay in the call: Zoom only lets it in with you there.</InfoHint>
       </h2>
       <div className={`grid gap-3 ${compact ? "" : "md:grid-cols-[2fr_1fr_1.2fr_auto]"} items-end`}>
-        <label className={labelCls}>Meeting link<Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://meet.google.com/… or a Teams link" /></label>
+        <label className={labelCls}>Meeting link<Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://meet.google.com/…, a Teams or a Zoom link" /></label>
         <label className={labelCls}>What it&apos;s about (optional)<Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Spring campaign" /></label>
         <div className={labelCls}>
           <EntityPicker label="Who it's with (optional)" placeholder="Search contacts…"

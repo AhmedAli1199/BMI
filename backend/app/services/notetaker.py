@@ -43,8 +43,12 @@ def _detail(r: httpx.Response, fallback: str) -> str:
     return fallback
 
 
-def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict, join_at=None, end_at=None) -> dict:
+def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata: dict, join_at=None, end_at=None,
+             zoom_user_id: str | None = None) -> dict:
+    """zoom_user_id: for a Zoom call, whose connected Zoom the notetaker joins on behalf of (see zoom_* below)."""
     body = {"meeting_url": meeting_url, "external_id": external_id, "title": title, "metadata": metadata}
+    if zoom_user_id:
+        body["zoom_user_id"] = zoom_user_id
     if join_at:
         body["join_at"] = join_at.isoformat()
     if end_at:   # holds the notetaker's slot until the meeting ends, so other bookings can't take it
@@ -57,6 +61,60 @@ def send_bot(*, meeting_url: str, external_id: str, title: str | None, metadata:
     if r.status_code >= 400:
         raise NotetakerError(_detail(r, "The notetaker couldn't be sent just now. Please try again in a minute."))
     return r.json()
+
+
+# ---- Zoom ---------------------------------------------------------------------------------------------
+# Zoom lets a notetaker in only on behalf of a signed-in person in the call. The notetaker holds the Zoom app's
+# keys and each person's sign-in; BMI Brain sends people to Zoom's sign-in and hands the code over.
+
+_zoom_cache: dict = {"at": 0.0, "info": None}
+
+
+def zoom_info(fresh: bool = False) -> dict:
+    """{"available": bool, "client_id": str | None} - whether Zoom is set up on the notetaker. Kept for 5 minutes."""
+    if not configured():
+        return {"available": False, "client_id": None}
+    if not fresh and _zoom_cache["info"] is not None and time.time() - _zoom_cache["at"] < 300:
+        return _zoom_cache["info"]
+    try:
+        with _client() as c:
+            r = c.get("/v1/zoom")
+        info = r.json() if r.status_code == 200 else {"available": False, "client_id": None}
+    except (httpx.HTTPError, ValueError):
+        return _zoom_cache["info"] or {"available": False, "client_id": None}
+    _zoom_cache.update(at=time.time(), info=info)
+    return info
+
+
+def zoom_connect(code: str, redirect_uri: str, external_user: str) -> dict:
+    try:
+        with _client() as c:
+            r = c.post("/v1/zoom/connections", json={"authorization_code": code, "redirect_uri": redirect_uri, "external_user": external_user})
+    except httpx.HTTPError:
+        raise NotetakerError("The notetaker can't be reached just now. Please try connecting Zoom again in a minute.")
+    if r.status_code >= 400:
+        raise NotetakerError(_detail(r, "Zoom couldn't be connected just now. Please try again."))
+    return r.json()
+
+
+def zoom_state(zoom_user_id: str) -> str | None:
+    """"connected", "disconnected", or None if the notetaker couldn't be asked."""
+    try:
+        with _client() as c:
+            r = c.get(f"/v1/zoom/connections/{zoom_user_id}")
+    except httpx.HTTPError:
+        return None
+    if r.status_code == 404:
+        return "disconnected"
+    return r.json().get("state") if r.status_code == 200 else None
+
+
+def zoom_disconnect(zoom_user_id: str) -> None:
+    try:
+        with _client() as c:
+            c.delete(f"/v1/zoom/connections/{zoom_user_id}")
+    except httpx.HTTPError:
+        logger.warning("Couldn't tell the notetaker to disconnect Zoom %s", zoom_user_id)
 
 
 def stop_bot(notetaker_id: str) -> None:

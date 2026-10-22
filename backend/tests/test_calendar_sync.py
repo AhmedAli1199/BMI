@@ -97,7 +97,7 @@ def test_rules(db_session, people, monkeypatch):
     ])
     reason = {m.title: cs.should_record(db_session, m) for m in meetings(db_session)}
     assert reason["External"].record
-    assert reason["Zoom"].reason == "Zoom calls aren't supported yet"
+    assert reason["Zoom"].reason == "Zoom isn't set up on the notetaker yet"
     assert reason["No link"].reason == "No meeting link"
     assert reason["Declined"].reason == "Everyone at BMI declined"
     assert reason["Private"].reason == "Marked private"

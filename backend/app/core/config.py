@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # {app_base_url}/api/google/callback. Empty = the "Connect Google Calendar" button is hidden.
     google_client_id: str = ""
     google_client_secret: str = ""
+    # Zoom: the notetaker holds the Zoom app's keys (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET there); BMI Brain only needs
+    # the address Zoom sends people back to - it must match the Zoom app's Redirect URL exactly.
+    # Empty = {app_base_url}/api/zoom/callback.
+    zoom_redirect_uri: str = ""
     # The shared calendar (runtime-editable in Automations settings, group "Call notes")
     automations_calendar_sync_enabled: bool = True
     calendar_include_internal: bool = True     # meetings with only BMI people in them
