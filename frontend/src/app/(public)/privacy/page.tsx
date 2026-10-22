@@ -54,8 +54,23 @@ export default function PrivacyPage() {
         </ul>
       </Section>
 
-      <Section title="Your choices">
-        <p>You can ask to see the information we hold about you, to correct it, or to have it deleted, and you can object to being recorded. Ask in the call, or email {mail}. You can also complain to the Information Commissioner&apos;s Office (ico.org.uk).</p>
+      <Section id="your-rights" title="Your rights and how to use them">
+        <p>These rights apply to everyone whose information is in {LEGAL.product}, including clients and anyone in a call {LEGAL.notetaker} recorded, not only BMI staff. Under UK data protection law (the UK GDPR) you can ask us to:</p>
+        <ul>
+          <li><b>See your information</b>: get a copy of what we hold about you, including call recordings, transcripts and notes.</li>
+          <li><b>Correct it</b> if it&apos;s wrong or incomplete.</li>
+          <li><b>Delete it</b>, including a call&apos;s recording, transcript and notes.</li>
+          <li><b>Restrict</b> how we use it while a question about it is being sorted out.</li>
+          <li><b>Object</b> to us using it, including to being recorded. In a call, you can also just ask for the notetaker to be removed.</li>
+          <li><b>Take it with you</b>: get it in a common, machine-readable format, or have it sent to someone else.</li>
+          <li><b>Withdraw permission</b> you gave, for example by disconnecting your Zoom, email or calendar (see <a className="underline" href="/support#remove-zoom">Support</a>).</li>
+        </ul>
+        <p><b>How to ask:</b> email {mail} and say what you&apos;d like. It&apos;s free. We may ask you to confirm who you are, and we reply within one month (we&apos;ll tell you if a complex request needs longer, up to two more months). If we can&apos;t do all of what you asked, for example because the law requires us to keep an invoice, we&apos;ll explain why.</p>
+        <p><b>If you&apos;re unhappy</b> with how we&apos;ve handled your information, please tell us first. You can also complain to the Information Commissioner&apos;s Office: ico.org.uk, or 0303 123 1113.</p>
+      </Section>
+
+      <Section title="Where it's stored">
+        <p>{LEGAL.product} and {LEGAL.notetaker} run on servers that {LEGAL.builder} operates for BMI. Some of the services named above, such as Google, Microsoft and Zoom, may handle information outside the UK. When they do, it&apos;s protected by the safeguards UK law requires, such as the UK&apos;s adequacy decisions or the standard contract clauses those companies use.</p>
       </Section>
 
       <Section title="Keeping it safe">
