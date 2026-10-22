@@ -58,6 +58,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!login|api/login|api/notetaker|api/booking-forms|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|privacy|terms|support|api/login|api/notetaker|api/booking-forms|_next/static|_next/image|favicon.ico).*)",
   ],
 };
