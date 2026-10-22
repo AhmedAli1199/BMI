@@ -36,3 +36,9 @@ No Zoom webhooks/event subscriptions are used. Zoom data is used only to join me
    - Refresh token, encrypted at rest in the meeting bot's database; deleted when the user disconnects.
    - For meetings the notetaker joins: audio, transcript, participant names and the written notes. Audio and transcript are deleted after 30 days; notes stay in BMI Brain as client history until BMI deletes them.
    - Tokens are never written to logs.
+
+## How Zoom user data is protected at rest
+- Zoom OAuth refresh tokens (and the Zoom app's client secret): encrypted field by field in the meeting bot's PostgreSQL database with Fernet (AES-128-CBC + HMAC-SHA256). The key is a server setting (CREDENTIALS_ENCRYPTION_KEY), not stored in the database. Access tokens are short-lived and never stored. Deleted when the user disconnects.
+- Call audio: encrypted in object storage (SeaweedFS, -filer.encryptVolumeData) with AES-256-GCM and a separate key per chunk, kept apart from the data. Deleted after 30 days.
+- Zoom user ID, transcripts and notes: in PostgreSQL databases that aren't reachable from the internet (private Docker network on one server), only by our services with their own credentials; staff see them only after signing in, limited by role. Transcripts are deleted after 30 days. Other secrets (app API keys, Gemini keys) are stored hashed or encrypted.
+- Tokens and secrets are never written to logs.
