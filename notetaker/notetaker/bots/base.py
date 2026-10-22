@@ -15,6 +15,11 @@ class BotRequest:
     join_at: datetime | None = None
     chat_message: str | None = None
     dedupe_key: str | None = None
+    zoom_user_id: str | None = None   # Zoom: join on behalf of this connected person
+
+
+class ZoomConnectError(Exception):
+    """A plain-language reason Zoom couldn't be connected."""
 
 
 @dataclass
@@ -49,3 +54,7 @@ class MeetingBot(Protocol):
     def parse_webhook(self, body: bytes, headers: dict[str, str]) -> BotUpdate | None: ...
     def fetch_result(self, bot_id: str) -> BotResult: ...
     def poll(self, bot_id: str) -> BotUpdate | None: ...
+    # Zoom sign-ins ("Connect Zoom"): returns {"id": the bot's id for it, "zoom_user_id", "state"}
+    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict) -> dict: ...
+    def zoom_state(self, bot_connection_id: str) -> str | None: ...
+    def disconnect_zoom(self, bot_connection_id: str) -> None: ...

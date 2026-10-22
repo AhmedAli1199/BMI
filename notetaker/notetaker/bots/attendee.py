@@ -10,7 +10,7 @@ import logging
 import httpx
 
 from notetaker import engine, states
-from notetaker.bots.base import BotRequest, BotResult, BotUpdate, Utterance
+from notetaker.bots.base import BotRequest, BotResult, BotUpdate, Utterance, ZoomConnectError
 from notetaker.config import settings
 
 log = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ FRIENDLY = {
     "auto_leave_silence": "Left after a long silence.",
     "auto_leave_only_participant_in_meeting": "Left once everyone else had gone.",
     "user_requested": "Asked to leave.",
+    "authorized_user_not_in_meeting_timeout_exceeded": "Zoom only lets the notetaker in once the person it joins for is in the call, and they didn't join in time.",
 }
 
 
@@ -77,7 +78,7 @@ class AttendeeBot:
         if settings.transcription_mode == "gemini":
             # Attendee posts each speaker's audio to us; we transcribe it with that app's own Gemini key (api/app.py).
             return {"custom_async_v2": {"headers": {"X-Internal-Token": settings.internal_token}, "form_data": {"meeting_id": meeting_id}}}
-        return {"meeting_closed_captions": {"google_meet_language": "en-US", "teams_language": "en-gb"}}
+        return {"meeting_closed_captions": {"google_meet_language": "en-US", "teams_language": "en-gb", "zoom_language": "English"}}
 
     def create(self, req: BotRequest) -> str:
         body = {
@@ -97,6 +98,11 @@ class AttendeeBot:
             body["bot_chat_message"] = {"message": req.chat_message}
         if req.dedupe_key:
             body["deduplication_key"] = req.dedupe_key
+        if req.zoom_user_id:
+            # Zoom lets a notetaker in only "on behalf of" a signed-in person who's in the call; it waits up to
+            # 10 minutes for them to join.
+            body["zoom_settings"] = {"onbehalf_token": {"zoom_oauth_connection_user_id": req.zoom_user_id}}
+            body["automatic_leave_settings"]["authorized_user_not_in_meeting_timeout_seconds"] = 600
         r = self.http.post(f"{self.base}/api/v1/bots", json=body)
         r.raise_for_status()
         return r.json()["id"]
@@ -144,6 +150,40 @@ class AttendeeBot:
             status = states.NOT_ADMITTED if sub in NOT_ADMITTED_SUBTYPES else states.FAILED
         detail = FRIENDLY.get(sub or "") or ("The notetaker ran into a problem in the call." if status == states.FAILED else None)
         return BotUpdate(bot_id=bot_id, status=status, detail=detail, ready=state == "ended")
+
+    # ---- Zoom sign-ins ---------------------------------------------------------------------------------
+
+    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict) -> dict:
+        try:
+            r = self.http.post(f"{self.base}/api/v1/zoom_oauth_connections", json={
+                "authorization_code": authorization_code, "redirect_uri": redirect_uri, "metadata": metadata,
+                "is_local_recording_token_supported": False, "is_onbehalf_token_supported": True})
+        except httpx.HTTPError:
+            raise ZoomConnectError("The notetaker couldn't reach Zoom just now. Please try again in a minute.")
+        if r.status_code >= 400:
+            text = r.text or ""
+            log.warning("Connecting Zoom failed: %s %s", r.status_code, text[:300])
+            if "missing the following required scopes" in text:
+                raise ZoomConnectError("The Zoom app is missing a permission. The Zoom app needs 'View a user' and "
+                                       "'View a user's token' under Scopes - ask whoever set up the Zoom app.")
+            if "No Zoom OAuth App" in text:
+                raise ZoomConnectError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add the Zoom app's keys.")
+            if "not active" in text:
+                raise ZoomConnectError("That Zoom account isn't active. Sign in to Zoom once to activate it, then try again.")
+            raise ZoomConnectError("Zoom didn't accept the sign-in. Please try connecting again.")
+        c = r.json()
+        return {"id": c["id"], "zoom_user_id": c["user_id"], "state": c.get("state") or "connected"}
+
+    def zoom_state(self, bot_connection_id: str) -> str | None:
+        r = self.http.get(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}")
+        if r.status_code == 404:
+            return "disconnected"
+        return r.json().get("state") if r.status_code == 200 else None
+
+    def disconnect_zoom(self, bot_connection_id: str) -> None:
+        r = self.http.delete(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}")
+        if r.status_code >= 400 and r.status_code != 404:
+            log.warning("Disconnecting Zoom failed: %s %s", r.status_code, (r.text or "")[:300])
 
     def fetch_result(self, bot_id: str) -> BotResult:
         r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}/transcript")

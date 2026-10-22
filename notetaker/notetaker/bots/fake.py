@@ -24,6 +24,7 @@ class FakeBot:
         self.created: list[BotRequest] = []
         self.cancelled: list[str] = []
         self.states: dict[str, BotUpdate] = {}   # what poll() reports, set by tests
+        self.zoom: dict[str, dict] = {}            # pretend Zoom sign-ins, by the bot's id for them
 
     def create(self, req: BotRequest) -> str:
         self.created.append(req)
@@ -39,6 +40,20 @@ class FakeBot:
 
     def poll(self, bot_id: str) -> BotUpdate | None:
         return self.states.get(bot_id)
+
+    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict) -> dict:
+        from notetaker.bots.base import ZoomConnectError
+        if authorization_code == "bad":
+            raise ZoomConnectError("Zoom didn't accept the sign-in. Please try connecting again.")
+        c = {"id": f"zoc_{uuid.uuid4().hex[:8]}", "zoom_user_id": f"zu_{authorization_code}", "state": "connected"}
+        self.zoom[c["id"]] = c
+        return c
+
+    def zoom_state(self, bot_connection_id: str) -> str | None:
+        return (self.zoom.get(bot_connection_id) or {}).get("state", "disconnected")
+
+    def disconnect_zoom(self, bot_connection_id: str) -> None:
+        self.zoom.pop(bot_connection_id, None)
 
     def fetch_result(self, bot_id: str) -> BotResult:
         t, out = 0, []

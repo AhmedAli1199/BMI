@@ -81,7 +81,9 @@ used for any app.
 
 ## Good to know
 
-- **Zoom** isn't supported yet; Zoom has to approve the app first.
+- **Zoom** works once the Zoom app's keys are added (see "Zoom" below). Zoom only lets a notetaker in **on behalf of** a
+  signed-in person who is in the call: it joins once they do (waiting up to 10 minutes), and the recording ends if they
+  leave. Until Zoom has reviewed the app, it can only join meetings hosted by the Zoom account that made the app.
 - **Meet's "may not be who they say" warning** shows because the bot joins as a guest. Giving it a signed-in Google Workspace
   account removes the warning; see Attendee's "signed-in bots" docs.
 - **The bot's own admin page** isn't on a public address, and you don't need it. If you want it for debugging, add a domain
@@ -90,6 +92,28 @@ used for any app.
   redeploy. The bootstrap takes over. If those values are set, they win.
 - **Upgrading to keys for each app:** add `ENCRYPTION_KEY` (generate one with `generate_env.py`). Then in the console,
   Apps → Edit each app and paste its Gemini key. Until you do, that app's calls come back as transcripts only.
+
+## Zoom
+
+1. In the Zoom App Marketplace (signed in as the account that will own the app), **Develop → Build App → General App**,
+   **User-managed**. Redirect URL and OAuth allow list: your app's callback (BMI Brain: `https://<its address>/api/zoom/callback`).
+2. **Features → Embed**: switch on **Meeting SDK**, and **"Are you developing a meeting bot or AI notetaker use case?"**
+   (that's what this is - it means Zoom's "on behalf of" sign-in, not a shared account).
+3. **Scopes**: `user:read:user` ("View a user") and `user:read:token` ("View a user's token").
+4. Add the app's **Client ID** and **Client Secret** to Environment as `ZOOM_CLIENT_ID` and `ZOOM_CLIENT_SECRET`
+   (the Development ones until Zoom approves the app, then the Production ones) and redeploy. The set-up step gives them
+   to the meeting bot; the console's Overview shows "Zoom: Set up".
+5. Each person connects their Zoom from their app. The app sends them to Zoom's sign-in
+   (`https://zoom.us/oauth/authorize?response_type=code&client_id=<GET /v1/zoom's client_id>&redirect_uri=<its callback>`),
+   then hands the code to the notetaker:
+
+```
+GET    /v1/zoom                          {"available": true, "client_id": "..."}
+POST   /v1/zoom/connections              {"authorization_code", "redirect_uri", "external_user"} -> {"zoom_user_id", "state"}
+GET    /v1/zoom/connections/{zoom_user_id}   is it still connected?
+DELETE /v1/zoom/connections/{zoom_user_id}   disconnect
+POST   /v1/meetings                      {"meeting_url": "<zoom link>", "zoom_user_id": "...", ...}
+```
 
 ## Developing
 

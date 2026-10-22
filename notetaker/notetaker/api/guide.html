@@ -158,13 +158,16 @@ app.post("/api/notetaker/webhook", express.raw({ type: "application/json" }), as
 <pre><code>GET    /v1/capacity              how many more calls you could book for a time (?start=…&end=…)
 GET    /v1/meetings              your recent meetings (add ?status=completed)
 GET    /v1/meetings/{id}         one meeting, with transcript, notes and timeline
-DELETE /v1/meetings/{id}         stop: a bot in the call leaves and the notes cover the call so far; one that hasn't joined is called off</code></pre>
+DELETE /v1/meetings/{id}         stop: a bot in the call leaves and the notes cover the call so far; one that hasn't joined is called off
+GET    /v1/zoom                  is Zoom set up, and the Zoom app's client id for the sign-in link
+POST   /v1/zoom/connections      finish "Connect Zoom" with the code Zoom sent back
+DELETE /v1/zoom/connections/{zoom_user_id}   disconnect someone's Zoom</code></pre>
   <p>Full reference, with a "try it" button for every call: <a href="/docs">{{PUBLIC_URL}}/docs</a>.</p>
 
   <h2>Good to know</h2>
   <ul>
     <li><b>Someone has to let the bot in</b> from the waiting room, unless the meeting lets guests straight in.</li>
-    <li><b>Google Meet and Microsoft Teams</b> work today. Zoom needs Zoom to approve the app first.</li>
+    <li><b>Google Meet, Microsoft Teams and Zoom.</b> For Zoom, each person connects their Zoom once (<code>POST /v1/zoom/connections</code> with the code Zoom sends back) and a Zoom booking gives <code>zoom_user_id</code>: Zoom only lets the notetaker in on behalf of a signed-in person who is in the call, and the recording ends if they leave.</li>
     <li><b>The "may not be who they say" warning</b> in Meet shows because the bot joins as a guest. A signed-in Google account for the bot removes it - ask the Notetaker admin.</li>
     <li><b>How many calls at once:</b> the bots are shared by every app (shown on the console's Overview), and an app can also have its own limit. Bookings over either are refused when you make them, not when the meeting starts.</li>
     <li><b>AI costs:</b> each app's notes are written with its own Gemini key, so they're billed to its own Google project. The console shows each app's calls, hours and AI tokens this month.</li>

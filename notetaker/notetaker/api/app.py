@@ -34,7 +34,7 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Cybix Notetaker", version="0.1.0", lifespan=lifespan,
-              description="Send a notetaker into a Google Meet or Teams call and get back the transcript and notes by webhook.")
+              description="Send a notetaker into a Google Meet, Teams or Zoom call and get back the transcript and notes by webhook.")
 
 
 def get_db():
@@ -76,6 +76,7 @@ class MeetingIn(BaseModel):
     external_id: str | None = Field(None, description="Your own id for this meeting (e.g. the calendar event). Sending it twice won't send two bots.")
     bot_name: str | None = None
     metadata: dict = Field(default_factory=dict, description="Anything you want back in the webhooks.")
+    zoom_user_id: str | None = Field(None, description="Zoom only: whose connected Zoom the notetaker joins on behalf of (from POST /v1/zoom/connections). They must be in the call.")
 
 
 @app.post("/v1/meetings", status_code=201)
@@ -86,7 +87,7 @@ def create_meeting(body: MeetingIn, client: Client = Depends(current_client), db
     try:
         m, created = service.schedule(db, client, meeting_url=str(body.meeting_url), join_at=join_at, title=body.title,
                                       external_id=body.external_id, bot_name=body.bot_name, metadata=body.metadata,
-                                      ends_at=body.end_at)
+                                      ends_at=body.end_at, zoom_user_id=body.zoom_user_id)
     except service.InputError:
         raise
     except Exception:
@@ -140,6 +141,40 @@ def cancel_meeting(meeting_id: str, client: Client = Depends(current_client), db
     except Exception:
         raise HTTPException(502, "The bot couldn't be asked to leave just now. Please try again in a minute.")
     return service.meeting_view(m)
+
+
+# ---- Zoom ("Connect Zoom") -------------------------------------------------------------------------
+
+@app.get("/v1/zoom")
+def zoom_info(client: Client = Depends(current_client)):
+    """Is Zoom set up, and the Zoom app's client id (public - it goes in the Zoom sign-in link)."""
+    return {"available": settings.zoom_enabled, "client_id": settings.zoom_client_id or None}
+
+
+class ZoomConnectIn(BaseModel):
+    authorization_code: str
+    redirect_uri: str
+    external_user: str | None = Field(None, description="Your own id for the person, kept with the connection.")
+
+
+@app.post("/v1/zoom/connections", status_code=201)
+def zoom_connect(body: ZoomConnectIn, client: Client = Depends(current_client), db: Session = Depends(get_db)):
+    """Finish "Connect Zoom": hand over the code Zoom sent back to your redirect address."""
+    c = service.connect_zoom(db, client, body.authorization_code, body.redirect_uri, body.external_user)
+    return _json(service.zoom_view(c))
+
+
+@app.get("/v1/zoom/connections/{zoom_user_id}")
+def zoom_connection(zoom_user_id: str, client: Client = Depends(current_client), db: Session = Depends(get_db)):
+    c = service.zoom_connection(db, client, zoom_user_id)
+    if not c:
+        raise HTTPException(404, "That Zoom account isn't connected.")
+    return _json(service.zoom_view(c))
+
+
+@app.delete("/v1/zoom/connections/{zoom_user_id}", status_code=204)
+def zoom_disconnect(zoom_user_id: str, client: Client = Depends(current_client), db: Session = Depends(get_db)):
+    service.disconnect_zoom(db, client, zoom_user_id)
 
 
 # ---- Meeting bot webhooks ------------------------------------------------------------------------

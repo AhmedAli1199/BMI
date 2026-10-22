@@ -85,6 +85,11 @@ def overview(db: Session = Depends(_get_db)):
     keyless = [c.name for c in db.scalars(select(Client).where(Client.gemini_key_enc.is_(None)))]
     checks.append({"name": "Every app has its own Gemini key", "ok": not keyless,
                    "detail": "Yes" if not keyless else f"Missing for: {', '.join(keyless)} - they get transcripts but no written notes. Add it under Apps → Edit."})
+    from notetaker.models import ZoomConnection
+    zoom_people = db.scalar(select(func.count()).select_from(ZoomConnection).where(ZoomConnection.state == "connected")) or 0
+    checks.append({"name": "Zoom (optional)", "ok": True,
+                   "detail": (f"Set up - {zoom_people} {'person has' if zoom_people == 1 else 'people have'} connected their Zoom" if settings.zoom_enabled
+                              else "Off - add the Zoom app's ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET to Environment and redeploy to join Zoom calls")})
     https = settings.public_url.startswith("https://")
     checks.append({"name": "Public address", "ok": https, "detail": settings.public_url if https else "PUBLIC_URL must start with https://"})
     hb = db.get(ServiceState, "worker_heartbeat")

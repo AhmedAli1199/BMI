@@ -112,3 +112,18 @@ class OutboxMessage(Base):
     last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ZoomConnection(Base):
+    """Someone's Zoom, connected from a client app ("Connect Zoom"). The meeting bot keeps the sign-in itself
+    (zoom_oauth_connections); we keep which app it belongs to, so an app can only send bots on behalf of its own
+    people."""
+    __tablename__ = "zoom_connections"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), index=True)
+    zoom_user_id: Mapped[str] = mapped_column(String(100), index=True)
+    bot_connection_id: Mapped[str] = mapped_column(String(100))   # the meeting bot's id for it
+    external_user: Mapped[str | None] = mapped_column(String(200))   # the app's own id for the person
+    state: Mapped[str] = mapped_column(String(20), default="connected")   # connected | disconnected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)

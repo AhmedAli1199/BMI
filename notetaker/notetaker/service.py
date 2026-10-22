@@ -10,9 +10,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from notetaker import outbox, states
-from notetaker.bots.base import BotRequest, BotUpdate
+from notetaker.bots.base import BotRequest, BotUpdate, ZoomConnectError
 from notetaker.config import settings
-from notetaker.models import Client, Meeting, MeetingEvent, ProcessedHook, now
+from notetaker.models import Client, Meeting, MeetingEvent, ProcessedHook, ZoomConnection, now
 from notetaker.providers import get_bot
 
 log = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ def _check_capacity(db: Session, client: Client, start: datetime, end: datetime)
 
 def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime | None = None, title: str | None = None,
              external_id: str | None = None, bot_name: str | None = None, metadata: dict | None = None,
-             ends_at: datetime | None = None) -> tuple[Meeting, bool]:
+             ends_at: datetime | None = None, zoom_user_id: str | None = None) -> tuple[Meeting, bool]:
     """Send a bot. Returns (meeting, created). The same client + external_id twice gives back the first meeting."""
     if external_id:
         existing = db.scalar(select(Meeting).where(Meeting.client_id == client.id, Meeting.external_id == external_id))
@@ -144,7 +144,9 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
             db.flush()
     platform = detect_platform(meeting_url)
     if platform == "zoom":
-        raise InputError("Zoom calls aren't supported yet - Zoom has to approve our app first.")
+        zoom_user_id = _zoom_user(db, client, zoom_user_id)
+    else:
+        zoom_user_id = None
     start = join_at or now()
     end = ends_at or start + timedelta(minutes=settings.default_call_minutes)
     if end <= start:
@@ -153,6 +155,8 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
     m = Meeting(client_id=client.id, external_id=external_id, meeting_url=meeting_url.strip(), platform=platform, title=title,
                 join_at=join_at, ends_at=ends_at, bot_name=bot_name or client.bot_name or settings.default_bot_name, meta=metadata or {},
                 bot_provider=get_bot().name, status=states.SCHEDULED)
+    if zoom_user_id:
+        m.meta = {**m.meta, "_zoom_user_id": zoom_user_id}
     m.client = client
     db.add(m)
     try:
@@ -161,10 +165,76 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
         db.rollback()
         raise InputError("That meeting is already scheduled.")
     m.bot_id = get_bot().create(BotRequest(meeting_id=m.id, meeting_url=m.meeting_url, bot_name=m.bot_name, join_at=join_at,
-                                           chat_message=client.chat_message, dedupe_key=f"{client.id}:{m.id}"))
+                                           chat_message=client.chat_message, dedupe_key=f"{client.id}:{m.id}",
+                                           zoom_user_id=zoom_user_id))
     db.add(MeetingEvent(meeting_id=m.id, status=states.SCHEDULED, detail=None))
     outbox.enqueue(db, client, "meeting.status_changed", _event_payload(m, full=False), meeting_id=m.id)
     return m, True
+
+
+# ---- Zoom ------------------------------------------------------------------------------------------
+# Zoom only lets a notetaker join "on behalf of" a signed-in person who is in the call (since March 2026, for
+# notetakers). Each person connects their Zoom once from their app; a Zoom booking names whose Zoom to use.
+
+def _zoom_user(db: Session, client: Client, zoom_user_id: str | None) -> str:
+    if not settings.zoom_enabled:
+        raise InputError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add the Zoom app's keys.")
+    if not zoom_user_id:
+        raise InputError("Zoom calls need someone's connected Zoom - the notetaker joins on their behalf. Connect Zoom first.")
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
+    if not c or c.state != "connected":
+        raise InputError("That person's Zoom isn't connected any more. They need to press Connect Zoom again.")
+    return zoom_user_id
+
+
+def zoom_view(c: ZoomConnection) -> dict:
+    return {"zoom_user_id": c.zoom_user_id, "state": c.state, "external_user": c.external_user,
+            "created_at": c.created_at, "updated_at": c.updated_at}
+
+
+def connect_zoom(db: Session, client: Client, authorization_code: str, redirect_uri: str, external_user: str | None) -> ZoomConnection:
+    if not settings.zoom_enabled:
+        raise InputError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add the Zoom app's keys.")
+    try:
+        got = get_bot().connect_zoom(authorization_code, redirect_uri, {"notetaker_client": client.id, "external_user": external_user or ""})
+    except ZoomConnectError as e:
+        raise InputError(str(e))
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == got["zoom_user_id"]))
+    if c is None:
+        # the same Zoom account can't belong to two apps - the meeting bot keeps one sign-in per Zoom account
+        other = db.scalar(select(ZoomConnection).where(ZoomConnection.zoom_user_id == got["zoom_user_id"]))
+        if other:
+            raise InputError("That Zoom account is already connected to another app on this notetaker. Use a different Zoom account.")
+        c = ZoomConnection(client_id=client.id, zoom_user_id=got["zoom_user_id"])
+        db.add(c)
+    c.bot_connection_id, c.external_user, c.state = got["id"], external_user, got.get("state") or "connected"
+    db.flush()
+    return c
+
+
+def zoom_connection(db: Session, client: Client, zoom_user_id: str, refresh: bool = True) -> ZoomConnection | None:
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
+    if c and refresh:
+        try:
+            state = get_bot().zoom_state(c.bot_connection_id)
+        except Exception:
+            log.warning("Couldn't check Zoom connection %s", c.id, exc_info=True)
+            state = None
+        if state and state != c.state:
+            c.state = state
+    return c
+
+
+def disconnect_zoom(db: Session, client: Client, zoom_user_id: str) -> bool:
+    c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
+    if not c:
+        return False
+    try:
+        get_bot().disconnect_zoom(c.bot_connection_id)
+    except Exception:
+        log.warning("Couldn't remove Zoom connection %s from the meeting bot", c.id, exc_info=True)
+    db.delete(c)
+    return True
 
 
 def stop(db: Session, m: Meeting) -> None:

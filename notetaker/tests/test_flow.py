@@ -67,7 +67,7 @@ def test_finished_meeting_never_goes_backwards(api, client_key):
     assert got["status"] == "not_admitted" and got["status_detail"] == "Nobody let it in"
 
 
-def test_rejects_bad_links_zoom_and_keys(api, client_key):
+def test_rejects_bad_links_and_keys(api, client_key):
     bad = api.post("/v1/meetings", json={"meeting_url": "https://example.com/x"}, headers=auth(client_key))
     assert bad.status_code == 422 and "Google Meet" in bad.json()["detail"]
     zoom = api.post("/v1/meetings", json={"meeting_url": "https://us02web.zoom.us/j/123"}, headers=auth(client_key))
@@ -194,3 +194,73 @@ def test_a_called_off_booking_can_be_booked_again(api, client_key):
     assert again.json()["id"] != first["id"] and again.json()["status"] == "scheduled"
     # the old one keeps its history
     assert api.get(f"/v1/meetings/{first['id']}", headers=auth(client_key)).json()["status"] == "cancelled"
+
+
+ZOOM = "https://us02web.zoom.us/j/81234567890?pwd=abc"
+
+
+def _zoom_on(monkeypatch):
+    from notetaker import config
+    monkeypatch.setattr(config.settings.__class__, "zoom_enabled", property(lambda self: True))
+
+
+def test_zoom_is_off_until_the_zoom_app_keys_are_added(api, client_key):
+    assert api.get("/v1/zoom", headers=auth(client_key)).json() == {"available": False, "client_id": None}
+    r = api.post("/v1/meetings", json={"meeting_url": ZOOM}, headers=auth(client_key))
+    assert r.status_code == 422 and "Zoom isn't set up" in r.json()["detail"]
+    r = api.post("/v1/zoom/connections", json={"authorization_code": "c1", "redirect_uri": "https://x/cb"}, headers=auth(client_key))
+    assert r.status_code == 422 and "Zoom isn't set up" in r.json()["detail"]
+
+
+def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key, monkeypatch):
+    _zoom_on(monkeypatch)
+    from notetaker.providers import get_bot
+    r = api.post("/v1/meetings", json={"meeting_url": ZOOM}, headers=auth(client_key))
+    assert r.status_code == 422 and "Connect Zoom first" in r.json()["detail"]      # nobody named
+
+    bad = api.post("/v1/zoom/connections", json={"authorization_code": "bad", "redirect_uri": "https://x/cb"}, headers=auth(client_key))
+    assert bad.status_code == 422 and "didn't accept" in bad.json()["detail"]
+    c = api.post("/v1/zoom/connections", json={"authorization_code": "sally", "redirect_uri": "https://x/cb", "external_user": "u-1"},
+                 headers=auth(client_key))
+    assert c.status_code == 201, c.text
+    zu = c.json()["zoom_user_id"]
+    assert c.json()["state"] == "connected" and c.json()["external_user"] == "u-1"
+
+    r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu}, headers=auth(client_key))
+    assert r.status_code == 201, r.text
+    assert r.json()["platform"] == "zoom" and get_bot().created[-1].zoom_user_id == zu
+
+    # another app can't use this app's people
+    other = api.post("/admin/clients", json={"name": "Other", "webhook_url": "https://o.example.com/h"}, headers={"X-Admin-Token": "admin-t"}).json()
+    r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu}, headers=auth(other))
+    assert r.status_code == 422 and "isn't connected any more" in r.json()["detail"]
+    dup = api.post("/v1/zoom/connections", json={"authorization_code": "sally", "redirect_uri": "https://x/cb"}, headers=auth(other))
+    assert dup.status_code == 422 and "another app" in dup.json()["detail"]
+
+    assert api.get(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).json()["state"] == "connected"
+    assert api.delete(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).status_code == 204
+    assert api.get(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).status_code == 404
+    r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu, "external_id": "z2"}, headers=auth(client_key))
+    assert r.status_code == 422
+
+
+def test_attendee_zoom_bot_and_connection_requests():
+    sent = []
+
+    def handler(req: httpx.Request):
+        sent.append((req.method, req.url.path, json.loads(req.content) if req.content else None))
+        if req.url.path.endswith("/zoom_oauth_connections"):
+            return httpx.Response(201, json={"id": "zoc_1", "user_id": "zu_9", "state": "connected"})
+        return httpx.Response(201, json={"id": "bot_1"})
+
+    from notetaker.bots.base import BotRequest
+    bot = AttendeeBot("http://att", api_key="k", webhook_secret="", http=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert bot.connect_zoom("code", "https://x/cb", {}) == {"id": "zoc_1", "zoom_user_id": "zu_9", "state": "connected"}
+    body = sent[-1][2]
+    assert body["is_onbehalf_token_supported"] is True and body["is_local_recording_token_supported"] is False
+    bot.create(BotRequest(meeting_id="m1", meeting_url=ZOOM, bot_name="BMI Notetaker", zoom_user_id="zu_9"))
+    body = sent[-1][2]
+    assert body["zoom_settings"] == {"onbehalf_token": {"zoom_oauth_connection_user_id": "zu_9"}}
+    assert body["automatic_leave_settings"]["authorized_user_not_in_meeting_timeout_seconds"] == 600
+    bot.create(BotRequest(meeting_id="m2", meeting_url=MEET, bot_name="BMI Notetaker"))
+    assert "zoom_settings" not in sent[-1][2]
