@@ -1,7 +1,8 @@
 """Connect Zoom. Zoom only lets a notetaker into a call "on behalf of" a signed-in person who is in it (Zoom's rule
 for notetakers since March 2026), so each person connects their Zoom once. The notetaker service holds the Zoom
 app's keys and the sign-in itself (its README, "Zoom"); BMI Brain sends people to Zoom's sign-in page, hands the
-code Zoom sends back to the notetaker, and remembers whose Zoom it is (ZoomConnection).
+code Zoom sends back to the notetaker, and remembers whose Zoom it is (ZoomConnection). BMI Brain's Zoom keys go on its
+app in the notetaker console, not in BMI Brain.
 
 For a Zoom meeting on the shared calendar, the notetaker joins on behalf of someone from BMI who is going and has
 connected Zoom - the organiser first. It can only get in once that person has joined, and the recording ends if
@@ -38,7 +39,7 @@ def available() -> bool:
 def authorize_url(user_id: uuid.UUID, return_to: str = "/calls/meetings") -> str:
     info = notetaker.zoom_info(fresh=True)
     if not info.get("available") or not info.get("client_id"):
-        raise ZoomError("Zoom isn't set up on the notetaker yet. Ask whoever runs BMI Brain to add the Zoom app's keys to the notetaker.")
+        raise ZoomError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add BMI Brain's Zoom keys (notetaker console, Apps, Edit).")
     q = {"response_type": "code", "client_id": info["client_id"], "redirect_uri": redirect_uri(),
          "state": outlook.make_state(user_id, return_to, purpose=PURPOSE)}
     return f"https://zoom.us/oauth/authorize?{urlencode(q)}"

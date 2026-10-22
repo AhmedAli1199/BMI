@@ -264,7 +264,7 @@ def health(db: Session = Depends(get_db), user: User = Depends(current_user)):
             f"Set up - {len(zconns)} {'person has' if len(zconns) == 1 else 'people have'} connected Zoom" if not bad
             else f"Needs reconnecting for: {', '.join(bad)}. They press Reconnect next to Zoom under Your calendars.")})
     else:
-        checks.append({"label": "Zoom", "ok": True, "text": "Off - Zoom meetings aren't recorded until the Zoom app's keys are added to the notetaker."})
+        checks.append({"label": "Zoom", "ok": True, "text": "Off - Zoom meetings aren't recorded until BMI Brain's Zoom keys are added to its app in the notetaker console (Apps, Edit)."})
     week = cs.now() - timedelta(days=7)
     domains = cs.internal_domains(db)
     missed = []
