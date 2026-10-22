@@ -147,8 +147,9 @@ def cancel_meeting(meeting_id: str, client: Client = Depends(current_client), db
 
 @app.get("/v1/zoom")
 def zoom_info(client: Client = Depends(current_client)):
-    """Is Zoom set up, and the Zoom app's client id (public - it goes in the Zoom sign-in link)."""
-    return {"available": settings.zoom_enabled, "client_id": settings.zoom_client_id or None}
+    """Is Zoom set up for this app, and its Zoom app's client id (public - it goes in the Zoom sign-in link)."""
+    ready = service.zoom_ready(client)
+    return {"available": ready, "client_id": client.zoom_client_id if ready else None}
 
 
 class ZoomConnectIn(BaseModel):
@@ -183,7 +184,7 @@ def zoom_disconnect(zoom_user_id: str, client: Client = Depends(current_client),
 async def attendee_hook(request: Request, db: Session = Depends(get_db)):
     body = await request.body()
     try:
-        update = get_bot().parse_webhook(body, {k.lower(): v for k, v in request.headers.items()})
+        update = get_bot().parse_webhook(body, {k.lower(): v for k, v in request.headers.items()}, service.bot_webhook_secrets(db))
     except PermissionError:
         raise HTTPException(400, "Invalid signature.")
     if update:
@@ -222,6 +223,32 @@ async def transcribe(audio: UploadFile = File(...), meeting_id: str = Form(defau
         log.exception("Transcription failed")
         return {"status": "error", "error_code": "transcription_failed"}
     return {"status": "done", "result": {"transcription": {"full_transcript": text, "utterances": []}}}
+
+
+# ---- attendee-sync: each app's own bot project (deploy/attendee_sync.py) -----------------------------
+
+def _internal(x_internal_token: str) -> None:
+    if not same(x_internal_token, settings.internal_token):
+        raise HTTPException(401, "Not allowed.")
+
+
+@app.get("/internal/bot-projects")
+def bot_projects(x_internal_token: str = Header(default=""), db: Session = Depends(get_db)):
+    _internal(x_internal_token)
+    from notetaker.models import ServiceState, now as _now
+    hb = db.get(ServiceState, "bot_sync_heartbeat") or ServiceState(key="bot_sync_heartbeat")
+    hb.value = _now().isoformat()
+    db.merge(hb)
+    return {"apps": service.bot_projects_wanted(db)}
+
+
+@app.post("/internal/bot-projects/{app_id}")
+def bot_project_done(app_id: str, body: dict, x_internal_token: str = Header(default=""), db: Session = Depends(get_db)):
+    _internal(x_internal_token)
+    c = db.get(Client, app_id)
+    if c:
+        service.bot_project_applied(db, c, body)
+    return {"ok": True}
 
 
 # ---- Health and dashboard ------------------------------------------------------------------------

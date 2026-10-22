@@ -85,11 +85,21 @@ def overview(db: Session = Depends(_get_db)):
     keyless = [c.name for c in db.scalars(select(Client).where(Client.gemini_key_enc.is_(None)))]
     checks.append({"name": "Every app has its own Gemini key", "ok": not keyless,
                    "detail": "Yes" if not keyless else f"Missing for: {', '.join(keyless)} - they get transcripts but no written notes. Add it under Apps → Edit."})
-    from notetaker.models import ZoomConnection
-    zoom_people = db.scalar(select(func.count()).select_from(ZoomConnection).where(ZoomConnection.state == "connected")) or 0
-    checks.append({"name": "Zoom (optional)", "ok": True,
-                   "detail": (f"Set up - {zoom_people} {'person has' if zoom_people == 1 else 'people have'} connected their Zoom" if settings.zoom_enabled
-                              else "Off - add the Zoom app's ZOOM_CLIENT_ID and ZOOM_CLIENT_SECRET to Environment and redeploy to join Zoom calls")})
+    zoom_apps = db.scalars(select(Client).where(Client.zoom_client_id.isnot(None))).all()
+    if zoom_apps:
+        hb = db.get(ServiceState, "bot_sync_heartbeat")
+        sync_age = (now() - datetime.fromisoformat(hb.value)).total_seconds() if hb and hb.value else None
+        bad = [c.name for c in zoom_apps if c.zoom_status == "error"]
+        waiting = [c.name for c in zoom_apps if c.zoom_status != "ready" and c.zoom_status != "error"]
+        if sync_age is None or sync_age > 180:
+            ok_, detail = False, "The attendee-sync container isn't running, so Zoom keys aren't passed to the meeting bot. Check it in Dokploy."
+        elif bad:
+            ok_, detail = False, f"Zoom didn't accept the keys for: {', '.join(bad)}. Open the app (Apps, Edit) to see why."
+        elif waiting:
+            ok_, detail = True, f"Setting up Zoom for: {', '.join(waiting)} (takes up to a minute)"
+        else:
+            ok_, detail = True, f"Set up for {', '.join(c.name for c in zoom_apps)}"
+        checks.append({"name": "Zoom", "ok": ok_, "detail": detail})
     https = settings.public_url.startswith("https://")
     checks.append({"name": "Public address", "ok": https, "detail": settings.public_url if https else "PUBLIC_URL must start with https://"})
     hb = db.get(ServiceState, "worker_heartbeat")
@@ -134,6 +144,7 @@ def _app_view(db: Session, c: Client) -> dict:
     since = now() - timedelta(days=30)
     return jsonable_encoder({
         "gemini_key_hint": c.gemini_key_hint, "has_gemini_key": bool(c.gemini_key_enc), "max_concurrent": c.max_concurrent,
+        "zoom_client_id": c.zoom_client_id, "zoom_secret_hint": c.zoom_secret_hint, "zoom_status": c.zoom_status, "zoom_error": c.zoom_error,
         "usage_month": usage(db, c.id),
         "id": c.id, "name": c.name, "webhook_url": c.webhook_url, "bot_name": c.bot_name, "chat_message": c.chat_message,
         "notes_style": c.notes_style or "general", "summary_instructions": c.summary_instructions, "retention_days": c.retention_days,
@@ -162,6 +173,9 @@ class AppIn(BaseModel):
     max_concurrent: int | None = None
     # Leave out (or null) to keep the current key; "" removes it.
     gemini_api_key: str | None = None
+    # Zoom: this app's own Zoom app (Client ID + Client Secret). Leave out to keep; "" for both removes Zoom.
+    zoom_client_id: str | None = None
+    zoom_client_secret: str | None = None
 
 
 def _clean(body: AppIn) -> dict:
@@ -193,6 +207,29 @@ def _set_gemini_key(c: Client, key: str | None) -> None:
     c.gemini_key_enc, c.gemini_key_hint = encrypt(key), "…" + key[-4:]
 
 
+def _set_zoom(c: Client, client_id: str | None, secret: str | None) -> None:
+    """The keys are checked with Zoom by attendee-sync within a minute, which sets zoom_status to ready or error."""
+    from notetaker.security import encrypt
+    if client_id is None and secret is None:
+        return
+    cid, sec = (client_id or "").strip(), (secret or "").strip()
+    if client_id is not None and not cid:   # removed
+        c.zoom_client_id = c.zoom_secret_enc = c.zoom_secret_hint = None
+        c.zoom_status = c.zoom_error = None
+        return
+    new_id = bool(cid) and cid != c.zoom_client_id
+    if new_id and not sec:
+        raise HTTPException(422, "Paste the Zoom app's Client Secret as well - a new Client ID needs its own secret.")
+    if sec and not (cid or c.zoom_client_id):
+        raise HTTPException(422, "Paste the Zoom app's Client ID as well.")
+    if new_id:
+        c.zoom_client_id = cid
+    if sec:
+        c.zoom_secret_enc, c.zoom_secret_hint = encrypt(sec), "…" + sec[-4:]
+    if new_id or sec:   # only something new needs checking again
+        c.zoom_status, c.zoom_error = "pending", None
+
+
 def _integration(c: Client, key: str | None, secret: str | None) -> dict:
     return {"api_key": key, "webhook_secret": secret, "env": "\n".join(x for x in [
         f"NOTETAKER_URL={settings.public_url}",
@@ -210,6 +247,7 @@ def create_app(body: AppIn, db: Session = Depends(_get_db)):
     data = _clean(body)
     c, key = create_client(db, data.pop("name"), data.pop("webhook_url"), **data)
     _set_gemini_key(c, body.gemini_api_key)
+    _set_zoom(c, body.zoom_client_id, body.zoom_client_secret)
     return {"app": _app_view(db, c), **_integration(c, key, c.webhook_secret)}
 
 
@@ -225,6 +263,7 @@ def update_app(app_id: str, body: AppIn, db: Session = Depends(_get_db)):
     for k, v in _clean(body).items():
         setattr(c, k, v)
     _set_gemini_key(c, body.gemini_api_key)
+    _set_zoom(c, body.zoom_client_id, body.zoom_client_secret)
     return _app_view(db, c)
 
 

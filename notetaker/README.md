@@ -95,25 +95,35 @@ used for any app.
 
 ## Zoom
 
-1. In the Zoom App Marketplace (signed in as the account that will own the app), **Develop → Build App → General App**,
-   **User-managed**. Redirect URL and OAuth allow list: your app's callback (BMI Brain: `https://<its address>/api/zoom/callback`).
-2. **Features → Embed**: switch on **Meeting SDK**, and **"Are you developing a meeting bot or AI notetaker use case?"**
-   (that's what this is - it means Zoom's "on behalf of" sign-in, not a shared account).
+Zoom keys belong to **each app**, not the server: whoever owns a project makes their own Zoom app and pastes its keys
+into that app in the console. Nothing is set in Environment.
+
+1. In the Zoom App Marketplace (signed in as the account that will own the app): **Develop → Build App → General App**,
+   **User-managed**. Redirect URL and OAuth allow list: the app's own callback (BMI Brain:
+   `https://<its address>/api/zoom/callback`).
+2. **Features → Embed**: switch on **Meeting SDK**, and **"Are you developing a meeting bot or AI notetaker use case?"**.
+   This is what the notetaker is, and it means Zoom's "on behalf of" sign-in rather than a shared account.
 3. **Scopes**: `user:read:user` ("View a user") and `user:read:token` ("View a user's token").
-4. Add the app's **Client ID** and **Client Secret** to Environment as `ZOOM_CLIENT_ID` and `ZOOM_CLIENT_SECRET`
-   (the Development ones until Zoom approves the app, then the Production ones) and redeploy. The set-up step gives them
-   to the meeting bot; the console's Overview shows "Zoom: Set up".
+4. In the console: **Apps → Edit** the app, paste its **Client ID** and **Client Secret**, and **Save**. Use the Development
+   keys until Zoom approves the app, then the Production ones. Within a minute the app's card says **Zoom: on**, or why
+   Zoom refused the keys.
 5. Each person connects their Zoom from their app. The app sends them to Zoom's sign-in
    (`https://zoom.us/oauth/authorize?response_type=code&client_id=<GET /v1/zoom's client_id>&redirect_uri=<its callback>`),
    then hands the code to the notetaker:
 
 ```
-GET    /v1/zoom                          {"available": true, "client_id": "..."}
-POST   /v1/zoom/connections              {"authorization_code", "redirect_uri", "external_user"} -> {"zoom_user_id", "state"}
+GET    /v1/zoom                              {"available": true, "client_id": "..."} for this app
+POST   /v1/zoom/connections                  {"authorization_code", "redirect_uri", "external_user"} -> {"zoom_user_id", "state"}
 GET    /v1/zoom/connections/{zoom_user_id}   is it still connected?
 DELETE /v1/zoom/connections/{zoom_user_id}   disconnect
-POST   /v1/meetings                      {"meeting_url": "<zoom link>", "zoom_user_id": "...", ...}
+POST   /v1/meetings                          {"meeting_url": "<zoom link>", "zoom_user_id": "...", ...}
 ```
+
+**How it works inside.** The meeting bot (Attendee) holds one set of Zoom keys per "project". So an app with Zoom keys
+gets a project of its own there, and all of that app's bots run in it. The `attendee-sync` container
+(`deploy/attendee_sync.py`, every 30 seconds) asks the notetaker which apps need one (`/internal/bot-projects`). It makes
+or updates the project, its key, its webhook secret and its Zoom app, checking new keys with Zoom, and reports back. Apps
+without Zoom keys keep using the main project. The console's Overview shows a **Zoom** check once any app has Zoom keys.
 
 ## Developing
 

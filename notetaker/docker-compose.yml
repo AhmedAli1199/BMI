@@ -66,6 +66,20 @@ services:
     depends_on: [postgres, redis, storage]
     mem_limit: 1g
 
+  # Every 30 seconds: gives each app that has its own Zoom keys (pasted in the console) its own project in the
+  # meeting bot, so Zoom works per app with nothing set on the server (deploy/attendee_sync.py).
+  attendee-sync:
+    <<: *attendee
+    entrypoint: []
+    command: ["bash", "-c", "cd /attendee && while true; do python manage.py shell < /bootstrap/attendee_sync.py || echo 'attendee-sync: will try again'; sleep 30; done"]
+    volumes: ["./deploy:/bootstrap:ro"]
+    depends_on:
+      postgres: {condition: service_started}
+      redis: {condition: service_started}
+      attendee-bootstrap: {condition: service_completed_successfully}
+      notetaker-api: {condition: service_started}
+    mem_limit: 384m
+
   attendee-app:
     <<: *attendee
     command: ["gunicorn", "attendee.wsgi", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "120"]

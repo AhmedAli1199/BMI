@@ -29,12 +29,6 @@ class Settings:
     default_bot_name: str = field(default_factory=lambda: _env("DEFAULT_BOT_NAME", "Notetaker"))
     max_concurrent_bots: int = field(default_factory=lambda: int(_env("MAX_CONCURRENT_BOTS", "2")))
 
-    # Zoom (one Zoom app, made in the Zoom App Marketplace - see README "Zoom"). Zoom only lets a notetaker join
-    # "on behalf of" a signed-in person who is in the call, so each person connects their Zoom once in their app.
-    # The bot set-up step gives the same keys to the meeting bot.
-    zoom_client_id: str = field(default_factory=lambda: _env("ZOOM_CLIENT_ID"))
-    zoom_client_secret: str = field(default_factory=lambda: _env("ZOOM_CLIENT_SECRET"))
-
     # AI (summaries, and transcription in "gemini" mode)
     ai_provider: str = field(default_factory=lambda: _env("AI_PROVIDER", "gemini"))   # gemini | fake
     # Not used for apps' notes (each app brings its own key) - only kept so old settings files still load.
@@ -48,10 +42,6 @@ class Settings:
     # Outgoing webhooks to client apps
     webhook_max_attempts: int = field(default_factory=lambda: int(_env("WEBHOOK_MAX_ATTEMPTS", "12")))
     worker_interval_seconds: float = field(default_factory=lambda: float(_env("WORKER_INTERVAL_SECONDS", "3")))
-
-    @property
-    def zoom_enabled(self) -> bool:
-        return bool(self.zoom_client_id and self.zoom_client_secret)
 
 
 settings = Settings()

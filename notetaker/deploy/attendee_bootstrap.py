@@ -14,7 +14,7 @@ import uuid
 
 from accounts.models import Organization, User
 from allauth.account.models import EmailAddress
-from bots.models import ApiKey, Project, WebhookSecret, ZoomOAuthApp
+from bots.models import ApiKey, Project, WebhookSecret
 
 OUT = "/shared/attendee.json"
 data = {}
@@ -43,15 +43,6 @@ key = data.get("api_key")
 if not key or not ApiKey.objects.filter(key_hash=hashlib.sha256(key.encode()).hexdigest(), disabled_at__isnull=True).exists():
     _, key = ApiKey.create(project=project, name="notetaker-service")
 
-# Zoom: the Zoom app's keys (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET) let the bot join Zoom calls and sign in
-# "on behalf of" each person who connects their Zoom. Leaving them out keeps Zoom off.
-zoom_id, zoom_secret = os.environ.get("ZOOM_CLIENT_ID", "").strip(), os.environ.get("ZOOM_CLIENT_SECRET", "").strip()
-if zoom_id and zoom_secret:
-    zoom_app = ZoomOAuthApp.objects.filter(project=project).first() or ZoomOAuthApp(project=project, client_id=zoom_id)
-    zoom_app.client_id = zoom_id
-    zoom_app.set_credentials({"client_secret": zoom_secret, "webhook_secret": os.environ.get("ZOOM_WEBHOOK_SECRET", "").strip()})
-data["zoom"] = bool(zoom_id and zoom_secret)
-
 data.update(api_key=key, webhook_secret=base64.b64encode(secret.get_secret()).decode(), admin_email=email,
             project_id=project.object_id)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -60,4 +51,4 @@ with open(tmp, "w") as f:
     json.dump(data, f)
 os.chmod(tmp, 0o644)
 os.replace(tmp, OUT)
-print("Notetaker: the meeting bot is set up" + (", with Zoom." if data["zoom"] else " (Zoom is off - no ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET)."))
+print("Notetaker: the meeting bot is set up.")

@@ -167,7 +167,7 @@ DELETE /v1/zoom/connections/{zoom_user_id}   disconnect someone's Zoom</code></p
   <h2>Good to know</h2>
   <ul>
     <li><b>Someone has to let the bot in</b> from the waiting room, unless the meeting lets guests straight in.</li>
-    <li><b>Google Meet, Microsoft Teams and Zoom.</b> For Zoom, each person connects their Zoom once (<code>POST /v1/zoom/connections</code> with the code Zoom sends back) and a Zoom booking gives <code>zoom_user_id</code>: Zoom only lets the notetaker in on behalf of a signed-in person who is in the call, and the recording ends if they leave.</li>
+    <li><b>Google Meet, Microsoft Teams and Zoom.</b> For Zoom, the notetaker admin adds your Zoom app's Client ID and Secret to your app in the console (Apps, Edit); then each person connects their Zoom once (<code>POST /v1/zoom/connections</code> with the code Zoom sends back) and a Zoom booking gives <code>zoom_user_id</code>: Zoom only lets the notetaker in on behalf of a signed-in person who is in the call, and the recording ends if they leave.</li>
     <li><b>The "may not be who they say" warning</b> in Meet shows because the bot joins as a guest. A signed-in Google account for the bot removes it - ask the Notetaker admin.</li>
     <li><b>How many calls at once:</b> the bots are shared by every app (shown on the console's Overview), and an app can also have its own limit. Bookings over either are refused when you make them, not when the meeting starts.</li>
     <li><b>AI costs:</b> each app's notes are written with its own Gemini key, so they're billed to its own Google project. The console shows each app's calls, hours and AI tokens this month.</li>

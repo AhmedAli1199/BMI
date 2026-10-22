@@ -37,6 +37,17 @@ class Client(Base):
     gemini_key_enc: Mapped[str | None] = mapped_column(Text)
     gemini_key_hint: Mapped[str | None] = mapped_column(String(12))
     max_concurrent: Mapped[int | None] = mapped_column(Integer)   # this app's own limit (None = only the overall one)
+    # Zoom, per app: its own Zoom app's keys (pasted in the console). The meeting bot holds one set of Zoom keys per
+    # "project", so an app with Zoom gets its own project there - set up by the attendee-sync container
+    # (deploy/attendee_sync.py), which reports back the project's key and webhook secret.
+    zoom_client_id: Mapped[str | None] = mapped_column(String(100))
+    zoom_secret_enc: Mapped[str | None] = mapped_column(Text)
+    zoom_secret_hint: Mapped[str | None] = mapped_column(String(12))
+    zoom_status: Mapped[str | None] = mapped_column(String(20))   # None (off) | pending | ready | error
+    zoom_error: Mapped[str | None] = mapped_column(Text)
+    bot_project_id: Mapped[str | None] = mapped_column(String(64))
+    bot_key_enc: Mapped[str | None] = mapped_column(Text)
+    bot_webhook_secret_enc: Mapped[str | None] = mapped_column(Text)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 

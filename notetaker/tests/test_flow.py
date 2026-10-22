@@ -197,23 +197,60 @@ def test_a_called_off_booking_can_be_booked_again(api, client_key):
 
 
 ZOOM = "https://us02web.zoom.us/j/81234567890?pwd=abc"
+ADMIN = {"X-Admin-Token": "admin-t"}
+INTERNAL = {"X-Internal-Token": "int-t"}
 
 
-def _zoom_on(monkeypatch):
-    from notetaker import config
-    monkeypatch.setattr(config.settings.__class__, "zoom_enabled", property(lambda self: True))
+def _zoom_on(api, client_key):
+    """What happens in real life: the admin pastes the app's Zoom keys, attendee-sync makes its project and reports back."""
+    app_id = client_key["id"]
+    app = next(a for a in api.get("/admin/apps", headers=ADMIN).json() if a["id"] == app_id)
+    r = api.patch(f"/admin/apps/{app_id}", json={**app, "gemini_api_key": None, "zoom_client_id": "zc-bmi", "zoom_client_secret": "zs-secret-1234"},
+                  headers=ADMIN)
+    assert r.status_code == 200, r.text
+    assert r.json()["zoom_status"] == "pending" and r.json()["zoom_secret_hint"] == "…1234"
+    wanted = api.get("/internal/bot-projects", headers=INTERNAL).json()["apps"]
+    mine = next(w for w in wanted if w["app_id"] == app_id)
+    assert mine["zoom_client_id"] == "zc-bmi" and mine["zoom_client_secret"] == "zs-secret-1234" and mine["key_hash"] is None
+    api.post(f"/internal/bot-projects/{app_id}", json={"project_id": "proj_bmi", "api_key": "att-bmi-key", "webhook_secret": base64.b64encode(b"bmi-hook").decode(),
+                                                      "zoom": "ready"}, headers=INTERNAL)
+    return app_id
 
 
-def test_zoom_is_off_until_the_zoom_app_keys_are_added(api, client_key):
+def test_zoom_is_off_until_the_app_has_its_own_zoom_keys(api, client_key):
     assert api.get("/v1/zoom", headers=auth(client_key)).json() == {"available": False, "client_id": None}
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM}, headers=auth(client_key))
-    assert r.status_code == 422 and "Zoom isn't set up" in r.json()["detail"]
+    assert r.status_code == 422 and "Zoom isn't set up for this app" in r.json()["detail"]
     r = api.post("/v1/zoom/connections", json={"authorization_code": "c1", "redirect_uri": "https://x/cb"}, headers=auth(client_key))
-    assert r.status_code == 422 and "Zoom isn't set up" in r.json()["detail"]
+    assert r.status_code == 422 and "Zoom isn't set up for this app" in r.json()["detail"]
+    assert api.get("/internal/bot-projects", headers={"X-Internal-Token": "nope"}).status_code == 401
 
 
-def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key, monkeypatch):
-    _zoom_on(monkeypatch)
+def test_zoom_keys_per_app_set_up_in_the_background(api, client_key):
+    app_id = _zoom_on(api, client_key)
+    assert api.get("/v1/zoom", headers=auth(client_key)).json() == {"available": True, "client_id": "zc-bmi"}
+    app = next(a for a in api.get("/admin/apps", headers=ADMIN).json() if a["id"] == app_id)
+    assert app["zoom_status"] == "ready"
+    # saving the app again without touching Zoom keeps it on
+    api.patch(f"/admin/apps/{app_id}", json={**app, "gemini_api_key": None, "zoom_client_id": None, "zoom_client_secret": None}, headers=ADMIN)
+    assert api.get("/v1/zoom", headers=auth(client_key)).json()["available"] is True
+    # the sync now knows the project and its key, so it won't make another
+    mine = next(w for w in api.get("/internal/bot-projects", headers=INTERNAL).json()["apps"] if w["app_id"] == app_id)
+    assert mine["project_id"] == "proj_bmi" and mine["key_hash"]
+    # Zoom turned down the keys
+    api.post(f"/internal/bot-projects/{app_id}", json={"zoom": "error", "error": "Zoom didn't accept this Client ID"}, headers=INTERNAL)
+    assert api.get("/v1/zoom", headers=auth(client_key)).json()["available"] is False
+    r = api.patch(f"/admin/apps/{app_id}", json={**app, "gemini_api_key": None, "zoom_client_id": "zc-other", "zoom_client_secret": None}, headers=ADMIN)
+    assert r.status_code == 422 and "Client Secret as well" in r.json()["detail"]
+    # turning Zoom off for the app
+    r = api.patch(f"/admin/apps/{app_id}", json={**app, "gemini_api_key": None, "zoom_client_id": "", "zoom_client_secret": ""}, headers=ADMIN)
+    assert r.json()["zoom_client_id"] is None and r.json()["zoom_status"] is None
+    mine = next(w for w in api.get("/internal/bot-projects", headers=INTERNAL).json()["apps"] if w["app_id"] == app_id)
+    assert mine["zoom_client_id"] is None   # still listed, so the sync takes Zoom off its project
+
+
+def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key):
+    _zoom_on(api, client_key)
     from notetaker.providers import get_bot
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM}, headers=auth(client_key))
     assert r.status_code == 422 and "Connect Zoom first" in r.json()["detail"]      # nobody named
@@ -225,17 +262,25 @@ def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key, monkeyp
     assert c.status_code == 201, c.text
     zu = c.json()["zoom_user_id"]
     assert c.json()["state"] == "connected" and c.json()["external_user"] == "u-1"
+    assert next(iter(get_bot().zoom.values()))["key"] == "att-bmi-key"             # made in the app's own project
 
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu}, headers=auth(client_key))
     assert r.status_code == 201, r.text
-    assert r.json()["platform"] == "zoom" and get_bot().created[-1].zoom_user_id == zu
+    sent = get_bot().created[-1]
+    assert r.json()["platform"] == "zoom" and sent.zoom_user_id == zu and sent.bot_key == "att-bmi-key"
+    zoom_meeting = r.json()["id"]
+    r = api.post("/v1/meetings", json={"meeting_url": MEET, "external_id": "m-own"}, headers=auth(client_key))
+    assert get_bot().created[-1].bot_key == "att-bmi-key"                           # all the app's bots go there
+    for mid in (zoom_meeting, r.json()["id"]):                                       # free the two test slots
+        api.delete(f"/v1/meetings/{mid}", headers=auth(client_key))
 
     # another app can't use this app's people
-    other = api.post("/admin/clients", json={"name": "Other", "webhook_url": "https://o.example.com/h"}, headers={"X-Admin-Token": "admin-t"}).json()
+    other = api.post("/admin/clients", json={"name": "Other", "webhook_url": "https://o.example.com/h"}, headers=ADMIN).json()
+    r = api.post("/v1/meetings", json={"meeting_url": MEET, "external_id": "o-1"}, headers=auth(other))
+    assert r.status_code == 201, r.text
+    assert get_bot().created[-1].bot_key is None                                    # an app without Zoom keys: the main project
     r = api.post("/v1/meetings", json={"meeting_url": ZOOM, "zoom_user_id": zu}, headers=auth(other))
-    assert r.status_code == 422 and "isn't connected any more" in r.json()["detail"]
-    dup = api.post("/v1/zoom/connections", json={"authorization_code": "sally", "redirect_uri": "https://x/cb"}, headers=auth(other))
-    assert dup.status_code == 422 and "another app" in dup.json()["detail"]
+    assert r.status_code == 422
 
     assert api.get(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).json()["state"] == "connected"
     assert api.delete(f"/v1/zoom/connections/{zu}", headers=auth(client_key)).status_code == 204
@@ -244,11 +289,28 @@ def test_zoom_bots_join_on_behalf_of_a_connected_person(api, client_key, monkeyp
     assert r.status_code == 422
 
 
+def test_webhooks_signed_by_an_apps_own_project_are_accepted(api, client_key):
+    _zoom_on(api, client_key)
+    from notetaker.service import bot_webhook_secrets
+    with session_scope() as db:
+        secrets_ = bot_webhook_secrets(db)
+    bot = AttendeeBot("http://att", api_key="k", webhook_secret=base64.b64encode(b"main").decode())
+    payload = {"bot_id": "b1", "trigger": "bot.state_change", "data": {"new_state": "joining"}}
+    good = sign(payload, secrets_[0])
+    assert bot.parse_webhook(json.dumps(payload).encode(), {"x-webhook-signature": good}, secrets_).status == states.JOINING
+    try:
+        bot.parse_webhook(json.dumps(payload).encode(), {"x-webhook-signature": good})   # without the app's secret: refused
+        raise AssertionError("should have been refused")
+    except PermissionError:
+        pass
+
+
 def test_attendee_zoom_bot_and_connection_requests():
-    sent = []
+    sent, seen_auth = [], []
 
     def handler(req: httpx.Request):
         sent.append((req.method, req.url.path, json.loads(req.content) if req.content else None))
+        seen_auth.append(req.headers.get("authorization"))
         if req.url.path.endswith("/zoom_oauth_connections"):
             return httpx.Response(201, json={"id": "zoc_1", "user_id": "zu_9", "state": "connected"})
         return httpx.Response(201, json={"id": "bot_1"})
@@ -258,9 +320,10 @@ def test_attendee_zoom_bot_and_connection_requests():
     assert bot.connect_zoom("code", "https://x/cb", {}) == {"id": "zoc_1", "zoom_user_id": "zu_9", "state": "connected"}
     body = sent[-1][2]
     assert body["is_onbehalf_token_supported"] is True and body["is_local_recording_token_supported"] is False
-    bot.create(BotRequest(meeting_id="m1", meeting_url=ZOOM, bot_name="BMI Notetaker", zoom_user_id="zu_9"))
+    bot.create(BotRequest(meeting_id="m1", meeting_url=ZOOM, bot_name="BMI Notetaker", zoom_user_id="zu_9", bot_key="app-key"))
     body = sent[-1][2]
+    assert seen_auth[-1] == "Token app-key"                                          # the app's own project
     assert body["zoom_settings"] == {"onbehalf_token": {"zoom_oauth_connection_user_id": "zu_9"}}
     assert body["automatic_leave_settings"]["authorized_user_not_in_meeting_timeout_seconds"] == 600
     bot.create(BotRequest(meeting_id="m2", meeting_url=MEET, bot_name="BMI Notetaker"))
-    assert "zoom_settings" not in sent[-1][2]
+    assert "zoom_settings" not in sent[-1][2] and seen_auth[-1] is None   # no key of its own: the client's default

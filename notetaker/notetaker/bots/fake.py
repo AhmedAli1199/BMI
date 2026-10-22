@@ -30,32 +30,32 @@ class FakeBot:
         self.created.append(req)
         return f"fake_{uuid.uuid4().hex[:10]}"
 
-    def cancel(self, bot_id: str) -> None:
+    def cancel(self, bot_id: str, key: str | None = None) -> None:
         self.cancelled.append(bot_id)
 
-    def parse_webhook(self, body: bytes, headers: dict[str, str]) -> BotUpdate | None:
+    def parse_webhook(self, body: bytes, headers: dict[str, str], secrets: list[str] | None = None) -> BotUpdate | None:
         p = json.loads(body)
         return BotUpdate(bot_id=p["bot_id"], status=p.get("status"), detail=p.get("detail"),
                          ready=p.get("status") == states.PROCESSING and p.get("ready", True), dedupe_key=p.get("key"))
 
-    def poll(self, bot_id: str) -> BotUpdate | None:
+    def poll(self, bot_id: str, key: str | None = None) -> BotUpdate | None:
         return self.states.get(bot_id)
 
-    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict) -> dict:
+    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict, key: str | None = None) -> dict:
         from notetaker.bots.base import ZoomConnectError
         if authorization_code == "bad":
             raise ZoomConnectError("Zoom didn't accept the sign-in. Please try connecting again.")
-        c = {"id": f"zoc_{uuid.uuid4().hex[:8]}", "zoom_user_id": f"zu_{authorization_code}", "state": "connected"}
+        c = {"id": f"zoc_{uuid.uuid4().hex[:8]}", "zoom_user_id": f"zu_{authorization_code}", "state": "connected", "key": key}
         self.zoom[c["id"]] = c
         return c
 
-    def zoom_state(self, bot_connection_id: str) -> str | None:
+    def zoom_state(self, bot_connection_id: str, key: str | None = None) -> str | None:
         return (self.zoom.get(bot_connection_id) or {}).get("state", "disconnected")
 
-    def disconnect_zoom(self, bot_connection_id: str) -> None:
+    def disconnect_zoom(self, bot_connection_id: str, key: str | None = None) -> None:
         self.zoom.pop(bot_connection_id, None)
 
-    def fetch_result(self, bot_id: str) -> BotResult:
+    def fetch_result(self, bot_id: str, key: str | None = None) -> BotResult:
         t, out = 0, []
         for who, text in DEMO:
             out.append(Utterance(who, t, t + 6000, text))

@@ -61,8 +61,14 @@ class AttendeeBot:
         return self._secret if self._secret is not None else engine.webhook_secret()
 
     def _auth(self, request: httpx.Request) -> None:
-        # read on every call, so new credentials from the bootstrap are picked up without a restart
-        request.headers["Authorization"] = f"Token {self._key or engine.api_key()}"
+        # read on every call, so new credentials from the bootstrap are picked up without a restart. A call for an
+        # app with its own project (Zoom keys of its own, see deploy/attendee_sync.py) brings that project's key.
+        if "authorization" not in request.headers:
+            request.headers["Authorization"] = f"Token {self._key or engine.api_key()}"
+
+    @staticmethod
+    def _h(key: str | None) -> dict:
+        return {"Authorization": f"Token {key}"} if key else {}
 
     def check(self) -> tuple[bool, str]:
         """Is the bot engine reachable and accepting our key? For the console's set-up checklist."""
@@ -103,23 +109,26 @@ class AttendeeBot:
             # 10 minutes for them to join.
             body["zoom_settings"] = {"onbehalf_token": {"zoom_oauth_connection_user_id": req.zoom_user_id}}
             body["automatic_leave_settings"]["authorized_user_not_in_meeting_timeout_seconds"] = 600
-        r = self.http.post(f"{self.base}/api/v1/bots", json=body)
+        r = self.http.post(f"{self.base}/api/v1/bots", json=body, headers=self._h(req.bot_key))
         r.raise_for_status()
         return r.json()["id"]
 
-    def cancel(self, bot_id: str) -> None:
-        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}")
+    def cancel(self, bot_id: str, key: str | None = None) -> None:
+        h = self._h(key)
+        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}", headers=h)
         state = r.json().get("state") if r.status_code == 200 else None
         if state in ("scheduled", "staged", "ready"):
-            self.http.delete(f"{self.base}/api/v1/bots/{bot_id}")
+            self.http.delete(f"{self.base}/api/v1/bots/{bot_id}", headers=h)
         elif state and state not in ("ended", "fatal_error", "data_deleted"):
-            self.http.post(f"{self.base}/api/v1/bots/{bot_id}/leave")
+            self.http.post(f"{self.base}/api/v1/bots/{bot_id}/leave", headers=h)
 
-    def parse_webhook(self, body: bytes, headers: dict[str, str]) -> BotUpdate | None:
+    def parse_webhook(self, body: bytes, headers: dict[str, str], secrets: list[str] | None = None) -> BotUpdate | None:
+        """secrets: the webhook secrets of apps with their own project, tried after the main one."""
         payload = json.loads(body)
-        if self.secret:
+        candidates = [x for x in [self.secret, *(secrets or [])] if x]
+        if candidates:
             given = headers.get("x-webhook-signature", "")
-            if not hmac.compare_digest(given, sign(payload, self.secret)):
+            if not any(hmac.compare_digest(given, sign(payload, sec)) for sec in candidates):
                 raise PermissionError("bad signature")
         bot_id = payload.get("bot_id")
         if not bot_id:
@@ -136,9 +145,9 @@ class AttendeeBot:
         ready = new_state == "ended" and data.get("event_type") == "post_processing_completed"
         return BotUpdate(bot_id=bot_id, status=status, detail=detail, ready=ready, dedupe_key=key)
 
-    def poll(self, bot_id: str) -> BotUpdate | None:
+    def poll(self, bot_id: str, key: str | None = None) -> BotUpdate | None:
         """Ask Attendee where the bot is now - the safety net if one of its webhooks never arrived."""
-        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}")
+        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}", headers=self._h(key))
         if r.status_code != 200:
             return None
         bot = r.json()
@@ -153,9 +162,9 @@ class AttendeeBot:
 
     # ---- Zoom sign-ins ---------------------------------------------------------------------------------
 
-    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict) -> dict:
+    def connect_zoom(self, authorization_code: str, redirect_uri: str, metadata: dict, key: str | None = None) -> dict:
         try:
-            r = self.http.post(f"{self.base}/api/v1/zoom_oauth_connections", json={
+            r = self.http.post(f"{self.base}/api/v1/zoom_oauth_connections", headers=self._h(key), json={
                 "authorization_code": authorization_code, "redirect_uri": redirect_uri, "metadata": metadata,
                 "is_local_recording_token_supported": False, "is_onbehalf_token_supported": True})
         except httpx.HTTPError:
@@ -167,26 +176,27 @@ class AttendeeBot:
                 raise ZoomConnectError("The Zoom app is missing a permission. The Zoom app needs 'View a user' and "
                                        "'View a user's token' under Scopes - ask whoever set up the Zoom app.")
             if "No Zoom OAuth App" in text:
-                raise ZoomConnectError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add the Zoom app's keys.")
+                raise ZoomConnectError("Zoom isn't set up for this app yet. Ask whoever runs the notetaker to add its Zoom keys (Apps, Edit).")
             if "not active" in text:
                 raise ZoomConnectError("That Zoom account isn't active. Sign in to Zoom once to activate it, then try again.")
             raise ZoomConnectError("Zoom didn't accept the sign-in. Please try connecting again.")
         c = r.json()
         return {"id": c["id"], "zoom_user_id": c["user_id"], "state": c.get("state") or "connected"}
 
-    def zoom_state(self, bot_connection_id: str) -> str | None:
-        r = self.http.get(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}")
+    def zoom_state(self, bot_connection_id: str, key: str | None = None) -> str | None:
+        r = self.http.get(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}", headers=self._h(key))
         if r.status_code == 404:
             return "disconnected"
         return r.json().get("state") if r.status_code == 200 else None
 
-    def disconnect_zoom(self, bot_connection_id: str) -> None:
-        r = self.http.delete(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}")
+    def disconnect_zoom(self, bot_connection_id: str, key: str | None = None) -> None:
+        r = self.http.delete(f"{self.base}/api/v1/zoom_oauth_connections/{bot_connection_id}", headers=self._h(key))
         if r.status_code >= 400 and r.status_code != 404:
             log.warning("Disconnecting Zoom failed: %s %s", r.status_code, (r.text or "")[:300])
 
-    def fetch_result(self, bot_id: str) -> BotResult:
-        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}/transcript")
+    def fetch_result(self, bot_id: str, key: str | None = None) -> BotResult:
+        h = self._h(key)
+        r = self.http.get(f"{self.base}/api/v1/bots/{bot_id}/transcript", headers=h)
         r.raise_for_status()
         out: list[Utterance] = []
         for u in r.json():
@@ -199,7 +209,7 @@ class AttendeeBot:
         out.sort(key=lambda x: x.start_ms)
         people: list[str] = []
         try:
-            p = self.http.get(f"{self.base}/api/v1/bots/{bot_id}/participants")
+            p = self.http.get(f"{self.base}/api/v1/bots/{bot_id}/participants", headers=h)
             if p.status_code == 200:
                 rows = p.json()
                 rows = rows.get("results", rows) if isinstance(rows, dict) else rows

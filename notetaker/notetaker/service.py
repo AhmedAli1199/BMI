@@ -28,6 +28,24 @@ class InputError(ValueError):
     """A plain-language problem with what the caller sent."""
 
 
+# ---- The app's own bot project (Zoom keys of its own) -------------------------------------------------
+
+def bot_key(client: Client) -> str | None:
+    """The app's own bot project key, once attendee-sync has made it (only apps with Zoom keys have one)."""
+    from notetaker.security import decrypt
+    return decrypt(client.bot_key_enc) if client.bot_project_id and client.bot_key_enc else None
+
+
+def meeting_key(m: Meeting) -> str | None:
+    """The key for the project the meeting's bot was made in."""
+    project = (m.meta or {}).get("_bot_project")
+    return bot_key(m.client) if project and project == m.client.bot_project_id else None
+
+
+def zoom_ready(client: Client) -> bool:
+    return client.zoom_status == "ready" and bool(bot_key(client))
+
+
 def detect_platform(url: str) -> str:
     for name, rx in PLATFORMS:
         if rx.match(url.strip()):
@@ -155,8 +173,11 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
     m = Meeting(client_id=client.id, external_id=external_id, meeting_url=meeting_url.strip(), platform=platform, title=title,
                 join_at=join_at, ends_at=ends_at, bot_name=bot_name or client.bot_name or settings.default_bot_name, meta=metadata or {},
                 bot_provider=get_bot().name, status=states.SCHEDULED)
+    key = bot_key(client)   # an app with its own project sends all its bots from it
     if zoom_user_id:
         m.meta = {**m.meta, "_zoom_user_id": zoom_user_id}
+    if key:
+        m.meta = {**m.meta, "_bot_project": client.bot_project_id}
     m.client = client
     db.add(m)
     try:
@@ -166,7 +187,7 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
         raise InputError("That meeting is already scheduled.")
     m.bot_id = get_bot().create(BotRequest(meeting_id=m.id, meeting_url=m.meeting_url, bot_name=m.bot_name, join_at=join_at,
                                            chat_message=client.chat_message, dedupe_key=f"{client.id}:{m.id}",
-                                           zoom_user_id=zoom_user_id))
+                                           zoom_user_id=zoom_user_id, bot_key=key))
     db.add(MeetingEvent(meeting_id=m.id, status=states.SCHEDULED, detail=None))
     outbox.enqueue(db, client, "meeting.status_changed", _event_payload(m, full=False), meeting_id=m.id)
     return m, True
@@ -176,9 +197,12 @@ def schedule(db: Session, client: Client, *, meeting_url: str, join_at: datetime
 # Zoom only lets a notetaker join "on behalf of" a signed-in person who is in the call (since March 2026, for
 # notetakers). Each person connects their Zoom once from their app; a Zoom booking names whose Zoom to use.
 
+ZOOM_OFF = "Zoom isn't set up for this app on the notetaker yet. Ask whoever runs the notetaker to add the app's Zoom keys (Apps, Edit)."
+
+
 def _zoom_user(db: Session, client: Client, zoom_user_id: str | None) -> str:
-    if not settings.zoom_enabled:
-        raise InputError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add the Zoom app's keys.")
+    if not zoom_ready(client):
+        raise InputError(ZOOM_OFF)
     if not zoom_user_id:
         raise InputError("Zoom calls need someone's connected Zoom - the notetaker joins on their behalf. Connect Zoom first.")
     c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
@@ -193,10 +217,11 @@ def zoom_view(c: ZoomConnection) -> dict:
 
 
 def connect_zoom(db: Session, client: Client, authorization_code: str, redirect_uri: str, external_user: str | None) -> ZoomConnection:
-    if not settings.zoom_enabled:
-        raise InputError("Zoom isn't set up on the notetaker yet. Ask whoever runs the notetaker to add the Zoom app's keys.")
+    if not zoom_ready(client):
+        raise InputError(ZOOM_OFF)
     try:
-        got = get_bot().connect_zoom(authorization_code, redirect_uri, {"notetaker_client": client.id, "external_user": external_user or ""})
+        got = get_bot().connect_zoom(authorization_code, redirect_uri, {"notetaker_client": client.id, "external_user": external_user or ""},
+                                     key=bot_key(client))
     except ZoomConnectError as e:
         raise InputError(str(e))
     c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == got["zoom_user_id"]))
@@ -216,7 +241,7 @@ def zoom_connection(db: Session, client: Client, zoom_user_id: str, refresh: boo
     c = db.scalar(select(ZoomConnection).where(ZoomConnection.client_id == client.id, ZoomConnection.zoom_user_id == zoom_user_id))
     if c and refresh:
         try:
-            state = get_bot().zoom_state(c.bot_connection_id)
+            state = get_bot().zoom_state(c.bot_connection_id, key=bot_key(client))
         except Exception:
             log.warning("Couldn't check Zoom connection %s", c.id, exc_info=True)
             state = None
@@ -230,7 +255,7 @@ def disconnect_zoom(db: Session, client: Client, zoom_user_id: str) -> bool:
     if not c:
         return False
     try:
-        get_bot().disconnect_zoom(c.bot_connection_id)
+        get_bot().disconnect_zoom(c.bot_connection_id, key=bot_key(client))
     except Exception:
         log.warning("Couldn't remove Zoom connection %s from the meeting bot", c.id, exc_info=True)
     db.delete(c)
@@ -243,7 +268,7 @@ def stop(db: Session, m: Meeting) -> None:
     yet is called off."""
     if m.status in states.ACTIVE and m.bot_id:
         try:
-            get_bot().cancel(m.bot_id)   # for a bot in the call this asks it to leave
+            get_bot().cancel(m.bot_id, key=meeting_key(m))   # for a bot in the call this asks it to leave
         except Exception:
             log.exception("Asking bot %s to leave failed", m.bot_id)
             raise
@@ -258,7 +283,7 @@ def cancel(db: Session, m: Meeting) -> None:
         return
     if m.bot_id:
         try:
-            get_bot().cancel(m.bot_id)
+            get_bot().cancel(m.bot_id, key=meeting_key(m))
         except Exception:
             log.exception("Cancelling bot %s failed", m.bot_id)
     set_status(db, m, states.CANCELLED, "Cancelled.", force=True)
@@ -288,7 +313,7 @@ def transcript_text(m: Meeting) -> str:
 
 def finalise(db: Session, m: Meeting) -> None:
     """Collect the transcript and write the notes. Retried by the worker if anything fails."""
-    result = get_bot().fetch_result(m.bot_id)
+    result = get_bot().fetch_result(m.bot_id, key=meeting_key(m))
     m.transcript = [u.__dict__ for u in result.transcript]
     m.participants = result.participants
     if not m.transcript:
@@ -340,7 +365,7 @@ def reconcile(db: Session) -> int:
         meta["_polled_at"] = now().isoformat()
         m.meta = meta
         try:
-            u = get_bot().poll(m.bot_id)
+            u = get_bot().poll(m.bot_id, key=meeting_key(m))
         except Exception:
             log.warning("Couldn't check bot %s", m.bot_id)
             continue
@@ -355,3 +380,39 @@ def reconcile(db: Session) -> int:
         if u.ready and m.status == states.PROCESSING:
             m.meta = {**(m.meta or {}), "_ready": True}
     return checked
+
+
+# ---- attendee-sync (deploy/attendee_sync.py) ------------------------------------------------------------
+
+def bot_projects_wanted(db: Session) -> list[dict]:
+    """Apps that need their own bot project: those with Zoom keys, and those that already have one (so removed
+    keys get taken off it)."""
+    from notetaker.security import decrypt, hash_key
+    out = []
+    for c in db.scalars(select(Client).where((Client.zoom_client_id.isnot(None)) | (Client.bot_project_id.isnot(None)))):
+        key = bot_key(c)
+        out.append({"app_id": c.id, "name": c.name, "project_id": c.bot_project_id, "key_hash": hash_key(key) if key else None,
+                    "zoom_client_id": c.zoom_client_id, "zoom_client_secret": decrypt(c.zoom_secret_enc) if c.zoom_secret_enc else None})
+    return out
+
+
+def bot_project_applied(db: Session, client: Client, data: dict) -> None:
+    from notetaker.security import encrypt
+    if data.get("project_id"):
+        client.bot_project_id = data["project_id"]
+    if data.get("api_key"):
+        client.bot_key_enc = encrypt(data["api_key"])
+    if data.get("webhook_secret"):
+        client.bot_webhook_secret_enc = encrypt(data["webhook_secret"])
+    zoom = data.get("zoom")
+    if zoom == "ready":
+        client.zoom_status, client.zoom_error = ("ready", None) if client.zoom_client_id else (None, None)
+    elif zoom == "error":
+        client.zoom_status, client.zoom_error = "error", data.get("error") or "Zoom couldn't be set up for this app."
+    elif zoom == "off":
+        client.zoom_status = client.zoom_error = None
+
+
+def bot_webhook_secrets(db: Session) -> list[str]:
+    from notetaker.security import decrypt
+    return [decrypt(c.bot_webhook_secret_enc) for c in db.scalars(select(Client).where(Client.bot_webhook_secret_enc.isnot(None)))]
