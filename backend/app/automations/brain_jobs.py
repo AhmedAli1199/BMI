@@ -16,11 +16,11 @@ def _run() -> None:
     db = SessionLocal()
     try:
         total = {"indexed": 0, "removed": 0, "embedded": 0}
-        for _ in range(20):   # up to 20 batches a run (a first fill of a big database takes a few runs)
-            out = index_pending(db)
+        for i in range(20):   # up to 20 batches a run (a first fill of a big database takes a few runs)
+            out = index_pending(db, remove_gone=i == 0)   # deleted records only need clearing once a run
             for k in total:
                 total[k] += out[k]
-            if not out["indexed"] and not out["embedded"]:
+            if not out["more"]:   # every list was shorter than a batch: nothing left
                 break
         logger.info("brain_index: %s", total)
     finally:

@@ -231,10 +231,14 @@ def header(kind: str, label: str, firm: str | None, person: str | None, when: da
     return " · ".join(bits)
 
 
-def index_pending(db: Session, limit: int = 400) -> dict:
+def index_pending(db: Session, limit: int = 400, *, remove_gone: bool = True) -> dict:
     """Adds or refreshes chunks for records that are new or changed since they were indexed, removes chunks
-    whose record has gone, and embeds anything not yet embedded. Safe to run as often as you like."""
-    out = {"indexed": 0, "removed": 0, "embedded": 0}
+    whose record has gone (unless remove_gone is off), and embeds anything not yet embedded. Safe to run as often as
+    you like. "more" says a list hit the limit, so another batch has work to do.
+
+    A record with no words left once cleaned (a note that's only formatting) still gets an empty part-0 chunk, so it
+    counts as done: without it, every run picked it up again. Searches skip empty chunks."""
+    out = {"indexed": 0, "removed": 0, "embedded": 0, "more": False}
     for kind, (fingerprint, sql) in SOURCES.items():
         a = _alias(kind)
         rows = db.execute(text(f"""
@@ -243,6 +247,7 @@ def index_pending(db: Session, limit: int = 400) -> dict:
             LEFT JOIN brain_chunks c ON c.source_type = :kind AND c.source_id = src.id AND c.part = 0
             WHERE c.id IS NULL OR c.hash <> src.fp
             LIMIT :lim"""), {"kind": kind, "lim": limit}).mappings().all()
+        out["more"] = out["more"] or len(rows) >= limit
         if rows:
             people, firms = _names(db, {r["contact_id"] for r in rows if r["contact_id"]}, {r["company_id"] for r in rows if r["company_id"]})
             ids = [r["id"] for r in rows]
@@ -250,20 +255,21 @@ def index_pending(db: Session, limit: int = 400) -> dict:
             for r in rows:
                 body = call_text(r["body"]) if kind == "call" else clean(r["body"])
                 head = header(kind, r["label"], firms.get(r["company_id"]), people.get(r["contact_id"]), r["occurred_at"])
-                for i, part in enumerate(pieces(body)):
+                for i, part in enumerate(pieces(body) or [""]):
                     db.execute(text("""INSERT INTO brain_chunks (id, source_type, source_id, part, contact_id, company_id, source_db,
                                        private_to, occurred_at, header, body, hash, embedded, indexed_at)
                                        VALUES (:id, :kind, :sid, :part, :contact, :company, :db, :priv, :at, :head, :body, :hash, false, now())"""),
                                {"id": uuid.uuid4(), "kind": kind, "sid": r["id"], "part": i, "contact": r["contact_id"], "company": r["company_id"],
                                 "db": r["source_db"], "priv": r["private_to"], "at": r["occurred_at"], "head": head, "body": part, "hash": r["fp"]})
                 out["indexed"] += 1
-        # records that no longer exist (or no longer have text)
-        gone = db.execute(text(f"""DELETE FROM brain_chunks c WHERE c.source_type = :kind
-                                   AND NOT EXISTS (SELECT 1 FROM ({sql}) src WHERE src.id = c.source_id)"""), {"kind": kind})
-        out["removed"] += gone.rowcount or 0
+        if remove_gone:   # records that no longer exist (or no longer have text)
+            gone = db.execute(text(f"""DELETE FROM brain_chunks c WHERE c.source_type = :kind
+                                       AND NOT EXISTS (SELECT 1 FROM ({sql}) src WHERE src.id = c.source_id)"""), {"kind": kind})
+            out["removed"] += gone.rowcount or 0
         db.commit()
     if ensure_vector(db):
-        todo = db.execute(text("SELECT id, header, body FROM brain_chunks WHERE NOT embedded ORDER BY indexed_at LIMIT :lim"), {"lim": limit}).all()
+        todo = db.execute(text("SELECT id, header, body FROM brain_chunks WHERE NOT embedded AND body <> '' ORDER BY indexed_at LIMIT :lim"),
+                          {"lim": limit}).all()
         for i in range(0, len(todo), 50):
             batch = todo[i:i + 50]
             vecs = embed([f"{h}\n{b}" for _, h, b in batch])
@@ -273,6 +279,7 @@ def index_pending(db: Session, limit: int = 400) -> dict:
                 db.execute(text("UPDATE brain_chunks SET embedding = CAST(:v AS vector), embedded = true WHERE id = :id"), {"v": _vec(v), "id": cid})
                 out["embedded"] += 1
             db.commit()
+        out["more"] = out["more"] or (len(todo) >= limit and out["embedded"] == len(todo))   # not when embedding failed
     return out
 
 
@@ -298,7 +305,7 @@ def _access(db: Session, identity: Identity) -> tuple[str, dict]:
 def search(db: Session, identity: Identity, query: str, *, company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = None,
            kinds: list[str] | None = None, since: datetime | None = None, until: datetime | None = None, limit: int = 8) -> list[dict]:
     where, params = _access(db, identity)
-    conds = [where]
+    conds = [where, "c.body <> ''"]
     if company_id:
         conds.append("c.company_id = :company")
         params["company"] = company_id
@@ -356,6 +363,6 @@ def search(db: Session, identity: Identity, query: str, *, company_id: uuid.UUID
 
 
 def stats(db: Session) -> dict:
-    row = db.execute(text("SELECT count(*), count(*) FILTER (WHERE embedded), max(indexed_at) FROM brain_chunks")).one()
+    row = db.execute(text("SELECT count(*) FILTER (WHERE body <> ''), count(*) FILTER (WHERE embedded), max(indexed_at) FROM brain_chunks")).one()
     return {"chunks": row[0], "embedded": row[1], "last_indexed": row[2], "meaning_search": vector_ready(db)}
 

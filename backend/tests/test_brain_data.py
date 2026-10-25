@@ -200,3 +200,18 @@ def test_vectors_are_unit_length():
         assert abs(math.sqrt(sum(x * x for x in v)) - 1) < 1e-6
     finally:
         bs.set_embedder(None)
+
+
+def test_records_with_no_words_are_indexed_once_not_every_run(crm):
+    """A note that's only formatting (empty HTML from Outlook) has nothing to search, but it must still count as done -
+    otherwise every run picks it up again and the job re-reads every table up to 20 times every 15 minutes."""
+    db = crm["db"]
+    db.add(Note(id=uuid.uuid4(), entity_type="company", entity_id=crm["carib"].id, body="<p>&nbsp;</p>", source_db="onboard",
+                source_act_id=str(uuid.uuid4())))
+    db.flush()
+    bs.index_pending(db)
+    again = bs.index_pending(db)
+    assert again["indexed"] == 0 and not again["more"]
+    everyone = Identity(user_id=str(uuid.uuid4()), role="admin")
+    assert all(h["text"] for h in bs.search(db, everyone, "Caribbean Journal"))   # the empty one is never a result
+    assert all(h["text"] for h in bs.search(db, everyone, "", company_id=crm["carib"].id))
