@@ -71,7 +71,7 @@ services:
   attendee-sync:
     <<: *attendee
     entrypoint: []
-    command: ["bash", "-c", "cd /attendee && while true; do python manage.py shell < /bootstrap/attendee_sync.py || echo 'attendee-sync: will try again'; sleep 30; done"]
+    command: ["bash", "-c", "cd /attendee && while true; do python manage.py shell < /bootstrap/attendee_sync.py; echo 'attendee-sync: stopped, starting again'; sleep 30; done"]
     volumes: ["./deploy:/bootstrap:ro"]
     depends_on:
       postgres: {condition: service_started}

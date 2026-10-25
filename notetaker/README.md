@@ -130,7 +130,7 @@ revokes the token at Zoom. If someone removes the app in Zoom, Zoom's `app_deaut
 
 **How it works inside.** The meeting bot (Attendee) holds one set of Zoom keys per "project". So an app with Zoom keys
 gets a project of its own there, and all of that app's bots run in it. The `attendee-sync` container
-(`deploy/attendee_sync.py`, every 30 seconds) asks the notetaker which apps need one (`/internal/bot-projects`). It makes
+(`deploy/attendee_sync.py`, started once, then checking every 30 seconds) asks the notetaker which apps need one (`/internal/bot-projects`). It makes
 or updates the project, its key, its webhook secret and its Zoom app, checking new keys with Zoom, and reports back. Apps
 without Zoom keys keep using the main project. The console's Overview shows a **Zoom** check once any app has Zoom keys.
 
