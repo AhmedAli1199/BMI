@@ -16,6 +16,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.core import dates
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import (Address, Company, Contact, Email, Note, SalesDeal, SalesEdition, SalesOrder, SalesRate,
@@ -634,6 +635,10 @@ def get_deal(deal_id: uuid.UUID, db: Session = Depends(get_db), identity: Identi
 # ---- write -------------------------------------------------------------------------------------------
 
 def _save(db: Session, d: SalesDeal, p: DealIn, identity: Identity) -> list[str]:
+    dates.check(booking_date=p.booked_on)
+    for line in p.lines:
+        for pl in line.placements:
+            dates.check(item_date=pl.item_date, copy_due_date=pl.copy_due, booking_date=pl.booked_on)
     _apply(db, d, p)
     lines = _lines_in(p)
     pr = _price_or_422(d, lines)

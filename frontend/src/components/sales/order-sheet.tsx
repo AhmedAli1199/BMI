@@ -403,7 +403,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
               <Input id="os-usd" inputMode="decimal" value={rateUsd} onChange={(e) => setRateUsd(e.target.value)} placeholder="Optional" />
             </Field>
             <Field label="Booked on" htmlFor="os-date">
-              <Input id="os-date" type="date" value={bookedOn} disabled={!!owned} onChange={(e) => setBookedOn(e.target.value)} />
+              <Input id="os-date" type="date" min="2000-01-01" value={bookedOn} disabled={!!owned} onChange={(e) => setBookedOn(e.target.value)} />
             </Field>
           </div>
           {owned && <OnBooking deal={owned} />}
@@ -533,7 +533,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
               <Input id="os-invv" inputMode="decimal" value={invValue} disabled={linked} onChange={(e) => setInvValue(e.target.value)} placeholder={value || "Same as value"} />
             </Field>
             <Field label="Invoiced on" htmlFor="os-invon" hint={linked ? "The invoice date in Xero." : undefined}>
-              <Input id="os-invon" type="date" value={invOn} disabled={linked} onChange={(e) => setInvOn(e.target.value)} />
+              <Input id="os-invon" type="date" min="2000-01-01" value={invOn} disabled={linked} onChange={(e) => setInvOn(e.target.value)} />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

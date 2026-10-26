@@ -264,6 +264,7 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
 ### 4.2 Import rules (`app/sales/sor_import.py`)
 - Header row found by labels, not position (handles standard, events, awards, TBTM extra Total column, Visit USA columns).
 - Skip template sheets ("TEMPLATE DO NOT COPY OVER") and duplicate "-Copy(1)" files.
+- **Dates before 2000 are never believed** (`app/core/dates.py`, 26 Oct): a date-formatted cell holding a small number reads as Jan 1900. The importer leaves it blank and puts it in the row's "check this row" note; the order and booking screens refuse one (plain 422), and booking date boxes start at 2000. Migration `0068` cleared the ones already imported (note added per item; a booking takes its entry date) and dropped waiting invoice-to-booking cards built from them so the next scan asks again.
 - Visit USA Travel Planner pairs ("…2026.xls" working copy vs "…2026 edition.xls" final): import bookings once with the **edition file's values** and keep the working copy's notes.
 - **Hidden Excel columns are ignored** for rep credits.
 - If credits exceed the booking value, keep only reps named in the Salesper. column.

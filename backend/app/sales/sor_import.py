@@ -35,6 +35,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.core import dates
 from app.models import EditionFeature, SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRep, SalesTitle
 from app.sales.reference import ensure_reference_data, rep_code_for, title_for_file
 
@@ -164,6 +165,8 @@ def parse_date(v: Cell) -> tuple[date | None, str | None]:
     if v is None:
         return None, None
     if isinstance(v, datetime):
+        if not dates.plausible(v.date()):   # a date cell holding a small number ("3" shows as 03/01/1900)
+            return None, f"the booking date reads as {v.day} {v:%b %Y}, which can't be right - type the real date"
         return v.date(), None
     if isinstance(v, float):
         return None, None
@@ -173,9 +176,11 @@ def parse_date(v: Cell) -> tuple[date | None, str | None]:
         d, mo, y = int(m[1]), int(m[2]), int(m[3])
         y = y + 2000 if y < 100 else y
         try:
-            return date(y, mo, d), None
+            parsed = date(y, mo, d)
         except ValueError:
-            pass
+            parsed = None
+        if parsed and dates.plausible(parsed):
+            return parsed, None
     return None, f"couldn't read date {s!r}"
 
 

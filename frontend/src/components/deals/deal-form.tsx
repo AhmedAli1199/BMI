@@ -207,7 +207,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
               </select>
             </label>
             <label className={labelCls}><span className="flex items-center gap-1">Booking date <InfoHint>The day the client agreed. Items added to the booking later are dated the day they&apos;re added, so only what was on the first deal counts as new business.</InfoHint></span>
-              <Input type="date" value={f.booked_on ?? ""} onChange={(e) => set("booked_on", e.target.value || null)} className="h-8 text-sm" /></label>
+              <Input type="date" min="2000-01-01" value={f.booked_on ?? ""} onChange={(e) => set("booked_on", e.target.value || null)} className="h-8 text-sm" /></label>
           </div>
           {lastOrder && <p className="mt-2 text-xs text-muted-foreground">Invoice details filled in from their last booking, <a href={`/sales/deals/${lastOrder.id}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">booking {lastOrder.number}</a>. Check they still apply.</p>}
           <div className="mt-3">
@@ -322,8 +322,8 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                             <option value="__tba">To be allocated (issue not decided yet)</option>
                             {opts.map((o) => <option key={o.id} value={o.id}>{o.label}{o.edition_date ? ` · ${fmtDate(o.edition_date)}` : ""}{!o.open ? " · deadline passed" : o.ad_deadline ? ` · book by ${fmtDate(o.ad_deadline)}` : ""}</option>)}
                           </select>
-                          <Input type="date" value={p.item_date ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { item_date: e.target.value || null })} className="h-8 text-xs" aria-label="Exact date it runs (optional)" title="Exact date it runs, if not the issue's date (an email on 13 May)" />
-                          <Input type="date" value={p.copy_due ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { copy_due: e.target.value || null })} className="h-8 text-xs" aria-label="Copy due (optional)"
+                          <Input type="date" min="2000-01-01" value={p.item_date ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { item_date: e.target.value || null })} className="h-8 text-xs" aria-label="Exact date it runs (optional)" title="Exact date it runs, if not the issue's date (an email on 13 May)" />
+                          <Input type="date" min="2000-01-01" value={p.copy_due ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { copy_due: e.target.value || null })} className="h-8 text-xs" aria-label="Copy due (optional)"
                             title={iss?.copy_deadline ? `Copy due - the issue's copy deadline is ${fmtDate(iss.copy_deadline)}` : "Copy or artwork due (optional)"} />
                           <span className="text-right text-xs tabular-nums text-muted-foreground">
                             {l.added_value ? "Free" : pl ? fmtGBP(pl.placements[pi] ?? 0) : ""}
@@ -342,7 +342,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                         {l.placements.filter((p) => p.tba && !p.edition_id).length} still to be allocated. They count in the booking&apos;s total and print as &quot;date to be confirmed&quot;, but go on the order register only once you choose their issues.
                       </span>
                       <label className="ml-auto flex items-center gap-1.5 text-muted-foreground">Decide the issues by
-                        <Input type="date" value={l.allocate_by ?? ""} onChange={(e) => updLine(l.key, { allocate_by: e.target.value || null })} className="h-7 w-36 text-xs" aria-label="Decide the issues by" />
+                        <Input type="date" min="2000-01-01" value={l.allocate_by ?? ""} onChange={(e) => updLine(l.key, { allocate_by: e.target.value || null })} className="h-7 w-36 text-xs" aria-label="Decide the issues by" />
                       </label>
                     </div>
                   )}
@@ -425,7 +425,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
               <span className="text-[11px] font-normal">{INVOICE_PLANS.find((p) => p.value === f.invoice_plan)?.hint}</span>
             </label>
             {f.invoice_plan === "on_date" && (
-              <label className={labelCls}>Invoice on<Input type="date" value={f.invoice_on ?? ""} onChange={(e) => set("invoice_on", e.target.value || null)} className="h-8 w-44 text-sm" /></label>
+              <label className={labelCls}>Invoice on<Input type="date" min="2000-01-01" value={f.invoice_on ?? ""} onChange={(e) => set("invoice_on", e.target.value || null)} className="h-8 w-44 text-sm" /></label>
             )}
             <label className={labelCls}><span className="flex items-center gap-1">Invoice in <InfoHint>Prices here stay in pounds; accounts invoice in this currency.</InfoHint></span>
               <select className={selectCls} value={f.invoice_currency} onChange={(e) => set("invoice_currency", e.target.value as DealInput["invoice_currency"])}>

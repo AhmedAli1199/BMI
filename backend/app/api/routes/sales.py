@@ -23,6 +23,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import FieldChangeOut, UserSummary
+from app.core import dates
 from app.core.identity import Identity, get_identity
 from app.db.session import get_db
 from app.models import Company, FieldChange, SalesEdition, SalesEditionCost, SalesOrder, SalesOrderCredit, SalesRate, SalesRep, SalesTitle, User, XeroInvoice
@@ -1683,6 +1684,7 @@ def get_order(order_id: uuid.UUID, db: Session = Depends(get_db)) -> OrderOut:
 def create_order(payload: OrderCreate, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> OrderOut:
     ed = _get_edition(db, payload.edition_id)
     _check_status(payload.status)
+    dates.check(booking_date=payload.booked_on, invoice_date=payload.invoiced_on)
     if payload.rep_id and not db.get(SalesRep, payload.rep_id):
         raise HTTPException(status_code=422, detail="Unknown salesperson")
     if payload.company_id and not db.get(Company, payload.company_id):
@@ -1718,6 +1720,7 @@ _DEAL_OWNED = ("client_name", "company_id", "rep_id", "value_gbp", "agency_commi
 def update_order(order_id: uuid.UUID, payload: OrderPatch, db: Session = Depends(get_db),
                  identity: Identity = Depends(get_identity)) -> OrderOut:
     order = _get_order(db, order_id)
+    dates.check(booking_date=payload.booked_on, invoice_date=payload.invoiced_on)
     data = payload.model_dump(exclude_unset=True, exclude={"credits", "clear_company", "clear_warning"})
     if data.get("filler", False) is None:
         data.pop("filler")

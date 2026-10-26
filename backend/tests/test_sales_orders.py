@@ -901,3 +901,19 @@ def test_uninvoiced_card_links_filters_and_sort(db_session, sor, monkeypatch):
     assert item.payload["sort_date"] == sor["this"].edition_date.isoformat()
     kind = get_kind("sor_invoice_missing")
     assert [k for k, _ in kind.facets] == ["salesperson", "title", "waiting"] and kind.date_sort_label == "publication"
+
+
+def test_dates_before_2000_are_never_believed(client, db_session, sor):
+    """A date-formatted cell holding a small number reads as January 1900; the importer leaves it blank and says
+    why, and a typed one is refused, so new-business checks and invoice matching never reason from it."""
+    assert parse_date(datetime(1900, 1, 3)) == (None, "the booking date reads as 3 Jan 1900, which can't be right - type the real date")
+    assert parse_date("03/01/19") == (date(2019, 1, 3), None)       # two-digit years are this century
+    assert parse_date(datetime(2019, 1, 3)) == (date(2019, 1, 3), None)
+    staff = make_user(db_session, role="admin")
+    h = identity_headers(staff)
+    resp = client.post("/api/sales/orders", headers=h, json={
+        "edition_id": str(sor["this"].id), "client_name": "Barut Hotels", "value_gbp": 1095, "booked_on": "1900-01-03"})
+    assert resp.status_code == 422 and resp.json()["detail"] == "The booking date (3 Jan 1900) can't be right - check the year."
+    o = _order(db_session, sor["this"], "Barut Hotels", 1095, booked_on=date(2019, 1, 3))
+    resp = client.patch(f"/api/sales/orders/{o.id}", headers=h, json={"invoiced_on": "1899-12-31"})
+    assert resp.status_code == 422 and "invoice date" in resp.json()["detail"]
