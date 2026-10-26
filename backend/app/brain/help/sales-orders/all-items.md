@@ -54,6 +54,7 @@ Downloads exactly the filtered, sorted list as an Excel sheet (up to 20,000 rows
 
 ### Client name (or anywhere on a row)
 Opens the item sheet on the right. Clicking the CRM company opens the company; clicking the edition opens the edition page.
+Drag the grip on the sheet's left edge to make it wider (or narrower); once it's wide, its sections sit side by side. It remembers the width for every side panel; double-click the grip to go back to the usual width. **Ask the Brain** and **Feedback** stay just outside the sheet and can be used without closing it.
 
 ### The item sheet
 - **Client (as it should appear on the order)** - start typing to reuse a name already on the register, so one advertiser doesn't end up under three spellings.

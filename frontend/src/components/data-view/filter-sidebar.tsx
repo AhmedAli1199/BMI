@@ -26,7 +26,7 @@ export function FilterSidebar({ title = "Filters", description }: { title?: stri
           {count > 0 && <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground tabular-nums">{count}</span>}
         </Button>
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="left" className="w-[88vw] gap-0 overflow-y-auto p-0 sm:max-w-sm">
+          <SheetContent side="left" resizable={false} className="w-[88vw] gap-0 overflow-y-auto p-0 sm:max-w-sm">
             <SheetHeader className="border-b border-border px-4 py-3">
               <SheetTitle>{title}</SheetTitle>
               {description && <SheetDescription className="text-xs">{description}</SheetDescription>}

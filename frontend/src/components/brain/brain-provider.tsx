@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { BrainConversationSummary } from "@/lib/brain-types";
 import { brainConversations, deleteBrainConversation, renameBrainConversation } from "@/lib/brain-actions";
 import { friendlyError } from "@/lib/errors";
+import { BLOCKED_ATTRIBUTES, PAGE_BLOCKED } from "@/lib/page-covered";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrainBuddy } from "@/components/brain/brain-buddy";
@@ -143,20 +144,20 @@ export function HistoryList({ items, onOpen, onDelete, onRename, active }: {
   );
 }
 
-/** Sits just above the Feedback button; steps aside when a pop-up or the feedback panel is open. */
+/** Sits just above the Feedback button; steps aside when a pop-up blocks the page or the feedback panel is open. */
 function AskButton({ onClick }: { onClick: () => void }) {
   const [covered, setCovered] = useState(false);
   useEffect(() => {
-    const check = () => setCovered(!!document.querySelector("[data-base-ui-inert], section[data-feedback-ui], div.fixed.inset-0[data-feedback-ui]"));
+    const check = () => setCovered(!!document.querySelector(`${PAGE_BLOCKED}, section[data-feedback-ui], div.fixed.inset-0[data-feedback-ui]`));
     check();
     const mo = new MutationObserver(check);
-    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-base-ui-inert"] });
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: BLOCKED_ATTRIBUTES });
     return () => mo.disconnect();
   }, []);
   if (covered) return null;
   return (
     <button type="button" data-feedback-ui="" onClick={onClick} title="Ask the Brain how anything works (Ctrl+J)"
-      className="fixed bottom-14 right-4 z-[2147481000] flex items-center gap-1.5 rounded-full border border-primary/30 bg-background py-1.5 pl-2 pr-3.5 text-xs font-semibold text-primary shadow-lg transition hover:translate-y-[-1px] hover:shadow-xl print:hidden">
+      className="fixed bottom-14 right-(--floating-tools-right,1rem) z-[2147481000] flex items-center gap-1.5 rounded-full border border-primary/30 bg-background py-1.5 pl-2 pr-3.5 text-xs font-semibold text-primary shadow-lg transition hover:translate-y-[-1px] hover:shadow-xl print:hidden">
       <BrainBuddy head mood="happy" size={22} /> Ask the Brain
     </button>
   );

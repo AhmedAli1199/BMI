@@ -922,6 +922,46 @@
    ]
   },
   {
+   "route": "/privacy",
+   "page": "app/(public)/privacy/page.tsx",
+   "files": [
+    "app/(public)/privacy/page.tsx",
+    "components/legal-page.tsx"
+   ]
+  },
+  {
+   "route": "/support",
+   "page": "app/(public)/support/page.tsx",
+   "files": [
+    "app/(public)/support/page.tsx",
+    "components/legal-page.tsx"
+   ]
+  },
+  {
+   "route": "/terms",
+   "page": "app/(public)/terms/page.tsx",
+   "files": [
+    "app/(public)/terms/page.tsx",
+    "components/legal-page.tsx"
+   ]
+  },
+  {
+   "route": "/zoom",
+   "page": "app/(public)/zoom/page.tsx",
+   "files": [
+    "app/(public)/zoom/page.tsx",
+    "components/legal-page.tsx"
+   ]
+  },
+  {
+   "route": "/zoom/test-plan",
+   "page": "app/(public)/zoom/test-plan/page.tsx",
+   "files": [
+    "app/(public)/zoom/test-plan/page.tsx",
+    "components/legal-page.tsx"
+   ]
+  },
+  {
    "route": "/login",
    "page": "app/login/page.tsx",
    "files": [
@@ -2387,26 +2427,80 @@
    "label": "Depends on"
   },
   {
+   "file": "app/(public)/privacy/page.tsx",
+   "src": "app/(public)/privacy/page.tsx:66",
+   "kind": "link",
+   "label": "Support"
+  },
+  {
+   "file": "app/(public)/support/page.tsx",
+   "src": "app/(public)/support/page.tsx:29",
+   "kind": "link",
+   "label": "bmi.rabtaai.com/zoom"
+  },
+  {
+   "file": "app/(public)/terms/page.tsx",
+   "src": "app/(public)/terms/page.tsx:26",
+   "kind": "link",
+   "label": "Privacy"
+  },
+  {
+   "file": "app/(public)/zoom/page.tsx",
+   "src": "app/(public)/zoom/page.tsx:17",
+   "kind": "button",
+   "label": "Connect Zoom"
+  },
+  {
+   "file": "app/(public)/zoom/page.tsx",
+   "src": "app/(public)/zoom/page.tsx:39",
+   "kind": "link",
+   "label": "Support"
+  },
+  {
+   "file": "app/(public)/zoom/page.tsx",
+   "src": "app/(public)/zoom/page.tsx:39",
+   "kind": "link",
+   "label": "Privacy"
+  },
+  {
+   "file": "app/(public)/zoom/test-plan/page.tsx",
+   "src": "app/(public)/zoom/test-plan/page.tsx:30",
+   "kind": "link",
+   "label": "bmi.rabtaai.com/zoom"
+  },
+  {
+   "file": "app/(public)/zoom/test-plan/page.tsx",
+   "src": "app/(public)/zoom/test-plan/page.tsx:62",
+   "kind": "link",
+   "label": "bmi.rabtaai.com/support"
+  },
+  {
+   "file": "app/(public)/zoom/test-plan/page.tsx",
+   "src": "app/(public)/zoom/test-plan/page.tsx:62",
+   "kind": "link",
+   "label": "bmi.rabtaai.com/privacy"
+  },
+  {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:50",
+   "src": "app/login/login-form.tsx:57",
    "kind": "heading",
    "label": "BMI Brain"
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:56",
+   "src": "app/login/login-form.tsx:63",
    "kind": "field",
    "label": "Email"
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:67",
+   "src": "app/login/login-form.tsx:74",
    "kind": "field",
    "label": "Password"
   },
   {
    "file": "app/login/login-form.tsx",
-   "src": "app/login/login-form.tsx:78",
+   "src": "app/login/login-form.tsx:85",
    "kind": "button",
    "label": "Signing in"
   },
@@ -7626,93 +7720,93 @@
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:304",
+   "src": "components/sales/order-sheet.tsx:305",
    "kind": "button",
    "label": "Mark checked"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:348",
+   "src": "components/sales/order-sheet.tsx:349",
    "kind": "button",
    "label": "booking · linked"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:373",
+   "src": "components/sales/order-sheet.tsx:374",
    "kind": "hint",
    "label": "",
    "hint": "Linking the booking to its CRM company shows it on the company's Bookings tab and lets renewals reach the right record. Optional."
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:436",
+   "src": "components/sales/order-sheet.tsx:437",
    "kind": "button",
    "label": "Split"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:445",
+   "src": "components/sales/order-sheet.tsx:446",
    "kind": "hint",
    "label": "",
    "hint": "Each person's share is what their commission is worked out on - like the sheet's per-rep columns."
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:469",
+   "src": "components/sales/order-sheet.tsx:470",
    "kind": "button",
    "label": "Remove this share"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:475",
+   "src": "components/sales/order-sheet.tsx:476",
    "kind": "button",
    "label": "Add person"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:483",
+   "src": "components/sales/order-sheet.tsx:484",
    "kind": "button",
    "label": "Go back to one salesperson"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:513",
+   "src": "components/sales/order-sheet.tsx:514",
    "kind": "link",
    "label": "Open in Xero"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:587",
+   "src": "components/sales/order-sheet.tsx:588",
    "kind": "field",
    "label": "Filler ad Space given away, or a house ad, used to fill a page. Kept apart so you can see how much of an issue was fille"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:616",
+   "src": "components/sales/order-sheet.tsx:617",
    "kind": "button",
    "label": "Show change history"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:640",
+   "src": "components/sales/order-sheet.tsx:641",
    "kind": "button",
    "label": "Delete"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:645",
+   "src": "components/sales/order-sheet.tsx:646",
    "kind": "link",
    "label": "Remove it on the booking"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:651",
+   "src": "components/sales/order-sheet.tsx:652",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/sales/order-sheet.tsx",
-   "src": "components/sales/order-sheet.tsx:654",
+   "src": "components/sales/order-sheet.tsx:655",
    "kind": "button",
    "label": "Saving"
   },

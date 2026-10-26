@@ -83,7 +83,7 @@ function Field({ label, htmlFor, hint, children, className = "" }: { label: stri
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <fieldset className="flex flex-col gap-3 border-t border-border/70 pt-4 first:border-0 first:pt-0">
+    <fieldset className="flex min-w-0 flex-col gap-3 border-t border-border/70 pt-4 first:border-0 first:pt-0 @3xl/sheet:rounded-lg @3xl/sheet:border @3xl/sheet:p-4 @3xl/sheet:first:border @3xl/sheet:first:p-4">
       <legend className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</legend>
       {children}
     </fieldset>
@@ -293,9 +293,10 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         <SheetDescription className="text-xs">{subtitle}</SheetDescription>
       </SheetHeader>
 
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-4">
+      {/* one column; side by side once the panel is made wide */}
+      <div className="grid flex-1 content-start gap-5 overflow-y-auto px-5 py-4 @3xl/sheet:grid-cols-2 @3xl/sheet:gap-x-6">
         {existing?.import_warning && (
-          <div className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-xs" style={{ borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }}>
+          <div className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-xs @3xl/sheet:col-span-2" style={{ borderColor: "color-mix(in oklab, var(--warn) 40%, transparent)", background: "color-mix(in oklab, var(--warn) 8%, transparent)" }}>
             <AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: "var(--warn)" }} aria-hidden="true" />
             <div className="flex-1">
               <div className="font-semibold text-foreground">Check this row from the spreadsheet</div>
@@ -488,7 +489,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         </Group>
 
         {existing?.deal && (
-          <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+          <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs @3xl/sheet:col-span-2">
             Part of <a href={`/sales/deals/${existing.deal.id}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">{existing.deal.label}</a>.
             Its client, issue, price and salesperson are set on the booking, so the confirmation and every item stay in step. Invoice details can be changed here.
           </p>
@@ -610,7 +611,7 @@ function OrderForm({ target, reps, canDelete, onClose }: { target: OrderSheetTar
         )}
 
         {existing && (
-          <div className="flex flex-col gap-2 border-t border-border/70 pt-4 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2 border-t border-border/70 pt-4 text-xs text-muted-foreground @3xl/sheet:col-span-2">
             {existing.source && <div>Imported from {existing.source}</div>}
             {changes === null ? (
               <button type="button" className="flex items-center gap-1 self-start font-semibold text-primary hover:underline" onClick={() => getOrderChanges(existing.id).then(setChanges).catch(() => setChanges([]))}>

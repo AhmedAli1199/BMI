@@ -11,6 +11,7 @@ sources: ["frontend/src/app/(app)/brain/page.tsx", "frontend/src/app/(app)/brain
 ## What you see
 ### The Ask the Brain button and panel
 - The **Ask the Brain** button sits at the bottom right of every page, just above **Feedback**. **Ctrl+J** (**⌘J** on a Mac) opens and closes the panel from anywhere.
+- While a side panel is open (for example an item on **All items** or a price on the rate card), the two buttons move to just outside its edge, and asking the Brain or sending feedback leaves the side panel open. Any side panel can be made wider by dragging the grip on its edge; double-click the grip to go back to the usual width.
 - The panel opens on the right; on a wide screen the page moves over to make room. Along the top: **Your conversations** (clock), **New conversation**, **Open on its own page** and **Close**.
 - Before you ask, it greets you and suggests a few questions people usually ask on the page you're on. "You're on: <screen>" says which screen it thinks you're looking at.
 - Answers stream in as they're written. While it works, you see its steps (for example "Reading the guide…") and "Thinking…".

@@ -9,6 +9,7 @@ import { feedbackPins, similarFeedback, toggleMeToo } from "@/lib/feedback-actio
 import { browserContext, captureScreen, crop, installProblemLog, toDataUrl } from "@/lib/feedback-capture";
 import { friendlyError } from "@/lib/errors";
 import { useSpeech } from "@/lib/use-speech";
+import { BLOCKED_ATTRIBUTES, PAGE_BLOCKED } from "@/lib/page-covered";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AnnotateDialog } from "@/components/feedback/annotate-dialog";
@@ -45,12 +46,12 @@ export function FeedbackWidget() {
 
   useEffect(() => { installProblemLog(); }, []);
 
-  // While a pop-up or side panel is open the rest of the page can't be clicked, so the button steps aside.
+  // While a pop-up blocks the page, or the Brain panel is open, the button steps aside. Side panels don't block it.
   const [covered, setCovered] = useState(false);
   useEffect(() => {
-    const check = () => setCovered(!!document.querySelector("[data-base-ui-inert], [data-brain-panel]"));
+    const check = () => setCovered(!!document.querySelector(`${PAGE_BLOCKED}, [data-brain-panel]`));
     const mo = new MutationObserver(check);
-    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-base-ui-inert"] });
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: BLOCKED_ATTRIBUTES });
     return () => mo.disconnect();
   }, []);
 
@@ -170,7 +171,7 @@ export function FeedbackWidget() {
 
       {!open && !mode && !marking && !covered && (
         <button type="button" data-feedback-ui="" onClick={start}
-          className="fixed bottom-4 right-4 z-[2147481000] flex items-center gap-1.5 rounded-full bg-primary py-2 pl-3 pr-3.5 text-xs font-semibold text-primary-foreground shadow-lg ring-1 ring-primary/30 transition hover:translate-y-[-1px] hover:shadow-xl print:hidden">
+          className="fixed bottom-4 right-(--floating-tools-right,1rem) z-[2147481000] flex items-center gap-1.5 rounded-full bg-primary py-2 pl-3 pr-3.5 text-xs font-semibold text-primary-foreground shadow-lg ring-1 ring-primary/30 transition hover:translate-y-[-1px] hover:shadow-xl print:hidden">
           <MessageSquarePlus className="size-4" aria-hidden="true" /> Feedback
           {pins.length > 0 && <span className="rounded-full bg-primary-foreground/20 px-1.5 text-[10px]" title="Open feedback about this page">{pins.length}</span>}
         </button>
