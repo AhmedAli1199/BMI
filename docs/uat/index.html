@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BMI Brain Testing Plan</title>
+<style>
+@font-face { font-family: "Inter"; src: url("fonts/inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+:root {
+  --navy: #262262;
+  --blue: #0086cd;
+  --blue-soft: #e6f3fa;
+  --navy-soft: #ecebf5;
+  --ink: #1d1d2b;
+  --muted: #5b5b70;
+  --line: #d9dae3;
+  --paper: #ffffff;
+  --amber: #a15c00;
+  --amber-soft: #fff4e0;
+  --green: #1f7a4d;
+}
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 10.5pt/1.5 "Inter", "Liberation Sans", Arial, sans-serif; }
+@page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+@page :first { margin: 0; }
+.page { max-width: 178mm; margin: 0 auto; padding: 0 16px; }
+@media screen { body { background: #f3f4f8; } .page { background: var(--paper); padding: 28px 32px 40px; margin: 24px auto; box-shadow: 0 1px 4px rgba(0,0,0,.08); } }
+@media screen and (max-width: 640px) { .page { padding: 20px 16px; margin: 0; } }
+
+/* cover */
+.cover { height: 297mm; display: flex; flex-direction: column; page-break-after: always; break-after: page; background: var(--paper); }
+@media screen { .cover { height: auto; min-height: 640px; max-width: 210mm; margin: 24px auto 0; box-shadow: 0 1px 4px rgba(0,0,0,.08); } }
+.cover-top { padding: 22mm 20mm 0; }
+.cover-top img { width: 70mm; height: auto; display: block; }
+.cover-band { margin-top: auto; background: var(--navy); color: #fff; padding: 22mm 20mm 26mm; }
+.cover-band .kicker { color: #8fd3f5; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 9.5pt; margin: 0 0 6mm; }
+.cover-band h1 { font-size: 30pt; line-height: 1.1; margin: 0 0 5mm; font-weight: 700; letter-spacing: -.01em; }
+.cover-band p.lead { font-size: 12.5pt; color: #d9d8f0; margin: 0 0 12mm; max-width: 140mm; }
+.cover-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; border-top: 1px solid rgba(255,255,255,.25); padding-top: 6mm; font-size: 9.5pt; }
+.cover-meta b { display: block; color: #8fd3f5; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 1mm; }
+.cover-stripe { height: 5mm; background: var(--blue); }
+
+/* type */
+h2 { font-size: 17pt; color: var(--navy); margin: 0 0 3mm; letter-spacing: -.01em; break-after: avoid; }
+h2 .n { color: var(--blue); margin-right: 2.5mm; }
+h3 { font-size: 12pt; color: var(--navy); margin: 7mm 0 2mm; break-after: avoid; }
+p { margin: 0 0 3mm; }
+.muted { color: var(--muted); }
+section { margin: 0 0 9mm; }
+section.new { break-before: page; }
+@media screen { section.new { border-top: 1px solid var(--line); padding-top: 24px; margin-top: 28px; } }
+ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+li { margin: 0 0 1.2mm; }
+b, strong { font-weight: 600; }
+
+/* where-to-find chips */
+.path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 1mm; font-size: 9pt; font-weight: 600; color: var(--navy); }
+.path span { background: var(--navy-soft); border-radius: 3px; padding: .3mm 1.8mm; white-space: nowrap; }
+.path i { font-style: normal; color: var(--muted); font-weight: 400; }
+.btn { display: inline-block; background: var(--navy); color: #fff; border-radius: 3px; padding: 0 1.6mm; font-size: 8.8pt; font-weight: 600; white-space: nowrap; }
+
+/* boxes */
+.box { border: 1px solid var(--line); border-left: 3px solid var(--blue); background: var(--blue-soft); border-radius: 4px; padding: 3.5mm 4.5mm; margin: 0 0 4mm; break-inside: avoid; }
+.box.warn { border-left-color: var(--amber); background: var(--amber-soft); }
+.box p:last-child, .box ul:last-child { margin-bottom: 0; }
+.box h4 { margin: 0 0 1.5mm; font-size: 10.5pt; color: var(--navy); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+@media (max-width: 640px) { .grid2, .cover-meta { grid-template-columns: 1fr; } }
+.card { border: 1px solid var(--line); border-radius: 4px; padding: 3.5mm 4mm; break-inside: avoid; }
+.card h4 { margin: 0 0 1mm; color: var(--navy); font-size: 10.5pt; }
+.card p { margin: 0; font-size: 9.5pt; }
+.tag { display: inline-block; font-size: 8pt; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--blue); margin-bottom: 1mm; }
+
+/* screenshots */
+figure { margin: 3mm 0 5mm; break-inside: avoid; }
+figure img { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 4px; }
+figcaption { font-size: 8.8pt; color: var(--muted); margin-top: 1.5mm; }
+.shots { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.shots figure { margin: 0 0 3mm; }
+@media (max-width: 640px) { .shots { grid-template-columns: 1fr; } }
+
+/* tables */
+.tw { overflow-x: auto; margin: 0 0 4mm; }
+.tw.keep { break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; font-size: 9.2pt; }
+th { text-align: left; background: var(--navy); color: #fff; font-weight: 600; padding: 1.8mm 2.2mm; }
+td { border-bottom: 1px solid var(--line); padding: 1.8mm 2.2mm; vertical-align: top; }
+tr { break-inside: avoid; }
+td.id { font-weight: 700; color: var(--blue); white-space: nowrap; width: 9mm; }
+td.res { width: 16mm; }
+td.res::after { content: ""; display: block; width: 10mm; height: 4.5mm; border: 1px solid var(--line); border-radius: 2px; }
+td.where { width: 42mm; }
+.sev td:first-child { font-weight: 600; white-space: nowrap; }
+.sign td { height: 11mm; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-top"><img src="img/bmi-logo.png" alt="BMI Publishing - Leading the way in travel"></div>
+  <div class="cover-band">
+    <p class="kicker">User acceptance testing</p>
+    <h1>BMI Brain<br>Testing Plan</h1>
+    <p class="lead">What to try, where to find it, and how to tell us what's wrong - for salespeople, accounts and administrators.</p>
+    <div class="cover-meta">
+      <div><b>Testing period</b>Tue 27 Oct - Fri 6 Nov 2026</div>
+      <div><b>Where</b>bmi.rabtaai.com</div>
+      <div><b>Prepared by</b>Cybix for BMI Publishing<br>Version 1.0, 26 Oct 2026</div>
+    </div>
+  </div>
+  <div class="cover-stripe"></div>
+</div>
+
+<div class="page">
+
+<section>
+  <h2><span class="n">1</span>About this plan</h2>
+  <p>BMI Brain brings Act!, the sales order register spreadsheets and the day-to-day admin together in one place. Before it replaces them, we'd like each of you to use it for two weeks on your normal work and tell us what's wrong, missing or confusing.</p>
+  <p>This plan tells you <b>what to try</b>, <b>where to find it</b> and <b>what should happen</b>. Each test has a box to tick, so you can print your section and work through it.</p>
+  <div class="grid2">
+    <div class="card"><span class="tag">In this round</span><h4>Ready to test</h4><p>Contacts and companies, bookings and confirmations, proposals, renewals, rate cards, the editorial plan, mail merge, invoicing and Xero, commission, the sales overview, the Review Queue and Ask the Brain.</p></div>
+    <div class="card"><span class="tag">Not in this round</span><h4>Coming next</h4><p>Notes from Zoom calls (waiting on Zoom's approval), the prospect pipeline, chase lists and delivery tracking. You'll see some of these mentioned in the app; there's no need to test them yet.</p></div>
+  </div>
+  <div class="box warn" style="margin-top:4mm">
+    <h4>Keep using Act! and the spreadsheets for now</h4>
+    <p>BMI Brain is running on a copy of your data. Before go-live we load a fresh copy, so <b>anything new you type into BMI Brain during testing may be replaced</b>. Do your real work in Act! as usual, and try the same tasks in BMI Brain alongside it.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">2</span>Who tests what</h2>
+  <div class="tw"><table>
+    <tr><th>Who</th><th>Main focus</th><th>Your section</th></tr>
+    <tr><td><b>Salespeople</b><br><span class="muted">Sue, Craig, Kirsty, Sally, Steven, David, Neil</span></td><td>Finding clients, bookings and confirmations, proposals, renewals, your commission</td><td>4 and 5</td></tr>
+    <tr><td><b>Accounts</b><br><span class="muted">Samantha</span></td><td>Checking bookings, invoicing, Xero invoices and matching</td><td>4 and 6</td></tr>
+    <tr><td><b>Administrators</b><br><span class="muted">Matt, Clare</span></td><td>Sales figures, commission, client ownership, people and settings</td><td>4 and 7</td></tr>
+    <tr><td><b>Editorial</b></td><td>The editorial plan for your titles</td><td>4 and S12</td></tr>
+  </table></div>
+  <h3>Timetable</h3>
+  <div class="tw keep"><table>
+    <tr><th>When</th><th>What</th></tr>
+    <tr><td>Mon 26 Oct</td><td>Demo, sign-ins sent out</td></tr>
+    <tr><td>Tue 27 Oct - Fri 30 Oct</td><td><b>Week 1:</b> work through your section. Report anything odd as you go.</td></tr>
+    <tr><td>Mon 2 Nov - Fri 6 Nov</td><td><b>Week 2:</b> give BMI Brain one real daily task you'd normally do in Act! or the spreadsheets, and re-test anything we've fixed.</td></tr>
+    <tr><td>Every Tue and Thu</td><td>15-minute check-in call: what's blocking you, what we've fixed.</td></tr>
+    <tr><td>Mon 9 Nov</td><td>Review the results, sign off and agree the go-live date (section 9).</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">3</span>Finding your way around</h2>
+  <p>Everything is in the menu on the left, grouped by what you're doing. You only see the parts that apply to your role.</p>
+  <div class="tw"><table>
+    <tr><th>Menu group</th><th>What's there</th></tr>
+    <tr><td><b>Home, Today, Calendar &amp; Reminders, Call notes</b></td><td>Your day: what the Brain found overnight, follow-ups due, your calendar and reminders, notes from calls.</td></tr>
+    <tr><td><b>Clients</b></td><td><b>Contacts</b>, <b>Companies</b> and <b>Groups</b> - the same records you have in Act!, with notes, history and bookings on each.</td></tr>
+    <tr><td><b>Sales</b></td><td><b>Overview</b> (figures), <b>Bookings</b>, <b>Proposals</b>, <b>Rate card</b>, <b>Editions</b>, <b>Invoicing</b>, <b>Commissions</b> (or <b>My commission</b>), and under <b>More</b>: All items, Renewals, Weekly summary, Costs &amp; profit.</td></tr>
+    <tr><td><b>Editorial</b></td><td><b>Editorial plan</b>: every issue, its deadlines and features.</td></tr>
+    <tr><td><b>Outreach</b></td><td><b>Mail merge</b> and <b>Email templates</b>.</td></tr>
+    <tr><td><b>The Brain</b></td><td><b>Chat with the Brain</b>, the <b>Review Queue</b> - where the Brain asks before it changes anything - and, for administrators, the <b>Automations</b> it runs.</td></tr>
+    <tr><td><b>Bottom of the menu</b></td><td>The <b>Help Centre</b>, <b>Feedback</b> and <b>Settings</b> icons, and Sign out.</td></tr>
+  </table></div>
+  <figure><img src="img/s-home.jpg" alt="The Home page with the menu on the left"><figcaption><b>Home.</b> The menu on the left, the counts for your titles, and what the Brain picked up overnight.</figcaption></figure>
+  <div class="box"><h4>The Brain suggests - you decide</h4><p>The automations draft emails, spot bounced addresses, find leavers and so on, but nothing goes to a client and no record changes until a person presses the button. Those suggestions wait in the <b>Review Queue</b>.</p></div>
+</section>
+
+<section class="new">
+  <h2><span class="n">4</span>Everyone: getting started</h2>
+  <div class="tw"><table>
+    <tr><th>#</th><th>What to do</th><th>Where</th><th>What should happen</th><th>Result</th></tr>
+    <tr><td class="id">E1</td><td>Sign in with the email and password we sent you.</td><td class="where">bmi.rabtaai.com</td><td>You land on Home, with your name at the bottom of the menu.</td><td class="res"></td></tr>
+    <tr><td class="id">E2</td><td>Connect your Outlook, so emails go from your own mailbox.</td><td class="where"><span class="path"><span>Settings</span><i>›</i><span>Email</span></span> <span class="btn">Connect Outlook</span></td><td>It says Outlook is connected with your address.</td><td class="res"></td></tr>
+    <tr><td class="id">E3</td><td>Find three of your clients by part of a name, an email or a phone number.</td><td class="where"><span class="path"><span>Clients</span><i>›</i><span>Contacts</span></span></td><td>They come up straight away. <b>Advanced search</b> lets you combine conditions.</td><td class="res"></td></tr>
+    <tr><td class="id">E4</td><td>Ask the Brain a question, e.g. "When did Gate Gourmet last book?"</td><td class="where"><span class="btn">Ask the Brain</span> bottom right, or Ctrl+J</td><td>A plain answer, with links to the records it used.</td><td class="res"></td></tr>
+    <tr><td class="id">E5</td><td>Open a guide, e.g. "Make a booking".</td><td class="where">Help Centre icon, bottom of the menu</td><td>Step-by-step guide with pictures.</td><td class="res"></td></tr>
+    <tr><td class="id">E6</td><td>Send us one piece of feedback (even "this works well").</td><td class="where"><span class="btn">Feedback</span> bottom right</td><td>It appears on the shared Feedback board.</td><td class="res"></td></tr>
+  </table></div>
+  <div class="shots">
+    <figure><img src="img/s-contacts.jpg" alt="The Contacts list with search boxes"><figcaption><b>Contacts:</b> search on any field, then Copy emails, Bulk update, Export or Mail merge the results.</figcaption></figure>
+    <figure><img src="img/s-help.jpg" alt="The Help Centre"><figcaption><b>Help Centre:</b> short guides with pictures, one job each.</figcaption></figure>
+    <figure><img src="img/s-feedback.jpg" alt="The Feedback board, with the Ask the Brain and Feedback buttons at the bottom right"><figcaption><b>Feedback board.</b> <b>Ask the Brain</b> and <b>Feedback</b> sit at the bottom right of every page.</figcaption></figure>
+  </div>
+</section>
+
+<section class="new">
+  <h2><span class="n">5</span>Salespeople</h2>
+  <p><b>Your day:</b> start on <b>Home</b> (what's new for you) and <b>Today</b> (follow-ups, renewals and budget windows due). Everything about a client is on their company page.</p>
+  <div class="tw"><table>
+    <tr><th>#</th><th>What to do</th><th>Where</th><th>What should happen</th><th>Result</th></tr>
+    <tr><td class="id">S1</td><td>Check Home and Today each morning.</td><td class="where"><span class="path"><span>Home</span></span> <span class="path"><span>Today</span></span></td><td>Overnight activity and anything due today. Nothing due shows "Nothing due right now".</td><td class="res"></td></tr>
+    <tr><td class="id">S2</td><td>Open 10 of your companies. Check notes, history, contacts and bookings against Act!.</td><td class="where"><span class="path"><span>Clients</span><i>›</i><span>Companies</span></span></td><td>Same people, notes and history as Act!.</td><td class="res"></td></tr>
+    <tr><td class="id">S3</td><td>On those 10, check <b>Who looks after them</b> is right for each magazine.</td><td class="where">Company page</td><td>You, or the right colleague. Tell us any that are wrong.</td><td class="res"></td></tr>
+    <tr><td class="id">S4</td><td>Set a reminder on a contact for next week.</td><td class="where">Contact page <span class="btn">Remind me</span></td><td>Shows in the amber strip on their page; a notification arrives when due.</td><td class="res"></td></tr>
+    <tr><td class="id">S5</td><td>Make a booking: pencil one in, then confirm it.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Bookings</span></span> <span class="btn">New booking</span></td><td>Prices fill in from the rate card; the booking opens with every item in the Schedule.</td><td class="res"></td></tr>
+    <tr><td class="id">S6</td><td>Send the order confirmation to yourself as the client.</td><td class="where">Booking <span class="btn">Email the confirmation</span></td><td>Email from your Outlook with the confirmation attached; booking says "Confirmation sent".</td><td class="res"></td></tr>
+    <tr><td class="id">S7</td><td>Build a proposal for a client and email it to yourself.</td><td class="where">Company page <span class="btn">Build a proposal</span></td><td>In BMI's template, with issue dates and offers; logged on the client with a follow-up date.</td><td class="res"></td></tr>
+    <tr><td class="id">S8</td><td>Look at who hasn't rebooked your titles this year.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>More</span><i>›</i><span>Renewals</span></span></td><td>Last year's advertisers, largest spend first, with <b>New booking</b> beside each.</td><td class="res"></td></tr>
+    <tr><td class="id">S9</td><td><b>Publishers:</b> check your brand's rate card; press <b>Looks right</b> on items marked "Please check".</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Rate card</span></span></td><td>Prices match the media pack, before VAT.</td><td class="res"></td></tr>
+    <tr><td class="id">S10</td><td>Open your commission and check one month against your own figures.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>My commission</span></span></td><td>Each booking, the rate it earned and why.</td><td class="res"></td></tr>
+    <tr><td class="id">S11</td><td>Mail merge a short email to a group, with yourself as one of the people.</td><td class="where"><span class="path"><span>Outreach</span><i>›</i><span>Mail merge</span></span></td><td>Each person gets their own email from your Outlook.</td><td class="res"></td></tr>
+    <tr><td class="id">S12</td><td>Check your titles' issue dates and deadlines.</td><td class="where"><span class="path"><span>Editorial</span><i>›</i><span>Editorial plan</span></span></td><td>Dates and features match the real plan.</td><td class="res"></td></tr>
+  </table></div>
+  <figure><img src="img/s-company.jpg" alt="A company page"><figcaption><b>A company page.</b> Remind me, Mail merge, Build a proposal and New booking at the top; who looks after them; contacts, history, notes and bookings below.</figcaption></figure>
+  <div class="shots">
+    <figure><img src="img/s-newbooking.jpg" alt="The New booking form"><figcaption><b>New booking.</b> Choose the client and items; <b>Pencil it in</b> or <b>Confirm the booking</b>.</figcaption></figure>
+    <figure><img src="img/s-booking.jpg" alt="A booking page"><figcaption><b>A booking.</b> <b>Email the confirmation</b> or <b>Print or PDF</b> at the top; every item in the Schedule.</figcaption></figure>
+    <figure><img src="img/s-proposals.jpg" alt="The Proposals page"><figcaption><b>Proposals.</b> <b>How you write</b> teaches the Brain your style from a few past proposals.</figcaption></figure>
+    <figure><img src="img/s-renewals.jpg" alt="The Renewals page"><figcaption><b>Renewals.</b> Who hasn't booked again yet, and what they spent.</figcaption></figure>
+    <figure><img src="img/s-ratecard.jpg" alt="The Rate card page"><figcaption><b>Rate card.</b> One page per brand, laid out like the media pack.</figcaption></figure>
+    <figure><img src="img/s-commission.jpg" alt="My commission"><figcaption><b>My commission.</b> Month by month; open a month to see every booking.</figcaption></figure>
+    <figure><img src="img/s-editorial.jpg" alt="The Editorial plan"><figcaption><b>Editorial plan.</b> Every issue with its deadlines.</figcaption></figure>
+    <figure><img src="img/s-mailmerge.jpg" alt="Mail merge"><figcaption><b>Mail merge.</b> Emails, Word letters, labels or a data file.</figcaption></figure>
+  </div>
+</section>
+
+<section class="new">
+  <h2><span class="n">6</span>Accounts</h2>
+  <p>A salesperson's <b>Confirm</b> signs off the sale. Your check is about invoicing: the client, the CRM company, addresses and items are right before an invoice goes out.</p>
+  <div class="tw"><table>
+    <tr><th>#</th><th>What to do</th><th>Where</th><th>What should happen</th><th>Result</th></tr>
+    <tr><td class="id">A1</td><td>Work through the booking checks.</td><td class="where"><span class="path"><span>The Brain</span><i>›</i><span>Review Queue</span></span> filter <b>Booking check</b></td><td>Each card links to the booking (opens in a new tab). <b>Looks right</b> or <b>Needs a fix</b>.</td><td class="res"></td></tr>
+    <tr><td class="id">A2</td><td>Open a booking that hasn't been checked yet.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Bookings</span></span></td><td>Amber note: "Waiting for the accounts check".</td><td class="res"></td></tr>
+    <tr><td class="id">A3</td><td>Look at what's overdue and awaiting an invoice; compare five with Xero.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Invoicing</span></span></td><td>The same bookings you'd chase from the spreadsheet.</td><td class="res"></td></tr>
+    <tr><td class="id">A4</td><td>Create a draft invoice in Xero from a checked booking.</td><td class="where">Booking <span class="btn">Create the invoice in Xero</span></td><td>A <b>draft</b> appears in Xero with the right contact and codes. Nothing goes to the client.</td><td class="res"></td></tr>
+    <tr><td class="id">A5</td><td>Check 10 bookings are linked to the right Xero invoice.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Invoicing</span></span> and the booking</td><td>Invoice number and amount match Xero.</td><td class="res"></td></tr>
+    <tr><td class="id">A6</td><td>Let a salesperson change an invoiced booking, then lock it again.</td><td class="where">Booking <span class="btn">Unlock for the salesperson</span></td><td>They can change it; it locks again when they save, or press <b>Lock it again</b>.</td><td class="res"></td></tr>
+  </table></div>
+  <div class="shots">
+    <figure><img src="img/a-review.jpg" alt="The Review Queue for accounts"><figcaption><b>Review Queue.</b> Filter by kind (Booking check, Ready to invoice…). Every record on a card opens in a new tab.</figcaption></figure>
+    <figure><img src="img/a-invoicing.jpg" alt="The Invoicing page"><figcaption><b>Invoicing.</b> Overdue, awaiting invoice, and invoices that don't match their booking.</figcaption></figure>
+  </div>
+</section>
+
+<section class="new">
+  <h2><span class="n">7</span>Administrators</h2>
+  <div class="tw"><table>
+    <tr><th>#</th><th>What to do</th><th>Where</th><th>What should happen</th><th>Result</th></tr>
+    <tr><td class="id">M1</td><td>Compare one month's booked and invoiced figures with your own.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Overview</span></span></td><td>Same totals. Switch between financial and calendar year.</td><td class="res"></td></tr>
+    <tr><td class="id">M2</td><td>Check one month's commission for every salesperson; open one and press <b>Approve this month</b>.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>Commissions</span></span></td><td>Matches your statement. Plans are under <b>Commission plans</b>.</td><td class="res"></td></tr>
+    <tr><td class="id">M3</td><td>Read the weekly summary.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>More</span><i>›</i><span>Weekly summary</span></span></td><td>Figures match the Overview; alerts for editions selling behind last year.</td><td class="res"></td></tr>
+    <tr><td class="id">M4</td><td>Answer the "Who looks after a client" questions.</td><td class="where"><span class="path"><span>The Brain</span><i>›</i><span>Review Queue</span></span></td><td><b>Use the suggestion</b>, <b>Someone else</b> or <b>Not now</b>; your answer is kept for good.</td><td class="res"></td></tr>
+    <tr><td class="id">M5</td><td>Check costs and profit for one event or issue.</td><td class="where"><span class="path"><span>Sales</span><i>›</i><span>More</span><i>›</i><span>Costs &amp; profit</span></span></td><td>Sold, costs and profit match your own sums.</td><td class="res"></td></tr>
+    <tr><td class="id">M6</td><td>Add a person, set their role and which titles they see; hide a section for a role.</td><td class="where"><span class="path"><span>Settings</span><i>›</i><span>Team &amp; access</span></span> and <b>Sections people see</b></td><td>They can sign in and see only what you allowed.</td><td class="res"></td></tr>
+    <tr><td class="id">M7</td><td>See which automations are on and what they've done this week.</td><td class="where"><span class="path"><span>The Brain</span><i>›</i><span>Automations</span></span></td><td>Each workstream with what's waiting and resolved.</td><td class="res"></td></tr>
+  </table></div>
+  <div class="shots">
+    <figure><img src="img/m-overview.jpg" alt="The Sales overview"><figcaption><b>Sales overview.</b> Booked and invoiced, with pace against last year.</figcaption></figure>
+    <figure><img src="img/m-commissions.jpg" alt="Commissions"><figcaption><b>Commissions.</b> Every salesperson by month.</figcaption></figure>
+    <figure><img src="img/m-summary.jpg" alt="Weekly summary"><figcaption><b>Weekly summary &amp; alerts.</b></figcaption></figure>
+    <figure><img src="img/m-costs.jpg" alt="Costs and profit"><figcaption><b>Costs &amp; profit.</b> Per edition and event.</figcaption></figure>
+    <figure><img src="img/m-settings.jpg" alt="Settings"><figcaption><b>Settings.</b> Team &amp; access and Sections people see.</figcaption></figure>
+    <figure><img src="img/m-automations.jpg" alt="Automations"><figcaption><b>Automations.</b> What the Brain runs, and what's waiting for review.</figcaption></figure>
+  </div>
+</section>
+
+<section class="new">
+  <h2><span class="n">8</span>Reporting a problem</h2>
+  <p>Use the <span class="btn">Feedback</span> button at the bottom right of the page where the problem is. It picks up the page you're on and can take a screenshot, which you can draw on. Please say:</p>
+  <ol>
+    <li><b>What you did</b> (e.g. "pressed Confirm the booking for Visit Malta").</li>
+    <li><b>What you expected</b>, and <b>what happened instead</b>.</li>
+    <li>The <b>test number</b> from this plan, if there is one (e.g. S5).</li>
+  </ol>
+  <p>Before sending, check the <b>Feedback</b> board: if someone has already reported it, press <b>Me too</b> instead.</p>
+  <h3>How serious is it?</h3>
+  <div class="tw"><table class="sev">
+    <tr><th>Level</th><th>Meaning</th><th>We aim to</th></tr>
+    <tr><td>Blocker</td><td>You can't do the task at all, or money figures are wrong (bookings, invoices, commission).</td><td>Fix within 1 working day</td></tr>
+    <tr><td>Major</td><td>Wrong or awkward, but there's a way round it.</td><td>Fix within the week</td></tr>
+    <tr><td>Minor</td><td>Wording, layout or something that looks odd.</td><td>Fix before go-live</td></tr>
+    <tr><td>Idea</td><td>Works, but could be better, or something new you'd like.</td><td>Discuss at a check-in</td></tr>
+  </table></div>
+  <div class="box"><h4>Questions during testing</h4><p>Ask the Brain first - it knows the app. Otherwise email <b>ahmed@cybix.ai</b> or raise it at the Tuesday or Thursday check-in.</p></div>
+</section>
+
+<section>
+  <h2><span class="n">9</span>When testing is finished</h2>
+  <p>We'll agree BMI Brain is ready to go live when:</p>
+  <ul>
+    <li>Every test in sections 4 to 7 has been tried by at least one person.</li>
+    <li>There are <b>no open Blockers or Majors</b>.</li>
+    <li>For one month, the Overview, Commissions and Invoicing figures match BMI's own figures.</li>
+    <li>Each team is happy to stop using Act! and the spreadsheets for their part.</li>
+  </ul>
+  <p>Then we load a fresh copy of the Act! data and the order register, check the totals once more, and switch over.</p>
+  <h3>Still needed from BMI</h3>
+  <ul>
+    <li>Delivery stages, how long each takes and who owns it (for delivery tracking).</li>
+    <li>Sally's pipeline spreadsheet (for the prospect pipeline).</li>
+    <li>3 to 5 proposals you've sent (so proposals sound like BMI).</li>
+    <li>Selling Travel's issue dates and features.</li>
+    <li>Digital edition links: one issue link and one page link.</li>
+    <li>Matt: how recent a salesperson's last Act! note must be for a client to be theirs (2 years for now).</li>
+  </ul>
+  <h3>Sign-off</h3>
+  <div class="tw"><table class="sign">
+    <tr><th style="width:28%">Team</th><th style="width:28%">Name</th><th>Signature</th><th style="width:20%">Date</th></tr>
+    <tr><td>Management</td><td></td><td></td><td></td></tr>
+    <tr><td>Sales</td><td></td><td></td><td></td></tr>
+    <tr><td>Accounts</td><td></td><td></td><td></td></tr>
+    <tr><td>Cybix</td><td>Ahmed Ali</td><td></td><td></td></tr>
+  </table></div>
+</section>
+
+</div>
+</body>
+</html>
