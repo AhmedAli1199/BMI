@@ -34,6 +34,11 @@ def test_reading_wufoo_elementor_and_json():
                                                                  "fields[email][title]": "Email", "fields[email][value]": "ali@air.example",
                                                                  "form[id]": "a1", "meta[date][value]": "today"})
     assert adv == {"Name": "Ali Khan", "Email": "ali@air.example"}
+    # Stova's registration trigger, with attendee details on
+    ref, stova = sf.parse("application/x-www-form-urlencoded", b"", {"AttendeeID": "A77", "EventID": "365359", "Scenario": "Registration",
+                                                                    "First Name": "Mia", "Last Name": "Cho", "Email": "mia@cabin.example"})
+    assert ref == "A77" and stova == {"First Name": "Mia", "Last Name": "Cho", "Email": "mia@cabin.example"}
+    assert sf.guess(stova)["name"] == "Mia Cho"
     assert sf.parse("application/json", json.dumps({"entry_id": "s-9", "answers": {"Email": "x@y.example"}}).encode()) == ("s-9", {"Email": "x@y.example"})
 
 

@@ -133,7 +133,13 @@ def parse(content_type: str, raw: bytes, form: dict | None = None) -> tuple[str 
             if got:
                 ref, answers = got
                 return ref, dict(list(answers.items())[:MAX_ANSWERS])
-        return None, {k: _clean(v)[:1000] for k, v in list(form.items())[:MAX_ANSWERS] if _clean(v)}
+        # anything else, e.g. Stova's API Registration Trigger: AttendeeID, EventID, Scenario, and with "include
+        # attendee details" on, First Name, Last Name, Email, Category and Sub Category
+        if form.get("AWT"):
+            return None, {}   # a signed (JWT) Stova message - turn "Sign Payload" off for this address
+        ref = form.get("AttendeeID") or form.get("EntryId") or form.get("submission_id")
+        skip = {"AttendeeID", "EventID", "Scenario"}
+        return (_clean(ref) or None), {k: _clean(v)[:1000] for k, v in list(form.items())[:MAX_ANSWERS] if k not in skip and _clean(v)}
     try:
         data = json.loads(raw or b"{}")
     except ValueError:
