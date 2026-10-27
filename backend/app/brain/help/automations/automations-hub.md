@@ -15,7 +15,7 @@ Open it from the menu: **Automations** (under The Brain) > **Overview**, one pag
 - The header, with a button on the right that takes you to the Review Queue.
 - A **Workstreams** table covering the last 7 days. A workstream is a group of related automations:
   - **Sales & Follow-ups**: proposal requests, overdue follow-ups, commercial signals, personal touchpoints and call notes.
-  - **Lead & Contact Capture**: new people who emailed an enquiry mailbox.
+  - **Lead & Contact Capture**: new people who emailed an enquiry mailbox, and sign-ups from the titles' subscribe forms.
   - **Business Cards & Photos**: business cards and returned-copy labels people photograph.
   - **CRM Data Hygiene**: duplicates, bounces, out-of-office replies and people who have left.
   - **Revenue & Orders**: booking checks, invoicing, renewals, invoice matching and the other order register cards.
@@ -26,6 +26,7 @@ Open it from the menu: **Automations** (under The Brain) > **Overview**, one pag
 **A workstream page** (for example Automations Hub > CRM Data Hygiene)
 - A breadcrumb back to **Automations Hub**, the title and a one-line description.
 - **Business Cards & Photos only**: an **Upload photos** panel at the top.
+- **Lead & Contact Capture only**: a **Subscription sign-ups** panel with each subscribe form's address (Selling Travel and TBTM on Wufoo, Onboard Hospitality digital on the WordPress site, Onboard Hospitality print on Stova), how many sign-ups each has sent, **Copy address**, where to paste it in that form, and **See the sign-ups waiting**. The addresses are secret: only administrators and data managers see them.
 - Four figures: **Pending now** (with how long the oldest has waited), **New suggestions**, **Resolved by your team** and **Acted on**. Acted on is the share of decisions that were an approval rather than a dismissal, plus the median time from suggestion to decision. The small arrows compare with the previous period. A rise in new suggestions shows amber (more work). A rise in resolved shows green.
 - **New vs resolved**: a chart of new and resolved cards per day, with the backlog line.
 - **Automations**: one row per kind of card. Columns: **Automation**, **Scanner** (On / Off / Last run failed, and when it last ran), **Pending**, **New**, **Resolved**, **Acted on**, **Time to resolve** and **Last 7 days**.

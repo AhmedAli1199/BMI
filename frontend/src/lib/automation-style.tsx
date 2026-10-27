@@ -217,6 +217,13 @@ Object.assign(STYLES, {
     accent: "bg-chart-2",
     ring: "hover:border-chart-2/60",
   },
+  subscription_signup: {
+    icon: UserPlus,
+    color: "text-chart-1",
+    chipBg: "border-chart-1/30 bg-chart-1/10",
+    accent: "bg-chart-1",
+    ring: "hover:border-chart-1/60",
+  },
   online_booking: {
     icon: FileInput,
     color: "text-chart-4",

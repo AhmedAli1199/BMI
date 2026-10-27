@@ -46,6 +46,7 @@ from app.api.routes import (
     review_queue,
     sales,
     settings as settings_routes,
+    subscription_forms,
     users,
 )
 from app.automations.scheduler import start_scheduler, stop_scheduler
@@ -109,6 +110,7 @@ api_router.include_router(automation_stats.router)
 api_router.include_router(sales.router)
 api_router.include_router(commission.router)
 api_router.include_router(booking_forms.router)
+api_router.include_router(subscription_forms.router)
 api_router.include_router(deals.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)

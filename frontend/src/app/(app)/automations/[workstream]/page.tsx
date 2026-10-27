@@ -9,6 +9,7 @@ import { WORKSTREAM_IDS, fmtAgo, fmtCount, fmtDuration, fmtPercent, pctChange } 
 import type { WorkstreamStats } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { PhotoUploadDialog } from "@/components/photo-upload-dialog";
+import { SubscribeFormAddresses, type SubscribeForm } from "@/components/automations/subscribe-form-addresses";
 import { AutomationsTable } from "@/components/automations/automations-table";
 import { ChartLegend, NewResolvedChart } from "@/components/automations/charts";
 import { Delta, HubHeader, KpiTile, RangeSwitch, StaffOnly, parseRange } from "@/components/automations/hub-ui";
@@ -32,6 +33,7 @@ export default async function WorkstreamPage({
   const periodLabel = range === "7d" ? "previous 7 days" : range === "30d" ? "previous 30 days" : null;
   const basePath = `/automations/${workstream}`;
   const isBusinessCards = workstream === "business-cards";
+  const subscribeForms = workstream === "capture" ? await backendFetch<SubscribeForm[]>("/api/subscription-forms").catch(() => null) : null;
 
   // "Review N pending" goes straight to the automation with the most
   // waiting - the Review Queue filters by one automation at a time.
@@ -145,6 +147,8 @@ export default async function WorkstreamPage({
           </>
         )}
       </section>
+
+      {subscribeForms && subscribeForms.length > 0 && <SubscribeFormAddresses forms={subscribeForms} />}
 
       <section aria-labelledby="automations-heading" className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-2">

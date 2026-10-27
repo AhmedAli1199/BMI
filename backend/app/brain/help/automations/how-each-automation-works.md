@@ -70,6 +70,13 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Not a lead, ignore** changes nothing.
 - Filters: **Mailbox**, **Intent** (High intent or General enquiry), **Company** and **Database**. Sorted by the date the email arrived. The suggested company is linked.
 
+### Subscription sign-ups (Lead & Contact Capture)
+- **When**: the moment someone signs up on a title's subscribe form, once that form sends to its address (see the **Subscription sign-ups** panel on Lead & Contact Capture). No scanner and no switch.
+- **Makes**: **Subscription sign-ups**, one card per sign-up, with every answer from the form and what's worth checking: already on the database (they may be re-subscribing - check what they already get), a personal email address (check they work in the trade, most of all for print), no email address, or an overseas address asking for Selling Travel or TBTM in print (those only post to UK addresses - offer the digital edition). Onboard Hospitality posts worldwide.
+- **Add to the database** asks for **Name**, and optionally **Email**, **Company**, **Job title** and **Add to the title's newsletter group**. It adds the contact (and the company if new) to that title's database, with a "Subscription" note holding the answers. It won't add someone whose email is already on the database.
+- **Already on file** and **Skip** change nothing. Nothing is ever emailed to the reader.
+- Filters: **Form** and **Check**. Sorted by the date it arrived. Someone already on the database is linked.
+
 ### Email exchange summary scan (feeds Sales & Follow-ups)
 - **When**: every 4 hours. **Switch**: **Email exchange logging active**, with **Monitored rep inboxes**.
 - **Reads**: one-to-one conversations between a salesperson and a known contact. The Brain picks out budgets, renewal dates, promised call-backs, personal occasions, and "no thanks" with the reason.

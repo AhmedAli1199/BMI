@@ -24,6 +24,7 @@
     "components/automations/automations-table.tsx",
     "components/automations/charts.tsx",
     "components/automations/hub-ui.tsx",
+    "components/automations/subscribe-form-addresses.tsx",
     "components/page-header.tsx",
     "components/photo-upload-dialog.tsx",
     "lib/automation-style.tsx"
@@ -1027,19 +1028,19 @@
   },
   {
    "file": "app/(app)/automations/[workstream]/page.tsx",
-   "src": "app/(app)/automations/[workstream]/page.tsx:81",
+   "src": "app/(app)/automations/[workstream]/page.tsx:83",
    "kind": "heading",
    "label": "Upload photos"
   },
   {
    "file": "app/(app)/automations/[workstream]/page.tsx",
-   "src": "app/(app)/automations/[workstream]/page.tsx:128",
+   "src": "app/(app)/automations/[workstream]/page.tsx:130",
    "kind": "heading",
    "label": "New vs resolved · last … days (totals above are all-time)"
   },
   {
    "file": "app/(app)/automations/[workstream]/page.tsx",
-   "src": "app/(app)/automations/[workstream]/page.tsx:151",
+   "src": "app/(app)/automations/[workstream]/page.tsx:155",
    "kind": "heading",
    "label": "Automations ·"
   },
@@ -2731,6 +2732,24 @@
    "src": "components/automations/hub-ui.tsx:115",
    "kind": "link",
    "label": "Go to your Today queue"
+  },
+  {
+   "file": "components/automations/subscribe-form-addresses.tsx",
+   "src": "components/automations/subscribe-form-addresses.tsx:24",
+   "kind": "heading",
+   "label": "Subscription sign-ups"
+  },
+  {
+   "file": "components/automations/subscribe-form-addresses.tsx",
+   "src": "components/automations/subscribe-form-addresses.tsx:27",
+   "kind": "link",
+   "label": "See the sign-ups waiting"
+  },
+  {
+   "file": "components/automations/subscribe-form-addresses.tsx",
+   "src": "components/automations/subscribe-form-addresses.tsx:43",
+   "kind": "button",
+   "label": "Copy address"
   },
   {
    "file": "components/bulk-review-actions.tsx",
