@@ -358,6 +358,20 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
   - **Send the introduction** sends it as a new email from the publisher's Outlook. It adds the contact and company through `proposal_requests._crm_records` and leaves a "Media kit introduction" note.
   - With no media pack link saved, the draft shows `[media pack link]` and won't send until the link is typed in.
 - **Still to do**: releases sent only as an attachment (PDF or Word) aren't read yet. BMI also hasn't said which inbox the editors will forward to.
+
+### 4.3h5 SALES-031 news campaigns and SALES-032 mail merge follow-ups (built 28 Oct 2026)
+- **SALES-031** (`app/automations/news_campaigns.py`, job `news_campaign_scan`, runs every 2 hours, off by default):
+  - It reads the RSS or Atom feeds in **News feeds to watch** (default: GOV.UK travel advice). Feeds that declare their own entities are refused, and each download is capped at 2 MB.
+  - A free word check keeps only news that sounds positive. The Brain then judges whether it's a selling moment and names the places, the kinds of business, the magazine and the angle. Without the Brain, nothing is queued.
+  - `companies_for` searches company name, industry, category, region, territory, description and address for the places. It takes one person per company (marketing or trade people first), never anyone unsubscribed or bounced.
+  - The `news_campaign` card is visible to every salesperson. Its drafted email may not contain any figure.
+- **SALES-032** (`app/automations/merge_followups.py`, job `merge_followup_scan`, runs weekday mornings, off by default):
+  - It picks up email mail merges sent between the wait and the look-back.
+  - It leaves out: people who replied (the sender's inbox is checked by sender address only), bounced, unsubscribed, booked since (cancelled bookings don't count), or noted since.
+  - The `merge_followup` card goes only to the sender (the `owner_user_id` scope). A merge started from one of these cards is labelled "Follow-up to ..." and is never followed up again.
+  - If the inbox can't be read for 3 runs, the card comes anyway, marked "Replies not checked".
+- **Both cards** have **Open as a mail merge**, which goes to `/mail-merge?review=<id>`. The page reads the card's `payload.merge` (`contact_ids`, `subject`, `body`, `label`) and opens the wizard with **Suggested by the Brain** people and the draft, so the salesperson can untick people, edit and send as usual.
+- **Still to do**: ask BMI which travel trade news feeds they read. GOV.UK alone is mostly warnings, so it will rarely produce a moment (on 28 Oct, 0 of 20 items passed the word check).
 ### 4.3h SALES-022 save the sale (built 12 Oct 2026)
 - The email scan (`email_summary.py`) now also extracts **"decline"** signals (a client saying no to a booking) with a reason - budget / timing / results / competitor / other (model's answer if valid, else keyword rules, `decline_reason`). Migration `0047` (signal type + `email_signals.reason`).
 - `app/automations/save_the_sale.py` (job `save_the_sale_scan`, every 30 min, setting `automations_save_the_sale_enabled`, off by default; cap `save_the_sale_max_per_run`): one review item ("Save the sale") per decline with a draft reply from the reason's template. **The offer is chosen by rules, not AI**: budget = the next cheaper products in the same title on the rate card (below what they last paid) and the next issue; timing = the next open issue (with its ad deadline); results = the cheapest online/newsletter product in the brand; competitor/other = no offer, acknowledge and ask. AI polish only when configured and thrown away if it adds a figure.

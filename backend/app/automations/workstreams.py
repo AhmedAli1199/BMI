@@ -25,7 +25,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         id="sales",
         label="Sales & Follow-ups",
         tagline="Timely follow-ups, commercial signals, and personal touchpoints drafted for your reps.",
-        kinds=("proposal_request", "press_release", "followup_due", "signal_trigger", "personal_touchpoint_due", "call_notes"),
+        kinds=("proposal_request", "press_release", "news_campaign", "merge_followup", "followup_due", "signal_trigger", "personal_touchpoint_due", "call_notes"),
     ),
     Workstream(
         id="capture",
@@ -84,6 +84,8 @@ KIND_JOB: dict[str, str | None] = {
     "call_notes": None,
     "proposal_request": "proposal_request_scan",
     "press_release": "press_release_scan",
+    "news_campaign": "news_campaign_scan",
+    "merge_followup": "merge_followup_scan",
     "client_owner": "client_owner_refresh",
 }
 
@@ -142,6 +144,8 @@ KIND_COST_PREFIX: dict[str, str | None] = {
     "call_notes": None,
     "proposal_request": "proposal_requests.",
     "press_release": "press_releases.",
+    "news_campaign": "news_campaigns.",
+    "merge_followup": "merge_followups.",
 }
 
 

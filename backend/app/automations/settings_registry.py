@@ -190,6 +190,46 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Press Releases", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_merge_followups_enabled", label="Follow up mail merges",
+        description="Each weekday morning: for email mail merges sent a while ago, finds the people who didn't answer (leaving out anyone who replied, booked, bounced, unsubscribed or has been talked to since) and gives the salesperson who sent it one card with a follow-up drafted. Nothing is sent until they open it as a mail merge and send it.",
+        group="Mail Merge Follow-ups", type="bool",
+    ),
+    AutomationSettingDef(
+        key="merge_followup_wait_days", label="Wait before following up (days)",
+        description="How long after a mail merge goes out before the people who didn't answer are followed up.",
+        group="Mail Merge Follow-ups", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="merge_followup_lookback_days", label="Only mail merges sent in the last (days)",
+        description="Older mail merges aren't followed up - a follow-up long after is more odd than helpful.",
+        group="Mail Merge Follow-ups", type="int", min=2,
+    ),
+    AutomationSettingDef(
+        key="merge_followup_min_recipients", label="Smallest mail merge to follow up",
+        description="Mail merges that went to fewer people than this are left alone; those are easier to follow up by hand.",
+        group="Mail Merge Follow-ups", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_news_campaigns_enabled", label="Watch the news for selling moments",
+        description="Every two hours: reads the news feeds below and, when the Brain sees a reason for companies to advertise now (a destination reopening, flights resuming, a new route), suggests a campaign with the companies to email and the email drafted. Needs the Brain. Nothing is sent until a salesperson opens it as a mail merge and sends it.",
+        group="News Campaigns", type="bool",
+    ),
+    AutomationSettingDef(
+        key="news_campaign_feeds", label="News feeds to watch",
+        description="Comma-separated web addresses of news feeds (RSS or Atom). Starts with GOV.UK's travel advice; add travel trade news feeds as you like.",
+        group="News Campaigns", type="csv",
+    ),
+    AutomationSettingDef(
+        key="news_campaign_max_companies", label="Most companies in one campaign",
+        description="The most companies (one person each) a suggested campaign goes to.",
+        group="News Campaigns", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="news_campaign_llm_max_per_run", label="Most news items the Brain checks per run",
+        description="Only news that sounds like good news for someone (advice eased, reopening, resuming, a new route) is checked by the Brain; this caps how many in one run. The rest wait for the next run.",
+        group="News Campaigns", type="int", min=1,
+    ),
+    AutomationSettingDef(
         key="automations_proposal_example_check_enabled", label="Weekly check of example links",
         description="Every Monday: checks the links in the proposal examples library, and flags any that no longer open.",
         group="Proposal Requests", type="bool",

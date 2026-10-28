@@ -198,6 +198,16 @@ class Settings(BaseSettings):
     press_release_mailboxes: str = ""             # the inbox editors forward releases to
     press_release_lookback_minutes: int = 1440
     press_release_llm_max_per_run: int = 30
+    # Mail merge follow-ups (app/automations/merge_followups.py): the people who didn't answer a mail merge.
+    automations_merge_followups_enabled: bool = False
+    merge_followup_wait_days: int = 10
+    merge_followup_lookback_days: int = 30
+    merge_followup_min_recipients: int = 5
+    # News campaigns (app/automations/news_campaigns.py): selling moments in the news, with the companies to email.
+    automations_news_campaigns_enabled: bool = False
+    news_campaign_feeds: str = "https://www.gov.uk/foreign-travel-advice.atom"
+    news_campaign_max_companies: int = 60
+    news_campaign_llm_max_per_run: int = 20
     automations_proposal_example_check_enabled: bool = True   # weekly check that the examples library's links still work
     email_summary_max_recipients: int = 3  # drop anything with more people on the thread - group mail, not 1:1 sales talk
     email_summary_min_body_chars: int = 40  # drop pure one-line acks ("Thanks!") - nothing there to extract

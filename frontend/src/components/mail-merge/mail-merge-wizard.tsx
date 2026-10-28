@@ -67,7 +67,13 @@ import type { SalesTitle } from "@/lib/sales-types";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 import { friendlyError } from "@/lib/errors";
 
-export type InitialSource = { source: RecipientSource | null; label: string; fromSelection?: boolean };
+export type InitialSource = {
+  source: RecipientSource | null;
+  label: string;
+  fromSelection?: boolean;
+  /** People and an email suggested by a Review Queue card (a news campaign, a mail merge follow-up). */
+  suggested?: { ids: string[]; label: string; chip: string; subject: string; body: string };
+};
 
 type Option = { id: string; label: string; sublabel?: string | null };
 
@@ -107,7 +113,7 @@ export function MailMergeWizard({
   // ---- Step 2: contacts
   const [source, setSource] = useState<RecipientSource | null>(initial.source);
   const [sourceKind, setSourceKind] = useState<string>(
-    initial.fromSelection ? "selection" : initial.source?.kind ?? "group"
+    initial.fromSelection || initial.suggested ? "selection" : initial.source?.kind ?? "group"
   );
   const [sourceLabel, setSourceLabel] = useState(initial.label);
   const [recips, setRecips] = useState<RecipientsResult | null>(null);
@@ -117,13 +123,15 @@ export function MailMergeWizard({
   const [picked, setPicked] = useState<Option[]>([]);
   const [group, setGroup] = useState<Option | null>(null);
   const [company, setCompany] = useState<Option | null>(null);
-  const [selection, setSelection] = useState<{ ids: string[]; label: string } | null>(null);
+  const [selection, setSelection] = useState<{ ids: string[]; label: string } | null>(
+    initial.suggested ? { ids: initial.suggested.ids, label: initial.suggested.label } : null
+  );
 
   // ---- Step 3: message
   const [templates, setTemplates] = useState(initialTemplates);
   const [templateId, setTemplateId] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("Dear {{salutation|colleague}},\n\n\n\nKind regards,\n{{my_name}}");
+  const [subject, setSubject] = useState(initial.suggested?.subject ?? "");
+  const [body, setBody] = useState(initial.suggested?.body ?? "Dear {{salutation|colleague}},\n\n\n\nKind regards,\n{{my_name}}");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const richRef = useRef<RichEmailEditorHandle>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
@@ -506,7 +514,7 @@ export function MailMergeWizard({
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Contacts from">
               {[
                 ...(initial.source?.kind === "lookup" ? [{ k: "lookup", label: "Current lookup", icon: ListFilter }] : []),
-                ...(selection ? [{ k: "selection", label: "Ticked contacts", icon: Check }] : []),
+                ...(selection ? [{ k: "selection", label: initial.suggested?.chip ?? "Ticked contacts", icon: Check }] : []),
                 { k: "group", label: "A group", icon: FolderTree },
                 { k: "company", label: "A company", icon: Building2 },
                 { k: "contacts", label: "Specific contacts", icon: UserRound },

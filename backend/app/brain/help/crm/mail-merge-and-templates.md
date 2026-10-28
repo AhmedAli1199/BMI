@@ -30,8 +30,8 @@ Mail merge is Act!'s Write > Mail Merge. You write one message with merge fields
 - **Address labels**: 21 per A4 sheet (Avery L7160 size).
 - **Merge data**: a spreadsheet of names and addresses.
 
-### Step 2, Contacts: Current lookup, Ticked contacts, A group, A company, Specific contacts
-Where the contacts come from. Mail merge opens with this already set from wherever you started (a contact's **Write**, a company's or group's **Mail merge**, the Contacts lookup, or ticked contacts). **A group** and **A company** let you search for one; **Specific contacts** lets you add people one by one. The table shows everyone, with warnings such as "No email", "Unsubscribed", "Bounced" or "No address".
+### Step 2, Contacts: Current lookup, Ticked contacts, Suggested by the Brain, A group, A company, Specific contacts
+Where the contacts come from. Mail merge opens with this already set from wherever you started (a contact's **Write**, a company's or group's **Mail merge**, the Contacts lookup, or ticked contacts). From **Open as a mail merge** on a News campaigns or Mail merge follow-ups card in the Review Queue, it opens as **Suggested by the Brain**, with the people the card found and its drafted email already in step 3, all changeable before you send. **A group** and **A company** let you search for one; **Specific contacts** lets you add people one by one. The table shows everyone, with warnings such as "No email", "Unsubscribed", "Bounced" or "No address".
 - Untick anyone to leave them out of this mailing only (they stay in the group). **include all** puts everyone back.
 - **Filter this list…** narrows the table; **Untick all** / **Tick all** (or **Untick these** / **Tick these** when filtered) changes many at once.
 

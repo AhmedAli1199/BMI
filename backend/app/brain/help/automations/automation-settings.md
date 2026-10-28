@@ -90,6 +90,22 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
 | Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
 
+### Mail Merge Follow-ups
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Follow up mail merges | Each weekday morning, finds the people who didn't answer a mail merge and gives its sender one card with a follow-up drafted. Nothing is sent until they open it as a mail merge and send it. | Off |
+| Wait before following up (days) | How long after a mail merge goes out before the people who didn't answer are followed up. | 10 |
+| Only mail merges sent in the last (days) | Older mail merges aren't followed up. | 30 |
+| Smallest mail merge to follow up | Mail merges to fewer people than this are left alone. | 5 |
+
+### News Campaigns
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Watch the news for selling moments | Every two hours, reads the news feeds below and suggests a campaign when the Brain sees a reason for companies to advertise now. Needs the Brain. | Off |
+| News feeds to watch | Web addresses of news feeds (RSS or Atom), separated by commas. | GOV.UK travel advice |
+| Most companies in one campaign | The most companies (one person each) a suggested campaign goes to. | 60 |
+| Most news items the Brain checks per run | Cap on how many news items the Brain checks per run. The rest wait. | 20 |
+
 ### Subscription Changes
 | Setting | What it changes | Starts at |
 |---|---|---|

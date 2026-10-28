@@ -139,6 +139,25 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Not a press release** closes it and can be reopened.
 - Filters: **Magazine**, **Contact** (in the CRM, new contact, or no contact found), **Company** and **Salesperson**. Sorted by the date received.
 
+### News campaigns (Sales & Follow-ups)
+- **When**: every two hours. **Switch**: **Watch the news for selling moments**, with **News feeds to watch** (GOV.UK's travel advice to start with; add travel trade news feeds as you like). It needs the Brain: without it, nothing is suggested.
+- **Reads**: new items in the feeds from the last few days. Only news that sounds like good news for someone (advice lifted or eased, a destination reopening, flights resuming, a new route) goes to the Brain, up to **Most news items the Brain checks per run**. Warnings, strikes and closures are left alone.
+- **The Brain decides** whether it's a reason for companies to advertise now, and if so which places, which kinds of business (tourist boards, airlines, hotels...), which magazine it suits and the angle.
+- **Who to email**: companies in the CRM linked to those places (in their name, industry, category, region or address), the kinds of business it named first, one person each - marketing or trade people ahead of others - up to **Most companies in one campaign**. Unsubscribed and bounced people are never picked.
+- **Makes**: **News campaigns**, one card per moment, for any salesperson: the news (linked), why it's a moment, the companies (linked) and a drafted email with the brand's media pack link.
+- **Open as a mail merge** opens the mail merge screen with those people and the email filled in, to change, preview and send from your own Outlook. If no companies were found, the card says so and this button is hidden.
+- **Not now** puts it aside (it can be reopened). **Not a selling moment** closes it.
+- Filters: **Magazine**, **News from** and **Companies**. Sorted by the date of the news.
+
+### Mail merge follow-ups (Sales & Follow-ups)
+- **When**: each weekday morning. **Switch**: **Follow up mail merges**.
+- **Looks at**: your email mail merges sent between **Wait before following up (days)** and **Only mail merges sent in the last (days)** ago, that went to at least **Smallest mail merge to follow up** people. A mail merge that is itself a follow-up is never followed up again, and each mail merge gets one card at most.
+- **Leaves out**: anyone who replied (your inbox is checked for an email from them since; only who sent each email is looked at), anyone whose email bounced or who has unsubscribed, anyone whose company has booked since, and anyone with a note added since. If your inbox can't be checked for three days running, the card comes anyway, marked **Replies not checked** - look through the list before sending.
+- **Makes**: **Mail merge follow-ups**, one card per mail merge, only for the person who sent it: the mail merge (linked), how many didn't answer, who was left out and why, the people to follow up (linked), and a short follow-up drafted with your earlier email underneath.
+- **Open as a mail merge** opens the mail merge screen with those people and the follow-up filled in, to change, preview and send.
+- **No follow-up this time** closes it (it can be reopened).
+- Filters: **Replies**, **How many** and **Salesperson**. Sorted by the date the mail merge went out.
+
 ### Call notes (Sales & Follow-ups)
 - **When**: the notetaker finishes a recorded call. There is no schedule.
 - **Save to history** writes the notes onto the contact's history, plus a reminder for each "to do". The call must be linked to a contact.
