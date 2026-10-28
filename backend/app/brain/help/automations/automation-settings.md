@@ -82,6 +82,14 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
 | Weekly check of example links | Every Monday, checks the links in the proposal examples library and flags broken ones. | On |
 
+### Press Releases
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Read forwarded press releases | Every 15 minutes, reads the inboxes below for press releases the editors forward, finds who to contact and drafts a media kit introduction for the publisher. Nothing is sent until they press Send. | Off |
+| Inboxes to read | The addresses the editors forward releases to, separated by commas. | Empty |
+| First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
+| Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
+
 ### Subscription Changes
 | Setting | What it changes | Starts at |
 |---|---|---|

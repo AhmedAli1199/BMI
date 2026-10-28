@@ -349,6 +349,15 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
   - Questions about a copy become `reader_query` cards with a drafted reply.
 - **Text prefills**: a card's `field_defaults` now prefill text and tick-box fields as well as drop-downs (`review-item-card.tsx`, step 7).
 
+
+### 4.3h4 SALES-014 and SALES-015 press releases to a media kit introduction (built 28 Oct 2026)
+- **What it does**: `app/automations/press_releases.py`, job `press_release_scan`, runs every 15 minutes. It reads **Press releases > Inboxes to read** (off by default) for emails that look like a release. The Brain picks out the company, the story, the magazine, the editor's note and every contact named.
+- **Who to contact**: the company and the people are matched in the CRM. Marketing or trade contacts are ranked above the press office, including marketing people already in the CRM at that company.
+- **The card** (`press_release`) goes to the company's owner, or else the brand's first publisher (`Brand.editors`). Salespeople see only their own, through the `owner_user_id` scope in `review_queue._apply_scope`.
+- **SALES-015**: the card carries the drafted introduction: the story, the brand's **Media pack link** and an invitation to talk. The Brain's sentences are dropped if they contain a figure.
+  - **Send the introduction** sends it as a new email from the publisher's Outlook. It adds the contact and company through `proposal_requests._crm_records` and leaves a "Media kit introduction" note.
+  - With no media pack link saved, the draft shows `[media pack link]` and won't send until the link is typed in.
+- **Still to do**: releases sent only as an attachment (PDF or Word) aren't read yet. BMI also hasn't said which inbox the editors will forward to.
 ### 4.3h SALES-022 save the sale (built 12 Oct 2026)
 - The email scan (`email_summary.py`) now also extracts **"decline"** signals (a client saying no to a booking) with a reason - budget / timing / results / competitor / other (model's answer if valid, else keyword rules, `decline_reason`). Migration `0047` (signal type + `email_signals.reason`).
 - `app/automations/save_the_sale.py` (job `save_the_sale_scan`, every 30 min, setting `automations_save_the_sale_enabled`, off by default; cap `save_the_sale_max_per_run`): one review item ("Save the sale") per decline with a draft reply from the reason's template. **The offer is chosen by rules, not AI**: budget = the next cheaper products in the same title on the rate card (below what they last paid) and the next issue; timing = the next open issue (with its ad deadline); results = the cheapest online/newsletter product in the brand; competitor/other = no offer, acknowledge and ask. AI polish only when configured and thrown away if it adds a figure.

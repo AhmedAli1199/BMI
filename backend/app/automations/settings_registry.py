@@ -170,6 +170,26 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Subscription Changes", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_press_releases_enabled", label="Read forwarded press releases",
+        description="Every 15 minutes: reads the inboxes below for press releases the editors forward, finds the company and who to contact, and puts each in the publisher's Review Queue with a media kit introduction drafted. Nothing is sent until they press Send.",
+        group="Press Releases", type="bool",
+    ),
+    AutomationSettingDef(
+        key="press_release_mailboxes", label="Inboxes to read",
+        description="Comma-separated email addresses the editors forward press releases to.",
+        group="Press Releases", type="csv",
+    ),
+    AutomationSettingDef(
+        key="press_release_lookback_minutes", label="First look back (minutes)",
+        description="When an inbox is added, how far back the first read goes. After that it only reads new emails.",
+        group="Press Releases", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="press_release_llm_max_per_run", label="Most emails the Brain checks per run",
+        description="Only emails that read like a press release are checked by the Brain; this caps how many in one run. The rest wait for the next run.",
+        group="Press Releases", type="int", min=1,
+    ),
+    AutomationSettingDef(
         key="automations_proposal_example_check_enabled", label="Weekly check of example links",
         description="Every Monday: checks the links in the proposal examples library, and flags any that no longer open.",
         group="Proposal Requests", type="bool",

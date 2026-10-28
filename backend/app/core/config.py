@@ -193,6 +193,11 @@ class Settings(BaseSettings):
     subscription_change_mailboxes: str = ""       # e.g. enquiries@bmipublishing.co.uk
     subscription_change_lookback_minutes: int = 1440
     subscription_change_llm_max_per_run: int = 40
+    # Press releases (app/automations/press_releases.py): releases editors forward, who to contact, a media kit introduction.
+    automations_press_releases_enabled: bool = False
+    press_release_mailboxes: str = ""             # the inbox editors forward releases to
+    press_release_lookback_minutes: int = 1440
+    press_release_llm_max_per_run: int = 30
     automations_proposal_example_check_enabled: bool = True   # weekly check that the examples library's links still work
     email_summary_max_recipients: int = 3  # drop anything with more people on the thread - group mail, not 1:1 sales talk
     email_summary_min_body_chars: int = 40  # drop pure one-line acks ("Thanks!") - nothing there to extract

@@ -128,6 +128,17 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Make a full proposal** opens the proposal builder with the client (added if new), products and examples ready.
 - **Not a proposal request** closes it.
 
+### Press releases (Sales & Follow-ups)
+- **When**: every 15 minutes. **Switch**: **Read forwarded press releases**, with **Inboxes to read** (the inbox the editors forward releases to).
+- **Reads**: emails that read like a press release (press release, media release, notes to editors, embargoed, media contact...), whether an editor forwarded them or the company sent them in. The Brain picks out the company, the story, the magazine it fits, the editor's note, and everyone the release names to contact. Without the Brain, the email addresses in the release are listed, marked as not checked. The release has to be in the email itself: one sent only as an attachment can't be read yet.
+- **Who to contact**: the company and the people are looked up in the CRM (linked when found). Someone in marketing or trade relations comes first, whether named in the release or already in the CRM at that company, as they hold the budget. The press office comes after.
+- **Makes**: **Press releases**, one card per release, for whoever looks after the company, or else the magazine's publisher. If neither is known, only administrators see it.
+- **Send the introduction** opens **Review the draft** with a short note: it mentions their story, links the brand's media pack and offers to talk. **Send to** starts with the best contact found; change it if you like. It sends from your Outlook as a new email, adds the contact (and the company) to the CRM if they're new, and notes the email on them. If no **Media pack link** is saved on that brand's settings page in Editorial, the draft says [media pack link] and won't send until you type the link in.
+- **I'll send it myself** logs the introduction on the contact without sending it.
+- **Just add the contact** asks for **Name**, **Email**, **Job title** and **Company**, and adds them to the CRM without sending anything.
+- **Not a press release** closes it and can be reopened.
+- Filters: **Magazine**, **Contact** (in the CRM, new contact, or no contact found), **Company** and **Salesperson**. Sorted by the date received.
+
 ### Call notes (Sales & Follow-ups)
 - **When**: the notetaker finishes a recorded call. There is no schedule.
 - **Save to history** writes the notes onto the contact's history, plus a reminder for each "to do". The call must be linked to a contact.

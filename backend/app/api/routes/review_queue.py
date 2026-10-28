@@ -77,7 +77,7 @@ def _apply_scope(stmt, identity: Identity, db: Session | None = None):
             mine = (select(SalesOrder.id).join(SalesRep, SalesOrder.rep_id == SalesRep.id)
                     .where(SalesRep.user_id == identity.user_uuid,
                            cast(SalesOrder.id, String) == ReviewQueueItem.payload["order_id"].astext)).exists()
-            stmt = stmt.where(or_(ReviewQueueItem.kind.notin_(("renewal_due", "allocation_due", "proposal_request")), mine,
+            stmt = stmt.where(or_(ReviewQueueItem.kind.notin_(("renewal_due", "allocation_due", "proposal_request", "press_release")), mine,
                                   ReviewQueueItem.payload["owner_user_id"].astext == str(identity.user_uuid)))
 
     if db is not None:

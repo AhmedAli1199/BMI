@@ -49,6 +49,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   proposal_request: "send",
   subscription_signup: "send_offer",
   reader_query: "send",
+  press_release: "send",
 };
 
 /** Kinds whose draft can go straight out from the reviewer's own Outlook:
@@ -59,6 +60,7 @@ const DRAFT_LOG_ONLY_ACTIONS: Record<string, string> = {
   save_the_sale: "approve",
   proposal_request: "replied",
   reader_query: "replied",
+  press_release: "logged",
 };
 
 /** The buttons this card shows, main one first. A card can lead with a different button than its kind usually
