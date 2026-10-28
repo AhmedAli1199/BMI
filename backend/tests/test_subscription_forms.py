@@ -77,3 +77,38 @@ def test_signups_arrive_checked_and_can_be_added(client, db_session):
     assert again.payload["facets"]["check"] == "Already on the database" and again.payload["contact_id"] == str(contact.id)
     r = client.post(f"/api/review-queue/{again.id}/actions/add", json={"fields": {"name": "Jo Bloggs"}}, headers=h)
     assert r.status_code == 400 and "Already on file" in r.json()["detail"]
+
+
+def test_checks_missing_details_addresses_and_the_digital_offer(client, db_session):
+    admin = make_user(db_session, role="admin")
+    h = identity_headers(admin)
+    f = sf.FORMS["selling-travel"]
+
+    # a sparse entry: no company or job title
+    _, notes = sf.checks(db_session, f, {"name": "Sam Lee", "email": "sam@agency.example"}, {})
+    assert any(n == "Missing from the form: company, job title." for n in notes)
+    # a British postcode with a foreign country, and a UK country with a postcode that isn't British
+    _, notes = sf.checks(db_session, f, {"name": "A", "email": "a@b.example", "company": "C", "job_title": "D",
+                                         "country": "France", "postcode": "SW1A 1AA"}, {})
+    assert any("looks British but the country says France" in n for n in notes)
+    _, notes = sf.checks(db_session, f, {"name": "A", "email": "a@b.example", "company": "C", "job_title": "D",
+                                         "country": "UK", "postcode": "75001"}, {})
+    assert any("doesn't look like a UK postcode" in n for n in notes)
+
+    token = next(x for x in client.get("/api/subscription-forms", headers=h).json() if x["key"] == "selling-travel")["address"].rsplit("/", 1)[1]
+    # overseas print: the digital offer is drafted and its button shown; "Already on file" is hidden for a new person
+    client.post(f"/api/subscription-forms/receive/selling-travel/{token}", data=_wufoo(), headers=h)
+    item = db_session.query(ReviewQueueItem).filter_by(kind="subscription_signup").one()
+    assert item.payload["hidden_actions"] == ["on_file"]
+    assert item.payload["suggested_to"] == "jo@gmail.com" and "Dear Jo" in item.payload["original_text"]
+    assert "Selling Travel" in item.payload["original_text"].split("\n", 1)[0]
+    # without a connected Outlook it says so plainly and nothing changes
+    r = client.post(f"/api/review-queue/{item.id}/actions/send_offer", json={"note": item.payload["original_text"]}, headers=h)
+    assert r.status_code == 400 and "Connect your Outlook" in r.json()["detail"]
+    db_session.refresh(item)
+    assert item.status == "pending"
+
+    # a UK reader gets no offer button
+    client.post(f"/api/subscription-forms/receive/selling-travel/{token}", data=_wufoo(email="kim@agency.example", country="UK", entry="30"), headers=h)
+    uk = db_session.query(ReviewQueueItem).filter(ReviewQueueItem.kind == "subscription_signup", ReviewQueueItem.id != item.id).one()
+    assert uk.payload["hidden_actions"] == ["on_file", "send_offer"] and "original_text" not in uk.payload

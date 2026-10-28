@@ -6,8 +6,11 @@ reader in Act!. Each form now also sends the entry here (Wufoo and Elementor bot
 setting; anything else can post JSON), at its own secret address shown in Automations > Subscription sign-ups.
 
 Every entry becomes one Review Queue card with the checks they do by hand: is this person already on the database
-(the "re-subscribe" case), is it a personal email address (worth checking they work in the trade, most of all for
-print), and for Selling Travel and TBTM print, is the address outside the UK (print is UK only - offer digital).
+(the "re-subscribe" case), is anything missing (name, email, company, job title, and an address for print), does the
+address hang together (a UK postcode with another country, or a postcode that isn't a UK one), is it a personal email
+address (worth checking they work in the trade, most of all for print), and for Selling Travel and TBTM print, is
+the address outside the UK (print is UK only). An overseas print card has the reply offering the digital edition
+already written: "Send the digital offer" sends it from the reviewer's Outlook after they've checked it.
 "Add to the database" creates the contact in the title's database, optionally in its newsletter group; "Already on
 file" and "Skip" change nothing. Nothing is ever emailed to the reader.
 """
@@ -50,6 +53,14 @@ FORMS: dict[str, SignupForm] = {f.key: f for f in (
 )}
 
 UK = {"uk", "u.k.", "united kingdom", "great britain", "gb", "england", "scotland", "wales", "northern ireland"}
+UK_POSTCODE = re.compile(r"^(GIR ?0AA|[A-PR-UWYZ][A-HK-Y]?\d[A-Z\d]? ?\d[ABD-HJLNP-UW-Z]{2})$", re.I)
+# What a sign-up needs before Shani or Kay can add it without going back to the reader (CS-012 "required fields").
+REQUIRED = (("name", "name"), ("email", "email address"), ("company", "company"), ("job_title", "job title"))
+OFFER_SUBJECT = "Your {title} subscription"
+OFFER_BODY = ("Dear {first},\n\nThank you for signing up to {title}. We're only able to post the printed magazine to UK "
+              "addresses, so we can't send a printed copy to {country}. We'd be very happy to send you the digital edition "
+              "instead, which has everything in the printed magazine - just reply to this email and we'll set it up.\n\n"
+              "Kind regards,")
 PERSONAL_DOMAINS = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.co.uk", "outlook.com", "live.com", "live.co.uk",
                     "yahoo.com", "yahoo.co.uk", "icloud.com", "me.com", "aol.com", "btinternet.com", "sky.com",
                     "virginmedia.com", "msn.com", "protonmail.com", "mail.com", "gmx.com", "talktalk.net"}
@@ -209,10 +220,31 @@ def checks(db: Session, f: SignupForm, g: dict[str, str], answers: dict[str, str
             notes.append(f"Already on the database as {contact.full_name or email} - they may be re-subscribing. Check what they already get.")
         if email.split("@")[-1] in PERSONAL_DOMAINS:
             notes.append("Personal email address - check they work in the trade" + (", as they want a printed copy." if wants_print(f, answers) else "."))
+    missing = [label for key, label in REQUIRED if key != "email" and not g.get(key)]
+    if wants_print(f, answers) and not g.get("postcode") and not g.get("country"):
+        missing.append("postal address")
+    if missing:
+        notes.append("Missing from the form: " + ", ".join(missing) + ".")
     country = (g.get("country") or "").strip().lower()
-    if f.uk_only_print and wants_print(f, answers) and country and country not in UK:
+    postcode = (g.get("postcode") or "").strip()
+    if postcode and country and country not in UK and UK_POSTCODE.match(postcode):
+        notes.append(f"The postcode {postcode} looks British but the country says {g['country']} - check the address.")
+    elif postcode and (country in UK or (not country and f.uk_only_print)) and not UK_POSTCODE.match(postcode):
+        notes.append(f"{postcode} doesn't look like a UK postcode - check the address.")
+    if overseas_print(f, g, answers):
         notes.append(f"Overseas address ({g['country']}) asking for print: {f.title} only posts to UK addresses - offer the digital edition.")
     return contact, notes
+
+
+def overseas_print(f: SignupForm, g: dict[str, str], answers: dict[str, str]) -> bool:
+    country = (g.get("country") or "").strip().lower()
+    return bool(f.uk_only_print and wants_print(f, answers) and country and country not in UK)
+
+
+def offer_text(f: SignupForm, g: dict[str, str]) -> str:
+    first = (g.get("first") or (g.get("name") or "").split(" ")[0] or "there").strip()
+    title = f.title
+    return f"Subject: {OFFER_SUBJECT.format(title=title)}\n\n" + OFFER_BODY.format(first=first, title=title, country=g.get("country") or "your country")
 
 
 def receive(db: Session, f: SignupForm, ref: str | None, answers: dict[str, str]) -> ReviewQueueItem | None:
@@ -228,9 +260,13 @@ def receive(db: Session, f: SignupForm, ref: str | None, answers: dict[str, str]
         details.append({"label": "On the database", "value": contact.full_name or g.get("email", ""), "href": f"/contacts/{contact.id}"})
     details += [{"label": "Check", "value": n} for n in notes]
     details += [{"label": q, "value": a} for q, a in answers.items()]
-    check = ("Already on the database" if contact else "Overseas, print" if any(n.startswith("Overseas") for n in notes)
+    overseas = overseas_print(f, g, answers)
+    check = ("Already on the database" if contact else "Overseas, print" if overseas
              else "Check they're in the trade" if any(n.startswith("Personal") for n in notes)
-             else "Missing email" if not g.get("email") else "Looks fine")
+             else "Missing email" if not g.get("email")
+             else "Check the address" if any("check the address" in n for n in notes)
+             else "Details missing" if any(n.startswith("Missing from the form") for n in notes) else "Looks fine")
+    hidden = (["add"] if contact else ["on_file"]) + ([] if overseas and g.get("email") else ["send_offer"])
     item = ReviewQueueItem(
         id=uuid.uuid4(), kind=KIND, source_db=f.source_db, status="pending",
         entity_type="contact" if contact else None, entity_id=contact.id if contact else None,
@@ -243,6 +279,9 @@ def receive(db: Session, f: SignupForm, ref: str | None, answers: dict[str, str]
             "sort_date": date.today().isoformat(),
             "field_defaults": {"name": g.get("name", ""), "email": g.get("email", ""), "company_name": g.get("company", ""),
                                "job_title": g.get("job_title", ""), "newsletter": "true"},
+            "hidden_actions": hidden,
+            **({"original_text": offer_text(f, g), "original_label": "Reply offering the digital edition", "suggested_to": g["email"]}
+               if overseas and g.get("email") else {}),
         },
     )
     db.add(item)
@@ -289,9 +328,24 @@ def _add(db: Session, item: ReviewQueueItem, input_data: dict) -> None:
                     "details": [{"label": "Added", "value": name, "href": f"/contacts/{contact.id}"}, *item.payload["details"]]}
 
 
+def _send_offer(db: Session, item: ReviewQueueItem, input_data: dict) -> None:
+    """CS-014: the overseas reader is offered the digital edition, from the reviewer's Outlook."""
+    from app.automations import outlook_reply
+    from app.automations.sales_orders import _split_draft
+
+    draft = (input_data.get("note") or "").strip() or item.payload.get("original_text") or ""
+    subject, body = _split_draft(draft)
+    to = (input_data.get("to") or item.payload.get("suggested_to") or "").strip()
+    outlook_reply.send(db, input_data.get("_actor_user_id"), to, subject, body)
+    item.payload = {**item.payload, "details": [{"label": "Reply sent", "value": f"Offered the digital edition ({to})"}, *item.payload["details"]]}
+
+
 def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict) -> None:
     if action_id == "add":
         _add(db, item, input_data)
+        return
+    if action_id == "send_offer":
+        _send_offer(db, item, input_data)
         return
     if action_id in ("on_file", "skip"):
         return
@@ -301,7 +355,7 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
 register(ReviewKind(
     kind=KIND,
     label="Subscription sign-ups",
-    description="New sign-ups from the Selling Travel, TBTM and Onboard Hospitality subscribe forms, checked for people already on the database, personal email addresses and overseas print requests.",
+    description="New sign-ups from the Selling Travel, TBTM and Onboard Hospitality subscribe forms, checked for people already on the database, missing details, addresses that don't add up, personal email addresses and overseas print requests (with the digital offer ready to send).",
     actions=[
         ReviewAction(id="add", label="Add to the database", style="primary", outcome="approved", extra_fields=[
             ExtraField(key="name", label="Name"),
@@ -310,6 +364,7 @@ register(ReviewKind(
             ExtraField(key="job_title", label="Job title", required=False),
             ExtraField(key="newsletter", label="Add to the title's newsletter group", field_type="bool"),
         ]),
+        ReviewAction(id="send_offer", label="Send the digital offer", style="secondary", outcome="approved"),
         ReviewAction(id="on_file", label="Already on file", style="secondary", outcome="approved"),
         ReviewAction(id="skip", label="Skip", style="secondary", outcome="dismissed", reopenable=True, requires_note=True),
     ],

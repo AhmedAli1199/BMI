@@ -47,6 +47,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   renewal_due: "send",
   save_the_sale: "send",
   proposal_request: "send",
+  subscription_signup: "send_offer",
 };
 
 /** Kinds whose draft can go straight out from the reviewer's own Outlook:
