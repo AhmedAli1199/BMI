@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PitchFromNotesDialog } from "@/components/sales/pitch-from-notes-dialog";
 import { notFound } from "next/navigation";
 import { ClipboardList, ExternalLink, FileText, Layers, Mail, ReceiptText, Users } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
@@ -113,6 +114,7 @@ export default async function CompanyDetailPage({
               <FileText className="size-3.5" />
               Build a proposal
             </Button>
+            <PitchFromNotesDialog companyId={company.id} companyName={company.name} />
             <Button
               variant="outline"
               size="sm"

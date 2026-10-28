@@ -29,6 +29,13 @@ export async function createProposal(input: {
   return p;
 }
 
+/** SALES-023: a proposal draft from meeting notes someone types or pastes. */
+export async function pitchFromNotes(input: { company_id: string; contact_id?: string | null; notes: string }): Promise<Proposal> {
+  const p = await backendFetch<Proposal>("/api/proposals/from-notes", { method: "POST", headers: json, body: JSON.stringify(input) });
+  refresh(p);
+  return p;
+}
+
 export async function saveProposal(
   id: string,
   patch: { campaign_name?: string; template?: string; edition_id?: string | null; lines?: ProposalLine[]; sections?: ProposalSection[]; notes?: string | null; kind?: string; discount_pct?: number; output?: "word" | "email" }

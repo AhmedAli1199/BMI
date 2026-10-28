@@ -37,6 +37,8 @@ def _view(db: Session, c: CallRecording, full: bool = False) -> dict:
         "owner": owner.name if owner else None, "started_at": c.started_at, "ended_at": c.ended_at,
         "saved_to_history_at": c.saved_to_history_at, "created_at": c.created_at,
         "summary": (c.notes or {}).get("summary"),
+        "pitch_proposal_id": (c.notes or {}).get("pitch_proposal_id"),
+        "can_pitch": bool(company or (contact and contact.company_id)),
     }
     if full:
         v["notes"] = c.notes
@@ -163,6 +165,24 @@ def save(call_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends
         raise HTTPException(422, str(e))
     db.commit()
     return _view(db, c, full=True)
+
+
+@router.post("/{call_id}/pitch")
+def make_pitch(call_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """SALES-023: a proposal draft that answers what the client said on this call (app/proposals/pitch.py)."""
+    from app.proposals import pitch
+    c = _own(db, user, call_id)
+    if c.status != "completed" or not c.notes:
+        raise HTTPException(409, "The notes aren't ready yet.")
+    company, contact = pitch.company_for_call(db, c)
+    if not company:
+        raise HTTPException(422, "Link this call to a contact at the client's company first (above), so the pitch knows who it's for.")
+    try:
+        prop = pitch.make_pitch(db, user, company, call_notes.notes_text(c), contact=contact, call=c)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    db.commit()
+    return {"proposal_id": str(prop.id), "href": f"/sales/proposals/{prop.id}"}
 
 
 # ---- From the Notetaker service (forwarded by the frontend's public /api/notetaker/webhook) ----

@@ -26,6 +26,10 @@ export type Call = {
   started_at: string | null;
   ended_at: string | null;
   saved_to_history_at: string | null;
+  /** The pitch drafted from this call (SALES-023), if one was made. */
+  pitch_proposal_id?: string | null;
+  /** Linked to a company (or a contact at one), so a pitch knows who it's for. */
+  can_pitch?: boolean;
   created_at: string;
   summary: string | null;
   notes?: CallNotes | null;

@@ -15,7 +15,7 @@ Companies lists every account in the CRM: advertisers, agencies and prospects, a
 
 **A company's page**
 - **Companies** above the name goes back to the list. Under the name: the industry and which database it's in.
-- On the right: **Remind me**, **Mail merge**, **Build a proposal**, **New booking**, and **Previous company** / **Next company** arrows with "3 of 5".
+- On the right: **Remind me**, **Mail merge**, **Build a proposal**, **Pitch from notes**, **New booking**, and **Previous company** / **Next company** arrows with "3 of 5".
 - An amber strip with your own reminders about this company, if any.
 - **Company details** in three columns (empty fields are hidden until you press **Edit Company**): Company Profile (Name, Industry, Phone, E-mail, Web Site), Headquarters Address, and Account Status & Scope (Category, Territory, Region, Employees, plus how many Linked Contacts and Logged Notes).
 - **Who looks after them**: one line per magazine (Onboard Hospitality for Onboard companies; The Business Travel Magazine, Selling Travel, Selling Travel events and the Accessibility Awards for Selling Travel and Prospects companies), with the salesperson ("Nobody yet" if no one), a label saying which rule decided it (By product, Last contact, Last booking, By region, New business, Nobody yet, Not sure yet, Chosen by a person) and why in plain words.
@@ -53,6 +53,9 @@ Opens Mail merge with everyone at this company chosen as the contacts.
 
 ### Build a proposal
 Opens a new proposal with this company already filled in (see the "Proposals" guide).
+
+### Pitch from notes
+Opens **Pitch from meeting notes**: paste or type your notes from a meeting with them that wasn't recorded, then press **Draft the pitch**. The Brain reads the notes for what the client wants, the angle to take and what they responded well to (leaving out anything personal or off the record), finds the closest proposals BMI has sent before, and drafts a proposal that answers what they said: the magazine's template, its next open issue, products from the rate card for what came up, and your own writing style. Prices only come from the rate card, never from the notes or old proposals. It opens as a draft in Proposals with a note at the top to check it says what you agreed. Notes that are too short or don't say what the client wants are refused with the reason. For a call the notetaker recorded, use **Make a pitch** on the call's page instead.
 
 ### New booking
 Opens the blank booking form with this company already chosen (see the "New booking and change booking form" guide).

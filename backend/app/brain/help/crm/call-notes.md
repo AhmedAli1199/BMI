@@ -25,7 +25,7 @@ BMI Notetaker is a guest that joins your Google Meet or Microsoft Teams call, re
 
 **A call's page**
 - The title, a status label, the call type, the **meeting link** and who was in it.
-- On the right: a **Contact** picker, **Stop recording** (while it's in the call) and **Save to history** (once notes are ready).
+- On the right: a **Contact** picker, **Stop recording** (while it's in the call), **Save to history** and **Make a pitch** (once notes are ready).
 - While live, a line saying what's happening (on its way, waiting to be let in, recording, writing up). The page refreshes itself.
 - **Summary** (with Next step, Key points, Decisions, Money mentioned, Dates mentioned), **Who's doing what** (each task, who and when, plus "Their interest": Interested, Neutral or Not keen) and the **Transcript** with times and speakers.
 
@@ -70,6 +70,12 @@ Asks the notetaker to leave the call now. The notes follow a few minutes later.
 
 ### Save to history
 Saves the notes onto the linked contact's history as a "Meeting Held" entry, and adds a reminder for you for each thing to do, due at 9am on the day agreed in the call (for example "by Friday", "next week" or "14 Nov"), or the next working day if no day was mentioned. Its Review Queue card is closed too. Afterwards it says "Saved to the contact's history".
+
+### Make a pitch
+Drafts a pitch for the client from this call's notes. The call must be linked to a company, or to a contact at one. The Brain reads the notes for what the client wants, the angle to take and what they responded well to (leaving out anything personal or off the record), finds the closest proposals BMI has sent before, and drafts a proposal that answers what they said: the magazine's template, its next open issue, products from the rate card for what came up, and your own writing style. Prices only come from the rate card, never from the notes or old proposals. It opens as a draft in Proposals with a note at the top to check it says what you agreed. Notes that are too short or don't say what the client wants are refused with the reason. Afterwards the button says **Open the pitch**.
+
+### Open the pitch
+Opens the pitch drafted from this call.
 
 ### meeting link
 Opens the original meeting link in a new tab.

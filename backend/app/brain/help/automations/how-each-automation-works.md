@@ -117,6 +117,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 ### Call notes (Sales & Follow-ups)
 - **When**: the notetaker finishes a recorded call. There is no schedule.
 - **Save to history** writes the notes onto the contact's history, plus a reminder for each "to do". The call must be linked to a contact.
+- **Save and make a pitch** does the same (when a contact is linked) and drafts a pitch for the client from the notes, then opens it. The call must be linked to a company, or to a contact at one. The Brain reads the notes for what the client wants, the angle to take and what they responded well to (leaving out anything personal or off the record), finds the closest proposals BMI has sent before, and drafts a proposal that answers what they said: the magazine's template, its next open issue, products from the rate card for what came up, and your own writing style. Prices only come from the rate card, never from the notes or old proposals. It opens as a draft in Proposals with a note at the top to check it says what you agreed. Notes that are too short or don't say what the client wants are refused with the reason.
 - **Not needed** closes it. The notes stay on the call page.
 
 ### Revenue & Orders automations (see the Sales Orders "Review cards" guide for their buttons)

@@ -32,7 +32,7 @@ Proposals are where a salesperson puts together an offer for a client. You pick 
 
 ## Buttons and controls
 ### New proposal
-Opens the new proposal form. You can also start one from **Build a proposal** on any company page, from **Pitch this issue** on an issue page, or from **Draft a proposal** in "Who should we pitch?". Those fill in the client and/or issue for you.
+Opens the new proposal form. You can also start one from **Build a proposal** on any company page, from **Pitch this issue** on an issue page, or from **Draft a proposal** in "Who should we pitch?". Those fill in the client and/or issue for you. A pitch can also be drafted from meeting notes: **Make a pitch** on a call's page, **Save and make a pitch** on its Review Queue card, or **Pitch from notes** on a company page.
 
 ### Client / Who it's for (optional)
 Search for the company, and optionally the contact. The contact's email address fills the "To" box when you email it. Picking a client fills the campaign name with "<client> 2026/27" style wording if it's empty.

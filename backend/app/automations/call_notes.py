@@ -214,6 +214,22 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
         actor = input_data.get("_actor_user_id")
         save_to_history(db, call, uuid.UUID(actor) if actor else None, input_data.get("text") or None)
         return
+    if action_id == "pitch":   # SALES-023: save the notes (when linked to a contact) and draft a pitch from them
+        from app.models import User
+        from app.proposals import pitch
+        actor = input_data.get("_actor_user_id")
+        user = db.get(User, uuid.UUID(actor)) if actor else None
+        if not user:
+            raise ValueError("Sign in again, then try once more.")
+        company, contact = pitch.company_for_call(db, call)
+        if not company:
+            raise ValueError("This call isn't linked to the client yet. Link it to a contact at their company on the call's page, then make the pitch.")
+        if call.contact_id and not call.saved_to_history_at:
+            save_to_history(db, call, user.id)
+        prop = pitch.make_pitch(db, user, company, notes_text(call), contact=contact, call=call)
+        item.payload = {**item.payload, "proposal_id": str(prop.id), "open_href": f"/sales/proposals/{prop.id}",
+                        "details": [{"label": "Pitch draft", "value": prop.campaign_name, "href": f"/sales/proposals/{prop.id}"}, *item.payload["details"]]}
+        return
     if action_id == "dismiss":
         return
     raise ValueError("That action isn't available for call notes.")
@@ -222,9 +238,10 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
 register(ReviewKind(
     kind=KIND,
     label="Call notes",
-    description="Notes the notetaker wrote after a call, ready to save onto the contact's history.",
+    description="Notes the notetaker wrote after a call, ready to save onto the contact's history - or to turn into a pitch for the client.",
     actions=[
         ReviewAction(id="save", label="Save to history", style="primary", outcome="approved"),
+        ReviewAction(id="pitch", label="Save and make a pitch", style="secondary", outcome="approved"),
         ReviewAction(id="dismiss", label="Not needed", style="secondary", outcome="rejected", reopenable=True),
     ],
     handler=_handle,

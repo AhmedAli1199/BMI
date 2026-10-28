@@ -411,6 +411,29 @@ class ReviseOut(BaseModel):
     previous_sections: list[dict]
 
 
+class FromNotesIn(BaseModel):
+    company_id: uuid.UUID
+    contact_id: uuid.UUID | None = None
+    title_id: uuid.UUID | None = None
+    notes: str = Field(min_length=1, max_length=20000)
+
+
+@router.post("/from-notes", response_model=ProposalOut, status_code=201)
+def from_notes(payload: FromNotesIn, db: Session = Depends(get_db), user: User = Depends(current_user)) -> ProposalOut:
+    """SALES-023: a pitch from meeting notes someone types or pastes (app/proposals/pitch.py)."""
+    from app.proposals import pitch
+    company = db.get(Company, payload.company_id)
+    if not company:
+        raise HTTPException(404, "Company not found")
+    contact = db.get(Contact, payload.contact_id) if payload.contact_id else None
+    try:
+        p = pitch.make_pitch(db, user, company, payload.notes, contact=contact, title_id=payload.title_id)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    db.commit()
+    return _out(db, p)
+
+
 @router.post("/{pid}/revise", response_model=ReviseOut)
 def revise(pid: uuid.UUID, payload: ReviseIn, db: Session = Depends(get_db), user: User = Depends(current_user),
            identity: Identity = Depends(get_identity)) -> ReviseOut:

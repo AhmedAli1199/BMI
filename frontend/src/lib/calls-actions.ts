@@ -35,6 +35,14 @@ export async function saveCallToHistory(id: string) {
   return c;
 }
 
+/** SALES-023: a proposal draft that answers what the client said on the call. */
+export async function makePitchFromCall(id: string) {
+  const r = await backendFetch<{ proposal_id: string; href: string }>(`/api/calls/${id}/pitch`, { method: "POST" });
+  revalidatePath(`/calls/${id}`);
+  revalidatePath("/sales/proposals");
+  return r;
+}
+
 export async function setMeetingChoice(id: string, choice: "record" | "skip" | null) {
   const m = await backendFetch(`/api/calendar/meetings/${id}/override`, { method: "POST", headers: json, body: JSON.stringify({ choice }) });
   revalidatePath("/calls/meetings");

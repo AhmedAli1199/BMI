@@ -193,6 +193,7 @@
     "components/sales/invoice-match-panel.tsx",
     "components/sales/order-sheet.tsx",
     "components/sales/orders-table.tsx",
+    "components/sales/pitch-from-notes-dialog.tsx",
     "components/sales/sales-ui.tsx",
     "components/sales/xero-link-dialogs.tsx",
     "components/touchpoint-bar.tsx",
@@ -1358,61 +1359,61 @@
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:96",
+   "src": "app/(app)/companies/[id]/page.tsx:97",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:106",
+   "src": "app/(app)/companies/[id]/page.tsx:107",
    "kind": "button",
    "label": "Build a proposal"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:116",
+   "src": "app/(app)/companies/[id]/page.tsx:118",
    "kind": "button",
    "label": "New booking"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:143",
+   "src": "app/(app)/companies/[id]/page.tsx:145",
    "kind": "tab",
    "label": "Associated Contacts ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:150",
+   "src": "app/(app)/companies/[id]/page.tsx:152",
    "kind": "tab",
    "label": "Activity & History ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:156",
+   "src": "app/(app)/companies/[id]/page.tsx:158",
    "kind": "tab",
    "label": "Company Notes ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:163",
+   "src": "app/(app)/companies/[id]/page.tsx:165",
    "kind": "tab",
    "label": "Bookings ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:171",
+   "src": "app/(app)/companies/[id]/page.tsx:173",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:185",
+   "src": "app/(app)/companies/[id]/page.tsx:187",
    "kind": "heading",
    "label": "Contacts linked to"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:306",
+   "src": "app/(app)/companies/[id]/page.tsx:308",
    "kind": "heading",
    "label": "Extra fields from Act!"
   },
@@ -2851,15 +2852,27 @@
   },
   {
    "file": "components/calls/call-actions.tsx",
-   "src": "components/calls/call-actions.tsx:37",
+   "src": "components/calls/call-actions.tsx:38",
    "kind": "button",
    "label": "Stop recording"
   },
   {
    "file": "components/calls/call-actions.tsx",
-   "src": "components/calls/call-actions.tsx:45",
+   "src": "components/calls/call-actions.tsx:46",
    "kind": "button",
    "label": "Save to history"
+  },
+  {
+   "file": "components/calls/call-actions.tsx",
+   "src": "components/calls/call-actions.tsx:54",
+   "kind": "button",
+   "label": "Open the pitch"
+  },
+  {
+   "file": "components/calls/call-actions.tsx",
+   "src": "components/calls/call-actions.tsx:58",
+   "kind": "button",
+   "label": "Make a pitch"
   },
   {
    "file": "components/calls/meetings-agenda.tsx",
@@ -7828,6 +7841,30 @@
    "src": "components/sales/order-sheet.tsx:655",
    "kind": "button",
    "label": "Saving"
+  },
+  {
+   "file": "components/sales/pitch-from-notes-dialog.tsx",
+   "src": "components/sales/pitch-from-notes-dialog.tsx:37",
+   "kind": "button",
+   "label": "Pitch from notes"
+  },
+  {
+   "file": "components/sales/pitch-from-notes-dialog.tsx",
+   "src": "components/sales/pitch-from-notes-dialog.tsx:44",
+   "kind": "dialog",
+   "label": "Pitch from meeting notes"
+  },
+  {
+   "file": "components/sales/pitch-from-notes-dialog.tsx",
+   "src": "components/sales/pitch-from-notes-dialog.tsx:51",
+   "kind": "field",
+   "label": "Meeting notes"
+  },
+  {
+   "file": "components/sales/pitch-from-notes-dialog.tsx",
+   "src": "components/sales/pitch-from-notes-dialog.tsx:58",
+   "kind": "button",
+   "label": "Draft the pitch"
   },
   {
    "file": "components/sales/proposal-ai-revise.tsx",
