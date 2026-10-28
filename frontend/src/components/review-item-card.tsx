@@ -48,6 +48,7 @@ const DRAFT_REVIEW_ACTIONS: Record<string, string> = {
   save_the_sale: "send",
   proposal_request: "send",
   subscription_signup: "send_offer",
+  reader_query: "send",
 };
 
 /** Kinds whose draft can go straight out from the reviewer's own Outlook:
@@ -57,6 +58,7 @@ const DRAFT_LOG_ONLY_ACTIONS: Record<string, string> = {
   renewal_due: "approve",
   save_the_sale: "approve",
   proposal_request: "replied",
+  reader_query: "replied",
 };
 
 /** The buttons this card shows, main one first. A card can lead with a different button than its kind usually
@@ -217,10 +219,10 @@ function computeInitialFields(
     initial["groups"] = suggestedGroups.join(", ");
   }
 
-  // 7. A drop-down's starting choice, set by the card (payload.field_defaults)
+  // 7. Starting values set by the card itself (payload.field_defaults) - a drop-down's choice, a box ticked, or text
   const defaults = payload.field_defaults as Record<string, string> | undefined;
   for (const f of action.extra_fields) {
-    if (f.field_type === "select" && defaults?.[f.key] && !initial[f.key]) initial[f.key] = defaults[f.key];
+    if (defaults?.[f.key] && !initial[f.key]) initial[f.key] = defaults[f.key];
   }
 
   // 8. Initialize every extra_field so inputs are strictly controlled

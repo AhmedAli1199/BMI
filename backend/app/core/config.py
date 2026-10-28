@@ -188,6 +188,11 @@ class Settings(BaseSettings):
     proposal_request_mailboxes: str = ""          # e.g. kirsty.hicks@bmipublishing.co.uk - start with one person
     proposal_request_lookback_minutes: int = 1440
     proposal_request_llm_max_per_run: int = 30
+    # Subscription changes (app/automations/subscription_changes.py): readers unsubscribing, changing details, asking about copies.
+    automations_subscription_changes_enabled: bool = False
+    subscription_change_mailboxes: str = ""       # e.g. enquiries@bmipublishing.co.uk
+    subscription_change_lookback_minutes: int = 1440
+    subscription_change_llm_max_per_run: int = 40
     automations_proposal_example_check_enabled: bool = True   # weekly check that the examples library's links still work
     email_summary_max_recipients: int = 3  # drop anything with more people on the thread - group mail, not 1:1 sales talk
     email_summary_min_body_chars: int = 40  # drop pure one-line acks ("Thanks!") - nothing there to extract

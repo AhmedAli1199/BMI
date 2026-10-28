@@ -17,6 +17,7 @@ import {
   CreditCard,
   Heart,
   MailQuestion,
+  MailCheck,
   MailWarning,
   Sparkles,
   UserCheck,
@@ -223,6 +224,20 @@ Object.assign(STYLES, {
     chipBg: "border-chart-1/30 bg-chart-1/10",
     accent: "bg-chart-1",
     ring: "hover:border-chart-1/60",
+  },
+  subscription_change: {
+    icon: MailCheck,
+    color: "text-chart-1",
+    chipBg: "border-chart-1/30 bg-chart-1/10",
+    accent: "bg-chart-1",
+    ring: "hover:border-chart-1/60",
+  },
+  reader_query: {
+    icon: MailQuestion,
+    color: "text-chart-2",
+    chipBg: "border-chart-2/30 bg-chart-2/10",
+    accent: "bg-chart-2",
+    ring: "hover:border-chart-2/60",
   },
   online_booking: {
     icon: FileInput,

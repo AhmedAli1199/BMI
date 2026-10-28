@@ -82,6 +82,14 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
 | Weekly check of example links | Every Monday, checks the links in the proposal examples library and flags broken ones. | On |
 
+### Subscription Changes
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Read the subscriptions inbox | Every 10 minutes, reads the inboxes below for readers unsubscribing, subscribing, changing their address or details, switching title or between print and digital, or asking about their copy. Each becomes a card; nothing changes until someone presses its button. | Off |
+| Inboxes to read | Addresses readers write to about their subscription (such as the enquiries inbox), separated by commas. | Empty |
+| First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
+| Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 40 |
+
 ### Email Summaries & Commercial Signals
 | Setting | What it changes | Starts at |
 |---|---|---|

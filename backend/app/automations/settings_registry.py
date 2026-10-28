@@ -150,6 +150,26 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Proposal Requests", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_subscription_changes_enabled", label="Read the subscriptions inbox",
+        description="Every 10 minutes: reads the inboxes below for readers asking to unsubscribe, subscribe, change their address or details, switch title or between print and digital, or asking about their copy. Each one becomes a Review Queue card; nothing changes on a record and nothing is sent until someone presses its button.",
+        group="Subscription Changes", type="bool",
+    ),
+    AutomationSettingDef(
+        key="subscription_change_mailboxes", label="Inboxes to read",
+        description="Comma-separated email addresses that readers write to about their subscription, such as the enquiries inbox.",
+        group="Subscription Changes", type="csv",
+    ),
+    AutomationSettingDef(
+        key="subscription_change_lookback_minutes", label="First look back (minutes)",
+        description="When an inbox is added, how far back the first read goes. After that it only reads new emails.",
+        group="Subscription Changes", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="subscription_change_llm_max_per_run", label="Most emails the Brain checks per run",
+        description="Only emails that mention a subscription, a copy, an address, unsubscribing and so on are checked by the Brain; this caps how many in one run. The rest wait for the next run.",
+        group="Subscription Changes", type="int", min=1,
+    ),
+    AutomationSettingDef(
         key="automations_proposal_example_check_enabled", label="Weekly check of example links",
         description="Every Monday: checks the links in the proposal examples library, and flags any that no longer open.",
         group="Proposal Requests", type="bool",

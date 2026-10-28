@@ -31,7 +31,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         id="capture",
         label="Lead & Contact Capture",
         tagline="New prospects spotted in inbound mail, ready to become CRM contacts.",
-        kinds=("inbound_contact_unmatched", "subscription_signup"),
+        kinds=("inbound_contact_unmatched", "subscription_signup", "subscription_change", "reader_query"),
     ),
     Workstream(
         id="business-cards",
@@ -78,6 +78,8 @@ KIND_JOB: dict[str, str | None] = {
     "sor_issue_check": "sor_issue_check_scan",
     "online_booking": None,
     "subscription_signup": None,
+    "subscription_change": "subscription_change_scan",
+    "reader_query": "subscription_change_scan",
     "save_the_sale": "save_the_sale_scan",
     "call_notes": None,
     "proposal_request": "proposal_request_scan",
@@ -94,6 +96,8 @@ KIND_SOURCE: dict[str, tuple[str, str]] = {
     "booking_change": ("When a change is asked for", "Made when someone asks to change a booking accounts have already checked."),
     "online_booking": ("Online booking forms", "Made when a client fills in one of BMI's online booking forms."),
     "subscription_signup": ("Subscribe forms", "Made when someone signs up on one of the titles' subscribe forms."),
+    "subscription_change": ("Subscriptions inbox", "Made when a reader emails to unsubscribe, subscribe or change their details."),
+    "reader_query": ("Subscriptions inbox", "Made when a reader emails a question about their copy."),
     "call_notes": ("After a call", "Made when the notetaker finishes a call and its notes are ready."),
 }
 
@@ -131,6 +135,8 @@ KIND_COST_PREFIX: dict[str, str | None] = {
     "sor_issue_check": None,
     "online_booking": None,
     "subscription_signup": None,
+    "subscription_change": "subscription_changes.",
+    "reader_query": "subscription_changes.",
     "save_the_sale": "save_the_sale.",
     "call_notes": None,
     "proposal_request": "proposal_requests.",

@@ -78,6 +78,19 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Already on file** and **Skip** change nothing. Nothing is emailed to the reader unless you press **Send the digital offer**.
 - Filters: **Form** and **Check**. Sorted by the date it arrived. Someone already on the database is linked.
 
+### Subscription changes and reader questions (Lead & Contact Capture)
+- **When**: every 10 minutes. **Switch**: **Read the subscriptions inbox**, with **Inboxes to read** (such as the enquiries inbox).
+- **Reads**: emails from readers, skipping automatic messages, bounces, out-of-office replies, newsletters and colleagues (unless they're passing a reader's email on). The Brain says what the reader wants and which title. Without the Brain, only plain "unsubscribe" or "remove me" emails are picked up, marked as not checked.
+- **Makes**: **Subscription changes**, one card per email, with their email, who they are on the database (linked) and the new details the Brain picked out. The button for that change leads, already filled in:
+  - **Unsubscribe them** takes them off the title's newsletter group. Tick **From every title, not just this one** to stop everything: every record they have, in every title's database, is marked unsubscribed and taken off its newsletter group. The newsletter itself goes out from Brevo, which the Brain isn't connected to yet, so unsubscribe them in Brevo too.
+  - **Subscribe them** adds them to the title's newsletter group, adding them to that title's database if they're new (type **Name (if they're new)**).
+  - **Update the address** and **Update their details** change the record. Each change is kept in the record's history and noted on it.
+  - Switching title, or between print and digital, has no button that changes the record yet: make the change, then press **Done it - note it on their record**.
+  - Every change button has **Their email on the database**: if the reader wrote from a different address than the one on their record, type the one on the record.
+  - **Not a subscription email** closes it and can be reopened.
+- **Makes**: **Reader questions** for questions about their copy (not arrived, damaged, how to read it online), with a reply drafted. **Send reply from my Outlook** opens the draft to edit and send (as a reply in the same thread if it came to your own inbox); **I'll reply myself** just closes it. **Not a reader question** closes it.
+- Filters: **Change**, **Magazine** and **On the database** (questions: **Magazine** and **On the database**). Sorted by the date received.
+
 ### Email exchange summary scan (feeds Sales & Follow-ups)
 - **When**: every 4 hours. **Switch**: **Email exchange logging active**, with **Monitored rep inboxes**.
 - **Reads**: one-to-one conversations between a salesperson and a known contact. The Brain picks out budgets, renewal dates, promised call-backs, personal occasions, and "no thanks" with the reason.
