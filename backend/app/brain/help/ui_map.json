@@ -31,6 +31,16 @@
    ]
   },
   {
+   "route": "/automations/brevo-lists",
+   "page": "app/(app)/automations/brevo-lists/page.tsx",
+   "files": [
+    "app/(app)/automations/brevo-lists/copy-lists.tsx",
+    "app/(app)/automations/brevo-lists/page.tsx",
+    "components/automations/hub-ui.tsx",
+    "components/page-header.tsx"
+   ]
+  },
+  {
    "route": "/automations/engine",
    "page": "app/(app)/automations/engine/page.tsx",
    "files": [
@@ -1044,6 +1054,36 @@
    "src": "app/(app)/automations/[workstream]/page.tsx:155",
    "kind": "heading",
    "label": "Automations ·"
+  },
+  {
+   "file": "app/(app)/automations/brevo-lists/copy-lists.tsx",
+   "src": "app/(app)/automations/brevo-lists/copy-lists.tsx:18",
+   "kind": "button",
+   "label": "Copy all"
+  },
+  {
+   "file": "app/(app)/automations/brevo-lists/copy-lists.tsx",
+   "src": "app/(app)/automations/brevo-lists/copy-lists.tsx:26",
+   "kind": "column",
+   "label": "Number"
+  },
+  {
+   "file": "app/(app)/automations/brevo-lists/copy-lists.tsx",
+   "src": "app/(app)/automations/brevo-lists/copy-lists.tsx:27",
+   "kind": "column",
+   "label": "Name"
+  },
+  {
+   "file": "app/(app)/automations/brevo-lists/copy-lists.tsx",
+   "src": "app/(app)/automations/brevo-lists/copy-lists.tsx:28",
+   "kind": "column",
+   "label": "Folder"
+  },
+  {
+   "file": "app/(app)/automations/brevo-lists/copy-lists.tsx",
+   "src": "app/(app)/automations/brevo-lists/copy-lists.tsx:29",
+   "kind": "column",
+   "label": "People"
   },
   {
    "file": "app/(app)/automations/engine/page.tsx",

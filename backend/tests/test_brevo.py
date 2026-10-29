@@ -147,3 +147,15 @@ def test_clients_in_a_newsletter(client, db_session, monkeypatch):
     assert any(d.get("href") == f"/companies/{gg.id}" for d in p["details"])
     r = client.post(f"/api/review-queue/{card.id}/actions/open_merge", json={}, headers=identity_headers(sally, access=[("onboard", None)]))
     assert r.status_code == 200 and r.json()["payload"]["open_href"] == f"/mail-merge?review={card.id}"
+
+
+def test_temporary_brevo_lists_page(client, db_session, monkeypatch):
+    admin = identity_headers(make_user(db_session, role="admin"))
+    monkeypatch.setattr(settings, "brevo_api_key", "")
+    r = client.get("/api/brevo/lists", headers=admin)
+    assert r.status_code == 400 and "isn't connected" in r.json()["detail"]
+    monkeypatch.setattr(settings, "brevo_api_key", "k")
+    monkeypatch.setattr(httpx, "request", lambda *a, **k: httpx.Response(200, json={"lists": [
+        {"id": 12, "name": "Selling Travel newsletter", "folderId": 3, "uniqueSubscribers": 0}], "count": 1}))
+    assert client.get("/api/brevo/lists", headers=admin).json() == [{"id": 12, "name": "Selling Travel newsletter", "folder": 3, "people": 0}]
+    assert client.get("/api/brevo/lists", headers=identity_headers(make_user(db_session, role="data_manager"))).status_code == 403

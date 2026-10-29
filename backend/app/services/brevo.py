@@ -99,7 +99,7 @@ def sent_campaigns(start: datetime, end: datetime) -> list[dict]:
 
 
 def lists() -> list[dict]:
-    """BMI's Brevo lists: {id, name}."""
+    """BMI's Brevo lists: {id, name, folder, people}."""
     out: list[dict] = []
     offset = 0
     for _ in range(MAX_PAGES):
@@ -107,7 +107,7 @@ def lists() -> list[dict]:
         if r.status_code >= 400:
             raise BrevoError("Brevo didn't send its lists.")
         page = r.json().get("lists") or []
-        out += [{"id": x.get("id"), "name": x.get("name")} for x in page]
+        out += [{"id": x.get("id"), "name": x.get("name"), "folder": x.get("folderId"), "people": x.get("uniqueSubscribers")} for x in page]
         offset += len(page)
         if len(page) < 50:
             break

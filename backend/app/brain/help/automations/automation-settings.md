@@ -98,6 +98,8 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | First look back (days) | How far back the first read of Brevo's unsubscribes goes. | 30 |
 | Spot clients in the newsletters | Every three hours, reads Brevo's sent newsletters for BMI's clients' names and drafts a note to tell them. | Off |
 
+For now, administrators can also open **Brevo lists** (at /automations/brevo-lists), which shows every list in BMI's Brevo account with its number. **Copy all** copies them, to send to the developer so each magazine's newsletter list can be set. This page is temporary.
+
 ### Issues Online
 | Setting | What it changes | Starts at |
 |---|---|---|

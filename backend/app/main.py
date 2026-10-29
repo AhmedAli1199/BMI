@@ -41,6 +41,7 @@ from app.api.routes import (
     publications,
     calls,
     brain,
+    brevo_lists,
     calendar,
     zoom,
     review_queue,
@@ -111,6 +112,7 @@ api_router.include_router(sales.router)
 api_router.include_router(commission.router)
 api_router.include_router(booking_forms.router)
 api_router.include_router(subscription_forms.router)
+api_router.include_router(brevo_lists.router)   # temporary - see app/api/routes/brevo_lists.py
 api_router.include_router(deals.router)
 api_router.include_router(settings_routes.router)
 api_router.include_router(publications.router)
