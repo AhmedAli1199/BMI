@@ -17,16 +17,22 @@ router = APIRouter(prefix="/subscription-forms", tags=["automations"])
 
 @router.get("")
 def list_forms(db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> list[dict]:
-    """Each form's address to paste into Wufoo, Elementor or Stova (administrators and data managers)."""
+    """Each form's address to paste into Wufoo or Stova, and for a form that emails its sign-ups, the inbox they go to
+    (administrators and data managers)."""
     if identity.is_known and identity.role not in CAN_USE_AUTOMATIONS:
         raise HTTPException(403, "Only administrators and data managers can see the sign-up form addresses.")
     tokens = sf.tokens(db)
     db.commit()
     form_key = ReviewQueueItem.payload["form"].astext.label("form_key")
     counts = dict(db.execute(select(form_key, func.count()).where(ReviewQueueItem.kind == sf.KIND).group_by("form_key")).all())
+    from app.automations import runtime_settings
     base = settings.app_base_url.rstrip("/")
+    inbox = ", ".join(runtime_settings.get_csv(db, "signup_email_mailboxes"))
+    reading = bool(runtime_settings.get_bool(db, "automations_signup_emails_enabled"))
     return [{"key": f.key, "title": f.title, "tool": f.tool, "received": counts.get(f.key, 0),
-             "address": f"{base}/api/subscribe-forms/{f.key}/{tokens[f.key]}"} for f in sf.FORMS.values()]
+             "address": f"{base}/api/subscribe-forms/{f.key}/{tokens[f.key]}",
+             "by_email": f.by_email, "inbox": inbox if f.by_email else "", "reading": reading if f.by_email else False}
+            for f in sf.FORMS.values()]
 
 
 @router.post("/receive/{key}/{token}")

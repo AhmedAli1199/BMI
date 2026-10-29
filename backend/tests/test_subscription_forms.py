@@ -112,3 +112,49 @@ def test_checks_missing_details_addresses_and_the_digital_offer(client, db_sessi
     client.post(f"/api/subscription-forms/receive/selling-travel/{token}", data=_wufoo(email="kim@agency.example", country="UK", entry="30"), headers=h)
     uk = db_session.query(ReviewQueueItem).filter(ReviewQueueItem.kind == "subscription_signup", ReviewQueueItem.id != item.id).one()
     assert uk.payload["hidden_actions"] == ["on_file", "send_offer"] and "original_text" not in uk.payload
+
+
+FORM_MAKER_EMAIL = ('<p>New sign-up</p><table cellpadding="3" cellspacing="0" style="width: 600px;">'
+                    '<tr valign="top"><td style="padding:3px">Name</td><td style="padding:3px">Priya Patel</td></tr>'
+                    '<tr valign="top"><td style="padding:3px">Email</td><td style="padding:3px"><a href="mailto:priya@cabincrew.example">priya@cabincrew.example</a></td></tr>'
+                    '<tr valign="top"><td style="padding:3px">Company</td><td style="padding:3px">Cabin Crew &amp; Co</td></tr>'
+                    '<tr valign="top"><td style="padding:3px">Job title</td><td style="padding:3px">Head of Catering</td></tr>'
+                    '<tr valign="top"><td style="padding:3px">Country</td><td style="padding:3px">Germany</td></tr></table>')
+
+
+def test_reading_form_maker_emails():
+    answers = sf.answers_from_email(FORM_MAKER_EMAIL)
+    assert answers == {"Name": "Priya Patel", "Email": "priya@cabincrew.example", "Company": "Cabin Crew & Co",
+                       "Job title": "Head of Catering", "Country": "Germany"}
+    # a plain-text email ("Question: answer" lines) works too
+    assert sf.answers_from_email("Name: Sam Lee\nEmail: sam@x.example\nCompany: X") == {"Name": "Sam Lee", "Email": "sam@x.example", "Company": "X"}
+    senders, words = ["onboardhospitality.com"], ["subscription"]
+    assert sf.is_signup_email("wordpress@onboardhospitality.com", "Subscription No 3", answers, senders, words)
+    assert sf.is_signup_email("clare@bmi.example", "Subscription No 3", answers, senders, words)          # the subject says so
+    assert not sf.is_signup_email("bob@else.example", "Lunch?", answers, senders, words)                  # neither
+    assert not sf.is_signup_email("wordpress@onboardhospitality.com", "Comment", {"Comment": "hi"}, senders, words)  # no email in it
+
+
+def test_sign_up_emails_become_cards(client, db_session, monkeypatch):
+    from app.automations import runtime_settings
+    from tests.test_sales_orders import _NoCloseSession
+    raw = [{"id": "m1", "internetMessageId": "<a1@site>", "subject": "Subscription No 3", "receivedDateTime": "2026-10-29T09:00:00Z",
+            "from": {"emailAddress": {"address": "wordpress@onboardhospitality.com", "name": "Onboard Hospitality"}},
+            "body": {"contentType": "html", "content": FORM_MAKER_EMAIL}},
+           {"id": "m2", "internetMessageId": "<a2@x>", "subject": "Re: lunch", "receivedDateTime": "2026-10-29T09:05:00Z",
+            "from": {"emailAddress": {"address": "kim@bmipublishing.co.uk"}}, "body": {"contentType": "html", "content": "<p>See you at 1</p>"}}]
+    asked = {}
+    monkeypatch.setattr("app.graph_client.list_messages_since", lambda box, since, html=False: asked.update(html=html) or raw)
+    monkeypatch.setattr("app.db.session.SessionLocal", lambda: _NoCloseSession(db_session))
+    real = runtime_settings.get_csv
+    monkeypatch.setattr(runtime_settings, "get_csv", lambda db, k: ["automation@bmipublishing.co.uk"] if k == "signup_email_mailboxes" else real(db, k))
+    sf.scan_emails()
+    sf.scan_emails()   # the same email isn't queued twice
+    assert asked["html"] is True
+    item = db_session.query(ReviewQueueItem).filter_by(kind="subscription_signup").one()
+    assert item.payload["form"] == "obh-digital" and item.payload["guess"]["email"] == "priya@cabincrew.example"
+    assert item.payload["facets"]["check"] in ("Looks fine", "Check they're in the trade")
+    # the panel says where the emails go
+    forms = client.get("/api/subscription-forms", headers=identity_headers(make_user(db_session, role="admin"))).json()
+    obh = next(f for f in forms if f["key"] == "obh-digital")
+    assert obh["by_email"] is True and obh["tool"] == "WordPress (Form Maker)"

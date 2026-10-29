@@ -106,6 +106,15 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Most companies in one campaign | The most companies (one person each) a suggested campaign goes to. | 60 |
 | Most news items the Brain checks per run | Cap on how many news items the Brain checks per run. The rest wait. | 20 |
 
+### Subscription Sign-ups
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Read sign-up emails | Every 10 minutes, reads the inboxes below for sign-up emails from the website's forms (Onboard Hospitality digital) and makes a sign-up card for each. | Off |
+| Inboxes to read | The addresses the form emails its sign-ups to, separated by commas. Add the same address to the form's Email Options in WordPress. | Empty |
+| Website addresses the emails come from | Only emails from these website domains are read, unless their subject has one of the words below. | onboardhospitality.com |
+| Words in the subject of a sign-up email | An email from elsewhere is still read if its subject has one of these words. | subscription, subscribe, sign up, signup, registration |
+| First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
+
 ### Subscription Changes
 | Setting | What it changes | Starts at |
 |---|---|---|

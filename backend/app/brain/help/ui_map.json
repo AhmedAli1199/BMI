@@ -2736,21 +2736,39 @@
   },
   {
    "file": "components/automations/subscribe-form-addresses.tsx",
-   "src": "components/automations/subscribe-form-addresses.tsx:24",
+   "src": "components/automations/subscribe-form-addresses.tsx:33",
    "kind": "heading",
    "label": "Subscription sign-ups"
   },
   {
    "file": "components/automations/subscribe-form-addresses.tsx",
-   "src": "components/automations/subscribe-form-addresses.tsx:27",
+   "src": "components/automations/subscribe-form-addresses.tsx:36",
    "kind": "link",
    "label": "See the sign-ups waiting"
   },
   {
    "file": "components/automations/subscribe-form-addresses.tsx",
-   "src": "components/automations/subscribe-form-addresses.tsx:43",
+   "src": "components/automations/subscribe-form-addresses.tsx:56",
    "kind": "button",
    "label": "Copy address"
+  },
+  {
+   "file": "components/automations/subscribe-form-addresses.tsx",
+   "src": "components/automations/subscribe-form-addresses.tsx:76",
+   "kind": "link",
+   "label": "Choose the inbox they go to"
+  },
+  {
+   "file": "components/automations/subscribe-form-addresses.tsx",
+   "src": "components/automations/subscribe-form-addresses.tsx:87",
+   "kind": "button",
+   "label": "Copy email"
+  },
+  {
+   "file": "components/automations/subscribe-form-addresses.tsx",
+   "src": "components/automations/subscribe-form-addresses.tsx:96",
+   "kind": "link",
+   "label": "switch on Read sign-up emails"
   },
   {
    "file": "components/bulk-review-actions.tsx",

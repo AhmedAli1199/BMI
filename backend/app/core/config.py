@@ -188,6 +188,12 @@ class Settings(BaseSettings):
     proposal_request_mailboxes: str = ""          # e.g. kirsty.hicks@bmipublishing.co.uk - start with one person
     proposal_request_lookback_minutes: int = 1440
     proposal_request_llm_max_per_run: int = 30
+    # Sign-ups emailed by a website form (app/automations/subscription_forms.py scan_emails) - Onboard Hospitality's Form Maker.
+    automations_signup_emails_enabled: bool = False
+    signup_email_mailboxes: str = ""              # e.g. automation@bmipublishing.co.uk
+    signup_email_senders: str = "onboardhospitality.com"
+    signup_email_subjects: str = "subscription,subscribe,sign up,signup,registration"
+    signup_email_lookback_minutes: int = 1440
     # Subscription changes (app/automations/subscription_changes.py): readers unsubscribing, changing details, asking about copies.
     automations_subscription_changes_enabled: bool = False
     subscription_change_mailboxes: str = ""       # e.g. enquiries@bmipublishing.co.uk

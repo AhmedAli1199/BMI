@@ -150,6 +150,31 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Proposal Requests", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_signup_emails_enabled", label="Read sign-up emails",
+        description="Every 10 minutes: reads the inboxes below for sign-up emails from the website's forms (Onboard Hospitality digital, which emails each sign-up rather than sending it to its address), and turns each one into a Subscription sign-ups card with the usual checks.",
+        group="Subscription Sign-ups", type="bool",
+    ),
+    AutomationSettingDef(
+        key="signup_email_mailboxes", label="Inboxes to read",
+        description="Comma-separated email addresses the form sends its sign-up emails to, such as automation@bmipublishing.co.uk. Add the same address to the form's Email Options in WordPress.",
+        group="Subscription Sign-ups", type="csv",
+    ),
+    AutomationSettingDef(
+        key="signup_email_senders", label="Website addresses the emails come from",
+        description="Sign-up emails are only read if they come from one of these website domains, or their subject has one of the words below. Comma-separated.",
+        group="Subscription Sign-ups", type="csv",
+    ),
+    AutomationSettingDef(
+        key="signup_email_subjects", label="Words in the subject of a sign-up email",
+        description="A sign-up email from somewhere else is still read if its subject has one of these words (the form's own name, for example). Comma-separated.",
+        group="Subscription Sign-ups", type="csv",
+    ),
+    AutomationSettingDef(
+        key="signup_email_lookback_minutes", label="First look back (minutes)",
+        description="When an inbox is added, how far back the first read goes. After that it only reads new emails.",
+        group="Subscription Sign-ups", type="int", min=1,
+    ),
+    AutomationSettingDef(
         key="automations_subscription_changes_enabled", label="Read the subscriptions inbox",
         description="Every 10 minutes: reads the inboxes below for readers asking to unsubscribe, subscribe, change their address or details, switch title or between print and digital, or asking about their copy. Each one becomes a Review Queue card; nothing changes on a record and nothing is sent until someone presses its button.",
         group="Subscription Changes", type="bool",

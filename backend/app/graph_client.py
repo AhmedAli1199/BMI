@@ -240,13 +240,15 @@ def _graph_get(url: str, params: dict | None = None, *, extra_headers: dict | No
     return resp
 
 
-def list_messages_since(mailbox: str, since_iso: str, *, top: int = 50, max_pages: int = 10) -> list[dict]:
+def list_messages_since(mailbox: str, since_iso: str, *, top: int = 50, max_pages: int = 10, html: bool = False) -> list[dict]:
     """Every message in `mailbox`'s inbox received at or after `since_iso`
     (an ISO-8601 UTC timestamp), oldest first, plain-text bodies. Follows
     Graph's @odata.nextLink for pagination, capped at `max_pages` (each up
     to `top` messages) so one very backed-up mailbox can't turn a single
     scan run into an unbounded loop - if a mailbox is that far behind, the
-    next run's cursor picks up where this one left off.
+    next run's cursor picks up where this one left off. html=True keeps the
+    bodies as HTML, for a caller that reads a table out of them (the Form
+    Maker sign-up emails, app/automations/subscription_forms.py).
 
     Raises GraphRequestError (never httpx's own exception types) on
     failure, so callers only need to catch one thing."""
@@ -260,7 +262,7 @@ def list_messages_since(mailbox: str, since_iso: str, *, top: int = 50, max_page
 
     messages: list[dict] = []
     for _ in range(max_pages):
-        resp = _graph_get(url, params, extra_headers={"Prefer": _TEXT_BODY_PREFERENCE})
+        resp = _graph_get(url, params, extra_headers=None if html else {"Prefer": _TEXT_BODY_PREFERENCE})
         body = resp.json()
         messages.extend(body.get("value", []))
 

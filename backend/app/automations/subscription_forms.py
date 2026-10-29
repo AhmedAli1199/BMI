@@ -1,9 +1,11 @@
 """Subscription sign-ups from the four website forms (CS-012 registration checks, CS-014 overseas readers).
 
-Clare (27 Oct): Selling Travel and TBTM sign up on Wufoo forms, Onboard Hospitality digital on an Elementor form on
+Clare (27 Oct): Selling Travel and TBTM sign up on Wufoo forms, Onboard Hospitality digital on a Form Maker form on
 its WordPress site, and OBH print on Stova. Shani and Kay are emailed each one, check it, and add or update the
-reader in Act!. Each form now also sends the entry here (Wufoo and Elementor both have a built-in "Webhook"
-setting; anything else can post JSON), at its own secret address shown in Automations > Subscription sign-ups.
+reader in Act!. Wufoo and Stova send each entry here, to the form's own secret address shown in Automations >
+Subscription sign-ups. Form Maker can't (its "URL" setting only redirects the reader, Clare 28 Oct; its Webhooks
+add-on is paid), so it emails a copy of each sign-up to an inbox the Brain reads - "Subscription Sign-ups > Inboxes
+to read", e.g. automation@ - and the table of answers in that email becomes the entry (scan_emails below).
 
 Every entry becomes one Review Queue card with the checks they do by hand: is this person already on the database
 (the "re-subscribe" case), is anything missing (name, email, company, job title, and an address for print), does the
@@ -16,20 +18,26 @@ file" and "Skip" change nothing. Nothing is ever emailed to the reader.
 """
 from __future__ import annotations
 
+import html
 import json
+import logging
 import re
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.automations import runtime_settings
 from app.automations.group_allowlist import NEWSLETTER_GROUP
 from app.automations.registry import ExtraField, ReviewAction, ReviewKind, register
+from app.automations.scheduler import ScheduledJob, register_job
 from app.automations.state import get_state, set_state
 from app.models import Company, Contact, Email, GroupMembership, Note, ReviewQueueItem
+
+logger = logging.getLogger("app.automations.subscription_forms")
 
 KIND = "subscription_signup"
 TOKENS_STATE = "subscription_form_tokens"
@@ -43,12 +51,13 @@ class SignupForm:
     tool: str
     source_db: str
     uk_only_print: bool   # the title only posts print copies to UK addresses
+    by_email: bool = False   # sends its sign-ups as emails to the inboxes in the settings, not to its address
 
 
 FORMS: dict[str, SignupForm] = {f.key: f for f in (
     SignupForm("selling-travel", "Selling Travel", "Wufoo", "sellingtravel", True),
     SignupForm("tbtm", "The Business Travel Magazine", "Wufoo", "prospects", True),
-    SignupForm("obh-digital", "Onboard Hospitality (digital)", "WordPress (Elementor)", "onboard", False),
+    SignupForm("obh-digital", "Onboard Hospitality (digital)", "WordPress (Form Maker)", "onboard", False, by_email=True),
     SignupForm("obh-print", "Onboard Hospitality (print)", "Stova", "onboard", False),
 )}
 
@@ -137,7 +146,8 @@ def _elementor(data: dict) -> tuple[str | None, dict[str, str]] | None:
 
 
 def parse(content_type: str, raw: bytes, form: dict | None = None) -> tuple[str | None, dict[str, str]]:
-    """(entry reference, {question: answer}) from a Wufoo or Elementor post, or plain JSON (Stova, a test)."""
+    """(entry reference, {question: answer}) from a Wufoo or Elementor post, or plain JSON (Stova, Form Maker's
+    Webhooks add-on, a test)."""
     if form:
         for reader in (_wufoo, _elementor):
             got = reader(form)
@@ -352,6 +362,85 @@ def _handle(db: Session, item: ReviewQueueItem, action_id: str, input_data: dict
     raise ValueError("That button isn't available on this card.")
 
 
+# ---- sign-ups that arrive by email (Form Maker) ----------------------------------------------------------------
+
+_ROW = re.compile(r"<tr[^>]*>\s*<t[dh][^>]*>(.*?)</t[dh]>\s*<t[dh][^>]*>(.*?)</t[dh]>\s*</tr>", re.I | re.S)
+_LINE = re.compile(r"^\s*([^:\t\n]{2,60}?)\s*(?::|\t)\s*(.+?)\s*$", re.M)
+
+
+def _cell(v: str) -> str:
+    v = re.sub(r"<br\s*/?>|</p>", ", ", v, flags=re.I)
+    v = html.unescape(re.sub(r"<[^>]+>", " ", v))
+    return re.sub(r"\s+", " ", v).strip(" ,")
+
+
+def answers_from_email(body: str) -> dict[str, str]:
+    """{question: answer} from a sign-up email: Form Maker's table of answers (one row per question, the question in
+    the first cell), or, for a plain-text email, "Question: answer" lines."""
+    rows = [(_cell(q), _cell(a)) for q, a in _ROW.findall(body or "")]
+    answers = {q.rstrip(":"): a[:1000] for q, a in rows if q and a and len(q) <= 80}
+    if not answers:
+        text = body or ""
+        if "<" in text:   # an HTML email without a table: one line per paragraph or line break
+            text = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<br\s*/?>|</p>|</div>|</tr>", "\n", text, flags=re.I)))
+        answers = {q.strip(): a.strip()[:1000] for q, a in _LINE.findall(text) if "http" not in q.lower()}
+    return dict(list(answers.items())[:MAX_ANSWERS])
+
+
+def is_signup_email(sender: str | None, subject: str | None, answers: dict[str, str], senders: list[str], words: list[str]) -> bool:
+    """From the website (or its subject says it's a sign-up), with answers that include an email address."""
+    domain = (sender or "").split("@")[-1].lower()
+    from_site = any(domain == d or domain.endswith("." + d) for d in senders if d)
+    says_so = any(w and w in (subject or "").lower() for w in words)
+    return (from_site or says_so) and len(answers) >= 2 and bool(guess(answers).get("email"))
+
+
+def scan_emails() -> None:
+    from app.automations.mail_parsing import looks_like_bounce, looks_like_ooo, parse_message
+    from app.db.session import SessionLocal
+    from app.graph_client import GraphRequestError, list_messages_since
+
+    now = datetime.now(timezone.utc)
+    db = SessionLocal()
+    try:
+        boxes = runtime_settings.get_csv(db, "signup_email_mailboxes")
+        if not boxes:
+            logger.info("sign-up emails: no inboxes listed - nothing to read")
+            return
+        senders = [d.strip().lower().lstrip("@") for d in runtime_settings.get_csv(db, "signup_email_senders")]
+        words = [w.strip().lower() for w in runtime_settings.get_csv(db, "signup_email_subjects")]
+        forms = [f for f in FORMS.values() if f.by_email]
+        for box in boxes:
+            key = f"signup_emails:{box.lower()}"
+            st = get_state(db, key)
+            since = datetime.fromisoformat(st["last_processed_at"]) if st.get("last_processed_at") else \
+                now - timedelta(minutes=runtime_settings.get_int(db, "signup_email_lookback_minutes"))
+            try:
+                raw = list_messages_since(box, since.strftime("%Y-%m-%dT%H:%M:%SZ"), html=True)
+            except GraphRequestError as exc:
+                logger.error("sign-up emails: inbox %s couldn't be read (HTTP %s)", box, exc.status_code)
+                continue
+            skip = set(st.get("last_message_ids", []))
+            queued, last = 0, None
+            for m in sorted((m for m in raw if m.get("id") not in skip), key=lambda m: m.get("receivedDateTime") or ""):
+                msg = parse_message(m)
+                last = msg
+                if looks_like_bounce(msg) or looks_like_ooo(msg):
+                    continue
+                answers = answers_from_email((m.get("body") or {}).get("content") or "")
+                if not is_signup_email(msg.from_address, msg.subject, answers, senders, words):
+                    continue
+                f = forms[0]   # Onboard Hospitality digital is the one form that emails its sign-ups
+                if receive(db, f, f"email:{msg.internet_message_id or msg.message_id}", answers):
+                    queued += 1
+            if last:
+                set_state(db, key, {"last_processed_at": last.received_at.isoformat(), "last_message_ids": [last.message_id]})
+            db.commit()
+            logger.info("sign-up emails: %s - %d read, %d queued", box, len(raw), queued)
+    finally:
+        db.close()
+
+
 register(ReviewKind(
     kind=KIND,
     label="Subscription sign-ups",
@@ -372,4 +461,13 @@ register(ReviewKind(
     audience="admin",
     facets=(("form", "Form"), ("check", "Check")),
     date_sort_label="date received",
+))
+
+register_job(ScheduledJob(
+    id="signup_email_scan",
+    label="Sign-up emails",
+    description="Reads the listed inboxes for sign-up emails from the website's forms (Onboard Hospitality digital) and checks each one.",
+    cron="*/10 * * * *",
+    func=scan_emails,
+    enabled_flag="automations_signup_emails_enabled",
 ))
