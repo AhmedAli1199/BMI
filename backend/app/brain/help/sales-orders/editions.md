@@ -60,7 +60,7 @@ Opens Compare editions with this edition on the left and last year's equivalent 
 Downloads the edition as a spreadsheet in the old order register layout, with totals, every booking, each person's credit and the commission payable.
 
 ### Add online link / Online link
-Administrators and data managers only. Saves where the issue can be read online. Next year's renewal emails link advertisers back to it. Click **Save** in the dialog.
+Administrators and data managers only. Saves where the issue can be read online. Next year's renewal emails link advertisers back to it. Click **Save** in the dialog. When **Watch for new issues online** is on, the Brain fills this in for you from BMI's Issuu page once someone confirms the match on a **New issues online** card.
 
 ### Start renewals
 Administrators and data managers only, on open editions that have an equivalent last year. The dialog explains what will happen; **Draft renewal emails** drafts a personal renewal email for every advertiser in last year's edition who hasn't booked again this year. Each goes to the salesperson who sold it, to check and send from their own Outlook. People already booked, or already sent a renewal this year, are left out, so it's safe to run again. The result shows how many were drafted, with a link to see them (**See them in Revenue & Orders →**). **Done** closes it.

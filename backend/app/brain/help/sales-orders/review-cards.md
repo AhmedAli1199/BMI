@@ -86,6 +86,14 @@ Drafted emails: a renewal for last year's advertisers, or a reply to a client wh
 
 Renewal cards link the advertiser's CRM company, last year's booking, the issue to offer and the previous ad online, each in a new tab. Filter renewals by **Salesperson**, **Title**, **Price** (on this year's rate card or not) and **Recipient** (has an email address or not), and sort by renewal date.
 
+### New issues online and Tell advertisers they're live (SALES-003)
+When a new publication appears on BMI's Issuu page (switch: **Watch for new issues online**), a **New issues online** card shows it (linked, opening in a new tab) with the issue it looks like from the editorial plan, matched by its name, number and date.
+- **Which issue is it?** starts on the closest match; pick another from the list if it's wrong. A card marked **Check the match** wasn't a sure match.
+- **Link it and tell the advertisers** saves the publication as the issue's online link (so next year's renewal emails link back to it) and gives each salesperson a **Tell advertisers they're live** card for their advertisers in it.
+- **Just link it** saves the link without the cards. **Not one of our issues** closes it.
+- **Tell advertisers they're live** lists your advertisers in the issue (each linked) with a short note drafted with the link. **Open as a mail merge** opens the mail merge screen with them ticked and the note filled in, to change, preview and send from your Outlook. The person told is the booking's contact, or someone at the company (marketing people first); advertisers with no one to email are listed. **No need this time** closes it.
+- Filters: **Magazine**, **Match** and **Found on**; the advertisers' card by **Magazine** and **Salesperson**. Only the salesperson sees their own advertisers' card.
+
 ## How it works
 - Most cards update themselves. A booking check always shows the latest version of the booking. It is withdrawn if the booking goes back to pencilled. A Ready to invoice card closes when nothing on it is due any more. An Invoice to booking card closes if someone types that invoice number on a booking first.
 - Ready to invoice cards are made each weekday at about 7am and whenever a booking is saved. Accounts also get a bell notification and an email. Booking checks arrive when a salesperson presses Confirm, also with a notification.

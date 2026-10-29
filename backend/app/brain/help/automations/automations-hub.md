@@ -18,7 +18,7 @@ Open it from the menu: **Automations** (under The Brain) > **Overview**, one pag
   - **Lead & Contact Capture**: new people who emailed an enquiry mailbox, sign-ups from the titles' subscribe forms, and readers emailing the subscriptions inbox to change their subscription or ask about their copy.
   - **Business Cards & Photos**: business cards and returned-copy labels people photograph.
   - **CRM Data Hygiene**: duplicates, bounces, out-of-office replies and people who have left.
-  - **Revenue & Orders**: booking checks, invoicing, renewals, invoice matching and the other order register cards.
+  - **Revenue & Orders**: booking checks, invoicing, renewals, invoice matching, new issues online and the other order register cards.
   Columns: **Pending** (amber when anything is waiting), **New**, **Resolved** and **New per day** (a small line chart). Click a row to open that workstream.
 - A strip at the bottom of the table: **Scanners & Settings**, "N of M scanners switched on".
 - Two lists: **New for review** (the 5 newest waiting cards) and **Recently resolved** (the 5 latest decisions, with who made them). Each has **View all →**.

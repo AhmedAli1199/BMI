@@ -1,5 +1,7 @@
 import {
   BookOpen,
+  BookOpenCheck,
+  Send,
   UserRoundCheck,
   Link2,
   ShieldCheck,
@@ -227,6 +229,20 @@ Object.assign(STYLES, {
     chipBg: "border-chart-1/30 bg-chart-1/10",
     accent: "bg-chart-1",
     ring: "hover:border-chart-1/60",
+  },
+  issue_online: {
+    icon: BookOpenCheck,
+    color: "text-chart-4",
+    chipBg: "border-chart-4/30 bg-chart-4/10",
+    accent: "bg-chart-4",
+    ring: "hover:border-chart-4/60",
+  },
+  issue_live_notes: {
+    icon: Send,
+    color: "text-chart-4",
+    chipBg: "border-chart-4/30 bg-chart-4/10",
+    accent: "bg-chart-4",
+    ring: "hover:border-chart-4/60",
   },
   news_campaign: {
     icon: Megaphone,

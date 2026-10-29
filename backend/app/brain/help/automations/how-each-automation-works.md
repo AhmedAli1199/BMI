@@ -180,6 +180,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 | A booking is confirmed or changed | At once | Booking check (Accounts) | Accounts check on confirmed bookings |
 | A salesperson presses Request a change | At once | Booking change (Accounts) | Only accounts can change checked bookings |
 | An online booking form is sent in | At once | Online bookings | Set up in Bookings settings |
+| New issues on BMI's Issuu page | Four times a day | New issues online, then Tell advertisers they're live | Watch for new issues online |
 
 ### Jobs that don't make cards
 - **Reminders**: every 5 minutes, turns due reminders into bell notifications. **Reminders fire**.

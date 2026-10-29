@@ -1213,7 +1213,7 @@ function ExpandedActionForm({
           return (
             <label key={f.key} className="flex flex-col gap-1.5 text-xs">
               <span className="font-medium">{f.label}</span>
-              <select className="h-8 w-56 rounded-md border border-input bg-background px-2 text-sm"
+              <select className="h-8 w-full max-w-md rounded-md border border-input bg-background px-2 text-sm"
                 value={fields[f.key] ?? ""} onChange={(e) => setFields({ ...fields, [f.key]: e.target.value })}>
                 <option value="">Choose…</option>
                 {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

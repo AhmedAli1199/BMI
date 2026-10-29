@@ -49,7 +49,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         id="revenue",
         label="Revenue & Orders",
         tagline="Renewals, uninvoiced bookings and client matching, all run on the Sales Order Register.",
-        kinds=("renewal_due", "sor_invoice_missing", "sor_client_match", "sor_invoice_match", "order_check", "booking_change", "allocation_due", "invoice_due",
+        kinds=("issue_online", "issue_live_notes", "renewal_due", "sor_invoice_missing", "sor_client_match", "sor_invoice_match", "order_check", "booking_change", "allocation_due", "invoice_due",
                "sor_issue_check", "online_booking", "save_the_sale", "client_owner"),
     ),
 )
@@ -85,6 +85,8 @@ KIND_JOB: dict[str, str | None] = {
     "proposal_request": "proposal_request_scan",
     "press_release": "press_release_scan",
     "news_campaign": "news_campaign_scan",
+    "issue_online": "issue_online_scan",
+    "issue_live_notes": "issue_online_scan",
     "merge_followup": "merge_followup_scan",
     "client_owner": "client_owner_refresh",
 }
@@ -145,6 +147,8 @@ KIND_COST_PREFIX: dict[str, str | None] = {
     "proposal_request": "proposal_requests.",
     "press_release": "press_releases.",
     "news_campaign": "news_campaigns.",
+    "issue_online": None,
+    "issue_live_notes": None,
     "merge_followup": "merge_followups.",
 }
 

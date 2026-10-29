@@ -215,6 +215,21 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Press Releases", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_issue_online_enabled", label="Watch for new issues online",
+        description="Four times a day: reads BMI's Issuu page for new publications and matches each to its issue in the editorial plan. Linking one saves the link on the issue and gives each salesperson a card to tell their advertisers in it, with the note drafted. No Brain needed, and nothing is sent until a salesperson sends it.",
+        group="Issues Online", type="bool",
+    ),
+    AutomationSettingDef(
+        key="issuu_profiles", label="Issuu pages to watch",
+        description="Comma-separated addresses of BMI's public Issuu pages, such as https://issuu.com/bmipublishingltd.",
+        group="Issues Online", type="csv",
+    ),
+    AutomationSettingDef(
+        key="issue_online_recent_days", label="Only publications put online in the last (days)",
+        description="Older publications are left alone, so switching this on doesn't bring up every past issue.",
+        group="Issues Online", type="int", min=1,
+    ),
+    AutomationSettingDef(
         key="automations_merge_followups_enabled", label="Follow up mail merges",
         description="Each weekday morning: for email mail merges sent a while ago, finds the people who didn't answer (leaving out anyone who replied, booked, bounced, unsubscribed or has been talked to since) and gives the salesperson who sent it one card with a follow-up drafted. Nothing is sent until they open it as a mail merge and send it.",
         group="Mail Merge Follow-ups", type="bool",

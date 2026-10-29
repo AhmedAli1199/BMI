@@ -90,6 +90,13 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
 | Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
 
+### Issues Online
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Watch for new issues online | Four times a day, reads BMI's Issuu page for new publications and matches each to its issue, ready to link and tell the advertisers. No Brain needed. | Off |
+| Issuu pages to watch | BMI's public Issuu pages, separated by commas. | https://issuu.com/bmipublishingltd |
+| Only publications put online in the last (days) | Older publications are left alone, so switching it on doesn't bring up every past issue. | 21 |
+
 ### Mail Merge Follow-ups
 | Setting | What it changes | Starts at |
 |---|---|---|

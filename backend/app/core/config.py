@@ -204,6 +204,10 @@ class Settings(BaseSettings):
     press_release_mailboxes: str = ""             # the inbox editors forward releases to
     press_release_lookback_minutes: int = 1440
     press_release_llm_max_per_run: int = 30
+    # New issues online (app/automations/issue_online.py, SALES-003): BMI's Issuu page watched for new publications.
+    automations_issue_online_enabled: bool = False
+    issuu_profiles: str = "https://issuu.com/bmipublishingltd"
+    issue_online_recent_days: int = 21
     # Mail merge follow-ups (app/automations/merge_followups.py): the people who didn't answer a mail merge.
     automations_merge_followups_enabled: bool = False
     merge_followup_wait_days: int = 10
