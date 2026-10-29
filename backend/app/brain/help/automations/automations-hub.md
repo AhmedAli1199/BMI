@@ -14,7 +14,7 @@ Open it from the menu: **Automations** (under The Brain) > **Overview**, one pag
 **Overview (Automations Hub)**
 - The header, with a button on the right that takes you to the Review Queue.
 - A **Workstreams** table covering the last 7 days. A workstream is a group of related automations:
-  - **Sales & Follow-ups**: proposal requests, press releases with a media kit introduction, news campaigns, mail merge follow-ups, overdue follow-ups, commercial signals, personal touchpoints and call notes.
+  - **Sales & Follow-ups**: proposal requests, press releases with a media kit introduction, news campaigns, mail merge follow-ups, clients in the newsletter, overdue follow-ups, commercial signals, personal touchpoints and call notes.
   - **Lead & Contact Capture**: new people who emailed an enquiry mailbox, sign-ups from the titles' subscribe forms, and readers emailing the subscriptions inbox to change their subscription or ask about their copy.
   - **Business Cards & Photos**: business cards and returned-copy labels people photograph.
   - **CRM Data Hygiene**: duplicates, bounces, out-of-office replies and people who have left.

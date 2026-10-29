@@ -204,6 +204,13 @@ class Settings(BaseSettings):
     press_release_mailboxes: str = ""             # the inbox editors forward releases to
     press_release_lookback_minutes: int = 1440
     press_release_llm_max_per_run: int = 30
+    # Brevo, where the newsletters are sent from (app/services/brevo.py, app/automations/brevo_sync.py). The key gives full
+    # control of BMI's Brevo account: set it only as the BREVO_API_KEY environment variable.
+    brevo_api_key: str = ""
+    automations_brevo_unsubscribes_enabled: bool = False
+    brevo_title_lists: str = ""                   # e.g. "sellingtravel:12, prospects:7, onboard:3" - each title's newsletter list
+    brevo_first_look_back_days: int = 30
+    automations_brevo_coverage_enabled: bool = False
     # New issues online (app/automations/issue_online.py, SALES-003): BMI's Issuu page watched for new publications.
     automations_issue_online_enabled: bool = False
     issuu_profiles: str = "https://issuu.com/bmipublishingltd"

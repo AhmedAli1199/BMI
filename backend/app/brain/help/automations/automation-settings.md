@@ -90,6 +90,14 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | First look back (minutes) | How far back the first read of a newly added inbox goes. | 1440 |
 | Most emails the Brain checks per run | Cap on how many the Brain checks per run. The rest wait. | 30 |
 
+### Brevo
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Keep unsubscribes in step with Brevo | Unsubscribes made on Subscription changes cards go to Brevo too, and every hour unsubscribes made in Brevo come back here. Needs Brevo's key on the server. | Off |
+| Brevo list for each magazine | Each title's newsletter list in Brevo, as database:list number (sellingtravel, prospects for TBTM, onboard), separated by commas. | Empty |
+| First look back (days) | How far back the first read of Brevo's unsubscribes goes. | 30 |
+| Spot clients in the newsletters | Every three hours, reads Brevo's sent newsletters for BMI's clients' names and drafts a note to tell them. | Off |
+
 ### Issues Online
 | Setting | What it changes | Starts at |
 |---|---|---|

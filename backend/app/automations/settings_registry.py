@@ -215,6 +215,26 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Press Releases", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="automations_brevo_unsubscribes_enabled", label="Keep unsubscribes in step with Brevo",
+        description="Someone unsubscribed on a Subscription changes card is unsubscribed in Brevo too, and every hour people who unsubscribed in Brevo are marked unsubscribed here (recorded in each record's history). Needs Brevo's key on the server.",
+        group="Brevo", type="bool",
+    ),
+    AutomationSettingDef(
+        key="brevo_title_lists", label="Brevo list for each magazine",
+        description="Each title's newsletter list in Brevo, as database:list number, comma-separated - sellingtravel for Selling Travel, prospects for TBTM, onboard for Onboard Hospitality. For example: sellingtravel:12, prospects:7, onboard:3. A list's number is shown in Brevo under Contacts, then Lists.",
+        group="Brevo", type="csv",
+    ),
+    AutomationSettingDef(
+        key="brevo_first_look_back_days", label="First look back (days)",
+        description="The first time unsubscribes are read from Brevo, how far back to go. After that it only reads new changes.",
+        group="Brevo", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_brevo_coverage_enabled", label="Spot clients in the newsletters",
+        description="Every three hours: reads the newsletters Brevo has sent for the names of BMI's clients (a booking in the last two years), and gives each salesperson a card for their clients in it, with a note drafted to tell them. Needs Brevo's key on the server. Nothing is sent until the salesperson sends it.",
+        group="Brevo", type="bool",
+    ),
+    AutomationSettingDef(
         key="automations_issue_online_enabled", label="Watch for new issues online",
         description="Four times a day: reads BMI's Issuu page for new publications and matches each to its issue in the editorial plan. Linking one saves the link on the issue and gives each salesperson a card to tell their advertisers in it, with the note drafted. No Brain needed, and nothing is sent until a salesperson sends it.",
         group="Issues Online", type="bool",

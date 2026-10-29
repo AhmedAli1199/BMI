@@ -12,8 +12,8 @@ How an email gets here, cheapest first:
 
 Two kinds of card:
   - subscription_change: the change, with a button that makes it on the reader's record (each logged in the field
-    history and as a note). The newsletter is still sent from Brevo, which the Brain isn't connected to, so an
-    unsubscribe has to be made there too - the card says so.
+    history and as a note). An unsubscribe is made in Brevo too, where the newsletters go out from, once Brevo is
+    connected (app/automations/brevo_sync.py); the card says what happened there.
   - reader_query: a question about their copy or subscription, with a reply drafted to edit and send from Outlook.
 """
 from __future__ import annotations
@@ -337,6 +337,7 @@ def _unsubscribe(db: Session, item: ReviewQueueItem, input_data: dict) -> None:
                 db.execute(delete(GroupMembership).where(GroupMembership.group_id == group.id, GroupMembership.contact_id == c.id))
             _note(db, c, "Asked to stop everything from BMI - unsubscribed from every title (from their email to the subscriptions inbox).", actor)
         _done(item, contact, f"Unsubscribed from everything ({len(people)} record{'s' if len(people) != 1 else ''})")
+        _brevo(db, item, list(people.values()), everything=True, source_db=None)
         return
     contact = _reader(db, item, input_data)
     key = item.payload.get("title_key") or contact.source_db
@@ -346,6 +347,15 @@ def _unsubscribe(db: Session, item: ReviewQueueItem, input_data: dict) -> None:
     _note(db, contact, f"Asked to unsubscribe from {title}" + (f" - taken off the {group.name} group." if removed else " - they weren't in its newsletter group.")
           + " (From their email to the subscriptions inbox.)", actor)
     _done(item, contact, f"Unsubscribed from {title}")
+    _brevo(db, item, [contact], everything=False, source_db=contact.source_db)
+
+
+def _brevo(db: Session, item: ReviewQueueItem, contacts: list[Contact], *, everything: bool, source_db: str | None) -> None:
+    """The same unsubscribe in Brevo, where the newsletters go out from (app/automations/brevo_sync.py)."""
+    from app.automations.brevo_sync import push_unsubscribe
+    line = push_unsubscribe(db, contacts, everything=everything, source_db=source_db)
+    details = item.payload["details"]
+    item.payload = {**item.payload, "details": [details[0], {"label": "Brevo", "value": line}, *details[1:]]}
 
 
 def _subscribe(db: Session, item: ReviewQueueItem, input_data: dict) -> None:

@@ -372,6 +372,23 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
   - If the inbox can't be read for 3 runs, the card comes anyway, marked "Replies not checked".
 - **Both cards** have **Open as a mail merge**, which goes to `/mail-merge?review=<id>`. The page reads the card's `payload.merge` (`contact_ids`, `subject`, `body`, `label`) and opens the wizard with **Suggested by the Brain** people and the draft, so the salesperson can untick people, edit and send as usual.
 - **Still to do**: ask BMI which travel trade news feeds they read. GOV.UK alone is mostly warnings, so it will rarely produce a moment (on 28 Oct, 0 of 20 items passed the word check).
+
+### 4.3h6 OBH digital sign-ups by email, SALES-003 issues online, Brevo (built 29 Oct 2026)
+- **OBH digital sign-ups by email.** The OBH digital form is Form Maker on WordPress. Its "URL" after-submit option only redirects the reader's browser; it doesn't send the answers. Its Webhooks add-on is paid.
+  - Form Maker emails each sign-up (Email Options → Email to Administrator) to an inbox in **Subscription Sign-ups > Inboxes to read**, e.g. automation@.
+  - `subscription_forms.scan_emails` (job `signup_email_scan`, off by default) reads those emails as HTML (`list_messages_since(..., html=True)`). `answers_from_email` parses Form Maker's two-column answers table, falling back to "Question: answer" lines.
+  - An email counts as a sign-up if it comes from the website domain or has a sign-up word in the subject, and has an email address in its answers. It then goes through the same `receive()` as the other forms.
+  - The sign-ups panel shows the inbox instead of an address for `by_email` forms.
+- **SALES-003 "your page is live"** (`app/automations/issue_online.py`, job `issue_online_scan` every 6h, off by default). No login and no Brain.
+  - It reads BMI's public Issuu page (`issuu_profiles`) by parsing its publication cards (link, title, date).
+  - `score()` only matches when the publication names the magazine (full name, abbreviation such as obh/tbtm, or brand words for the main title) or the issue number. It also needs something specific: the number, a month or season, or a date within 45 days. Guides, awards, supplements, maps and fam trips never match an ordinary issue.
+  - `issue_online` card: **Link it and tell the advertisers** sets `SalesEdition.digital_url`, recorded in field history, which renewals then use. It then makes one `issue_live_notes` card per salesperson: their booked advertisers' contacts, with the booking's deal contact first, else a marketing contact at the company. That card is a mail merge with the note (`payload.merge`) and is owner-only.
+  - Only publications from the last `issue_online_recent_days` days are raised.
+- **Brevo** (`app/services/brevo.py`, `app/automations/brevo_sync.py`). The key is the `BREVO_API_KEY` env var only, never stored in the database.
+  - **Unsubscribes, BMI Brain to Brevo:** the subscription change card's Unsubscribe calls `push_unsubscribe`. "Everything" means `emailBlacklisted`; one title means `unlinkListIds` for that title's list from `brevo_title_lists` (`db:listid` pairs). The card gets a **Brevo** line saying what happened, or "do it by hand".
+  - **Unsubscribes, Brevo to BMI Brain:** hourly job `brevo_unsubscribe_sync` reads `GET /contacts?modifiedSince`. Blacklisted people are marked `is_unsubscribed` on every record with that address; `listUnsubscribed` removes them from that title's newsletter group. This happens automatically, recorded in field history and a note.
+  - **SALES-004:** job `brevo_coverage_scan` every 3h reads sent campaigns. Clients (a booking in the last 2 years, name of 5 or more characters, whole-word match) named in the newsletter text become one `newsletter_coverage` card per owner, as a mail merge with `shareLink`.
+- **Still to do:** BMI to fill `brevo_title_lists` with the Brevo list numbers.
 ### 4.3h SALES-022 save the sale (built 12 Oct 2026)
 - The email scan (`email_summary.py`) now also extracts **"decline"** signals (a client saying no to a booking) with a reason - budget / timing / results / competitor / other (model's answer if valid, else keyword rules, `decline_reason`). Migration `0047` (signal type + `email_signals.reason`).
 - `app/automations/save_the_sale.py` (job `save_the_sale_scan`, every 30 min, setting `automations_save_the_sale_enabled`, off by default; cap `save_the_sale_max_per_run`): one review item ("Save the sale") per decline with a draft reply from the reason's template. **The offer is chosen by rules, not AI**: budget = the next cheaper products in the same title on the rate card (below what they last paid) and the next issue; timing = the next open issue (with its ad deadline); results = the cheapest online/newsletter product in the brand; competitor/other = no offer, acknowledge and ask. AI polish only when configured and thrown away if it adds a figure.
@@ -493,7 +510,7 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 - **Playwright:** Chromium at `/opt/pw-browsers/chromium`; login via `e2e/helpers`. Clean up leftover E2E test data if specs flake (the groups test doesn't clean up after itself — known follow-up).
 
 ### Live env vars (summary)
-`APP_BASE_URL`, `MAIL_TOKEN_KEY` (Fernet), `GRAPH_TENANT_ID/CLIENT_ID/CLIENT_SECRET` (mailbox scanners; Outlook sign-in falls back to these), optional `OUTLOOK_*`, `AUTOMATION_MAILBOX`, optional `GITHUB_FEEDBACK_REPO` + `GITHUB_FEEDBACK_TOKEN` (feedback as GitHub issues), optional `DISCORD_FEEDBACK_WEBHOOK_URL` (new feedback posted to Discord), `XERO_CLIENT_ID/SECRET` (+ optional Xero vars above), LLM key.
+`APP_BASE_URL`, `MAIL_TOKEN_KEY` (Fernet), `GRAPH_TENANT_ID/CLIENT_ID/CLIENT_SECRET` (mailbox scanners; Outlook sign-in falls back to these), optional `OUTLOOK_*`, `AUTOMATION_MAILBOX`, optional `GITHUB_FEEDBACK_REPO` + `GITHUB_FEEDBACK_TOKEN` (feedback as GitHub issues), optional `DISCORD_FEEDBACK_WEBHOOK_URL` (new feedback posted to Discord), `XERO_CLIENT_ID/SECRET` (+ optional Xero vars above), LLM key, optional `BREVO_API_KEY` (Brevo unsubscribes and newsletter coverage; nothing else needs it).
 
 ---
 

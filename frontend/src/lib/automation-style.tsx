@@ -21,6 +21,7 @@ import {
   MailQuestion,
   MailCheck,
   Megaphone,
+  Mails,
   Repeat2,
   Newspaper,
   MailWarning,
@@ -243,6 +244,13 @@ Object.assign(STYLES, {
     chipBg: "border-chart-4/30 bg-chart-4/10",
     accent: "bg-chart-4",
     ring: "hover:border-chart-4/60",
+  },
+  newsletter_coverage: {
+    icon: Mails,
+    color: "text-chart-3",
+    chipBg: "border-chart-3/30 bg-chart-3/10",
+    accent: "bg-chart-3",
+    ring: "hover:border-chart-3/60",
   },
   news_campaign: {
     icon: Megaphone,
