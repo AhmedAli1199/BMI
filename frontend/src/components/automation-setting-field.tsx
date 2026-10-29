@@ -108,7 +108,7 @@ export function AutomationSettingField({ setting, readOnly = false }: { setting:
               save(e.target.checked);
             }}
           />
-          {value ? "Enabled" : "Disabled"}
+          {value ? "Enabled" : "Enable"}
         </label>
       )}
 

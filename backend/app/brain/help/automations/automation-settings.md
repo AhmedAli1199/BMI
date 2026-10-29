@@ -13,7 +13,7 @@ Automation settings holds every setting for the background automations: which on
 - On the left, the list of areas (for example "Deliverability & Out-of-Office"), each with how many settings it has, and **All areas** at the bottom. Click an area to see just its settings; **All areas** shows every one on one page.
 - One card for the area you picked.
 - Each setting has its name, an (i) to hover over for a description, and a **Customized** badge when it differs from its starting value. Then:
-  - a tick box saying **Enabled** or **Disabled**, or
+  - a tick box: it says **Enable** when the setting is off; tick it to switch it on, and it then says **Enabled**, or
   - a number or text box with a **Save** button.
 - Administrators can change settings. Data managers see them read-only: "Only administrators can change them - ask one if something needs adjusting."
 
