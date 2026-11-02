@@ -158,3 +158,35 @@ def test_sign_up_emails_become_cards(client, db_session, monkeypatch):
     forms = client.get("/api/subscription-forms", headers=identity_headers(make_user(db_session, role="admin"))).json()
     obh = next(f for f in forms if f["key"] == "obh-digital")
     assert obh["by_email"] is True and obh["tool"] == "WordPress (Form Maker)"
+
+
+def test_the_card_shows_the_key_details_and_the_rest_on_request(db_session):
+    """A long form (Anna's Selling Travel sign-up): the card shows who and where; every answer, readable, behind a button."""
+    answers = {"First Name": "Anna", "Surname": "Town", "Email": "anna@lovetravelbyanna.com", "Job Title": "Independent Travel Agent",
+               "Telephone": "07812017768", "Company": "Love Travel By Anna (Part of the JLT Group)",
+               "What type of company do you work for?": "Independent", "ABTA / ATOL / OTHER number": "PTS6090",
+               "Which product/s would you like to receive? (<b><i>Selling Travel's weekly newsletter</i></b>)":
+                   "<b><i>Selling Travel's weekly newsletter</i></b>",
+               "What geographical areas are you interested in? (Africa)": "Africa",
+               "What geographical areas are you interested in? (Canada)": "Canada",
+               "Which of the following sectors are you interested in? (Touring Holidays)": "Touring Holidays",
+               "I confirm I have read and accepted the <a https://www.bmipublishing.co.uk/privacy-policy/": "Yes",
+               "Address": "5 Spring Close", "Town": "Chesham", "County": "Bucks", "Postcode": "HP5 1UH"}
+    item = sf.receive(db_session, sf.FORMS["selling-travel"], "e1", answers)
+    p = item.payload
+    shown = {d["label"]: d["value"] for d in p["details"]}
+    assert shown["Name"] == "Anna Town" and shown["Phone"] == "07812017768"
+    assert shown["Address"] == "5 Spring Close, Chesham, Bucks, HP5 1UH"
+    assert shown["Wants"] == "Selling Travel's weekly newsletter"
+    assert not any("geographical" in d["label"] for d in p["details"])          # the long questions are behind the button
+    full = {r["label"]: r["value"] for r in p["all_details"]}
+    assert full["What geographical areas are you interested in?"] == "Africa, Canada"
+    assert full["Which of the following sectors are you interested in?"] == "Touring Holidays"
+    assert "I confirm I have read and accepted the" in full and not any("<" in r["label"] + r["value"] for r in p["all_details"])
+    assert p["all_details_label"] == "See all their answers"
+    # a card made before the tidy layout gets it
+    old = {**p, "details": [{"label": "Form", "value": "x"}, *({"label": q, "value": a} for q, a in answers.items())]}
+    old.pop("all_details"), old.pop("all_details_label")
+    item.payload = old
+    db_session.flush()
+    assert sf.refresh_pending(db_session) == 1 and item.payload["all_details"] and len(item.payload["details"]) < 10

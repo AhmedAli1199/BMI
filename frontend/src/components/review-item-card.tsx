@@ -12,6 +12,7 @@ import {
   ChevronUp,
   ExternalLink,
   Layers,
+  ListTree,
   Sparkles,
   Users,
   X,
@@ -31,6 +32,7 @@ import { styleForKind } from "@/lib/automation-style";
 import { reviewRecordLink } from "@/lib/automation-format";
 import { resolveReviewItem, searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
 import { DraftReviewDialog } from "@/components/draft-review-dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { CompanyListItem, GroupListItem, ReviewAction, ReviewKind, ReviewPayload, ReviewQueueItem } from "@/lib/types";
 import { friendlyError } from "@/lib/errors";
 
@@ -452,8 +454,8 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
         {payload.details && payload.details.length > 0 && (
           <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 rounded-lg bg-muted/30 p-3 text-xs sm:grid-cols-2">
             {payload.details.map((d, i) => (
-              <div key={d.key ?? i} className="flex items-baseline justify-between gap-2 sm:justify-start">
-                <dt className="shrink-0 text-muted-foreground">{d.label}</dt>
+              <div key={d.key ?? i} className="flex min-w-0 items-baseline justify-between gap-2 sm:justify-start">
+                <dt className="max-w-[45%] shrink-0 break-words text-muted-foreground">{d.label}</dt>
                 {/* No truncation - a long extracted summary getting cut to
                     "...the eNewsletter Banner place…" hides exactly the
                     detail (a figure, a date) the rep needs to judge the
@@ -471,6 +473,10 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
               </div>
             ))}
           </dl>
+        )}
+
+        {payload.all_details && payload.all_details.length > 0 && (
+          <AllDetailsButton label={payload.all_details_label ?? "See all the details"} title={payload.summary ?? "All the details"} rows={payload.all_details} />
         )}
 
         {payload.invoice_match && (
@@ -1344,5 +1350,44 @@ function ExpandedActionForm({
         </Button>
       </div>
     </div>
+  );
+}
+
+
+/** The full list behind a card's short one (every answer on a sign-up form), in a window: one row per question,
+ * the question above its answer so long questions wrap instead of running into the next column. */
+function AllDetailsButton({ label, title, rows }: { label: string; title: string; rows: NonNullable<ReviewPayload["all_details"]> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" className="w-fit gap-1.5" onClick={() => setOpen(true)}>
+        <ListTree className="size-3.5" aria-hidden="true" /> {label} ({rows.length})
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{label}</DialogTitle>
+            <DialogDescription>{title}</DialogDescription>
+          </DialogHeader>
+          <dl className="max-h-[60vh] divide-y divide-border/60 overflow-y-auto rounded-lg border border-border/70 text-sm">
+            {rows.map((r, i) => (
+              <div key={i} className="grid gap-0.5 px-3 py-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-4">
+                <dt className="break-words text-xs text-muted-foreground sm:text-sm">{r.label}</dt>
+                <dd className="whitespace-pre-wrap break-words font-medium text-foreground">
+                  {r.href ? (
+                    <Link href={r.href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      {r.value}<span className="sr-only"> (opens in a new tab)</span>
+                    </Link>
+                  ) : r.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

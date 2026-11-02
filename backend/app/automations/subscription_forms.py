@@ -208,6 +208,70 @@ def guess(answers: dict[str, str]) -> dict[str, str]:
     return {k: v.strip() for k, v in out.items() if v and v.strip()}
 
 
+_TAG = re.compile(r"<[^>]*>|<a\s+\S+")
+_TICKED = {"1", "yes", "y", "on", "true", "checked", "selected", "x"}
+_ADDRESS_WORDS = ("address", "street", "town", "city", "county", "state", "postcode", "post code", "zip", "country")
+
+
+def question_text(q: str) -> str:
+    """A form's question as plain words: no HTML (some forms put <b>, <i> and links in their questions)."""
+    import html as _html
+    return re.sub(r"\s+", " ", _TAG.sub(" ", _html.unescape(q or ""))).strip(" :")
+
+
+def tidy_answers(answers: dict[str, str]) -> list[dict]:
+    """Everything they filled in, readable: plain questions, and a tick-box question's ticked options on one line
+    ("What geographical areas are you interested in?: Africa, Canada, Europe") instead of one line per option."""
+    rows: list[dict] = []
+    grouped: dict[str, dict] = {}
+    for q, a in answers.items():
+        q, a = question_text(q), question_text(a)
+        m = re.fullmatch(r"(.+?)\s*\(([^()]+)\)", q)
+        if m and (a.lower() == m.group(2).strip().lower() or a.lower() in _TICKED):
+            base, option = m.group(1).strip(), m.group(2).strip()
+            if base not in grouped:
+                grouped[base] = {"label": base, "value": option}
+                rows.append(grouped[base])
+            else:
+                grouped[base]["value"] += f", {option}"
+        else:
+            rows.append({"label": q, "value": a})
+    return rows
+
+
+def key_details(answers: dict[str, str], g: dict[str, str]) -> list[dict]:
+    """What a reviewer needs to decide: who they are, how to reach them, and where they are."""
+    rows = [{"label": label, "value": g[k]} for k, label in (("name", "Name"), ("email", "Email"), ("company", "Company"),
+                                                               ("job_title", "Job title")) if g.get(k)]
+    clean = {question_text(q).lower(): a for q, a in answers.items()}
+    phone = next((a for q, a in clean.items() if any(w in q for w in ("phone", "mobile", "telephone"))), None)
+    if phone:
+        rows.append({"label": "Phone", "value": phone})
+    parts = list(dict.fromkeys(a.strip() for q, a in clean.items() if any(w in q for w in _ADDRESS_WORDS) and "email" not in q
+                               and len(q.split()) <= 4 and a.strip()))
+    if parts:
+        rows.append({"label": "Address", "value": ", ".join(parts)})
+    wants = [r["value"] for r in tidy_answers(answers) if re.search(r"\b(receive|subscribe to|product|print or digital|edition)\b", r["label"], re.I)]
+    if wants:
+        rows.append({"label": "Wants", "value": "; ".join(wants)})
+    return rows
+
+
+def refresh_pending(db: Session) -> int:
+    """Cards made before the tidy layout get it: the key details on the card, everything else behind a button."""
+    n = 0
+    for item in db.scalars(select(ReviewQueueItem).where(ReviewQueueItem.kind == KIND, ReviewQueueItem.status == "pending")):
+        p = item.payload or {}
+        if p.get("all_details") or not p.get("answers"):
+            continue
+        answers, g = p["answers"], p.get("guess") or guess(p["answers"])
+        keep = [d for d in p.get("details") or [] if d.get("label") in ("Form", "On the database", "Check", "Added", "Reply sent")]
+        item.payload = {**p, "details": keep + key_details(answers, g), "all_details": tidy_answers(answers),
+                        "all_details_label": "See all their answers"}
+        n += 1
+    return n
+
+
 def wants_print(f: SignupForm, answers: dict[str, str]) -> bool:
     if f.key == "obh-print":
         return True
@@ -269,7 +333,7 @@ def receive(db: Session, f: SignupForm, ref: str | None, answers: dict[str, str]
     if contact:
         details.append({"label": "On the database", "value": contact.full_name or g.get("email", ""), "href": f"/contacts/{contact.id}"})
     details += [{"label": "Check", "value": n} for n in notes]
-    details += [{"label": q, "value": a} for q, a in answers.items()]
+    details += key_details(answers, g)
     overseas = overseas_print(f, g, answers)
     check = ("Already on the database" if contact else "Overseas, print" if overseas
              else "Check they're in the trade" if any(n.startswith("Personal") for n in notes)
@@ -283,6 +347,7 @@ def receive(db: Session, f: SignupForm, ref: str | None, answers: dict[str, str]
         payload={
             "summary": f"New {f.title} sign-up: {who}" + (f" ({g['company']})" if g.get("company") else ""),
             "details": details, "form": f.key, "entry_ref": ref, "answers": answers, "guess": g, "checks": notes,
+            "all_details": tidy_answers(answers), "all_details_label": "See all their answers",
             "contact_id": str(contact.id) if contact else None,
             "related_entities": [{"type": "contact", "id": str(contact.id), "label": contact.full_name or "Contact"}] if contact else [],
             "facets": {"form": f.title, "check": check},
@@ -329,7 +394,7 @@ def _add(db: Session, item: ReviewQueueItem, input_data: dict) -> None:
         group = _find_group(db, f.source_db, NEWSLETTER_GROUP.get(f.source_db, ""))
         if group:
             db.add(GroupMembership(id=uuid.uuid4(), group_id=group.id, contact_id=contact.id))
-    answers = "\n".join(f"{q}: {a}" for q, a in (item.payload.get("answers") or {}).items())
+    answers = "\n".join(f"{r['label']}: {r['value']}" for r in tidy_answers(item.payload.get("answers") or {}))
     db.add(Note(id=uuid.uuid4(), source_db=f.source_db, source_act_id=str(uuid.uuid4()), entity_type="contact", entity_id=contact.id,
                 note_type="Subscription", body=f"Signed up on the {f.title} form ({f.tool}).\n\n{answers}",
                 act_created_at=datetime.now(timezone.utc)))

@@ -321,6 +321,10 @@ export type ReviewPayload = {
   /** Set once a person (or the matcher, auto: true) has linked the invoice. */
   linked?: { candidate: string; booking_ids: string[]; auto: boolean };
   details?: ReviewDetail[];
+  /** Everything behind the card's short list (e.g. every answer on a sign-up form), shown in a window on request. */
+  all_details?: ReviewDetail[];
+  /** The button that opens all_details, e.g. "See all their answers". */
+  all_details_label?: string;
   original_text?: string;
   /** What original_text is, when it isn't the source message - e.g. "Draft email". */
   original_label?: string;
