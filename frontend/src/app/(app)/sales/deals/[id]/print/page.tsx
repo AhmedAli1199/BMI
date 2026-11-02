@@ -127,7 +127,7 @@ export default async function DealPrintPage({ params }: { params: Promise<{ id: 
 
         <div className={`${box} mt-6 min-h-20 px-2 py-1`}>
           <div className="text-xs underline">Special Instructions</div>
-          {[doc.special_instructions, doc.copy_instructions, doc.invoice_email ? `Please email the invoice to ${doc.invoice_email}` : null].filter(Boolean).map((t, i) => (
+          {[doc.special_instructions, doc.copy_instructions, doc.invoice_email ? `Please email the invoice to ${doc.invoice_email}` : null, doc.vat_number ? `Your VAT number: ${doc.vat_number}` : null].filter(Boolean).map((t, i) => (
             <p key={i} className="mt-1 whitespace-pre-line">{t}</p>
           ))}
           {doc.copy_dates.length > 0 && <p className="mt-1">Copy due: {doc.copy_dates.map((c) => (doc.copy_dates.length > 1 ? `${c.dates} (${c.item})` : c.dates)).join("; ")}</p>}

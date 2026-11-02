@@ -56,7 +56,7 @@ What the salesperson agreed with the client. The options are:
 - **On a date agreed with the client**: an **Invoice on** date box appears, and you must fill it in.
 - **The quarter after it runs** and **The financial year after it runs**: for clients with no budget left.
 
-Beside it are **Invoice in** (Pounds, Euros or US dollars; prices stay in pounds), **Invoice instructions for accounts (never printed)**, **Invoice to** (with **Same as confirmation**), **Client's order or PO number** and **Email the invoice to**.
+Beside it are **Invoice in** (Pounds, Euros or US dollars; prices stay in pounds), **Invoice instructions for accounts (never printed)**, **Invoice to** (with **Same as confirmation**), **Client's order or PO number**, **Client's VAT number** and **Email the invoice to**.
 
 ### Due <date> / Date not known yet (Invoice column) - Remind me to invoice on
 Accounts only. Click the date on an item to open **Remind me to invoice on**. Pick a date and press **Save**, or press **Booking's rule** to go back to the booking's own rule, or **Cancel**. Your date wins over the booking's rule, and the salesperson gets a notification. Everyone else just sees the date.

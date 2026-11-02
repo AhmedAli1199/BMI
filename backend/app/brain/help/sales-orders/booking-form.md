@@ -123,6 +123,9 @@ The two address boxes on the confirmation. **Same as confirmation** copies the c
 ### Client's order or PO number
 Printed as "your ref" next to the order number, and used as the reference on the Xero invoice.
 
+### Client's VAT number
+The client's VAT number, if they have one. It prints on the confirmation as "Your VAT number" and shows on the Xero invoice draft. Choose a company you've booked before and it's filled in from their last booking, so you only type it once.
+
 ### Email the invoice to
 If not the contact. It prints as "Please email the invoice to...".
 

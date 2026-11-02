@@ -16,7 +16,7 @@ export async function formData() {
 
 export const EMPTY_DEAL: DealInput = {
   company_id: null, client_name: "", contact_id: null, contact_name: null, contact_email: null, confirmation_address: null,
-  invoice_to: null, invoice_email: null, po_number: null, agency_name: null, agency_pct: 0, rep_id: null, split: [],
+  invoice_to: null, invoice_email: null, po_number: null, vat_number: null, agency_name: null, agency_pct: 0, rep_id: null, split: [],
   booked_on: null, title_id: null, publication_label: null, insertions_label: null, document: "confirmation", pricing: "items",
   package_price_gbp: null, package_label: null, package_split: "rate_card", discount_pct: 0, lines: [], invoice_plan: "asap", invoice_on: null, invoice_instructions: null, invoice_currency: "GBP",
   copy_contact_name: null, copy_contact_email: null,

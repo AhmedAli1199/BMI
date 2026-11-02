@@ -316,7 +316,7 @@ def plan(db: Session, d: SalesDeal, order_ids: list[uuid.UUID] | None, overrides
         "contact": contact, "contact_candidates": candidates,
         "date": date.today().isoformat(), "reference": reference[:255], "currency": currency,
         "lines": lines, "problems": problems,
-        "invoice_to": d.invoice_to, "invoice_email": d.invoice_email, "po_number": d.po_number,
+        "invoice_to": d.invoice_to, "invoice_email": d.invoice_email, "po_number": d.po_number, "vat_number": d.vat_number,
         "instructions": d.invoice_instructions,
         "agency": {"name": d.agency_name, "pct": round(agency * 100, 2)} if d.agency_name else None,
     }

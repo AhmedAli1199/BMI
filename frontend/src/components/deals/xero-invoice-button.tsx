@@ -154,7 +154,7 @@ function FixDialog({ draft, problems, pending, onClose, onRetry }: {
           <>
             <section className="flex flex-col gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Who it goes to in Xero</h3>
-              {(draft.invoice_to || draft.invoice_email) && <p className="text-xs text-muted-foreground">The booking says invoice to: {[draft.invoice_to?.split("\n")[0], draft.invoice_email].filter(Boolean).join(" · ")}{draft.agency ? ` (agency ${draft.agency.name}, ${draft.agency.pct}% commission)` : ""}</p>}
+              {(draft.invoice_to || draft.invoice_email) && <p className="text-xs text-muted-foreground">The booking says invoice to: {[draft.invoice_to?.split("\n")[0], draft.invoice_email, draft.vat_number ? `VAT number ${draft.vat_number}` : null].filter(Boolean).join(" · ")}{draft.agency ? ` (agency ${draft.agency.name}, ${draft.agency.pct}% commission)` : ""}</p>}
               {found.length > 0 && (
                 <div className="flex flex-col gap-1">
                   {found.map((c) => (

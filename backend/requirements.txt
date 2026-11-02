@@ -24,6 +24,8 @@ xlrd==2.0.1
 openpyxl==3.1.5
 rapidfuzz==3.14.6
 python-docx==1.1.2
+# Order confirmations as a locked PDF (FIN-007): LibreOffice turns the Word file into a PDF, pypdf locks it against editing.
+pypdf==5.1.0
 cryptography>=43
 # Contact import from PDF tables - see app/contacts/import_parse.py.
 pdfplumber==0.11.4

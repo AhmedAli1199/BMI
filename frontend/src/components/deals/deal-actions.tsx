@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Ban, CheckCircle2, Download, FileText, Loader2, Mail, MoreHorizontal, Pencil, Printer, Repeat, Send, Trash2, Undo2 } from "lucide-react";
 import { celebrate } from "@/lib/celebrate";
 import { toast } from "sonner";
-import type { Deal, DealEmailDraft } from "@/lib/deals-types";
+import type { Deal, DealAttach, DealEmailDraft } from "@/lib/deals-types";
 import { deleteDeal, getDealEmailDraft, markDealSent, rebookDeal, requestDealChange, sendDeal, setDealStatus } from "@/lib/deals-actions";
 import { downloadFile } from "@/lib/download";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ export function DealActions({ d }: { d: Deal }) {
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [attach, setAttach] = useState<DealAttach>("pdf");
   const kind = d.document === "schedule" ? "schedule of works" : "confirmation";
   const anyInvoiced = d.schedule.some((s) => s.invoice_number);
   // Checked by accounts: only accounts change it; everyone else asks them.
@@ -43,7 +44,7 @@ export function DealActions({ d }: { d: Deal }) {
     start(async () => {
       try {
         const dr = await getDealEmailDraft(d.id);
-        setSend(dr); setTo(dr.to.join(", ")); setCc(dr.cc.join(", ")); setSubject(dr.subject); setBody(dr.body);
+        setSend(dr); setAttach(dr.pdf_available ? "pdf" : "word"); setTo(dr.to.join(", ")); setCc(dr.cc.join(", ")); setSubject(dr.subject); setBody(dr.body);
       } catch (e) { toast.error(friendlyError(e, "Couldn't start the email")); }
     });
   }
@@ -83,6 +84,9 @@ export function DealActions({ d }: { d: Deal }) {
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => downloadFile(`/api/files/sales/deals/${d.id}/document.docx`, `Booking ${d.number}.docx`).catch((e) => toast.error(friendlyError(e, "Couldn't download it")))}>
             <Download className="size-3.5" /> Download as Word
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => downloadFile(`/api/files/sales/deals/${d.id}/document.pdf`, `Booking ${d.number}.pdf`).catch((e) => toast.error(friendlyError(e, "Couldn't make the PDF")))}>
+            <Download className="size-3.5" /> Download as PDF
           </DropdownMenuItem>
           {d.can_edit && d.status !== "cancelled" && !d.check?.blocks_sending && (
             <DropdownMenuItem onClick={() => run(() => markDealSent(d.id, d.contact_email), "Noted as sent", "Couldn't save that", "Confirmation noted as sent.")}><FileText className="size-3.5" /> I sent it another way</DropdownMenuItem>
@@ -146,8 +150,8 @@ export function DealActions({ d }: { d: Deal }) {
             <DialogTitle>Email the {kind}</DialogTitle>
             <DialogDescription>
               {send?.outlook_connected
-                ? <>Sent from your Outlook ({send.outlook_email}) with the {kind} attached as a Word file, and noted on the client.{d.status === "pencilled" ? " Sending it confirms the booking." : ""}</>
-                : <>Connect your Outlook in Settings &gt; Email to send from here. Until then, download it as Word or print to PDF and attach it yourself, then use &quot;I sent it another way&quot;.</>}
+                ? <>Sent from your Outlook ({send.outlook_email}) with the {kind} attached, and noted on the client.{d.status === "pencilled" ? " Sending it confirms the booking." : ""}</>
+                : <>Connect your Outlook in Settings &gt; Email to send from here. Until then, download it as a PDF or Word file and attach it yourself, then use &quot;I sent it another way&quot;.</>}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -156,13 +160,21 @@ export function DealActions({ d }: { d: Deal }) {
               {send?.always_copied && send.always_copied.length > 0 && <span className="font-normal text-[11px]">Production and accounts always get a copy ({send.always_copied.join(", ")}) - set in Bookings settings.</span>}</label>
             <label className={labelCls}>Subject<Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-8 text-sm" /></label>
             <label className={labelCls}>Message<Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} className="text-sm" /></label>
+            <label className={labelCls}>Attach as
+              <select className="h-8 w-full max-w-xs rounded-lg border border-input bg-background px-2 text-sm font-normal text-foreground" value={attach} onChange={(e) => setAttach(e.target.value as DealAttach)}>
+                <option value="pdf" disabled={!send?.pdf_available}>PDF (can&apos;t be edited)</option>
+                <option value="word">Word</option>
+                <option value="both" disabled={!send?.pdf_available}>PDF and Word</option>
+              </select>
+              {send && !send.pdf_available && <span className="font-normal text-[11px]">PDFs can&apos;t be made on this server yet, so it goes as Word.</span>}
+            </label>
           </div>
           <DialogFooter>
             <DialogClose render={<Button variant="ghost" />}>Close</DialogClose>
             <Button className="gap-1.5" disabled={pending || !send?.outlook_connected || !to.trim()} onClick={() => start(async () => {
               const split = (s: string) => s.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
               try {
-                await sendDeal(d.id, { to: split(to), cc: split(cc), subject, body });
+                await sendDeal(d.id, { to: split(to), cc: split(cc), subject, body, attach });
                 toast.success("Sent and noted on the client"); celebrate(`Confirmation sent to ${split(to)[0] ?? "the client"}.`); setSend(null); router.refresh();
               } catch (e) { toast.error(friendlyError(e, "Couldn't send it")); }
             })}>{pending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Send</Button>

@@ -376,7 +376,7 @@ def document(db: Session, deal: SalesDeal) -> dict:
         "confirmation_address": deal.confirmation_address or deal.client_name, "invoice_to": deal.invoice_to or deal.confirmation_address or deal.client_name,
         "your_contact": deal.contact_name, "your_email": deal.contact_email,
         "our_contact": rep.name if rep else None, "our_email": rep_user.email if rep_user else None,
-        "order_ref": deal.po_number, "invoice_email": deal.invoice_email,
+        "order_ref": deal.po_number, "invoice_email": deal.invoice_email, "vat_number": deal.vat_number,
         "intro": "We are pleased to confirm the following booking:" if deal.document == "schedule" else "We are pleased to confirm the following advertisement booking:",
         "publication": deal.publication_label or (title.name if title else None),
         "insertions": insertions_text(db, deal),
@@ -386,6 +386,49 @@ def document(db: Session, deal: SalesDeal) -> dict:
         "special_instructions": deal.special_instructions, "copy_instructions": deal.copy_instructions,
         "copy_dates": [{"date": d, "item": i, "dates": txt} for d, i, txt in copy_dates], "production_contact": deal.production_contact,
     }
+
+
+class PdfUnavailable(Exception):
+    """This server can't make PDFs (LibreOffice isn't installed) or the conversion failed."""
+
+
+def pdf_available() -> bool:
+    import shutil
+    return bool(shutil.which("soffice") or shutil.which("libreoffice"))
+
+
+def build_pdf(docx: bytes) -> bytes:
+    """The Word confirmation as a PDF, locked against editing (it can still be opened, printed and copied from)."""
+    import io
+    import secrets
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    exe = shutil.which("soffice") or shutil.which("libreoffice")
+    if not exe:
+        raise PdfUnavailable("This server can't make PDFs yet.")
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "confirmation.docx"
+        src.write_bytes(docx)
+        try:
+            subprocess.run([exe, "--headless", "--norestore", f"-env:UserInstallation=file://{tmp}/profile",
+                            "--convert-to", "pdf", "--outdir", tmp, str(src)],
+                           check=True, capture_output=True, timeout=90)
+            raw = (Path(tmp) / "confirmation.pdf").read_bytes()
+        except (subprocess.SubprocessError, OSError) as e:
+            raise PdfUnavailable("The PDF couldn't be made.") from e
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.constants import UserAccessPermissions as P
+
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(raw)))
+    # No open password; a random owner password nobody keeps, so the PDF can't be edited.
+    w.encrypt(user_password="", owner_password=secrets.token_urlsafe(24), algorithm="AES-256",
+              permissions_flag=P.PRINT | P.PRINT_TO_REPRESENTATION | P.EXTRACT | P.EXTRACT_TEXT_AND_GRAPHICS)
+    out = io.BytesIO()
+    w.write(out)
+    return out.getvalue()
 
 
 def build_docx(doc: dict) -> bytes:
@@ -483,7 +526,8 @@ def build_docx(doc: dict) -> bytes:
     run.bold, run.underline = True, True
     extra = [x for x in (doc["special_instructions"], doc["copy_instructions"],
                          f"Copy and artwork from: {doc['copy_contact']}" if doc.get("copy_contact") else None,
-                         f"Please email the invoice to {doc['invoice_email']}" if doc["invoice_email"] else None) if x]
+                         f"Please email the invoice to {doc['invoice_email']}" if doc["invoice_email"] else None,
+                         f"Your VAT number: {doc['vat_number']}" if doc.get("vat_number") else None) if x]
     if doc["copy_dates"]:
         extra.append("Copy due: " + "; ".join(f"{c['dates']} ({c['item']})" if len(doc["copy_dates"]) > 1 else c["dates"] for c in doc["copy_dates"]))
     box = d.add_table(rows=1, cols=1)

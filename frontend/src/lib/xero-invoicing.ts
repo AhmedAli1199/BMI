@@ -14,7 +14,7 @@ export type XeroDraftLine = {
 export type XeroDraft = {
   deal_id: string; deal_number: number; client_name: string; contact: XeroContact | null; contact_candidates: XeroContact[];
   date: string; reference: string; currency: string; lines: XeroDraftLine[]; problems: XeroProblem[];
-  invoice_to: string | null; invoice_email: string | null; po_number: string | null; instructions: string | null;
+  invoice_to: string | null; invoice_email: string | null; po_number: string | null; vat_number?: string | null; instructions: string | null;
   agency: { name: string; pct: number } | null;
 };
 export type XeroInvoiceSummary = {

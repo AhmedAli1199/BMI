@@ -27,7 +27,7 @@ KIND = "order_check"
 
 # What the check is about; a change to any of these after a check means it needs checking again.
 CHECKED_FIELDS = ("client_name", "company_id", "contact_id", "contact_name", "contact_email", "confirmation_address", "invoice_to",
-                  "invoice_email", "po_number", "agency_name", "agency_pct")
+                  "invoice_email", "po_number", "vat_number", "agency_name", "agency_pct")
 
 
 def snapshot(d: SalesDeal) -> dict:
@@ -87,6 +87,7 @@ def _payload(db: Session, d: SalesDeal) -> dict:
          **({"href": f"/contacts/{d.contact_id}"} if d.contact_id else {})},
         {"label": "Confirmation goes to", "value": d.confirmation_address or "No address given"},
         {"label": "Invoice to", "value": " · ".join(x for x in (d.invoice_to, d.invoice_email) if x) or "Same as the client"},
+        *([{"label": "VAT number", "value": d.vat_number}] if d.vat_number else []),
     ]
     if d.po_number:
         details.append({"label": "PO number", "value": d.po_number})

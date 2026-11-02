@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import Response
@@ -98,6 +99,7 @@ class DealIn(BaseModel):
     invoice_to: str | None = Field(default=None, max_length=1000)
     invoice_email: str | None = Field(default=None, max_length=320)
     po_number: str | None = Field(default=None, max_length=80)
+    vat_number: str | None = Field(default=None, max_length=40)
     agency_name: str | None = Field(default=None, max_length=200)
     agency_pct: float = Field(default=0, ge=0, le=1)
     rep_id: uuid.UUID | None = None
@@ -129,7 +131,7 @@ class DealIn(BaseModel):
 
 
 FIELDS = ("company_id", "client_name", "contact_id", "contact_name", "contact_email", "confirmation_address", "invoice_to",
-          "invoice_email", "po_number", "agency_name", "agency_pct", "rep_id", "title_id", "publication_label", "insertions_label",
+          "invoice_email", "po_number", "vat_number", "agency_name", "agency_pct", "rep_id", "title_id", "publication_label", "insertions_label",
           "document", "pricing", "package_price_gbp", "package_label", "package_split", "discount_pct", "invoice_plan",
           "special_instructions", "copy_instructions", "production_contact", "show_artwork_specs", "notes",
           "invoice_on", "invoice_instructions", "invoice_currency", "copy_contact_name", "copy_contact_email")
@@ -496,7 +498,7 @@ def prefill(company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = 
             out["confirmation_address"] = "\n".join(x for x in (c.name, a.line1, a.line2, a.line3, a.city, a.state, a.postal_code, a.country) if x and x.strip())
         last = db.scalars(select(SalesDeal).where(SalesDeal.company_id == c.id).order_by(SalesDeal.number.desc())).first()
         if last:  # the same client is usually invoiced the same way
-            for k in ("invoice_to", "invoice_email", "agency_name", "agency_pct", "confirmation_address"):
+            for k in ("invoice_to", "invoice_email", "vat_number", "agency_name", "agency_pct", "confirmation_address"):
                 if getattr(last, k) and not out.get(k):
                     out[k] = float(getattr(last, k)) if k == "agency_pct" else getattr(last, k)
             out["last_order"] = {"id": str(last.id), "number": last.number}
@@ -1024,17 +1026,35 @@ def document(deal_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     return dl.document(db, _get(db, deal_id))
 
 
-def _file_name(d: SalesDeal) -> str:
+def _file_name(d: SalesDeal, ext: str = "docx") -> str:
     safe = "".join(c for c in d.client_name if c.isalnum() or c in " -_").strip() or "Client"
-    return f"{'Schedule of works' if d.document == 'schedule' else 'Order confirmation'} {d.number} {safe}.docx"
+    return f"{'Schedule of works' if d.document == 'schedule' else 'Order confirmation'} {d.number} {safe}.{ext}"
+
+
+DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _pdf(docx: bytes) -> bytes:
+    try:
+        return dl.build_pdf(docx)
+    except dl.PdfUnavailable:
+        raise HTTPException(503, "A PDF can't be made just now. Send it as Word instead, or use Print or PDF.")
 
 
 @router.get("/{deal_id}/document.docx")
 def document_docx(deal_id: uuid.UUID, db: Session = Depends(get_db)) -> Response:
     d = _get(db, deal_id)
     data = dl.build_docx(dl.document(db, d))
-    return Response(data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    return Response(data, media_type=DOCX_TYPE,
                     headers={"Content-Disposition": f'attachment; filename="{_file_name(d)}"'})
+
+
+@router.get("/{deal_id}/document.pdf")
+def document_pdf(deal_id: uuid.UUID, db: Session = Depends(get_db)) -> Response:
+    d = _get(db, deal_id)
+    data = _pdf(dl.build_docx(dl.document(db, d)))
+    return Response(data, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{_file_name(d, "pdf")}"'})
 
 
 @router.get("/{deal_id}/email-draft")
@@ -1052,7 +1072,8 @@ def email_draft(deal_id: uuid.UUID, db: Session = Depends(get_db), identity: Ide
     st = dl.settings(db)
     copies = list(dict.fromkeys(_addresses(st.production_emails) + _addresses(st.accounts_emails)))
     return {"to": [d.contact_email] if d.contact_email else [], "cc": copies, "always_copied": copies, "subject": f"{kind.capitalize()}: order {d.number}, {d.client_name}",
-            "body": body, "outlook_connected": bool(acct), "outlook_email": acct.email if acct else None}
+            "body": body, "outlook_connected": bool(acct), "outlook_email": acct.email if acct else None,
+            "pdf_available": dl.pdf_available()}
 
 
 def _log_sent(db: Session, d: SalesDeal, user_id: uuid.UUID | None, via: str, to: list[str]) -> None:
@@ -1072,11 +1093,12 @@ class SendIn(BaseModel):
     cc: list[str] = Field(default_factory=list, max_length=20)
     subject: str = Field(min_length=1, max_length=300)
     body: str = Field(max_length=20000)
+    attach: Literal["pdf", "word", "both"] = "word"   # how the confirmation goes: locked PDF, Word, or both
 
 
 @router.post("/{deal_id}/send")
 def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
-    """Emails the confirmation from the salesperson's own Outlook, Word file attached, and notes it on the client."""
+    """Emails the confirmation from the salesperson's own Outlook, as a PDF and/or Word file, and notes it on the client."""
     from app.services import mail_merge as mm
     from app.services import outlook
 
@@ -1098,9 +1120,13 @@ def send(deal_id: uuid.UUID, p: SendIn, db: Session = Depends(get_db), identity:
         if "@" not in a or " " in a:
             raise HTTPException(422, f"“{a}” doesn't look like an email address.")
     data = dl.build_docx(dl.document(db, d))
+    files = []
+    if p.attach in ("pdf", "both"):
+        files.append((_file_name(d, "pdf"), "application/pdf", _pdf(data)))
+    if p.attach in ("word", "both"):
+        files.append((_file_name(d), DOCX_TYPE, data))
     try:
-        outlook.send_mail(db, acct, to=to, cc=cc, subject=p.subject, html_body=mm.to_html(p.body),
-                          attachments=[(_file_name(d), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", data)])
+        outlook.send_mail(db, acct, to=to, cc=cc, subject=p.subject, html_body=mm.to_html(p.body), attachments=files)
     except outlook.OutlookAuthError:
         raise HTTPException(409, "Your Outlook connection has expired. Reconnect it in Settings > Email, then send again.")
     except outlook.RateLimited:

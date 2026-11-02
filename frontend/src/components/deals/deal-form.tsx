@@ -116,6 +116,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
         confirmation_address: x.confirmation_address || p.confirmation_address || x.confirmation_address,
         invoice_to: x.invoice_to || p.invoice_to || null,
         invoice_email: x.invoice_email || p.invoice_email || null,
+        vat_number: x.vat_number || p.vat_number || null,
         agency_name: x.agency_name || p.agency_name || null,
         agency_pct: x.agency_pct || p.agency_pct || 0,
       }));
@@ -417,6 +418,8 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
               <Textarea rows={4} value={f.invoice_to ?? ""} onChange={(e) => set("invoice_to", e.target.value || null)} placeholder={"e.g. Accounts Payable\n…"} className="text-sm" />
             </label>
             <label className={labelCls}>Client&apos;s order or PO number<Input value={f.po_number ?? ""} onChange={(e) => set("po_number", e.target.value || null)} className="h-8 text-sm" /></label>
+            <label className={labelCls}><span className="flex items-center gap-1">Client&apos;s VAT number <InfoHint>Shown on the confirmation and the invoice draft. Filled in from the client&apos;s last booking.</InfoHint></span>
+              <Input value={f.vat_number ?? ""} onChange={(e) => set("vat_number", e.target.value || null)} placeholder="e.g. GB123456789" className="h-8 text-sm" /></label>
             <label className={labelCls}>Email the invoice to<Input type="email" value={f.invoice_email ?? ""} onChange={(e) => set("invoice_email", e.target.value || null)} placeholder="if not the contact" className="h-8 text-sm" /></label>
             <label className={labelCls}><span className="flex items-center gap-1">When to invoice <InfoHint>What you agreed with the client. Accounts get a reminder on the day, and can change it.</InfoHint></span>
               <select className={selectCls} value={f.invoice_plan} onChange={(e) => set("invoice_plan", e.target.value as DealInput["invoice_plan"])}>

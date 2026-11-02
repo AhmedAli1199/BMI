@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { BookingForm, BookingFormInput, Deal, DealEmailDraft, DealInput, DealIssue, DealPreview, DealSettings } from "@/lib/deals-types";
+import type { BookingForm, BookingFormInput, Deal, DealAttach, DealEmailDraft, DealInput, DealIssue, DealPreview, DealSettings } from "@/lib/deals-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -70,7 +70,7 @@ export async function getDealEmailDraft(id: string): Promise<DealEmailDraft> {
   return backendFetch<DealEmailDraft>(`/api/sales/deals/${id}/email-draft`);
 }
 
-export async function sendDeal(id: string, input: { to: string[]; cc: string[]; subject: string; body: string }): Promise<Deal> {
+export async function sendDeal(id: string, input: { to: string[]; cc: string[]; subject: string; body: string; attach: DealAttach }): Promise<Deal> {
   const d = await backendFetch<Deal>(`/api/sales/deals/${id}/send`, { method: "POST", headers: json, body: JSON.stringify(input) });
   refresh(d);
   return d;

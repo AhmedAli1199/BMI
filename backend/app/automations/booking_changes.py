@@ -21,7 +21,7 @@ from app.services.notify import create_notification
 
 KIND = "booking_change"
 LABELS = {"client_name": "Client", "contact_name": "Contact", "contact_email": "Contact email", "confirmation_address": "Confirmation address",
-          "invoice_to": "Invoice to", "invoice_email": "Invoice email", "po_number": "PO number", "agency_name": "Agency",
+          "invoice_to": "Invoice to", "invoice_email": "Invoice email", "po_number": "PO number", "vat_number": "VAT number", "agency_name": "Agency",
           "agency_pct": "Agency commission", "discount_pct": "Discount", "package_price_gbp": "Package price", "invoice_plan": "When to invoice"}
 
 

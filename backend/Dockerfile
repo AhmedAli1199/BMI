@@ -2,8 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# libreoffice-writer-nogui + fonts: turns order confirmations into PDFs (app/sales/deals.py build_pdf).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc \
+    libreoffice-writer-nogui fonts-liberation fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

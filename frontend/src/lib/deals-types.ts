@@ -73,6 +73,8 @@ export type DealInput = {
   invoice_to: string | null;
   invoice_email: string | null;
   po_number: string | null;
+  /** The client's VAT number; filled in from their last booking. */
+  vat_number?: string | null;
   agency_name: string | null;
   agency_pct: number;
   rep_id: string | null;
@@ -180,7 +182,7 @@ export type DealDocument = {
   number: number; status: DealStatus; document: string; heading: string; subheading: string | null; date: string;
   company_block: string; footer: string; terms: string; artwork_specs: string | null;
   confirmation_address: string; invoice_to: string; your_contact: string | null; your_email: string | null; our_contact: string | null; our_email: string | null;
-  order_ref: string | null; invoice_email: string | null; intro: string; publication: string | null; insertions: string;
+  order_ref: string | null; invoice_email: string | null; vat_number?: string | null; intro: string; publication: string | null; insertions: string;
   package: { label: string; price: number } | null;
   rows: { description: string; when: string[]; insertions: number; detail: string | null; added_value: boolean; qty: number; each: number | null; total: number | null; note: string | null }[];
   gross: number; discount_pct: number; discount: number; total: number; agency_pct: number; agency: number; agency_name: string | null; payable: number;
@@ -188,7 +190,12 @@ export type DealDocument = {
   copy_contact?: string | null;
 };
 
-export type DealEmailDraft = { to: string[]; cc: string[]; always_copied?: string[]; subject: string; body: string; outlook_connected: boolean; outlook_email: string | null };
+export type DealEmailDraft = { to: string[]; cc: string[]; always_copied?: string[]; subject: string; body: string; outlook_connected: boolean; outlook_email: string | null;
+  /** The server can make a locked PDF of the confirmation. */
+  pdf_available?: boolean };
+
+/** How the confirmation is attached when it's emailed. */
+export type DealAttach = "pdf" | "word" | "both";
 
 export type DealSettings = { next_number: number; company_block: string; footer: string; terms: string; artwork_specs: string;
   production_emails: string; accounts_emails: string;

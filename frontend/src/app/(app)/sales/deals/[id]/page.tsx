@@ -240,7 +240,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
       <section className="grid gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-2xs sm:grid-cols-2 lg:grid-cols-4" aria-label="Details">
         <Detail label="Their contact">{[d.contact_name, d.contact_email].filter(Boolean).join("\n")}</Detail>
         <Detail label="Confirmation address">{d.confirmation_address}</Detail>
-        <Detail label="Invoice to">{[d.invoice_to, d.invoice_email ? `Email: ${d.invoice_email}` : null].filter(Boolean).join("\n")}</Detail>
+        <Detail label="Invoice to">{[d.invoice_to, d.invoice_email ? `Email: ${d.invoice_email}` : null, d.vat_number ? `VAT number: ${d.vat_number}` : null].filter(Boolean).join("\n")}</Detail>
         <Detail label="Their order or PO number">{d.po_number}</Detail>
         <Detail label="Agency">{d.agency_name ? `${d.agency_name}${d.agency_pct ? ` (${Math.round(d.agency_pct * 1000) / 10}%)` : ""}` : null}</Detail>
         <Detail label="When to invoice">{[

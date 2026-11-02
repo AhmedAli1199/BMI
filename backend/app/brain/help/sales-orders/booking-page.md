@@ -30,13 +30,14 @@ Opens the booking form. It says **Request a change** when Accounts have checked 
 Pencilled bookings only. Marks it confirmed (the client has said yes). Its items now count in sales figures and commission, and it goes to Accounts to check if the check is on.
 
 ### Email the confirmation / Email the schedule of works
-Opens an email with **To** (the contact's email), **Copy to (optional)**, **Subject** and **Message** filled in. **Send** sends it from your own Outlook with the confirmation attached as a Word file, and notes it on the client's company. Production and accounts addresses from Confirmation details are always copied. Sending a pencilled booking confirms it. **Close** shuts it without sending. If your Outlook isn't connected, the dialog tells you to connect it in Settings > Email, or to download it and use **I sent it another way**. The button is highlighted while a confirmed booking hasn't been sent yet.
+Opens an email with **To** (the contact's email), **Copy to (optional)**, **Subject** and **Message** filled in. **Attach as** chooses how the confirmation goes: **PDF (can't be edited)** (the usual choice), **Word**, or **PDF and Word**. **Send** sends it from your own Outlook with the confirmation attached, and notes it on the client's company. Production and accounts addresses from Confirmation details are always copied. Sending a pencilled booking confirms it. **Close** shuts it without sending. If your Outlook isn't connected, the dialog tells you to connect it in Settings > Email, or to download it and use **I sent it another way**. The button is highlighted while a confirmed booking hasn't been sent yet.
 
 ### Print or PDF
 Opens the printable confirmation in a new tab (see below).
 
 ### ... (More) menu
 - **Download as Word**: the confirmation as a Word file, named like "Order confirmation <number> <client>.docx". Anyone can download it.
+- **Download as PDF**: the same confirmation as a PDF that can be opened and printed but not edited.
 - **I sent it another way**: notes it as sent to the contact's email and adds a note to the client's company, without emailing anything.
 - **Rebook for next year**: makes a new pencilled booking for the same client, with each item moved to next year's matching issue at next year's rate card price. Notes say what couldn't be matched or what prices changed. It opens the new booking. Nothing is confirmed until you confirm it. Shown to people who can change the booking, and not on cancelled bookings.
 - **Back to pencilled**: confirmed bookings with nothing invoiced. It stops counting and is taken out of the accounts check.
@@ -79,7 +80,7 @@ Clicking an item in the Schedule opens that one item in a new tab, with its edit
 
 ## Common questions
 **Q: How do I send the confirmation to the client?**
-A: Press **Email the confirmation**, check the To, Subject and Message, then press **Send**. It goes from your Outlook with the Word file attached.
+A: Press **Email the confirmation**, check the To, Subject and Message, then press **Send**. It goes from your Outlook with the confirmation attached as a PDF (change **Attach as** to send Word instead, or both).
 
 **Q: I emailed it from my own mail. How do I record that?**
 A: Open the **...** menu and choose **I sent it another way**.

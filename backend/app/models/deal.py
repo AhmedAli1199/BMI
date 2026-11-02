@@ -40,6 +40,7 @@ class SalesDeal(Base, UUIDPk, TimestampMixin):
     invoice_to: Mapped[str | None] = mapped_column(Text)           # often "Accounts Payable" or the agency
     invoice_email: Mapped[str | None] = mapped_column(String(320))  # "Please email the invoice to Jonathan..."
     po_number: Mapped[str | None] = mapped_column(String(80))      # the client's order ref / PO
+    vat_number: Mapped[str | None] = mapped_column(String(40))     # the client's VAT number, for the invoice
     agency_name: Mapped[str | None] = mapped_column(String(200))   # booked through an agency (it's invoiced, takes commission)
     agency_pct: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False, default=0)
 
