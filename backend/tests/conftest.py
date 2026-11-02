@@ -104,3 +104,16 @@ def identity_headers(user: User, *, access: list[tuple[str, str | None]] | None 
             [{"source_db": db, "group_id": gid} for db, gid in (access or [])]
         ),
     }
+
+
+@pytest.fixture(autouse=True)
+def _no_dns_lookups(monkeypatch):
+    """CS-006 looks up each address's domain. Tests use made-up domains and shouldn't touch the internet:
+    every domain can receive email unless a test says otherwise (patch email_check._lookup)."""
+    from app.services import email_check
+
+    import email_validator
+
+    email_check._cache.clear()
+    monkeypatch.setattr(email_check, "_lookup", lambda domain: True)
+    monkeypatch.setattr(email_validator, "SPECIAL_USE_DOMAIN_NAMES", [])   # tests use made-up domains like x.test and bmi.example

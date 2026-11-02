@@ -79,16 +79,19 @@ class EmailsOut(BaseModel):
     skipped_bounced: int
     skipped_no_email: int
     duplicates_removed: int
+    skipped_invalid: int = 0     # CS-006: not written correctly, or the domain can't receive email
 
 
 @router.post("/emails", response_model=EmailsOut)
 def email_addresses(scope: Scope, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> EmailsOut:
     """The email addresses for a search or selection, for pasting into Outlook's Bcc box.
-    Leaves out people who unsubscribed or whose address bounced, and says how many."""
+    Leaves out people who unsubscribed, whose address bounced or can't work (CS-006), and says how many."""
     ids = resolve(db, scope, identity)
     if len(ids) > MAX_COPY:
         return EmailsOut(count=0, too_many=True, text="", contacts=len(ids), skipped_unsubscribed=0, skipped_bounced=0,
                          skipped_no_email=0, duplicates_removed=0)
+    from app.services import email_check
+
     seen: dict[str, str] = {}
     unsub = bounced = no_email = dup = 0
     for i in range(0, len(ids), 2000):
@@ -115,9 +118,10 @@ def email_addresses(scope: Scope, db: Session = Depends(get_db), identity: Ident
                     dup += 1
                 else:
                     seen[key] = best[cid]
-    addrs = list(seen.values())
+    bad = email_check.problems(db, list(seen.values()))
+    addrs = [a for k, a in seen.items() if k not in bad]
     return EmailsOut(count=len(addrs), text="; ".join(addrs), contacts=len(ids), skipped_unsubscribed=unsub,
-                     skipped_bounced=bounced, skipped_no_email=no_email, duplicates_removed=dup)
+                     skipped_bounced=bounced, skipped_no_email=no_email, duplicates_removed=dup, skipped_invalid=len(seen) - len(addrs))
 
 
 # ---- bulk update ----------------------------------------------------------------

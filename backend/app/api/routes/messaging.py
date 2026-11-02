@@ -335,7 +335,7 @@ def _template_out(db: Session, t: MailTemplate, user: User) -> TemplateOut:
 
 @router.get("/mail/fields")
 def merge_fields() -> list[dict]:
-    group = lambda k: "issue" if k in mm.ISSUE_FIELDS else "brand" if k in mm.BRAND_FIELDS else "contact"  # noqa: E731
+    group = lambda k: "issue" if k in mm.ISSUE_FIELDS or k in mm.ISSUE_CONTACT_FIELDS else "brand" if k in mm.BRAND_FIELDS else "contact"  # noqa: E731
     return [{"key": k, "label": label, "example": ex, "group": group(k)} for k, (label, ex) in mm.FIELDS.items()]
 
 
@@ -417,6 +417,7 @@ class RecipientOut(BaseModel):
     has_address: bool
     unsubscribed: bool
     bounced: bool
+    address_problem: str | None = None   # CS-006: why the address can't work ("domain can't receive email"), if so
 
 
 class RecipientsOut(BaseModel):
@@ -463,11 +464,16 @@ def _resolve(db: Session, src: RecipientSource) -> tuple[list[uuid.UUID], str, b
 @router.post("/mail-merge/recipients", response_model=RecipientsOut)
 def preview_recipients(src: RecipientSource, db: Session = Depends(get_db), user: User = Depends(current_user)):
     ids, label, truncated = _resolve(db, src)
+    from app.services import email_check
+
     items = []
-    for cid, c in mm.contexts(db, ids, user):
+    ctxs = mm.contexts(db, ids, user)
+    bad = email_check.problems(db, [c["email"] for _, c in ctxs])
+    for cid, c in ctxs:
         items.append(RecipientOut(contact_id=cid, name=c["full_name"] or "(no name)", company=c["company"] or None,
                                   email=c["email"] or None, city=c["city"] or None, country=c["country"] or None,
-                                  has_address=bool(c["address_block"]), unsubscribed=c["_unsubscribed"], bounced=c["_bounced"]))
+                                  has_address=bool(c["address_block"]), unsubscribed=c["_unsubscribed"], bounced=c["_bounced"],
+                                  address_problem=bad.get((c["email"] or "").strip().lower())))
     return RecipientsOut(label=label, total=len(items), truncated=truncated, items=items)
 
 
@@ -487,6 +493,7 @@ def preview_render(payload: PreviewIn, db: Session = Depends(get_db), user: User
         if not found:
             raise HTTPException(404, "Contact not found")
         ctx = found[0][1]
+        ctx = {**ctx, **mm.issue_contact_values(db, payload.edition_id, [payload.contact_id]).get(payload.contact_id, {})}
     else:
         ctx = {k: ex for k, (_, ex) in mm.FIELDS.items()} | {"my_name": user.name, "my_email": user.email}
     shared = mm.shared_context(db, payload.brand, payload.edition_id, payload.feature)
@@ -582,10 +589,12 @@ def _merge_out(db: Session, m: MailMerge, **extra) -> MergeOut:
                     created_by=u.name if u else None, **extra)
 
 
-def _eligible(ctx: dict, include_unsub: bool) -> str | None:
-    """Reason a contact is skipped for email, or None."""
+def _eligible(ctx: dict, include_unsub: bool, bad: dict[str, str] | None = None) -> str | None:
+    """Reason a contact is skipped for email, or None. bad: email_check.problems for these addresses."""
     if not ctx["email"]:
         return "no email address"
+    if why := (bad or {}).get(ctx["email"].strip().lower()):
+        return why
     if ctx["_unsubscribed"] and not include_unsub:
         return "unsubscribed"
     if ctx["_bounced"] and not include_unsub:
@@ -633,6 +642,13 @@ def run_merge(payload: MergeIn, db: Session = Depends(get_db), user: User = Depe
     ctxs = mm.contexts(db, payload.contact_ids, user)
     if not ctxs:
         raise HTTPException(400, "None of those contacts exist any more.")
+    own: dict = {}
+    if mm.uses_issue_contact_fields(payload.subject, payload.body):
+        own = mm.issue_contact_values(db, payload.edition_id, [cid for cid, _ in ctxs])
+        if not own and mm.uses_issue_contact_fields(payload.subject, payload.body, without_fallback=True):
+            raise HTTPException(400, "The link to each advert's page needs the issue, and the issue's online link. "
+                                     "Choose the issue, or add its online link in the editorial plan.")
+        ctxs = [(cid, {**c, **own.get(cid, {})}) for cid, c in ctxs]
 
     if payload.output != "email":
         buf, filename, ctype = _docs(db, payload, ctxs, user, payload.output)
@@ -677,11 +693,14 @@ def run_merge(payload: MergeIn, db: Session = Depends(get_db), user: User = Depe
                   status="queued", total=len(ctxs))
     db.add(m)
     db.flush()
+    from app.services import email_check
+
     no_email_ids = []
+    bad = email_check.problems(db, [c["email"] for _, c in ctxs])
     for cid, ctx in ctxs:
-        reason = _eligible(ctx, payload.include_unsubscribed)
+        reason = _eligible(ctx, payload.include_unsubscribed, bad)
         rec = MailMergeRecipient(id=uuid.uuid4(), merge_id=m.id, contact_id=cid, email=ctx["email"] or None,
-                                 status="skipped" if reason else "queued", error=reason)
+                                 status="skipped" if reason else "queued", error=reason, values=own.get(cid) or {})
         db.add(rec)
         if reason:
             m.skipped += 1

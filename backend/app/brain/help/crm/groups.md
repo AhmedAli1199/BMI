@@ -52,7 +52,7 @@ Tick members (the top box ticks all the members shown so far). A bar appears wit
 - **Add to group**: copy them into another group (this group isn't offered). People already there are left as they are.
 - **New group**: start a new, smaller group from them. Type a **Group name** and optional description, then **Create group**.
 - **Export**: just the ticked people, to Excel.
-- **Copy emails**: their addresses, ready for Outlook's Bcc box (unsubscribed, bounced and repeated addresses left out).
+- **Copy emails**: their addresses, ready for Outlook's Bcc box (unsubscribed, bounced, repeated and unworkable addresses left out).
 - **Mail merge**: just the ticked people.
 - The X clears the selection.
 

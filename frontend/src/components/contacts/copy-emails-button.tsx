@@ -38,6 +38,7 @@ export function CopyEmailsButton({ scope, size = "sm", variant = "outline", labe
           r.skipped_unsubscribed && `${r.skipped_unsubscribed} unsubscribed`,
           r.skipped_bounced && `${r.skipped_bounced} bounced`,
           r.skipped_no_email && `${r.skipped_no_email} with no email`,
+          r.skipped_invalid && `${r.skipped_invalid} that can't work (mistyped, or the domain doesn't take email)`,
           r.duplicates_removed && `${r.duplicates_removed} repeated`,
         ].filter(Boolean);
         toast.success(`Copied ${r.count.toLocaleString()} email address${r.count === 1 ? "" : "es"} - paste them into Bcc.`, {

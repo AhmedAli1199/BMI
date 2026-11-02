@@ -107,6 +107,8 @@ export type Recipient = {
   has_address: boolean;
   unsubscribed: boolean;
   bounced: boolean;
+  /** Why the address can't work (not written correctly, or its domain can't receive email). */
+  address_problem?: string | null;
 };
 
 export type RecipientsResult = { label: string; total: number; truncated: boolean; items: Recipient[] };

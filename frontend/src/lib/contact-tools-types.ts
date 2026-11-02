@@ -26,6 +26,8 @@ export type EmailsResult = {
   skipped_bounced: number;
   skipped_no_email: number;
   duplicates_removed: number;
+  /** Not written correctly, or the domain can't receive email. */
+  skipped_invalid?: number;
 };
 
 export type BulkAction = "set" | "clear" | "replace";

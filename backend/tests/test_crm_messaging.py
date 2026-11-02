@@ -263,3 +263,34 @@ def test_export_large_selection_by_post(client, people):
     assert r.status_code == 200 and 'filename="My pick.xlsx"' in r.headers["content-disposition"]
     rows = list(openpyxl.load_workbook(io.BytesIO(r.content)).active.values)
     assert [x[0] for x in rows[1:]] == ["Cat", "Amy"]  # kept in the order given
+
+
+def test_addresses_that_cant_work_are_marked_and_skipped(client, db_session, people, monkeypatch):
+    """CS-006: mistyped addresses and domains that can't receive email are left out of mail merge and Copy emails."""
+    from app.services import email_check
+
+    monkeypatch.setattr(email_check, "_lookup", lambda domain: domain != "zeta.com")
+    me = make_user(db_session)
+    h = identity_headers(me, access=[("manual", None)])
+    dan = _contact(db_session, "Dan", "Typo", email="dan@gmial.com", title="Buyer")
+    ids = [str(people["amy"].id), str(people["bob"].id), str(dan.id)]
+    r = client.post("/api/mail-merge/recipients", headers=h, json={"kind": "contacts", "contact_ids": ids}).json()
+    got = {i["name"]: i["address_problem"] for i in r["items"]}
+    assert got == {"Amy Zed": "domain can't receive email", "Bob Young": None,
+                   "Dan Typo": "address isn't written correctly (did they mean gmail.com?)"}
+    db_session.add(MailAccount(id=uuid.uuid4(), user_id=me.id, email="me@bmi.test", refresh_token_enc=outlook.encrypt("rt")))
+    db_session.flush()
+    m = client.post("/api/mail-merge", headers=h, json={"output": "email", "contact_ids": ids, "subject": "Hi", "body": "Hi",
+                                                        "record_history": "none"}).json()
+    assert (m["total"], m["skipped"]) == (3, 2)
+    why = {x.email: x.error for x in db_session.query(MailMergeRecipient).filter_by(merge_id=uuid.UUID(m["id"]))}
+    assert why == {"amy@zeta.com": "domain can't receive email", "bob@x.com": None,
+                   "dan@gmial.com": "address isn't written correctly (did they mean gmail.com?)"}
+    out = client.post("/api/contacts/emails", headers=h, json={"ids": ids}).json()
+    assert out["text"] == "bob@x.com" and out["skipped_invalid"] == 2
+    # Switched off: only the mistyped one is left out.
+    from app.automations import runtime_settings
+    runtime_settings.set_override(db_session, "email_domain_check_enabled", False)
+    db_session.flush()
+    out = client.post("/api/contacts/emails", headers=h, json={"ids": ids}).json()
+    assert out["skipped_invalid"] == 1
