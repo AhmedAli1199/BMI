@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.orm import Session
 
@@ -266,6 +266,56 @@ def confirm_business_card_batch(batch_id: str, db: Session = Depends(get_db)) ->
         return resolve_batch(db, batch_id)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc  # our own plain sentence ("Enter a number.")
+
+
+COMPETITOR_MAX_MB = 80
+
+
+@router.get("/competitor-issues/options")
+def competitor_options(db: Session = Depends(get_db)) -> dict:
+    """What the "Read a competitor's issue" form offers: BMI's magazines to compare with, and the competitors so far."""
+    from app.models import SalesTitle
+    from app.sales.brands import BRANDS, brand_for_title_slug
+
+    mains = {b.title_slugs[0] for b in BRANDS}
+    titles = [{"id": str(t.id), "label": brand_for_title_slug(t.slug).name} for t in db.scalars(select(SalesTitle).order_by(SalesTitle.name))
+              if t.slug in mains]
+    return {"titles": titles, "competitors": runtime_settings.get_csv(db, "competitor_magazines"), "max_mb": COMPETITOR_MAX_MB}
+
+
+@router.post("/competitor-issues/upload")
+async def upload_competitor_issue(
+    background: BackgroundTasks,
+    file: UploadFile = File(...),
+    title_id: str = Form(...),
+    competitor: str = Form(...),
+    issue: str = Form(""),
+    db: Session = Depends(get_db),
+    identity: Identity = Depends(get_identity),
+) -> dict:
+    """SALES-006/007: a competitor's issue as a PDF, read after answering (a big issue takes a minute or two); the card
+    arrives in the uploader's Review Queue with a bell notification. See competitor_issues.py."""
+    import uuid as _uuid
+
+    from app.automations import competitor_issues as ci
+    from app.models import SalesTitle
+
+    try:
+        title = db.get(SalesTitle, _uuid.UUID(title_id))
+    except ValueError:
+        title = None
+    if not title:
+        raise HTTPException(422, "Choose which of our magazines to compare it with.")
+    if not competitor.strip():
+        raise HTTPException(422, "Type the competitor magazine's name.")
+    data = await file.read(COMPETITOR_MAX_MB * 1024 * 1024 + 1)
+    if len(data) > COMPETITOR_MAX_MB * 1024 * 1024:
+        raise HTTPException(413, f"That file is over {COMPETITOR_MAX_MB} MB. Upload a smaller PDF of the issue.")
+    if not data.startswith(b"%PDF"):
+        raise HTTPException(422, "That file isn't a PDF. Upload the issue as a PDF file.")
+    background.add_task(ci.process, data, uploader_id=identity.user_uuid, competitor=competitor.strip()[:120],
+                        issue=issue.strip()[:120], title_id=title.id)
+    return {"started": True, "message": "Reading it now. A card arrives in your Review Queue in a minute or two, with a bell notification."}
 
 
 @router.post("/returned-copies/upload")

@@ -116,6 +116,13 @@ For now, administrators can also open **Brevo lists** (at /automations/brevo-lis
 | Only mail merges sent in the last (days) | Older mail merges aren't followed up. | 30 |
 | Smallest mail merge to follow up | Mail merges to fewer people than this are left alone. | 5 |
 
+### Competitor Advertisers
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Use the Brain to read competitor issues | The Brain reads an uploaded competitor issue for its advertisers. Off: only the web addresses printed in it are listed. | On |
+| Picture pages the Brain looks at | The most picture-only pages (most full-page adverts) the Brain looks at per issue; each is a separate Brain check. | 30 |
+| Competitor magazines | Offered on the upload form, separated by commas. Anyone can type another. | Travel Weekly, TTG, Travel Bulletin and others |
+
 ### Issue Pitch Campaigns
 | Setting | What it changes | Starts at |
 |---|---|---|

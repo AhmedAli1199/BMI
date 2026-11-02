@@ -23,6 +23,7 @@
     "app/(app)/automations/[workstream]/page.tsx",
     "components/automations/automations-table.tsx",
     "components/automations/charts.tsx",
+    "components/automations/competitor-issue-dialog.tsx",
     "components/automations/hub-ui.tsx",
     "components/automations/subscribe-form-addresses.tsx",
     "components/page-header.tsx",
@@ -1039,19 +1040,25 @@
   },
   {
    "file": "app/(app)/automations/[workstream]/page.tsx",
-   "src": "app/(app)/automations/[workstream]/page.tsx:83",
+   "src": "app/(app)/automations/[workstream]/page.tsx:81",
+   "kind": "heading",
+   "label": "Who advertises with the competition?"
+  },
+  {
+   "file": "app/(app)/automations/[workstream]/page.tsx",
+   "src": "app/(app)/automations/[workstream]/page.tsx:103",
    "kind": "heading",
    "label": "Upload photos"
   },
   {
    "file": "app/(app)/automations/[workstream]/page.tsx",
-   "src": "app/(app)/automations/[workstream]/page.tsx:130",
+   "src": "app/(app)/automations/[workstream]/page.tsx:150",
    "kind": "heading",
    "label": "New vs resolved · last … days (totals above are all-time)"
   },
   {
    "file": "app/(app)/automations/[workstream]/page.tsx",
-   "src": "app/(app)/automations/[workstream]/page.tsx:155",
+   "src": "app/(app)/automations/[workstream]/page.tsx:175",
    "kind": "heading",
    "label": "Automations ·"
   },
@@ -2767,6 +2774,48 @@
    "src": "components/automations/automations-table.tsx:306",
    "kind": "link",
    "label": "Open in Review Queue"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:61",
+   "kind": "button",
+   "label": "Read a competitor's issue"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:68",
+   "kind": "dialog",
+   "label": "Read a competitor's issue"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:76",
+   "kind": "field",
+   "label": "Competitor magazine"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:81",
+   "kind": "field",
+   "label": "Which issue (optional)"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:85",
+   "kind": "field",
+   "label": "Compare with"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:91",
+   "kind": "field",
+   "label": "The issue (PDF, up to … MB)"
+  },
+  {
+   "file": "components/automations/competitor-issue-dialog.tsx",
+   "src": "components/automations/competitor-issue-dialog.tsx:100",
+   "kind": "button",
+   "label": "Uploading"
   },
   {
    "file": "components/automations/hub-ui.tsx",

@@ -223,6 +223,11 @@ class Settings(BaseSettings):
     merge_followup_wait_days: int = 10
     merge_followup_lookback_days: int = 30
     merge_followup_min_recipients: int = 5
+    # Competitor advertisers (app/automations/competitor_issues.py, SALES-006/007): a competitor's issue uploaded as a PDF.
+    competitor_use_brain: bool = True
+    competitor_picture_pages: int = 30
+    competitor_magazines: str = ("Travel Weekly, TTG, Travel Bulletin, Travelmole, Buying Business Travel, Business Travel News Europe, "
+                                 "BTNews, PAX International, APEX Experience")
     # Issue pitch campaigns (app/automations/issue_campaigns.py, SALES-029): who to pitch for each upcoming issue, ready to send.
     automations_issue_campaigns_enabled: bool = False
     pitch_campaign_days_before: int = 42

@@ -273,6 +273,13 @@ Object.assign(STYLES, {
     accent: "bg-chart-4",
     ring: "hover:border-chart-4/60",
   },
+  competitor_issue: {
+    icon: Sparkles,
+    color: "text-chart-5",
+    chipBg: "border-chart-5/30 bg-chart-5/10",
+    accent: "bg-chart-5",
+    ring: "hover:border-chart-5/60",
+  },
   issue_pitch_campaign: {
     icon: Megaphone,
     color: "text-chart-2",

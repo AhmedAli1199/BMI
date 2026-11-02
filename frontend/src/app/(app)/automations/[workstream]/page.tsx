@@ -10,6 +10,7 @@ import type { WorkstreamStats } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { PhotoUploadDialog } from "@/components/photo-upload-dialog";
 import { SubscribeFormAddresses, type SubscribeForm } from "@/components/automations/subscribe-form-addresses";
+import { CompetitorIssueDialog, type CompetitorOptions } from "@/components/automations/competitor-issue-dialog";
 import { AutomationsTable } from "@/components/automations/automations-table";
 import { ChartLegend, NewResolvedChart } from "@/components/automations/charts";
 import { Delta, HubHeader, KpiTile, RangeSwitch, StaffOnly, parseRange } from "@/components/automations/hub-ui";
@@ -33,6 +34,8 @@ export default async function WorkstreamPage({
   const periodLabel = range === "7d" ? "previous 7 days" : range === "30d" ? "previous 30 days" : null;
   const basePath = `/automations/${workstream}`;
   const isBusinessCards = workstream === "business-cards";
+  const competitorOptions = workstream === "sales"
+    ? await backendFetch<CompetitorOptions>("/api/automations/competitor-issues/options").catch(() => null) : null;
   const subscribeForms = workstream === "capture" ? await backendFetch<SubscribeForm[]>("/api/subscription-forms").catch(() => null) : null;
 
   // "Review N pending" goes straight to the automation with the most
@@ -68,6 +71,23 @@ export default async function WorkstreamPage({
           </>
         }
       />
+
+      {competitorOptions && (
+        <section aria-labelledby="competitor-heading"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/25 bg-primary/5 p-5">
+          <div className="flex items-start gap-3">
+            <span className="brand-icon size-10 shrink-0 text-primary" aria-hidden="true"><ScanLine className="size-5" /></span>
+            <div>
+              <h2 id="competitor-heading" className="text-sm font-bold text-foreground">Who advertises with the competition?</h2>
+              <p className="mt-0.5 max-w-xl text-xs text-muted-foreground">
+                Upload a competitor&apos;s issue as a PDF. The Brain lists its advertisers, shows which already advertise with us,
+                and drafts an approach to the rest.
+              </p>
+            </div>
+          </div>
+          <CompetitorIssueDialog options={competitorOptions} />
+        </section>
+      )}
 
       {/* This page is mainly for doing, not reading - uploads come first. */}
       {isBusinessCards && (

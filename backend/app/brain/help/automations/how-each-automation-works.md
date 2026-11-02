@@ -150,6 +150,14 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Not now** puts it aside (it can be reopened). **Not a selling moment** closes it.
 - Filters: **Magazine**, **News from** and **Companies**. Sorted by the date of the news.
 
+### Competitor advertisers (Sales & Follow-ups)
+- **When**: when a salesperson uploads a competitor's issue: **Read a competitor's issue** on the Sales & Follow-ups page. Choose the **Competitor magazine** (or type one), **Which issue (optional)**, which of our magazines to **Compare with**, and the PDF of the issue, then press **Read it**. A card arrives in your Review Queue in a minute or two, with a bell notification. The PDF isn't kept.
+- **Reads**: every page. The Brain lists the companies paying to be there (adverts, sponsored features, "in association with"), not the ones only mentioned in the news. Pages that are only a picture, as most full-page adverts are, are looked at as images, up to **Picture pages the Brain looks at**. With **Use the Brain to read competitor issues** off, or if the Brain can't be reached, the web addresses printed in the issue are listed instead, and the card says they weren't checked.
+- **Compares**: each advertiser with our records for the magazine you chose: **Advertising with us now** (a booking in the last year), **Advertised with us before**, **On our database, never booked**, and **New to us**. The competitor itself and BMI's own titles are left out.
+- **Makes**: **Competitor advertisers**, one card for you: each group with its companies (linked, with the page they're on), and an approach drafted for the past clients and the never-booked ones, written to the best person at each (the booking's contact, or someone in marketing). The email doesn't name the competitor.
+- **Open as a mail merge** opens it with those people and the approach filled in, to change, preview and send. **Also add the new companies to the database** (ticked when there are any) adds the **New to us** companies with their website and a note saying where they were seen, so someone can find the right person there. **Just add the new companies** does only that. **Not useful** closes it.
+- Filters: **Magazine**, **Competitor** and **Read**. Sorted by the date uploaded.
+
 ### Issue pitch campaigns (Sales & Follow-ups)
 - **When**: each weekday morning. **Switch**: **Put together issue pitch campaigns**.
 - **Looks at**: issues, guides, events and awards in the editorial plan whose advertising deadline is **Days before the deadline** away or nearer (down to three days before). Each issue is done once.
@@ -203,6 +211,7 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 | A salesperson presses Request a change | At once | Booking change (Accounts) | Only accounts can change checked bookings |
 | An online booking form is sent in | At once | Online bookings | Set up in Bookings settings |
 | New issues on BMI's Issuu page | Four times a day | New issues online, then Tell advertisers they're live | Watch for new issues online |
+| A competitor's issue is uploaded | At once (read in a minute or two) | Competitor advertisers | Use the Brain to read competitor issues |
 | Issue pitch campaigns | Weekdays, morning | Issue pitch campaigns | Put together issue pitch campaigns |
 | Replies to your mail merges | Every 30 minutes | Unsubscribe requests, Referrals (mail merge replies) | Read mail merge replies |
 | New stories on BMI's websites | Every three hours | Clients in a website story | Spot clients in website stories |

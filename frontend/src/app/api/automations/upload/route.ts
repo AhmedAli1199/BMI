@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getIdentityHeaders } from "@/lib/backend";
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL ?? "http://localhost:8000";
 const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
@@ -6,6 +7,7 @@ const BACKEND_API_KEY = process.env.BACKEND_API_KEY ?? "";
 const ENDPOINTS: Record<string, string> = {
   "business-card": "/api/automations/business-cards/upload",
   "returned-copy": "/api/automations/returned-copies/upload",
+  "competitor-issue": "/api/automations/competitor-issues/upload",
 };
 
 /** Client components can't call backendFetch (it'd leak BACKEND_API_KEY to
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const backendResponse = await fetch(`${BACKEND_API_URL}${path}`, {
     method: "POST",
-    headers: { "X-API-Key": BACKEND_API_KEY },
+    headers: { "X-API-Key": BACKEND_API_KEY, ...(await getIdentityHeaders()) },
     body: formData,
   });
 

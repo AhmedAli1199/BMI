@@ -285,6 +285,21 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Mail Merge Follow-ups", type="int", min=1,
     ),
     AutomationSettingDef(
+        key="competitor_use_brain", label="Use the Brain to read competitor issues",
+        description="When a salesperson uploads a competitor's issue, the Brain reads it for the companies advertising in it. Off: only the web addresses printed in the issue are listed.",
+        group="Competitor Advertisers", type="bool",
+    ),
+    AutomationSettingDef(
+        key="competitor_picture_pages", label="Picture pages the Brain looks at",
+        description="Most full-page adverts are a picture with little text. The Brain looks at up to this many of them per issue; each one is a separate Brain check. 0 means only pages with text are read.",
+        group="Competitor Advertisers", type="int", min=0, max=200,
+    ),
+    AutomationSettingDef(
+        key="competitor_magazines", label="Competitor magazines",
+        description="Offered on the upload form, separated by commas. Anyone can type another.",
+        group="Competitor Advertisers", type="csv",
+    ),
+    AutomationSettingDef(
         key="automations_issue_campaigns_enabled", label="Put together issue pitch campaigns",
         description="Each weekday morning: for each issue whose advertising deadline is coming up, lists who to pitch (last year's advertisers on it, the previous issue's, and past advertisers who fit a planned feature, leaving out anyone already booked), the person to email at each, and a pitch drafted. Each salesperson gets one card for their companies. Nothing is sent until they open it as a mail merge and send it.",
         group="Issue Pitch Campaigns", type="bool",
