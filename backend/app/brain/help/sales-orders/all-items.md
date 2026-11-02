@@ -59,7 +59,7 @@ Drag the grip on the sheet's left edge to make it wider (or narrower); once it's
 ### The item sheet
 - **Client (as it should appear on the order)** - start typing to reuse a name already on the register, so one advertiser doesn't end up under three spellings.
 - **CRM company** - link the item to its company record.
-- **Size / product**, **Series**, **Page / position**, **Value (£)**, **Rate (US$)**, **Booked on**.
+- **Size / product**, **Series**, **Page / position**, **Value (£)**, **Rate (US$)**, **Booked on**. Typing the page in **Page / position** ("43", "p43", "IFC") once the issue is laid out means the "your advert is live" email links straight to that page.
 - **Credited to** and **Split** - share a booking between salespeople. **Add person** adds another share and the bin beside a share (**Remove this share**) takes it off; the shares total is shown in amber if it doesn't match the value. **Go back to one salesperson** undoes the split.
 - **Invoice** - **Invoice number**, **Invoiced (£)**, **Invoiced on**, **Agency cut (£)** and **Reason for difference**. When the item is linked to a Xero invoice the amount and date come from Xero and can't be typed. **Open in Xero**, picking an invoice from Xero, and undoing a match are covered in the "Invoicing" guide.
 - **Status** - **Booked**, **Pencilled**, **Cancelled**, **Contra** or **Moved**. Pencilled items are held for the client but not counted in totals or commission. For Moved, choose the edition under **Moved to** (this year's or next year's editions of the same title).

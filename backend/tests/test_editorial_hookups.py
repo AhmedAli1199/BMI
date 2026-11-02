@@ -136,3 +136,46 @@ def test_deadline_reminders(db_session, world):
     assert "Issue 105: advertising deadline in 7 days" in n.title and "1 of last year's advertisers" in n.body
     assert n.link == f"/editorial/issues/{world['next'].id}"
     assert editorial_deadlines.remind(db_session, TODAY) == 0  # once only
+
+
+def test_issue_pitch_campaign_is_put_together_for_each_salesperson(client, db_session, world, monkeypatch):
+    """SALES-029: an issue coming up to its deadline gets a ready pitch campaign per salesperson, booked companies left out."""
+    from app.automations import issue_campaigns as ic
+    from app.models import Contact, Email, ReviewQueueItem
+    from tests.test_sales_orders import _NoCloseSession
+
+    rep_row = SalesRep(id=uuid.uuid4(), code="ZP", name="Pat", user_id=world["rep"].id, active=True)
+    db_session.add(rep_row)
+    db_session.flush()
+    for o in db_session.query(SalesOrder).all():
+        o.rep_id = rep_row.id
+    people = {}
+    for co, name in ((world["company"], "Dee Lta"), (world["caterer"], "Gail Foods")):
+        c = Contact(id=uuid.uuid4(), source_db="onboardhospitality", source_act_id=uuid.uuid4().hex, full_name=name, first_name=name.split()[0],
+                    company_id=co.id, job_title="Marketing Manager")
+        db_session.add(c)
+        db_session.flush()
+        db_session.add(Email(id=uuid.uuid4(), source_db="onboardhospitality", source_act_id=uuid.uuid4().hex, contact_id=c.id,
+                             address=f"{name.split()[0].lower()}@x.example", is_primary=True))
+        people[co.id] = c
+    # Gate Foods has already booked the next issue: left out
+    db_session.add(SalesOrder(id=uuid.uuid4(), edition_id=world["next"].id, client_name="Gate Foods", company_id=world["caterer"].id,
+                              value_gbp=900, booked_on=TODAY, rep_id=rep_row.id))
+    db_session.commit()
+    monkeypatch.setattr(ic, "SessionLocal", lambda: _NoCloseSession(db_session))
+    ic.scan()
+    ic.scan()   # once per issue
+    card = db_session.query(ReviewQueueItem).filter_by(kind="issue_pitch_campaign").one()
+    p = card.payload
+    assert p["edition_id"] == str(world["next"].id) and p["owner_user_id"] == str(world["rep"].id)
+    assert p["merge"]["contact_ids"] == [str(people[world["company"].id].id)]
+    assert p["summary"] == "1 company to pitch for Onboard Hospitality Issue 105"
+    assert "Issue 105" in p["merge"]["body"] and "Catering trends" in p["merge"]["body"] and "{{company}}" in p["merge"]["body"]
+    hrefs = {d.get("href") for d in p["details"]}
+    assert f"/editorial/issues/{world['next'].id}" in hrefs and f"/companies/{world['company'].id}" in hrefs
+    assert not any(d["label"] == "Gate Foods" for d in p["details"])
+    # the issue 100 days away isn't due yet
+    assert all(c.payload["edition_id"] != str(world["later"].id) for c in db_session.query(ReviewQueueItem).filter_by(kind="issue_pitch_campaign"))
+    r = client.post(f"/api/review-queue/{card.id}/actions/open_merge", json={},
+                    headers=identity_headers(world["rep"], access=[("onboardhospitality", None)]))
+    assert r.status_code == 200 and r.json()["payload"]["open_href"] == f"/mail-merge?review={card.id}"

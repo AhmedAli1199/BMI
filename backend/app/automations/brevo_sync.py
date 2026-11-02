@@ -199,8 +199,9 @@ def _person(db: Session, co: Company) -> Contact | None:
     return next((p for p in people if re.search(r"market|brand|trade|partner|commercial", p.job_title or "", re.I)), people[0] if people else None)
 
 
-def coverage_cards(db: Session, campaign: dict) -> list[ReviewQueueItem]:
-    """One card per salesperson for their clients in one newsletter."""
+def coverage_cards(db: Session, campaign: dict, *, kind: str = COVERAGE_KIND, where: str | None = None) -> list[ReviewQueueItem]:
+    """One card per salesperson for their clients in one newsletter (or, with kind and where, one website story:
+    where = "a story on Selling Travel's website")."""
     name = campaign.get("subject") or campaign.get("name") or "our newsletter"
     link = campaign.get("shareLink") or ""
     found = clients_in(db, _text(campaign.get("htmlContent") or ""))
@@ -208,9 +209,10 @@ def coverage_cards(db: Session, campaign: dict) -> list[ReviewQueueItem]:
     for co in found:
         owner = _owner(db, co)
         by_owner[owner.id if owner else None].append(co)
-    subject = f"You're in our newsletter: {name}"
-    body = ("Dear {{salutation|colleague}},\n\nJust to let you know, {{company}} features in our latest newsletter, "
-            f"\"{name}\"" + (f", which you can see here:\n{link}" if link else ".") +
+    subject = f"You're in our newsletter: {name}" if not where else f"You're in the news: {name}"
+    body = ("Dear {{salutation|colleague}},\n\nJust to let you know, {{company}} features in "
+            + (f"our latest newsletter, \"{name}\"" if not where else f"{where}, \"{name}\"")
+            + (f", which you can see here:\n{link}" if link else ".") +
             "\n\nPlease feel free to share it with your team and on social media.\n\nKind regards,\n{{my_name}}")
     sent = (campaign.get("sentDate") or "")[:10] or date.today().isoformat()
     cards = []
@@ -218,7 +220,8 @@ def coverage_cards(db: Session, campaign: dict) -> list[ReviewQueueItem]:
         owner = db.get(User, owner_id) if owner_id else None
         people = [(co, _person(db, co)) for co in companies]
         reach = [(co, p) for co, p in people if p]
-        details = [{"label": "Newsletter", "value": name, **({"href": link} if link else {})}, {"label": "Sent", "value": sent}]
+        details = [{"label": "Newsletter" if not where else "Story", "value": name, **({"href": link} if link else {})},
+                   {"label": "Sent" if not where else "Published", "value": sent}]
         details += [{"label": co.name, "value": p.full_name or "Contact", "href": f"/companies/{co.id}"} for co, p in reach[:LIST_LIMIT]]
         if len(reach) > LIST_LIMIT:
             details.append({"label": "And", "value": f"{len(reach) - LIST_LIMIT} more - all listed in the mail merge"})
@@ -228,12 +231,13 @@ def coverage_cards(db: Session, campaign: dict) -> list[ReviewQueueItem]:
         if not link:
             details.append({"label": "Worth knowing", "value": "Brevo didn't give a link to this newsletter, so the note doesn't include one. Add it if you have it."})
         card = ReviewQueueItem(
-            id=uuid.uuid4(), kind=COVERAGE_KIND, source_db=None, status="pending",
+            id=uuid.uuid4(), kind=kind, source_db=None, status="pending",
             payload={
                 "summary": f"{len(companies)} of your client{'s' if len(companies) != 1 else ''} in \"{name}\"",
                 "details": details, "original_text": f"Subject: {subject}\n\n{body}", "original_label": "Drafted note",
                 "campaign_id": campaign.get("id"), "owner_user_id": str(owner.id) if owner else None,
-                "merge": {"contact_ids": [str(p.id) for _, p in reach], "subject": subject, "body": body, "label": f"Newsletter: {name}"[:300]},
+                "merge": {"contact_ids": [str(p.id) for _, p in reach], "subject": subject, "body": body,
+                          "label": f"{'Newsletter' if not where else 'Website story'}: {name}"[:300]},
                 "hidden_actions": [] if reach else ["open_merge"],
                 "related_entities": [{"type": "company", "id": str(co.id), "label": co.name} for co in companies[:LIST_LIMIT]],
                 "facets": {"salesperson": (owner.name or owner.email) if owner else "No one", "reach": "Someone to email" if reach else "No one to email"},

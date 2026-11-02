@@ -62,6 +62,11 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         description="Per sender. Exchange Online allows 30 a minute per mailbox; keep this below that.",
         group="Reminders & Notifications", type="int", min=1, max=30,
     ),
+    AutomationSettingDef(
+        key="email_domain_check_enabled", label="Check addresses before sending",
+        description="Before a mail merge or Copy emails, leaves out addresses that aren't written correctly and ones whose domain can't receive email (it looks the domain up, like an email server would). Free. It can't tell whether one person's mailbox still exists; a bounce does that.",
+        group="Reminders & Notifications", type="bool",
+    ),
     # ---- CS-001 / CS-002 - bounce & OOO mailbox scan ----
     AutomationSettingDef(
         key="automations_bounce_scan_enabled", label="Mailbox monitoring active",
@@ -235,6 +240,16 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Brevo", type="bool",
     ),
     AutomationSettingDef(
+        key="automations_website_coverage_enabled", label="Spot clients in website stories",
+        description="Every three hours: reads new stories on BMI's websites for the names of BMI's clients (a booking in the last two years), and gives each salesperson a card for their clients in each story, with a note drafted to tell them. Nothing is sent until the salesperson sends it.",
+        group="Website Stories", type="bool",
+    ),
+    AutomationSettingDef(
+        key="coverage_sites", label="Websites to read",
+        description="BMI's websites, separated by commas. They're WordPress sites, which list their newest stories publicly.",
+        group="Website Stories", type="csv",
+    ),
+    AutomationSettingDef(
         key="automations_issue_online_enabled", label="Watch for new issues online",
         description="Four times a day: reads BMI's Issuu page for new publications and matches each to its issue in the editorial plan. Linking one saves the link on the issue and gives each salesperson a card to tell their advertisers in it, with the note drafted. No Brain needed, and nothing is sent until a salesperson sends it.",
         group="Issues Online", type="bool",
@@ -268,6 +283,31 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         key="merge_followup_min_recipients", label="Smallest mail merge to follow up",
         description="Mail merges that went to fewer people than this are left alone; those are easier to follow up by hand.",
         group="Mail Merge Follow-ups", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="automations_issue_campaigns_enabled", label="Put together issue pitch campaigns",
+        description="Each weekday morning: for each issue whose advertising deadline is coming up, lists who to pitch (last year's advertisers on it, the previous issue's, and past advertisers who fit a planned feature, leaving out anyone already booked), the person to email at each, and a pitch drafted. Each salesperson gets one card for their companies. Nothing is sent until they open it as a mail merge and send it.",
+        group="Issue Pitch Campaigns", type="bool",
+    ),
+    AutomationSettingDef(
+        key="pitch_campaign_days_before", label="Days before the deadline",
+        description="How long before an issue's advertising deadline its pitch campaign is put together. An issue added later, or nearer its deadline, gets one the next morning (up to three days before).",
+        group="Issue Pitch Campaigns", type="int", min=4, max=180,
+    ),
+    AutomationSettingDef(
+        key="automations_campaign_replies_enabled", label="Read mail merge replies",
+        description="Every 30 minutes: reads replies to recent email mail merges in the sender's inbox. Someone asking to be taken off your emails gets a card to unsubscribe them; someone saying to contact a colleague instead gets a card to add that person at the same company. Out-of-office and bounce replies are left to the mailbox scan. Nothing changes until someone presses a button.",
+        group="Mail Merge Replies", type="bool",
+    ),
+    AutomationSettingDef(
+        key="campaign_reply_lookback_days", label="Mail merges sent in the last (days)",
+        description="Replies to mail merges older than this aren't read.",
+        group="Mail Merge Replies", type="int", min=1,
+    ),
+    AutomationSettingDef(
+        key="campaign_reply_llm_max_per_run", label="Brain checks per run",
+        description="The most referrals the Brain reads in one run, to pick out who to contact. The rest still get a card, with any email address in the reply filled in. 0 means the Brain isn't used.",
+        group="Mail Merge Replies", type="int", min=0,
     ),
     AutomationSettingDef(
         key="automations_news_campaigns_enabled", label="Watch the news for selling moments",

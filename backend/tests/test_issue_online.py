@@ -91,3 +91,59 @@ def test_linking_an_issue_and_telling_the_advertisers(client, db_session, monkey
     other = make_user(db_session, role="sales")
     seen = client.get("/api/review-queue?kind=issue_live_notes", headers=identity_headers(other, access=[("onboard", None)])).json()["items"]
     assert not seen
+
+
+def test_page_numbers_and_links():
+    from app.services import mail_merge as mm
+    assert [mm.page_number(x) for x in ("43", "p43", "Page 43", "pg. 7", "IFC", "OBC", "Opp contents", "", None, "0")] == \
+        [43, 43, 43, 7, 2, None, None, None, None, None]
+    assert mm.page_link("https://issuu.com/bmipublishingltd/docs/obh-107", 24) == "https://issuu.com/bmipublishingltd/docs/obh-107/24"
+    assert mm.page_link("https://issuu.com/bmipublishingltd/docs/obh-107/", None) == "https://issuu.com/bmipublishingltd/docs/obh-107/"
+    assert mm.page_link("https://example.com/issue.pdf", 24) == "https://example.com/issue.pdf"
+
+
+def test_each_advertiser_gets_the_link_to_their_page(client, db_session, monkeypatch):
+    """SALES-003: {{advert_page}} in a mail merge is each person's own page in the issue."""
+    from app.models.messaging import MailAccount, MailMergeRecipient
+    from app.services import mail_merge as mm
+    from app.services import outlook
+
+    e107, _, _ = _issues(db_session)
+    e107.digital_url = "https://issuu.com/bmipublishingltd/docs/obh-107"
+    people = []
+    for name, pos in (("Gate Gourmet", "p24"), ("Sky Chefs", None)):
+        co = Company(id=uuid.uuid4(), source_db="onboard", source_act_id=uuid.uuid4().hex, name=name)
+        db_session.add(co)
+        db_session.flush()
+        c = Contact(id=uuid.uuid4(), source_db="onboard", source_act_id=uuid.uuid4().hex, full_name=f"{name} Person", first_name="Al",
+                    company_id=co.id, custom_fields={})
+        db_session.add(c)
+        db_session.flush()
+        db_session.add(Email(id=uuid.uuid4(), source_db="onboard", source_act_id=uuid.uuid4().hex, contact_id=c.id,
+                             address=f"al@{name.split()[0].lower()}.example", is_primary=True))
+        db_session.add(SalesOrder(id=uuid.uuid4(), edition_id=e107.id, client_name=name, company_id=co.id, status="booked", position=pos))
+        people.append(c)
+    t = db_session.get(SalesTitle, e107.title_id)
+    subject, body = io.note_text(e107, t, e107.digital_url)
+    assert body.startswith("Dear {{salutation|colleague}},\n\nIssue 107 of ") and "{{advert_page|https://issuu.com/bmipublishingltd/docs/obh-107}}" in body
+    me = make_user(db_session)
+    db_session.add(MailAccount(id=uuid.uuid4(), user_id=me.id, email="me@bmi.example", refresh_token_enc=outlook.encrypt("rt")))
+    db_session.flush()
+    h = identity_headers(me, access=[("onboard", None)])
+    ids = [str(c.id) for c in people]
+    pv = client.post("/api/mail-merge/preview", json={"contact_id": ids[0], "subject": subject, "body": body, "edition_id": str(e107.id)}, headers=h).json()
+    assert "docs/obh-107/24" in pv["body"]
+    m = client.post("/api/mail-merge", json={"output": "email", "contact_ids": ids, "subject": subject, "body": body,
+                                             "edition_id": str(e107.id), "record_history": "none"}, headers=h)
+    assert m.status_code == 200, m.text
+    sent = []
+    monkeypatch.setattr(outlook, "send_mail", lambda db, acct, **kw: sent.append((kw["to"][0], kw["html_body"])))
+    mm.send_queued(db_session, per_minute=10)
+    got = dict(sent)
+    assert "docs/obh-107/24" in got["al@gate.example"]
+    assert "docs/obh-107/24" not in got["al@sky.example"] and "docs/obh-107" in got["al@sky.example"]   # no page: the issue
+    # No issue chosen: the link written in the email is used for everyone
+    r = client.post("/api/mail-merge", json={"output": "email", "contact_ids": ids, "subject": subject, "body": body, "record_history": "none"}, headers=h)
+    assert r.status_code == 200
+    r = client.post("/api/mail-merge", json={"output": "email", "contact_ids": ids, "subject": "x", "body": "See {{advert_page}}", "record_history": "none"}, headers=h)
+    assert r.status_code == 400 and "needs the issue" in r.json()["detail"]

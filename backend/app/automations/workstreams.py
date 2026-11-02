@@ -25,7 +25,7 @@ WORKSTREAMS: tuple[Workstream, ...] = (
         id="sales",
         label="Sales & Follow-ups",
         tagline="Timely follow-ups, commercial signals, and personal touchpoints drafted for your reps.",
-        kinds=("proposal_request", "press_release", "news_campaign", "newsletter_coverage", "merge_followup", "followup_due", "signal_trigger", "personal_touchpoint_due", "call_notes"),
+        kinds=("proposal_request", "press_release", "news_campaign", "issue_pitch_campaign", "newsletter_coverage", "website_coverage", "merge_followup", "campaign_unsubscribe", "campaign_referral", "followup_due", "signal_trigger", "personal_touchpoint_due", "call_notes"),
     ),
     Workstream(
         id="capture",
@@ -86,9 +86,13 @@ KIND_JOB: dict[str, str | None] = {
     "press_release": "press_release_scan",
     "news_campaign": "news_campaign_scan",
     "newsletter_coverage": "brevo_coverage_scan",
+    "website_coverage": "website_coverage_scan",
+    "issue_pitch_campaign": "issue_campaign_scan",
     "issue_online": "issue_online_scan",
     "issue_live_notes": "issue_online_scan",
     "merge_followup": "merge_followup_scan",
+    "campaign_unsubscribe": "campaign_reply_scan",
+    "campaign_referral": "campaign_reply_scan",
     "client_owner": "client_owner_refresh",
 }
 
@@ -149,9 +153,13 @@ KIND_COST_PREFIX: dict[str, str | None] = {
     "press_release": "press_releases.",
     "news_campaign": "news_campaigns.",
     "newsletter_coverage": None,
+    "website_coverage": None,
+    "issue_pitch_campaign": None,
     "issue_online": None,
     "issue_live_notes": None,
     "merge_followup": "merge_followups.",
+    "campaign_unsubscribe": None,
+    "campaign_referral": "campaign_replies.",
 }
 
 

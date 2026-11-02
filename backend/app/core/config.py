@@ -211,6 +211,9 @@ class Settings(BaseSettings):
     brevo_title_lists: str = ""                   # e.g. "sellingtravel:12, prospects:7, onboard:3" - each title's newsletter list
     brevo_first_look_back_days: int = 30
     automations_brevo_coverage_enabled: bool = False
+    # SALES-004 website side (app/automations/website_coverage.py): new stories on BMI's sites read for clients' names.
+    automations_website_coverage_enabled: bool = False
+    coverage_sites: str = "https://thebusinesstravelmag.com, https://www.sellingtravel.co.uk, https://www.onboardhospitality.com"
     # New issues online (app/automations/issue_online.py, SALES-003): BMI's Issuu page watched for new publications.
     automations_issue_online_enabled: bool = False
     issuu_profiles: str = "https://issuu.com/bmipublishingltd"
@@ -220,6 +223,13 @@ class Settings(BaseSettings):
     merge_followup_wait_days: int = 10
     merge_followup_lookback_days: int = 30
     merge_followup_min_recipients: int = 5
+    # Issue pitch campaigns (app/automations/issue_campaigns.py, SALES-029): who to pitch for each upcoming issue, ready to send.
+    automations_issue_campaigns_enabled: bool = False
+    pitch_campaign_days_before: int = 42
+    # Mail merge replies (app/automations/campaign_replies.py, SALES-030): unsubscribe requests and referrals.
+    automations_campaign_replies_enabled: bool = False
+    campaign_reply_lookback_days: int = 30
+    campaign_reply_llm_max_per_run: int = 20
     # News campaigns (app/automations/news_campaigns.py): selling moments in the news, with the companies to email.
     automations_news_campaigns_enabled: bool = False
     news_campaign_feeds: str = "https://www.gov.uk/foreign-travel-advice.atom"
@@ -413,6 +423,8 @@ class Settings(BaseSettings):
     # Exchange Online allows 30 messages/minute per mailbox - stay under it.
     mail_merge_per_minute: int = 25
     mail_merge_max_recipients: int = 5000
+    # CS-006: before a mail merge or Copy emails, look up each address's domain to see it can receive email (free, no service).
+    email_domain_check_enabled: bool = True
 
     # ---- Xero (read-only accounting link) ----------------------------------
     # A Xero "Web app" registered at developer.xero.com. An admin connects it

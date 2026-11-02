@@ -159,3 +159,42 @@ def test_temporary_brevo_lists_page(client, db_session, monkeypatch):
         {"id": 12, "name": "Selling Travel newsletter", "folderId": 3, "uniqueSubscribers": 0}], "count": 1}))
     assert client.get("/api/brevo/lists", headers=admin).json() == [{"id": 12, "name": "Selling Travel newsletter", "folder": 3, "people": 0}]
     assert client.get("/api/brevo/lists", headers=identity_headers(make_user(db_session, role="data_manager"))).status_code == 403
+
+
+def test_clients_in_a_website_story(client, db_session, monkeypatch):
+    """SALES-004 website side: a new story naming a client gives their salesperson a card, once."""
+    from app.automations import website_coverage as wc
+
+    ensure_reference_data(db_session)
+    sally = make_user(db_session, role="sales", name="Sally")
+    rep = SalesRep(id=uuid.uuid4(), code="ZC", name="Sally", user_id=sally.id, active=True)
+    db_session.add(rep)
+    t = db_session.query(SalesTitle).filter_by(slug="obh").one()
+    ed = SalesEdition(id=uuid.uuid4(), title_id=t.id, year=date.today().year, name="T9", edition_date=date.today())
+    gg = Company(id=uuid.uuid4(), source_db="onboard", source_act_id=uuid.uuid4().hex, name="Gate Gourmet Ltd")
+    db_session.add_all([ed, gg])
+    db_session.flush()
+    db_session.add(SalesOrder(id=uuid.uuid4(), edition_id=ed.id, client_name="Gate Gourmet", company_id=gg.id, rep_id=rep.id, booked_on=date.today()))
+    mo = _person(db_session, "Mo King", "mo@gg.example", "onboard", gg, "Marketing Manager")
+    db_session.commit()
+    posts = [{"id": 61963, "date_gmt": "2026-10-29T18:05:01", "link": "https://www.onboardhospitality.com/chefs-table/",
+              "title": {"rendered": "New &#8216;Chef&#8217;s Table&#8217; menus"}, "content": {"rendered": "<p>Gate Gourmet will cater.</p>"}}]
+    calls = []
+
+    def fake_get(url, **kw):
+        calls.append((url, kw["params"]["after"]))
+        return httpx.Response(200, json=posts if len(calls) == 1 else [], request=httpx.Request("GET", url))
+    monkeypatch.setattr(wc.httpx, "get", fake_get)
+    monkeypatch.setattr(wc, "SessionLocal", lambda: _NoCloseSession(db_session))
+    runtime_settings.set_override(db_session, "coverage_sites", "https://www.onboardhospitality.com")
+    db_session.commit()
+    wc.scan()
+    wc.scan()
+    assert calls[0][0] == "https://www.onboardhospitality.com/wp-json/wp/v2/posts" and calls[1][1] >= calls[0][1]   # carries on from where it left off
+    card = db_session.query(ReviewQueueItem).filter_by(kind="website_coverage").one()
+    p = card.payload
+    assert p["owner_user_id"] == str(sally.id) and p["merge"]["contact_ids"] == [str(mo.id)]
+    assert p["details"][0] == {"label": "Story", "value": "New ‘Chef’s Table’ menus", "href": "https://www.onboardhospitality.com/chefs-table/"}
+    assert "a story on Onboard Hospitality's website" in p["merge"]["body"] and p["merge"]["subject"].startswith("You're in the news")
+    r = client.post(f"/api/review-queue/{card.id}/actions/open_merge", json={}, headers=identity_headers(sally, access=[("onboard", None)]))
+    assert r.status_code == 200 and r.json()["payload"]["open_href"] == f"/mail-merge?review={card.id}"

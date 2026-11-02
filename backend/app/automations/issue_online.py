@@ -227,8 +227,10 @@ def note_text(ed: SalesEdition, t: SalesTitle, url: str) -> tuple[str, str]:
     from app.sales.editorial import issue_label
     name = short_name(t)
     subject = f"Your advert in {name} {issue_label(ed)} is now live online"
-    body = (f"Dear {{{{salutation|colleague}}}},\n\nThe {issue_label(ed)} issue of {name} is now live online, including your "
-            f"advert. You can see it here:\n{url}\n\nPlease feel free to share the link with your team and on social media.\n\n"
+    label = issue_label(ed)
+    which = label if label.lower().startswith("issue") else f"The {label}" + ("" if "issue" in label.lower() else " issue")
+    body = (f"Dear {{{{salutation|colleague}}}},\n\n{which} of {name} is now live online, including your "
+            f"advert. You can see it here:\n{{{{advert_page|{url}}}}}\n\nPlease feel free to share the link with your team and on social media.\n\n"
             "Kind regards,\n{{my_name}}")
     return subject, body
 
@@ -256,12 +258,19 @@ def tell_advertisers(db: Session, ed: SalesEdition, url: str) -> list[ReviewQueu
             continue
         details = [{"label": "Issue", "value": _label(ed, t), "href": f"/sales/editions/{ed.id}"},
                    {"label": "Online", "value": url, "href": url}]
+        from app.services.mail_merge import page_number
+        on_page = 0
         for o, p in people[:LIST_LIMIT]:
-            details.append({"label": o.client_name, "value": p.full_name or "Contact", "href": f"/contacts/{p.id}"})
+            n = page_number(o.position)
+            on_page += bool(n)
+            details.append({"label": o.client_name, "value": f"{p.full_name or 'Contact'}{f' · page {n}' if n else ''}", "href": f"/contacts/{p.id}"})
         if len(people) > LIST_LIMIT:
             details.append({"label": "And", "value": f"{len(people) - LIST_LIMIT} more - all listed in the mail merge"})
         if nobody:
             details.append({"label": "No one to email at", "value": ", ".join(sorted(set(nobody)))[:500]})
+        if on_page < min(len(people), LIST_LIMIT):
+            details.append({"label": "Worth knowing", "value": "Each advertiser's link opens the page their advert is on when the "
+                            "booking's Page / position says the page (\"43\"). Those without one get the link to the issue."})
         card = ReviewQueueItem(
             id=uuid.uuid4(), kind=NOTES_KIND, source_db=t.crm_source_db, status="pending",
             payload={
@@ -269,7 +278,7 @@ def tell_advertisers(db: Session, ed: SalesEdition, url: str) -> list[ReviewQueu
                 "details": details, "original_text": f"Subject: {subject}\n\n{body}", "original_label": "Drafted note",
                 "edition_id": str(ed.id), "owner_user_id": str(owner.id) if owner else None,
                 "merge": {"contact_ids": [str(p.id) for _, p in people], "subject": subject, "body": body,
-                          "label": f"Live online: {t.name} {ed.name}"[:300]},
+                          "label": f"Live online: {t.name} {ed.name}"[:300], "edition_id": str(ed.id), "title_id": str(ed.title_id)},
                 "hidden_actions": [] if people else ["open_merge"],
                 "related_entities": [{"type": "contact", "id": str(p.id), "label": p.full_name or o.client_name} for o, p in people[:LIST_LIMIT]],
                 "facets": {"magazine": short_name(t), "salesperson": (owner.name or owner.email) if owner else "No one"},

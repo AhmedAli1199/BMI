@@ -19,7 +19,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -124,6 +124,8 @@ class MailMergeRecipient(Base, UUIDPk):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued", index=True)  # queued|sent|failed|skipped
     error: Mapped[str | None] = mapped_column(Text)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # This person's own merge fields that aren't on their record (their advert's page in the issue).
+    values: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
 
 
 class MailAttachment(Base, UUIDPk):

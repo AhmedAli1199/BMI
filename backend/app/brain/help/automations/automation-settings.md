@@ -48,6 +48,7 @@ Below, "Starts at" is the value the Brain ships with. Your server can set a diff
 | Automation mailbox | The address automatic emails come from, e.g. automation@bmipublishing.co.uk. Sign in as that mailbox under Settings > Email to connect it. Empty means in-app only. | Empty |
 | Mail merge sending | Sends queued mail merges from each person's own Outlook. | On |
 | Mail merge emails per minute | Per sender, 1 to 30. Microsoft allows 30 a minute, so keep it below that. | 25 |
+| Check addresses before sending | Before a mail merge or Copy emails, leaves out addresses that aren't written correctly and ones whose domain can't receive email. Free. It can't tell whether one person's mailbox still exists. | On |
 
 ### Deliverability & Out-of-Office
 | Setting | What it changes | Starts at |
@@ -114,6 +115,25 @@ For now, administrators can also open **Brevo lists** (at /automations/brevo-lis
 | Wait before following up (days) | How long after a mail merge goes out before the people who didn't answer are followed up. | 10 |
 | Only mail merges sent in the last (days) | Older mail merges aren't followed up. | 30 |
 | Smallest mail merge to follow up | Mail merges to fewer people than this are left alone. | 5 |
+
+### Issue Pitch Campaigns
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Put together issue pitch campaigns | Each weekday morning, lists who to pitch for each issue whose advertising deadline is coming up, with a pitch drafted, one card per salesperson. Nothing is sent until they send it. | Off |
+| Days before the deadline | How long before an issue's advertising deadline its campaign is put together. | 42 |
+
+### Website Stories
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Spot clients in website stories | Every three hours, reads new stories on BMI's websites for clients' names and gives each salesperson a card with a note drafted to tell them. | Off |
+| Websites to read | BMI's websites, separated by commas. | The three magazines' websites |
+
+### Mail Merge Replies
+| Setting | What it changes | Starts at |
+|---|---|---|
+| Read mail merge replies | Every 30 minutes, reads replies to recent mail merges for unsubscribe requests and "contact my colleague instead" referrals, and gives the sender a card for each. Nothing changes until someone presses a button. | Off |
+| Mail merges sent in the last (days) | Replies to older mail merges aren't read. | 30 |
+| Brain checks per run | The most referrals the Brain reads in one run to pick out who to contact. 0 means the Brain isn't used. | 20 |
 
 ### News Campaigns
 | Setting | What it changes | Starts at |

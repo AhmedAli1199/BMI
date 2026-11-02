@@ -55,7 +55,7 @@ export default async function MailMergePage({
     if (g) initial = { source: { kind: "group", group_id: g.id }, label: g.name };
   } else if (sp.review) {
     // "Open as a mail merge" on a Review Queue card: its people and drafted email, all changeable here
-    const card = await backendFetch<{ payload: { merge?: { contact_ids: string[]; subject: string; body: string; label: string } } }>(
+    const card = await backendFetch<{ payload: { merge?: { contact_ids: string[]; subject: string; body: string; label: string; edition_id?: string; title_id?: string } } }>(
       `/api/review-queue/${encodeURIComponent(sp.review)}`
     ).catch(() => null);
     const m = card?.payload.merge;
@@ -63,7 +63,8 @@ export default async function MailMergePage({
       initial = {
         source: { kind: "contacts", contact_ids: m.contact_ids },
         label: m.label,
-        suggested: { ids: m.contact_ids, label: m.label, chip: "Suggested by the Brain", subject: m.subject, body: m.body },
+        suggested: { ids: m.contact_ids, label: m.label, chip: "Suggested by the Brain", subject: m.subject, body: m.body,
+                     editionId: m.edition_id, titleId: m.title_id },
       };
     }
   } else if (sp.source === "selection") {

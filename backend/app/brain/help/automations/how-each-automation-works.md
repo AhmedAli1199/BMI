@@ -150,6 +150,14 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Not now** puts it aside (it can be reopened). **Not a selling moment** closes it.
 - Filters: **Magazine**, **News from** and **Companies**. Sorted by the date of the news.
 
+### Issue pitch campaigns (Sales & Follow-ups)
+- **When**: each weekday morning. **Switch**: **Put together issue pitch campaigns**.
+- **Looks at**: issues, guides, events and awards in the editorial plan whose advertising deadline is **Days before the deadline** away or nearer (down to three days before). Each issue is done once.
+- **Who's on it**: the same companies as **Who should we pitch?** on the issue's page: last year's advertisers on the same issue, the previous issue's advertisers, and past advertisers whose business fits a planned feature. Anyone already booked on the issue is left out. At each company it picks the booking's contact, or someone in marketing; never anyone unsubscribed or bounced. Companies with no one to email are listed on the card.
+- **Makes**: **Issue pitch campaigns**, one card per salesperson for their companies (the issue, its deadline, each company linked with why it's on the list), and a short pitch drafted with the issue, its date, features and deadline filled in. The card says when it was put together: someone who books after that is still listed, so untick them in the mail merge.
+- **Open as a mail merge** opens the mail merge screen with those people and the pitch filled in, to change, preview and send. **Not this time** closes it (it can be reopened).
+- Filters: **Magazine**, **Salesperson** and **How many**. Sorted by the advertising deadline.
+
 ### Mail merge follow-ups (Sales & Follow-ups)
 - **When**: each weekday morning. **Switch**: **Follow up mail merges**.
 - **Looks at**: your email mail merges sent between **Wait before following up (days)** and **Only mail merges sent in the last (days)** ago, that went to at least **Smallest mail merge to follow up** people. A mail merge that is itself a follow-up is never followed up again, and each mail merge gets one card at most.
@@ -159,10 +167,19 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **No follow-up this time** closes it (it can be reopened).
 - Filters: **Replies**, **How many** and **Salesperson**. Sorted by the date the mail merge went out.
 
+### Mail merge replies: unsubscribe requests and referrals (Sales & Follow-ups)
+- **When**: every 30 minutes. **Switch**: **Read mail merge replies**.
+- **Looks at**: replies in your own inbox from people your email mail merges reached in the last **Mail merges sent in the last (days)**. Only the words they wrote are read, not your email quoted underneath. Out-of-office, undeliverable and "I've left" replies are left to the mailbox scan above.
+- **Makes**, only for the person who sent the mail merge:
+  - **Unsubscribe requests (mail merge replies)** when someone asks to be taken off your emails ("please unsubscribe me", "remove me from your list", "stop emailing me"). **Unsubscribe them** unsubscribes every record with their address, notes it on each, and unsubscribes them in Brevo too when Brevo is connected (the card says if you need to do it in Brevo by hand). **Not an unsubscribe** closes it (it can be reopened).
+  - **Referrals (mail merge replies)** when someone says to contact a colleague instead ("the best person to speak to is...", "I've copied in my colleague", "please contact..."). The Brain picks out the person's name, role and email from the reply, up to **Brain checks per run**; without the Brain, any address in the reply (or anyone they copied in) is filled in. **Add them as a contact** asks for **Their name**, **Their email** and **Job title**, filled in where found, and adds them at the same company, with notes on both people. If someone already has that address, it notes them instead of adding a copy. **Nothing to add** closes it.
+- Each card links the person, their company and the mail merge, and shows their reply. Filters: **Salesperson**, **On the database**, and **Address** (referrals). Sorted by the date of the reply.
+
 ### Brevo: unsubscribes and clients in the newsletter (Sales & Follow-ups)
 - **Needs**: Brevo's key, added on the server by whoever runs it (never on a screen).
 - **Keep unsubscribes in step with Brevo**: someone unsubscribed on a **Subscription changes** card is unsubscribed in Brevo too (see above). Every hour, people who unsubscribed from BMI's emails in Brevo are marked unsubscribed on every record with their address, and people who left a title's Brevo list are taken off that title's newsletter group. This happens by itself, because an unsubscribe must be honoured; each one is in the record's history and noted on it. **Brevo list for each magazine** says which Brevo list is which title; **First look back (days)** is how far back the first read goes.
 - **Spot clients in the newsletters** (every three hours): newsletters Brevo has sent are read for the names of BMI's clients (companies with a booking in the last two years; very short names are skipped). Each salesperson gets a **Clients in the newsletter** card for their clients in it, each linked, with a short note drafted with the newsletter's link. **Open as a mail merge** opens it with the people ticked, to change, preview and send; **No need this time** closes it. The person told is the booking's contact, or someone at the company (marketing people first). Filters: **Salesperson** and **Contact**. Sorted by the date sent.
+- **Spot clients in website stories** (every three hours, its own switch): new stories on BMI's websites (**Websites to read**: The Business Travel Magazine, Selling Travel and Onboard Hospitality to start with) are read the same way. Each salesperson gets a **Clients in a website story** card for their clients named in a story, with the story linked and a short "you're in the news" note drafted with its link. The buttons, filters and who's emailed are the same as for the newsletter card. Sorted by the date published. It reads the sites' public list of stories, so it needs no key or login.
 
 ### Call notes (Sales & Follow-ups)
 - **When**: the notetaker finishes a recorded call. There is no schedule.
@@ -186,6 +203,9 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 | A salesperson presses Request a change | At once | Booking change (Accounts) | Only accounts can change checked bookings |
 | An online booking form is sent in | At once | Online bookings | Set up in Bookings settings |
 | New issues on BMI's Issuu page | Four times a day | New issues online, then Tell advertisers they're live | Watch for new issues online |
+| Issue pitch campaigns | Weekdays, morning | Issue pitch campaigns | Put together issue pitch campaigns |
+| Replies to your mail merges | Every 30 minutes | Unsubscribe requests, Referrals (mail merge replies) | Read mail merge replies |
+| New stories on BMI's websites | Every three hours | Clients in a website story | Spot clients in website stories |
 
 ### Jobs that don't make cards
 - **Reminders**: every 5 minutes, turns due reminders into bell notifications. **Reminders fire**.

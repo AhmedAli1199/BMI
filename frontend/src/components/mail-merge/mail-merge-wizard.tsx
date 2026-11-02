@@ -72,7 +72,7 @@ export type InitialSource = {
   label: string;
   fromSelection?: boolean;
   /** People and an email suggested by a Review Queue card (a news campaign, a mail merge follow-up). */
-  suggested?: { ids: string[]; label: string; chip: string; subject: string; body: string };
+  suggested?: { ids: string[]; label: string; chip: string; subject: string; body: string; editionId?: string; titleId?: string };
 };
 
 type Option = { id: string; label: string; sublabel?: string | null };
@@ -141,11 +141,11 @@ export function MailMergeWizard({
   const [saveOpen, setSaveOpen] = useState(false);
   // Brand figures and the issue the mailing is about (filled in the same for everyone)
   const [mmBrand, setMmBrand] = useState("");
-  const [mmTitle, setMmTitle] = useState(titles[0]?.id ?? "");
-  const [mmEdition, setMmEdition] = useState("");
+  const [mmTitle, setMmTitle] = useState(initial.suggested?.titleId ?? titles[0]?.id ?? "");
+  const [mmEdition, setMmEdition] = useState(initial.suggested?.editionId ?? "");
   const [mmFeature, setMmFeature] = useState("");
   const shared = `${subject} ${body}`;
-  const usesIssue = /\{\{\s*(issue|issue_date|ad_deadline|copy_deadline|theme|feature|features|title)\s*[|}]/.test(shared);
+  const usesIssue = /\{\{\s*(issue|issue_date|ad_deadline|copy_deadline|theme|feature|features|title|advert_page)\s*[|}]/.test(shared);
   const usesBrand = /\{\{\s*(brand|website|print_run|email_database|readership|media_pack|video|latest_issue)\s*[|}]/.test(shared);
   const [tplName, setTplName] = useState("");
   const [tplShared, setTplShared] = useState(true);
@@ -209,12 +209,13 @@ export function MailMergeWizard({
   const items = useMemo(() => recips?.items ?? [], [recips]);
   const included = useMemo(() => items.filter((r) => !excluded.has(r.contact_id)), [items, excluded]);
   const reachable = useMemo(() => {
-    if (output === "email") return included.filter((r) => r.email && (includeUnsub || (!r.unsubscribed && !r.bounced)));
+    if (output === "email") return included.filter((r) => r.email && !r.address_problem && (includeUnsub || (!r.unsubscribed && !r.bounced)));
     if (output === "labels") return included.filter((r) => r.has_address);
     return included;
   }, [included, output, includeUnsub]);
   const noEmailCount = included.filter((r) => !r.email).length;
-  const optedOutCount = included.filter((r) => r.email && (r.unsubscribed || r.bounced)).length;
+  const optedOutCount = included.filter((r) => r.email && !r.address_problem && (r.unsubscribed || r.bounced)).length;
+  const badAddressCount = included.filter((r) => r.email && r.address_problem).length;
   const noAddressCount = included.filter((r) => !r.has_address).length;
   const previewRecipient = included[Math.min(previewIdx, Math.max(0, included.length - 1))];
   const needsMessage = output === "email" || output === "word";
@@ -652,6 +653,11 @@ export function MailMergeWizard({
                       {noEmailCount} without email
                     </Badge>
                   )}
+                  {output === "email" && badAddressCount > 0 && (
+                    <Badge variant="outline" className="border-destructive/40 text-destructive" title="Not written correctly, or the domain can't receive email">
+                      {badAddressCount} address{badAddressCount === 1 ? "" : "es"} that can&apos;t work
+                    </Badge>
+                  )}
                   {output === "email" && optedOutCount > 0 && (
                     <Badge variant="outline" className="border-destructive/40 text-destructive">
                       {optedOutCount} unsubscribed/bounced
@@ -710,7 +716,9 @@ export function MailMergeWizard({
                           output === "email"
                             ? !r.email
                               ? "No email"
-                              : r.unsubscribed
+                              : r.address_problem
+                                ? r.address_problem.charAt(0).toUpperCase() + r.address_problem.slice(1)
+                                : r.unsubscribed
                                 ? "Unsubscribed"
                                 : r.bounced
                                   ? "Bounced"
@@ -1084,7 +1092,7 @@ export function MailMergeWizard({
               </p>
               {output === "email" && reachable.length < included.length && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {included.length - reachable.length} will be skipped (no email, unsubscribed or bounced) and listed on the progress page.
+                  {included.length - reachable.length} will be skipped (no email, an address that can&apos;t work, unsubscribed or bounced) and listed on the progress page.
                 </p>
               )}
               <div className="mt-3 flex flex-wrap gap-2">

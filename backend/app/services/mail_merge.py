@@ -78,7 +78,11 @@ ISSUE_FIELDS: dict[str, tuple[str, str]] = {
     "features": ("All planned features", "Japan, Malta and Cruise"),
 }
 SHARED_FIELDS = {**BRAND_FIELDS, **ISSUE_FIELDS}
-FIELDS = {**FIELDS, **SHARED_FIELDS}
+# About the issue, but different for each person: worked out from the issue chosen and their company's booking on it.
+ISSUE_CONTACT_FIELDS: dict[str, tuple[str, str]] = {
+    "advert_page": ("Link to their advert's page", "https://issuu.com/bmipublishingltd/docs/obh-107/24"),
+}
+FIELDS = {**FIELDS, **SHARED_FIELDS, **ISSUE_CONTACT_FIELDS}
 _IDX = {h: i for i, h in enumerate(HEADERS)}
 _FIELD_RE = re.compile(r"\{\{\s*([a-z_0-9]+)\s*(?:\|([^}]*))?\}\}")
 
@@ -131,6 +135,50 @@ def shared_context(db: Session, brand: str | None = None, edition_id: uuid.UUID 
     elif feature:
         out["feature"] = feature.strip()
     return out
+
+
+_PAGE_WORDS = {"ifc": 2, "inside front cover": 2}
+
+
+def page_number(position: str | None) -> int | None:
+    """The page an advert is on, from the booking's "Page / position" ("43", "p43", "Page 43", "IFC"), if it says."""
+    p = (position or "").strip().lower()
+    if p in _PAGE_WORDS:
+        return _PAGE_WORDS[p]
+    m = re.fullmatch(r"(?:p(?:age|g)?\.?\s*)?(\d{1,3})", p)
+    return int(m.group(1)) if m and int(m.group(1)) > 0 else None
+
+
+def page_link(issue_url: str, page: int | None) -> str:
+    """Issuu opens a publication at a page when the page number is added to its link; other links go to the issue."""
+    url = (issue_url or "").strip()
+    if page and re.match(r"https?://(www\.)?issuu\.com/[^/]+/docs/[^/?#]+/?$", url):
+        return f"{url.rstrip('/')}/{page}"
+    return url
+
+
+def uses_issue_contact_fields(*templates: str | None, without_fallback: bool = False) -> bool:
+    return any(m.group(1) in ISSUE_CONTACT_FIELDS and not (without_fallback and (m.group(2) or "").strip())
+               for t in templates for m in _FIELD_RE.finditer(t or ""))
+
+
+def issue_contact_values(db: Session, edition_id: uuid.UUID | None, contact_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict]:
+    """{contact id: {"advert_page": link}} for the issue: the page their company's advert is on, else the issue itself.
+    Nothing for anyone when the issue isn't online yet."""
+    from app.models import Contact, SalesEdition, SalesOrder
+
+    ed = db.get(SalesEdition, edition_id) if edition_id else None
+    if not ed or not ed.digital_url or not contact_ids:
+        return {}
+    company = dict(db.execute(select(Contact.id, Contact.company_id).where(Contact.id.in_(contact_ids))).all())
+    pages: dict = {}
+    for cid, pos in db.execute(select(SalesOrder.company_id, SalesOrder.position).where(
+            SalesOrder.edition_id == ed.id, SalesOrder.status == "booked",
+            SalesOrder.company_id.in_([c for c in company.values() if c]))):
+        n = page_number(pos)
+        if n and (cid not in pages or n < pages[cid]):
+            pages[cid] = n
+    return {c: {"advert_page": page_link(ed.digital_url, pages.get(company.get(c)))} for c in contact_ids}
 
 
 def _join(items: list[str]) -> str:
@@ -372,6 +420,7 @@ def send_queued(db: Session, per_minute: int | None = None) -> int:
                 m.skipped += 1
                 db.commit()
                 continue
+            ctx = {**ctx, **(r.values or {})}
             subject, body = render(m.subject or "", ctx), render(m.body, ctx)
             try:
                 outlook.send_mail(db, acct, to=[r.email], subject=subject, html_body=to_html(body),
