@@ -153,6 +153,8 @@ export type MailMergeDetail = MailMergeSummary & {
 
 export type MergeRequest = {
   output: MergeOutput;
+  /** The Review Queue card it was opened from; sending closes it. */
+  review_item_id?: string | null;
   source_label?: string;
   contact_ids: string[];
   subject?: string;

@@ -266,6 +266,7 @@ def list_kinds(identity: Identity = Depends(get_identity), db: Session = Depends
                     confirm_message=a.confirm_message,
                     requires_related_entity_choice=a.requires_related_entity_choice,
                     reopenable=a.reopenable,
+                    keeps_open=a.keeps_open,
                 )
                 for a in k.actions
             ],
@@ -518,6 +519,10 @@ def resolve_review_item(
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e)) from e
 
+    if action.keeps_open:   # it only opened something (a mail merge); the card closes when that's finished
+        db.commit()
+        db.refresh(item)
+        return _serialize_items(db, [item])[0]
     item.status = action.outcome
     item.resolved_action = action_id
     item.review_note = payload.note

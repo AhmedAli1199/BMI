@@ -72,7 +72,9 @@ export type InitialSource = {
   label: string;
   fromSelection?: boolean;
   /** People and an email suggested by a Review Queue card (a news campaign, a mail merge follow-up). */
-  suggested?: { ids: string[]; label: string; chip: string; subject: string; body: string; editionId?: string; titleId?: string };
+  suggested?: { ids: string[]; label: string; chip: string; subject: string; body: string; editionId?: string; titleId?: string;
+    /** The Review Queue card it came from: sending the emails closes it. */
+    reviewId?: string };
 };
 
 type Option = { id: string; label: string; sublabel?: string | null };
@@ -362,6 +364,7 @@ export function MailMergeWizard({
           const r = await startEmailMerge(
             request({
               contact_ids: included.map((x) => x.contact_id),
+              review_item_id: initial.suggested?.reviewId ?? null,
             })
           );
           if ("id" in r) {

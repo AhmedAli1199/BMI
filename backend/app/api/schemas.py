@@ -557,6 +557,8 @@ class ReviewActionOut(BaseModel):
     requires_related_entity_choice: bool = False
     # A card closed with this button can go back to Pending (see reopen_review_item).
     reopenable: bool = False
+    # Pressing it opens something to carry on with; the card stays waiting until that's done.
+    keeps_open: bool = False
 
 
 class ReviewKindOut(BaseModel):

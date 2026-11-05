@@ -6228,259 +6228,259 @@
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:482",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:485",
    "kind": "link",
    "label": "Connect Outlook"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:494",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:497",
    "kind": "link",
    "label": "Reconnect"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:646",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:649",
    "kind": "button",
    "label": "include all"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:686",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:689",
    "kind": "button",
    "label": "Tick these"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:706",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:709",
    "kind": "column",
    "label": "Include"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:707",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:710",
    "kind": "column",
    "label": "Name"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:708",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:711",
    "kind": "column",
    "label": "Company"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:709",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:712",
    "kind": "column",
    "label": "Address"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:795",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:798",
    "kind": "field",
    "label": "Template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:807",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:810",
    "kind": "button",
    "label": "Update template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:812",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:815",
    "kind": "button",
    "label": "Save as new template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:820",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:823",
    "kind": "field",
    "label": "Brand (for its figures and links) Choose Selling Travel The Business Travel Magazine Onboard Hospitality"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:829",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:832",
    "kind": "field",
    "label": "Title"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:834",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:837",
    "kind": "field",
    "label": "The issue or event it's about"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:837",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:840",
    "kind": "field",
    "label": "The feature you're pitching"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:853",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:856",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:865",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:868",
    "kind": "field",
    "label": "Message"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:909",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:912",
    "kind": "button",
    "label": "Previous contact"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:914",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:917",
    "kind": "button",
    "label": "Next contact"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:963",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:966",
    "kind": "heading",
    "label": "Record history"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:991",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:994",
    "kind": "field",
    "label": "Regarding"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1001",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1004",
    "kind": "heading",
    "label": "Copies"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1003",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1006",
    "kind": "field",
    "label": "Cc (on every email)"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1007",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1010",
    "kind": "field",
    "label": "Bcc (on every email)"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1013",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1016",
    "kind": "heading",
    "label": "Attachments"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1032",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1035",
    "kind": "field",
    "label": "Uploading"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1043",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1046",
    "kind": "heading",
    "label": "Contacts who can't be emailed"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1044",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1047",
    "kind": "field",
    "label": "Skip them have no email address"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1051",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1054",
    "kind": "field",
    "label": "Make Word letters for them Downloads straight after the emails are queued"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1058",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1061",
    "kind": "field",
    "label": "Include unsubscribed and bounced contacts Off by default - only for essential, non-marketing messages (e.g. an invoice q"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1073",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1076",
    "kind": "heading",
    "label": "File type"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1075",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1078",
    "kind": "field",
    "label": "Excel (.xlsx) - for Word's own mail merge"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1101",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1104",
    "kind": "button",
    "label": "Send a test to myself"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1105",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1108",
    "kind": "button",
    "label": "Send … emails"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1128",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1131",
    "kind": "button",
    "label": "Back"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1133",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1136",
    "kind": "button",
    "label": "Next"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1139",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1142",
    "kind": "link",
    "label": "See earlier mail merges"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1149",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1152",
    "kind": "dialog",
    "label": "Save as a template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1154",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1157",
    "kind": "field",
    "label": "Template name"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1157",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1160",
    "kind": "field",
    "label": "Share with the team"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1164",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1167",
    "kind": "button",
    "label": "Save template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1174",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1177",
    "kind": "dialog",
    "label": "Send … emails?"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1183",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1186",
    "kind": "button",
    "label": "Send now"
   },
@@ -7291,127 +7291,127 @@
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:438",
+   "src": "components/review-item-card.tsx:444",
    "kind": "link",
    "label": "View … record (opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:465",
+   "src": "components/review-item-card.tsx:471",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:498",
+   "src": "components/review-item-card.tsx:504",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:516",
+   "src": "components/review-item-card.tsx:522",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:596",
+   "src": "components/review-item-card.tsx:602",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:600",
+   "src": "components/review-item-card.tsx:606",
    "kind": "button",
    "label": "Working"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:764",
+   "src": "components/review-item-card.tsx:770",
    "kind": "link",
    "label": "View company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:777",
+   "src": "components/review-item-card.tsx:783",
    "kind": "button",
    "label": "Remove company"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:808",
+   "src": "components/review-item-card.tsx:814",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:983",
+   "src": "components/review-item-card.tsx:989",
    "kind": "button",
    "label": "Clear groups"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1007",
+   "src": "components/review-item-card.tsx:1013",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1136",
+   "src": "components/review-item-card.tsx:1142",
    "kind": "field",
    "label": "Which one do you want to keep?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1154",
+   "src": "components/review-item-card.tsx:1160",
    "kind": "link",
    "label": "View"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1184",
+   "src": "components/review-item-card.tsx:1190",
    "kind": "field",
    "label": "Contact"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1220",
+   "src": "components/review-item-card.tsx:1226",
    "kind": "field",
    "label": "Choose"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1279",
+   "src": "components/review-item-card.tsx:1285",
    "kind": "field",
    "label": "Which BMI title does this belong to?"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1317",
+   "src": "components/review-item-card.tsx:1323",
    "kind": "button",
    "label": "Clear"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1333",
+   "src": "components/review-item-card.tsx:1339",
    "kind": "field",
    "label": "Note"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1345",
+   "src": "components/review-item-card.tsx:1351",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1348",
+   "src": "components/review-item-card.tsx:1354",
    "kind": "button",
    "label": "Working"
   },
   {
    "file": "components/review-item-card.tsx",
-   "src": "components/review-item-card.tsx:1378",
+   "src": "components/review-item-card.tsx:1384",
    "kind": "link",
    "label": "(opens in a new tab)"
   },

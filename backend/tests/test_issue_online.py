@@ -147,3 +147,12 @@ def test_each_advertiser_gets_the_link_to_their_page(client, db_session, monkeyp
     assert r.status_code == 200
     r = client.post("/api/mail-merge", json={"output": "email", "contact_ids": ids, "subject": "x", "body": "See {{advert_page}}", "record_history": "none"}, headers=h)
     assert r.status_code == 400 and "needs the issue" in r.json()["detail"]
+
+
+def test_a_publication_that_matches_nothing_can_still_be_linked(db_session):
+    e107, e106, est = _issues(db_session)
+    item = io.queue(db_session, {"title": "THESSALONIKI FAM TRIP", "slug": "thessaloniki-fam-trip", "url": "https://issuu.com/bmipublishingltd/docs/thess",
+                                 "published": TODAY - timedelta(days=3)}, "Issuu")
+    p = item.payload
+    assert p["hidden_actions"] == [] and "choose the issue when you link it" in p["details"][2]["value"]
+    assert {o["value"] for o in p["field_options"]["edition_id"]} >= {str(e107.id), str(est.id)}

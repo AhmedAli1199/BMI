@@ -221,7 +221,7 @@ register(ReviewKind(
     label="Mail merge follow-ups",
     description="People who didn't answer one of your mail merges, with a short follow-up drafted to send as a new mail merge.",
     actions=[
-        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved"),
+        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved", keeps_open=True),
         ReviewAction(id="no_follow_up", label="No follow-up this time", style="secondary", outcome="dismissed", reopenable=True),
     ],
     handler=_handle,

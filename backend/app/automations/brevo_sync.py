@@ -289,7 +289,7 @@ register(ReviewKind(
     label="Clients in the newsletter",
     description="Your clients named in a newsletter Brevo has just sent, with a short note drafted to tell them, sent as a mail merge.",
     actions=[
-        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved"),
+        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved", keeps_open=True),
         ReviewAction(id="not_needed", label="No need this time", style="secondary", outcome="dismissed", reopenable=True),
     ],
     handler=_handle,

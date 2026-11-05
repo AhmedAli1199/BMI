@@ -308,7 +308,7 @@ register(ReviewKind(
     description="The companies advertising in a competitor's issue you uploaded, compared with who advertises with us, "
                 "with an approach drafted for the ones who don't.",
     actions=[
-        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved",
+        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved", keeps_open=True,
                      extra_fields=[ExtraField(key="add_new", label="Also add the new companies to the database", field_type="bool", required=False)]),
         ReviewAction(id="add_companies", label="Just add the new companies", style="secondary", outcome="approved"),
         ReviewAction(id="not_useful", label="Not useful", style="secondary", outcome="dismissed", reopenable=True),

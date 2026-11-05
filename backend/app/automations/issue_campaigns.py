@@ -139,7 +139,7 @@ register(ReviewKind(
     description="For an issue whose advertising deadline is coming up: the companies to pitch (last year's advertisers and others not yet "
                 "booked), the person to email at each, and a pitch drafted, ready to send as a mail merge.",
     actions=[
-        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved"),
+        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved", keeps_open=True),
         ReviewAction(id="not_now", label="Not this time", style="secondary", outcome="dismissed", reopenable=True),
     ],
     handler=_handle,

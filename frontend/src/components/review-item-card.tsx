@@ -355,9 +355,15 @@ export function ReviewItemCard({ item, kind }: { item: ReviewQueueItem; kind: Re
           fields,
           chosen_entity_id: chosenEntityId ?? payload.invoice_match?.candidates[0]?.key ?? undefined,
         });
-        toast.success(`${action.label} — done`);
         // An action that made something to carry on with (a proposal from a request) opens it.
         const next = (resolved?.payload as { open_href?: string } | undefined)?.open_href;
+        if (action.keeps_open) {
+          // Only opens the mail merge: the card stays here until the emails are actually sent.
+          toast.success("Opening the mail merge. This card stays here until you send it.");
+          if (next) window.location.assign(next);
+          return;
+        }
+        toast.success(`${action.label} — done`);
         if (next) window.location.assign(next);
         setJustResolvedLabel(action.label);
         setExpandedAction(null);

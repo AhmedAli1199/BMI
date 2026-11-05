@@ -175,3 +175,32 @@ def test_followups_when_the_inbox_cant_be_read(db_session, monkeypatch):
     item = db_session.query(ReviewQueueItem).filter_by(kind="merge_followup").one()
     assert item.payload["facets"]["replies"] == "Replies not checked"
     assert any("couldn't be checked for replies" in d["value"] for d in item.payload["details"])
+
+
+def test_opening_a_card_as_a_mail_merge_keeps_it_until_it_is_sent(client, db_session, monkeypatch):
+    """Looking at the mail merge and not sending it must not lose the card; sending it closes the card."""
+    from app.models.messaging import MailAccount
+    from app.services import outlook
+
+    sally = make_user(db_session, role="sales", name="Sally")
+    people = [_company(db_session, f"Co {i}", person=f"P{i}", email=f"p{i}@x.example")[1] for i in range(5)]
+    m = _merge(db_session, sally, [(c, f"p{i}@x.example") for i, c in enumerate(people)])
+    item = mf.queue(db_session, m, [(c, f"p{i}@x.example") for i, c in enumerate(people)], {}, True)
+    db_session.add(MailAccount(id=uuid.uuid4(), user_id=sally.id, email="sally@bmi.example", refresh_token_enc=outlook.encrypt("rt")))
+    db_session.commit()
+    h = identity_headers(sally, access=[("sellingtravel", None)])
+    r = client.post(f"/api/review-queue/{item.id}/actions/open_merge", json={}, headers=h)
+    assert r.status_code == 200 and r.json()["status"] == "pending" and r.json()["payload"]["open_href"] == f"/mail-merge?review={item.id}"
+    kinds = client.get("/api/review-queue/kinds", headers=h).json()
+    assert any(a["id"] == "open_merge" and a["keeps_open"] for k in kinds for a in k["actions"] if k["kind"] == "merge_followup")
+    # pressed again later: still fine
+    assert client.post(f"/api/review-queue/{item.id}/actions/open_merge", json={}, headers=h).status_code == 200
+    p = item.payload["merge"]
+    r = client.post("/api/mail-merge", headers=h, json={"output": "email", "contact_ids": p["contact_ids"], "subject": "Follow-up",
+                                                      "body": "Hi {{first_name|there}}", "record_history": "none",
+                                                      "review_item_id": str(item.id), "source_label": p["label"]})
+    assert r.status_code == 200, r.text
+    db_session.expire_all()
+    done = db_session.get(ReviewQueueItem, item.id)
+    assert done.status == "approved" and done.resolved_action == "open_merge"
+    assert done.payload["details"][0]["label"] == "Sent" and done.payload["details"][0]["href"] == f"/mail-merge/{r.json()['id']}"

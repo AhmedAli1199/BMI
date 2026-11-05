@@ -64,7 +64,7 @@ export default async function MailMergePage({
         source: { kind: "contacts", contact_ids: m.contact_ids },
         label: m.label,
         suggested: { ids: m.contact_ids, label: m.label, chip: "Suggested by the Brain", subject: m.subject, body: m.body,
-                     editionId: m.edition_id, titleId: m.title_id },
+                     editionId: m.edition_id, titleId: m.title_id, reviewId: sp.review },
       };
     }
   } else if (sp.source === "selection") {

@@ -113,6 +113,9 @@ class ReviewAction:
     # would just do it again if the card were reopened and pressed again.
     # Off by default so a new button is never reopenable by accident.
     reopenable: bool = False
+    # The button only opens something to carry on with ("Open as a mail merge"): the card stays waiting, and is
+    # closed by whatever finishes the work there (sending the mail merge), not by pressing the button.
+    keeps_open: bool = False
 
 
 @dataclass(frozen=True)

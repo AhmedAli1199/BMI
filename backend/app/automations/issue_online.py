@@ -138,6 +138,16 @@ def candidates(db: Session, pub: dict) -> list[tuple[int, SalesEdition, SalesTit
     return sorted((x for x in scored if x[0] >= 4), key=lambda x: (-x[0], abs(((pub.get("published") or when) - x[1].edition_date).days)))[:CANDIDATES]
 
 
+def nearby(db: Session, pub: dict, limit: int = 40) -> list[tuple[SalesEdition, SalesTitle]]:
+    """Every issue, guide, event or awards in the plan within a year of the publication date, nearest first - to
+    choose from when nothing looks like it (a special publication may still be one of ours)."""
+    when = pub.get("published") or date.today()
+    rows = db.execute(select(SalesEdition, SalesTitle).join(SalesTitle, SalesTitle.id == SalesEdition.title_id)
+                      .where(SalesEdition.edition_date.isnot(None), SalesEdition.edition_date >= when - timedelta(days=365),
+                             SalesEdition.edition_date <= when + timedelta(days=180))).all()
+    return sorted(rows, key=lambda r: abs((r[0].edition_date - when).days))[:limit]
+
+
 def _label(ed: SalesEdition, t: SalesTitle) -> str:
     from app.sales.editorial import issue_label
     return f"{short_name(t)}: {issue_label(ed)}" + (f" ({ed.edition_date:%-d %b %Y})" if ed.edition_date else "")
@@ -149,7 +159,8 @@ def queue(db: Session, pub: dict, source: str) -> ReviewQueueItem:
     sure = bool(best and best[0] >= 7 and (len(found) == 1 or best[0] - found[1][0] >= 3))
     details = [{"label": "Publication", "value": pub["title"], "href": pub["url"]},
                {"label": "Put online", "value": f"{pub['published']:%-d %B %Y}" if pub.get("published") else "Not shown"},
-               {"label": "Looks like", "value": _label(best[1], best[2]) if best else "No issue in the editorial plan looks like this one",
+               {"label": "Looks like", "value": _label(best[1], best[2]) if best else
+                "No issue in the editorial plan looks like this one. If it is one of ours, choose the issue when you link it",
                 **({"href": f"/sales/editions/{best[1].id}"} if best else {})}]
     if best and not sure:
         details.append({"label": "Worth knowing", "value": "Not a sure match - check the issue before linking it."})
@@ -162,9 +173,10 @@ def queue(db: Session, pub: dict, source: str) -> ReviewQueueItem:
             "summary": f"New issue online: {pub['title']}", "details": details,
             "publication": {**pub, "published": pub["published"].isoformat() if pub.get("published") else None},
             "open_href": None,
-            "field_options": {"edition_id": [{"value": str(ed.id), "label": _label(ed, t)} for _, ed, t in found]},
+            "field_options": {"edition_id": [{"value": str(ed.id), "label": _label(ed, t)}
+                                             for ed, t in ([(ed, t) for _, ed, t in found] or nearby(db, pub))]},
             "field_defaults": {"edition_id": str(best[1].id)} if best else {},
-            "hidden_actions": [] if found else ["link", "link_only"],
+            "hidden_actions": [],
             "facets": {"magazine": short_name(best[2]) if best else "Not sure",
                        "match": "Sure match" if sure else "Check the match" if best else "No match", "source": source},
             "sort_date": (pub.get("published") or date.today()).isoformat(),
@@ -345,7 +357,7 @@ register(ReviewKind(
     label="Tell advertisers they're live",
     description="Your advertisers in an issue that's just gone online, with a short note drafted with the link to send as a mail merge.",
     actions=[
-        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved"),
+        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved", keeps_open=True),
         ReviewAction(id="not_needed", label="No need this time", style="secondary", outcome="dismissed", reopenable=True),
     ],
     handler=_handle_notes,

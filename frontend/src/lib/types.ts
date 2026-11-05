@@ -251,6 +251,8 @@ export type ReviewAction = {
   requires_related_entity_choice: boolean;
   /** A card closed with this button can be put back in Pending. */
   reopenable: boolean;
+  /** Only opens something to carry on with (a mail merge); the card stays waiting until that's done. */
+  keeps_open?: boolean;
 };
 
 export type ReviewKind = {

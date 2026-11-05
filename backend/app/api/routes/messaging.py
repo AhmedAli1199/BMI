@@ -561,6 +561,21 @@ class MergeIn(BaseModel):
     edition_id: uuid.UUID | None = None
     feature: str | None = Field(default=None, max_length=200)
     template_id: uuid.UUID | None = None
+    # The Review Queue card it was opened from ("Open as a mail merge"): closed once this is sent.
+    review_item_id: uuid.UUID | None = None
+
+
+def _close_card(db: Session, item_id: uuid.UUID | None, user: User, m: MailMerge) -> None:
+    from app.models import ReviewQueueItem
+
+    item = db.get(ReviewQueueItem, item_id) if item_id else None
+    if not item or item.status != "pending" or not (item.payload or {}).get("merge"):
+        return
+    item.status, item.resolved_action = "approved", "open_merge"
+    item.reviewed_at, item.reviewed_by_user_id = datetime.now(timezone.utc), user.id
+    sent = m.total - m.skipped
+    item.payload = {**item.payload, "details": [{"label": "Sent", "value": f"As a mail merge to {sent} {'person' if sent == 1 else 'people'}",
+                                                 "href": f"/mail-merge/{m.id}"}, *(item.payload.get("details") or [])]}
 
 
 class MergeOut(BaseModel):
@@ -710,6 +725,7 @@ def run_merge(payload: MergeIn, db: Session = Depends(get_db), user: User = Depe
         a.merge_id = m.id
     if m.skipped == m.total:
         m.status, m.finished_at = "done", datetime.now(timezone.utc)
+    _close_card(db, payload.review_item_id, user, m)
     db.commit()
     return _merge_out(db, m, letters_for_no_email=len(no_email_ids) if payload.no_email == "letters" else 0)
 

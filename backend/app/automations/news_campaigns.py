@@ -315,7 +315,7 @@ register(ReviewKind(
     label="News campaigns",
     description="News that's a reason for companies to advertise now - a destination reopening, flights resuming - with the companies to email and the email drafted.",
     actions=[
-        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved"),
+        ReviewAction(id="open_merge", label="Open as a mail merge", style="primary", outcome="approved", keeps_open=True),
         ReviewAction(id="not_now", label="Not now", style="secondary", outcome="dismissed", reopenable=True),
         ReviewAction(id="not_moment", label="Not a selling moment", style="secondary", outcome="rejected", reopenable=True),
     ],

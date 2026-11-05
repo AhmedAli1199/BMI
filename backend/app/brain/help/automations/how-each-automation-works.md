@@ -70,6 +70,8 @@ This guide explains every automation behind the Review Queue and the Scanners & 
 - **Not a lead, ignore** changes nothing.
 - Filters: **Mailbox**, **Intent** (High intent or General enquiry), **Company** and **Database**. Sorted by the date the email arrived. The suggested company is linked.
 
+**Open as a mail merge**, on any card that has it, only opens the mail merge screen: the card stays in the Review Queue until you send that mail merge, then closes by itself with a link to it. If you look and don't send, the card is still there.
+
 ### Subscription sign-ups (Lead & Contact Capture)
 - **When**: the moment someone signs up on a title's subscribe form, once that form sends to its address (see the **Subscription sign-ups** panel on Lead & Contact Capture). No scanner and no switch.
 - **Onboard Hospitality digital** is a Form Maker form on the WordPress site, which can't send to an address. Instead it emails each sign-up: add the inbox in **Subscription Sign-ups > Inboxes to read** (such as automation@bmipublishing.co.uk) to the form's **Email Options > Email to Administrator** in WordPress, and switch on **Read sign-up emails**. Every 10 minutes the Brain reads that inbox; an email counts as a sign-up when it comes from the website (**Website addresses the emails come from**) or its subject has one of the **Words in the subject of a sign-up email**, and it lists the answers with an email address among them. Each becomes a card like the others.
