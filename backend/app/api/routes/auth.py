@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.identity import SIGNED_OUT_HEADER, Identity, get_identity
-from app.core.security import verify_password
+from app.core.security import hash_password, verify_password
 from app.db.session import get_db
 from app.models import Group, User, UserAccess
 
@@ -74,3 +74,23 @@ def me(db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
     if not user:
         raise HTTPException(status_code=401, detail="Please sign in again.", headers={SIGNED_OUT_HEADER: "1"})
     return _login_response(db, user)
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=200)
+
+
+@router.post("/auth/password")
+def change_password(payload: PasswordChange, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Anyone signed in changes their own password, after typing their current one."""
+    user = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    if not user:
+        raise HTTPException(status_code=401, detail="Please sign in again.", headers={SIGNED_OUT_HEADER: "1"})
+    if not verify_password(payload.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Your current password isn't right. Check it and try again.")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status_code=400, detail="Choose a new password that's different from your current one.")
+    user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    return {"ok": True}

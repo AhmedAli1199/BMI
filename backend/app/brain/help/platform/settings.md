@@ -2,7 +2,7 @@
 title: Settings, team and sections
 screens: ["/settings", "/settings/users", "/settings/sections"]
 summary: Your own settings (theme, Outlook, notifications, dashboard and meeting recording), the Xero link, and for administrators the team accounts, roles, database access, the Accounts permission and which sections each role sees.
-sources: ["frontend/src/app/(app)/settings/page.tsx", "frontend/src/app/(app)/settings/users/page.tsx", "frontend/src/app/(app)/settings/sections/page.tsx", "frontend/src/components/theme-switcher.tsx", "frontend/src/components/outlook-connection-card.tsx", "frontend/src/components/xero-connection-card.tsx", "frontend/src/components/preference-group.tsx", "frontend/src/components/team-roster.tsx", "frontend/src/components/user-form-dialog.tsx", "frontend/src/components/sections-editor.tsx", "backend/app/api/routes/settings.py", "backend/app/api/routes/users.py", "backend/app/api/routes/integrations.py", "backend/app/preferences.py", "backend/app/roles.py", "backend/app/ui_sections.py", "backend/app/brain/access.py", "backend/app/sales/accounts.py"]
+sources: ["frontend/src/app/(app)/settings/page.tsx", "frontend/src/app/(app)/settings/users/page.tsx", "frontend/src/app/(app)/settings/sections/page.tsx", "frontend/src/components/theme-switcher.tsx", "frontend/src/components/change-password-card.tsx", "frontend/src/components/outlook-connection-card.tsx", "frontend/src/components/xero-connection-card.tsx", "frontend/src/components/preference-group.tsx", "frontend/src/components/team-roster.tsx", "frontend/src/components/user-form-dialog.tsx", "frontend/src/components/sections-editor.tsx", "backend/app/api/routes/settings.py", "backend/app/api/routes/users.py", "backend/app/api/routes/integrations.py", "backend/app/preferences.py", "backend/app/roles.py", "backend/app/ui_sections.py", "backend/app/brain/access.py", "backend/app/sales/accounts.py"]
 ---
 
 ## What this screen is for
@@ -14,6 +14,7 @@ From top to bottom:
 - **Team & access** card - administrators only. Opens the team page.
 - **Sections people see** card - administrators only. Opens the sections page.
 - **Appearance** - the **Theme** picker.
+- **Password** - **Change your password**: type your **Current password**, then your **New password** (at least 8 characters) and **New password again**, and press **Change password** (it shows **Saving…** while it saves). Anyone can change their own; you stay signed in. If you've forgotten it, ask an administrator to reset it in Team & access.
 - **Email** - the **Your Outlook mailbox** card. It shows whether you're connected (green tick, or an amber warning if it needs reconnecting), the sending limit for mail merges, and where the app's automatic emails come from.
 - **Integrations** - the **Xero** card. Only administrators and data managers see this section. When connected it shows the organisation name, how many invoices have been copied, how many bookings are matched to an invoice, and when it last synced.
 - **Dashboard**, **Notifications** and **Call notes** - one card per personal setting, each with two or three tiles to choose from. The tile with the tick is your current choice.

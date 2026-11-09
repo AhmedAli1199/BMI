@@ -840,3 +840,12 @@ export async function getKindDetail(kind: string, range: StatsRange): Promise<Ki
 export async function getQueueInsights(kind: string): Promise<ReviewQueueInsights> {
   return backendFetch<ReviewQueueInsights>(`/api/review-queue/insights?kind=${encodeURIComponent(kind)}&status=pending`);
 }
+
+/** The signed-in person changes their own password (backend/app/api/routes/auth.py change_password). */
+export async function changeMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+  await backendFetch("/api/auth/password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+}

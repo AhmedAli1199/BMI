@@ -887,6 +887,7 @@
    "page": "app/(app)/settings/page.tsx",
    "files": [
     "app/(app)/settings/page.tsx",
+    "components/change-password-card.tsx",
     "components/outlook-connection-card.tsx",
     "components/page-header.tsx",
     "components/preference-group.tsx",
@@ -2417,31 +2418,37 @@
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:56",
+   "src": "app/(app)/settings/page.tsx:57",
    "kind": "link",
    "label": "Team & access Create accounts, assign roles, and control which database each person can see"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:75",
+   "src": "app/(app)/settings/page.tsx:76",
    "kind": "link",
    "label": "Sections people see Hide parts of the app that Sales or Data Manager users don't need, so their screens stay simple"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:94",
+   "src": "app/(app)/settings/page.tsx:95",
    "kind": "heading",
    "label": "Appearance"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:107",
+   "src": "app/(app)/settings/page.tsx:109",
+   "kind": "heading",
+   "label": "Password"
+  },
+  {
+   "file": "app/(app)/settings/page.tsx",
+   "src": "app/(app)/settings/page.tsx:115",
    "kind": "heading",
    "label": "Email"
   },
   {
    "file": "app/(app)/settings/page.tsx",
-   "src": "app/(app)/settings/page.tsx:113",
+   "src": "app/(app)/settings/page.tsx:121",
    "kind": "heading",
    "label": "Integrations"
   },
@@ -3065,6 +3072,30 @@
    "src": "components/calls/send-notetaker.tsx:53",
    "kind": "button",
    "label": "Send"
+  },
+  {
+   "file": "components/change-password-card.tsx",
+   "src": "components/change-password-card.tsx:43",
+   "kind": "field",
+   "label": "Current password"
+  },
+  {
+   "file": "components/change-password-card.tsx",
+   "src": "components/change-password-card.tsx:47",
+   "kind": "field",
+   "label": "New password"
+  },
+  {
+   "file": "components/change-password-card.tsx",
+   "src": "components/change-password-card.tsx:52",
+   "kind": "field",
+   "label": "New password again"
+  },
+  {
+   "file": "components/change-password-card.tsx",
+   "src": "components/change-password-card.tsx:57",
+   "kind": "button",
+   "label": "Saving"
   },
   {
    "file": "components/commission/booking-new-business.tsx",

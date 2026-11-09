@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PreferenceGroup } from "@/components/preference-group";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { OutlookConnectionCard } from "@/components/outlook-connection-card";
+import { ChangePasswordCard } from "@/components/change-password-card";
 import type { MailStatus } from "@/lib/messaging-types";
 import { XeroConnectionCard } from "@/components/xero-connection-card";
 import type { XeroStatus } from "@/lib/xero-actions";
@@ -102,6 +103,13 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {session && (
+        <div id="password" className="flex scroll-mt-20 flex-col gap-4">
+          <h2 className="editorial-heading text-lg font-bold text-foreground">Password</h2>
+          <ChangePasswordCard />
+        </div>
+      )}
 
       <div id="email" className="flex scroll-mt-20 flex-col gap-4">
         <h2 className="editorial-heading text-lg font-bold text-foreground">Email</h2>
