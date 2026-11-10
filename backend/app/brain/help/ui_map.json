@@ -293,8 +293,8 @@
     "components/clickable-table-row.tsx",
     "components/contact-form-dialog.tsx",
     "components/contact-selection-actions.tsx",
-    "components/contacts/advanced-search.tsx",
     "components/contacts/bulk-update-dialog.tsx",
+    "components/contacts/contact-search.tsx",
     "components/contacts/contacts-list-memory.tsx",
     "components/contacts/copy-emails-button.tsx",
     "components/email-in-use-warning.tsx",
@@ -1507,50 +1507,31 @@
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:135",
+   "src": "app/(app)/contacts/page.tsx:132",
    "kind": "button",
    "label": "Import"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:164",
-   "kind": "button",
-   "label": "Look up"
-  },
-  {
-   "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:168",
-   "kind": "hint",
-   "label": "",
-   "hint": "The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several words in any order. The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy their emails or mail-merge them."
-  },
-  {
-   "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:179",
-   "kind": "link",
-   "label": "Clear lookup"
-  },
-  {
-   "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:196",
+   "src": "app/(app)/contacts/page.tsx:151",
    "kind": "button",
    "label": "Export"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:206",
+   "src": "app/(app)/contacts/page.tsx:161",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:237",
+   "src": "app/(app)/contacts/page.tsx:192",
    "kind": "link",
    "label": "← Previous"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:245",
+   "src": "app/(app)/contacts/page.tsx:200",
    "kind": "link",
    "label": "Next →"
   },
@@ -3902,31 +3883,6 @@
    "label": "Creating"
   },
   {
-   "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:75",
-   "kind": "button",
-   "label": "Advanced search"
-  },
-  {
-   "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:78",
-   "kind": "hint",
-   "label": "",
-   "hint": "Search any field - including phone, address, notes and the Act! custom fields - with several rules at once, e.g. Postcode starts with SW1 and Job title contains counsellor."
-  },
-  {
-   "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:112",
-   "kind": "button",
-   "label": "Remove this rule"
-  },
-  {
-   "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:117",
-   "kind": "button",
-   "label": "Add a rule"
-  },
-  {
    "file": "components/contacts/bulk-update-dialog.tsx",
    "src": "components/contacts/bulk-update-dialog.tsx:84",
    "kind": "button",
@@ -3986,6 +3942,61 @@
    "src": "components/contacts/bulk-update-dialog.tsx:170",
    "kind": "button",
    "label": "See what will change"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:164",
+   "kind": "button",
+   "label": "Quick search"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:167",
+   "kind": "button",
+   "label": "Advanced search"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:171",
+   "kind": "hint",
+   "label": "",
+   "hint": "Quick search : type in any of the boxes - the first one looks in names, job titles, companies, emails, phone numbers, addresses and the extra fields. Advanced search : rules for any field, e.g. Email (any) contains onboard. Switching to Advanced turns what you typed into rules. Everything that's filtering the list shows as a tag below - its X removes it."
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:192",
+   "kind": "button",
+   "label": "Look up"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:226",
+   "kind": "button",
+   "label": "Remove this rule"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:233",
+   "kind": "button",
+   "label": "Add a rule"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:236",
+   "kind": "button",
+   "label": "Look up"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:255",
+   "kind": "button",
+   "label": "Clear all"
+  },
+  {
+   "file": "components/contacts/contact-search.tsx",
+   "src": "components/contacts/contact-search.tsx:255",
+   "kind": "link",
+   "label": "Clear lookup"
   },
   {
    "file": "components/contacts/copy-emails-button.tsx",

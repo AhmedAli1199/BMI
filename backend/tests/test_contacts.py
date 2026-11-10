@@ -141,3 +141,16 @@ def test_email_already_on_another_contact_is_flagged(client):
     assert client.get("/api/contacts/email-matches", params={"email": "jane@acme.test", "exclude": a["id"]}).json() == []
     assert client.get("/api/contacts/email-matches", params={"email": "nobody@acme.test"}).json() == []
     assert b["id"]
+
+
+def test_anything_rule_matches_like_the_quick_search(client):
+    """The quick search box carried into Advanced search as an "Anything contains" rule finds the same people."""
+    import json
+
+    a = _create_contact(client, first_name="Quincy", last_name="Rulefinder", email="q.rule@acme.test")
+    _create_contact(client, first_name="Other", last_name="Person")
+    quick = client.get("/api/contacts", params={"q": "quincy acme"}).json()
+    rule = client.get("/api/contacts", params={"conds": json.dumps([{"field": "anything", "op": "contains", "value": "quincy acme"}])}).json()
+    assert [i["id"] for i in quick["items"]] == [i["id"] for i in rule["items"]] == [a["id"]]
+    fields = {f["key"]: f for f in client.get("/api/contacts/fields").json()}
+    assert [o["op"] for o in fields["anything"]["ops"]] == ["contains", "not_contains"]

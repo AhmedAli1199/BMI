@@ -40,7 +40,7 @@ test.describe("contact lifecycle features", () => {
     const ids: string[] = [];
 
     for (const lastName of [lastFrom, lastTo]) {
-      await page.goto("/contacts");
+      await page.goto("/contacts?fresh=1");
       await page.getByRole("button", { name: "Add contact" }).click();
       await page.getByLabel("First name").fill("R");
       await page.getByLabel("Last name").fill(lastName);

@@ -32,8 +32,8 @@ test.describe("groups", () => {
       await expect(page).toHaveURL(/\/contacts\/[0-9a-f-]+/);
       await page.getByRole("tab", { name: "Groups (0)" }).click();
       await page.getByRole("button", { name: "Add to group" }).click();
-      await page.getByPlaceholder("Search groups…").click();
-      await page.getByPlaceholder("Search groups…").fill(groupName.slice(0, 12));
+      await page.getByPlaceholder("Pick a group, or type to search…").click();
+      await page.getByPlaceholder("Pick a group, or type to search…").fill(groupName.slice(0, 12));
       await expect(page.getByText(groupName)).toBeVisible({ timeout: 5000 });
       await page.getByText(groupName).click();
     }

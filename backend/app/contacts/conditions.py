@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from sqlalchemy import and_, exists, func, not_, or_, select
+from sqlalchemy import and_, exists, func, not_, or_, select, true
 from sqlalchemy.orm import Session
 
 from app.contacts.fields import OPS_BY_KIND, FieldDef, get_field
@@ -115,6 +115,13 @@ def clause(db: Session, c: Condition):
     if c.op not in ("is_empty", "is_not_empty", "is_yes", "is_no") and not c.value:
         raise BadCondition(f"Type something for “{f.label}”.")
     op = c.op
+
+    if f.store == "anything":
+        from app.services.contact_lookup import _quick_match
+
+        words = c.value.split()[:6]
+        pred = and_(*[_quick_match(w) for w in words]) if words else true()
+        return not_(pred) if op == "not_contains" else pred
 
     if f.kind == "bool":
         col = getattr(Contact, f.column)

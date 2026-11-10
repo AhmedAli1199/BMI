@@ -11,7 +11,7 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 ## What you see
 **The list (Contacts)**
 - Header with the number of contacts that match, and the buttons **Import** and **Add contact**. If your access is limited to one group, a line says "Showing <group> only".
-- The lookup box: a search box plus **Company**, **City / town**, **Country** and **Job title** boxes, the **Look up** button (with an ⓘ that explains the search), and **Advanced search** underneath.
+- The lookup box with two ways to search, one at a time: **Quick search** (a search box plus **Company**, **City / town**, **Country** and **Job title** boxes and **Look up**) or **Advanced search** (rule lines and **Look up**), with an ⓘ that explains them. Underneath, **Searching for:** lists everything that's filtering the list as tags, each with an X, and **Clear all**.
 - A bar "With these <n> contacts:" and the buttons **Copy emails**, **Bulk update**, **Export** and **Mail merge**, which work on everyone the lookup found.
 - The table: tick box, **Contact & Title**, **Company**, **Location**, **Email** and **Publication** (a coloured badge for the database the person belongs to). 50 a page, with **← Previous** and **Next →** at the bottom.
 
@@ -21,18 +21,27 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 - An amber strip with your own open reminders about this person (red once overdue).
 - **Contact details** in three columns (empty fields are hidden until you press **Edit Record**): Business Card (company, title, department, up to two phone numbers each labelled with its type, such as Business or Mobile, and e-mail), Address & Web (the address and the company's website), and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
 - **History of changes** (closed until you click it).
-- Tabs: **Activities (<n>)**, **Notes (<n>)**, **History (<n>)**, **Groups (<n>)**, **Magazine & Issues** and **User Fields (<n>)**, with one search box that searches the first three at once.
+- **More details** in the same card: every extra field from Act!, yes/no ones as tick boxes.
+- Tabs: **Notes (<n>)** (everything about the contact in one list) and **Groups (<n>)**, with a search box for the notes.
 
 ## Buttons and controls
+
+### Quick search, Advanced search
+Two ways to search; pick one with the switch at the top of the lookup box. The app remembers which one you used last, so it opens that way next time.
 
 ### Search box ("Name, email, phone, address, company…")
 Type several words in any order. Every word must appear somewhere: name, job title, department, category, company, email, phone (digits alone work, so "020 7946" finds "+44 (0)20 7946..."), any address line or postcode, or a custom field. Only the first six words count. Notes are not searched here; use **Advanced search** for that.
 
-### Company, City / town, Country, Job title
-Each one narrows the list further ("contains"). Press **Look up** to run the search. The small X next to **Look up** (**Clear lookup**) clears the whole lookup.
+### Company, City / town, Country, Job title (Quick search)
+Each one narrows the list further ("contains"). Press **Look up** to run the search.
 
 ### Advanced search
-Opens rules of the form field / how / value, for example Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
+Rules of the form field / how / value, with **Look up** to run them, for example Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
+
+Switching from Quick search to Advanced search turns what you typed into rules: the search box becomes **Anything (name, email, company…) contains …** and the other boxes become Company, City / town, Country or Job title rules. Rules keep applying if you switch back to Quick search.
+
+### Searching for (tags), Clear all
+Everything that's filtering the list - from either mode - shows as a tag, e.g. Search “001” or Email (any) contains “onboard”. The X on a tag removes just that one; **Clear all** starts afresh.
 
 ### Coming back to the list
 Contacts remembers how you left it: going back to it (from the sidebar or the record's **Contacts** link) shows the same search, sort and page, scrolled to the contact you last opened, which is briefly highlighted. The X next to **Look up** (**Clear lookup**) starts afresh.

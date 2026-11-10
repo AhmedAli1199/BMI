@@ -1,18 +1,16 @@
 import Link from "next/link";
-import { Download, Mail, Search, SlidersHorizontal, Upload, X } from "lucide-react";
+import { Download, Mail, Upload } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
 import { getSession } from "@/lib/session";
 import { accessLabel, resolveScope } from "@/lib/access";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { PageHeader } from "@/components/page-header";
-import { InfoHint } from "@/components/sales/info-hint";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
 import { ContactsListMemory } from "@/components/contacts/contacts-list-memory";
-import { AdvancedSearch } from "@/components/contacts/advanced-search";
+import { ContactSearch } from "@/components/contacts/contact-search";
 import { parseConds } from "@/lib/search-conditions";
 import { BulkUpdateDialog } from "@/components/contacts/bulk-update-dialog";
 import { CopyEmailsButton } from "@/components/contacts/copy-emails-button";
@@ -117,7 +115,6 @@ export default async function ContactsPage({
   }
   const lookupBits = [q, lookup.company, lookup.title, lookup.city, lookup.country, conds.length ? "advanced search" : ""].filter(Boolean);
   const lookupLabel = lookupBits.length ? `Lookup: ${lookupBits.join(", ")}` : "All contacts";
-  const inputCls = "h-8 text-xs";
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
@@ -125,7 +122,7 @@ export default async function ContactsPage({
       <PageHeader
         section="Clients"
         title="Contacts"
-        description={`${data.total.toLocaleString()} ${q || activeLookups ? "contacts match this lookup" : "contacts across all titles"}`}
+        description={`${data.total.toLocaleString()} ${data.total === 1 ? "contact" : "contacts"} ${q || activeLookups ? (data.total === 1 ? "matches this lookup" : "match this lookup") : "across all titles"}`}
         below={scope.group_name ? (
             <p className="text-[11px] font-medium text-primary">
               Showing {accessLabel({ source_db, group_id: scope.group_id, group_name: scope.group_name })} only
@@ -140,51 +137,9 @@ export default async function ContactsPage({
         </>}
       />
 
-      {/* Lookup: Act!'s "Lookup > Company / City / Country / Title". Plain
-          GET form, so every lookup is a shareable, bookmarkable URL. */}
-      <form action="/contacts" className="rounded-lg border border-border bg-card p-3 shadow-2xs">
-        <input type="hidden" name="sort" value={sort} />
-        {desc && <input type="hidden" name="desc" value="1" />}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[2fr_1.3fr_1fr_1fr_1.3fr_auto]">
-          <div className="relative col-span-2 sm:col-span-3 lg:col-span-1">
-            <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
-            <Input
-              name="q"
-              aria-label="Search"
-              placeholder="Name, email, phone, address, company…"
-              defaultValue={q ?? ""}
-              className={`pl-8 ${inputCls}`}
-            />
-          </div>
-          <Input name="company" aria-label="Company" placeholder="Company" defaultValue={lookup.company} className={inputCls} />
-          <Input name="city" aria-label="City or town" placeholder="City / town" defaultValue={lookup.city} className={inputCls} />
-          <Input name="country" aria-label="Country" placeholder="Country" defaultValue={lookup.country} className={inputCls} />
-          <Input name="title" aria-label="Job title" placeholder="Job title" defaultValue={lookup.title} className={inputCls} />
-          <div className="col-span-2 flex gap-1.5 sm:col-span-1">
-            <Button type="submit" size="sm" className="h-8 flex-1 gap-1.5">
-              <SlidersHorizontal className="size-3.5" />
-              Look up
-            </Button>
-            <InfoHint>
-              The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several
-              words in any order. The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy
-              their emails or mail-merge them.
-            </InfoHint>
-            {(q || activeLookups > 0) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8"
-                nativeButton={false}
-                render={<Link href="/contacts?fresh=1" aria-label="Clear lookup" />}
-              >
-                <X className="size-3.5" />
-              </Button>
-            )}
-          </div>
-          <AdvancedSearch fields={fields} initial={conds} match={match} />
-        </div>
-      </form>
+      {/* Quick search or Advanced search (one at a time), with every active filter shown as a tag. Plain GET form,
+          so every lookup is a shareable, bookmarkable URL. */}
+      <ContactSearch fields={fields} quick={{ q: q ?? "", ...lookup }} conds={conds} match={match} sort={sort} desc={desc} />
 
       {/* What you can do with everyone this lookup found. The title filter is the switcher in the top bar. */}
       <div className="flex flex-wrap items-center gap-2">

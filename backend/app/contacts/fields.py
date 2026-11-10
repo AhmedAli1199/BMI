@@ -53,6 +53,8 @@ def _t(key, label, group, column=None, *, bulk=False, aliases=(), store="contact
 
 # Order here is the order fields appear in pickers.
 BASE_FIELDS: list[FieldDef] = [
+    # The quick search box as a rule: every word must appear somewhere (name, job, company, email, phone, address, custom fields).
+    FieldDef("anything", "Anything (name, email, company…)", "Search", "search", "anything", "", False, False),
     _t("first_name", "First name", "Name", bulk=True),
     _t("middle_name", "Middle name", "Name", bulk=True),
     _t("last_name", "Last name", "Name", bulk=True),
@@ -91,6 +93,7 @@ BASE_FIELDS: list[FieldDef] = [
 BY_KEY = {f.key: f for f in BASE_FIELDS}
 
 OPS_BY_KIND = {
+    "search": ("contains", "not_contains"),
     "text": ("contains", "not_contains", "equals", "starts_with", "is_empty", "is_not_empty"),
     "bool": ("is_yes", "is_no"),
     "date": ("on", "before", "after", "is_empty", "is_not_empty"),

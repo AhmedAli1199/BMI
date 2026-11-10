@@ -41,7 +41,7 @@ test.describe("contacts", () => {
     // The Business Card fields (Title, Department, ...) are plain
     // label-span + Input pairs, not <label for>, so they're targeted by
     // the row's text rather than getByLabel.
-    const titleRow = page.locator("div").filter({ hasText: /^Title:/ }).last();
+    const titleRow = page.locator("div").filter({ has: page.getByText("Title", { exact: true }) }).last();
     await titleRow.locator("input").fill("E2E Test Title");
     await page.getByRole("button", { name: "Save Changes" }).click();
 

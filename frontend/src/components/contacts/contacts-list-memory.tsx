@@ -42,7 +42,9 @@ export function ContactsListMemory() {
     if (!last) return;
     const row = document.querySelector<HTMLElement>(`[data-contact-id="${CSS.escape(last)}"]`);
     if (!row) return;
-    row.scrollIntoView({ block: "center" });
+    // Only move the page if that contact is out of view, and as little as possible, so nothing jumps under your mouse.
+    const r = row.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) row.scrollIntoView({ block: "nearest" });
     row.dataset.lastOpened = "true";
     const t = setTimeout(() => { delete row.dataset.lastOpened; }, 4000);
     return () => clearTimeout(t);

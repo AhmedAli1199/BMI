@@ -22,7 +22,7 @@ test.describe("field change history", () => {
     await page.getByText("History of changes").click(); // collapse
 
     await page.getByRole("button", { name: "Edit Record" }).click();
-    const titleRow = page.locator("div").filter({ hasText: /^Title:/ }).last();
+    const titleRow = page.locator("div").filter({ has: page.getByText("Title", { exact: true }) }).last();
     await titleRow.locator("input").fill("Head of Audit");
     await page.getByRole("button", { name: "Save Changes" }).click();
     await expect(page.getByText("Head of Audit").first()).toBeVisible({ timeout: 10000 });
