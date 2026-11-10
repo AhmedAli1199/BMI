@@ -43,7 +43,7 @@ To see one title's database, or all the ones you can see, use the **All Titles**
 ### Tick boxes and the selection bar
 Tick people (or the top box for the whole page). A bar appears with "<n> contacts selected" and:
 - **Select all <n> matching**: shown when you have ticked a whole page and more match. Ticks everyone in the lookup.
-- **Add to group**: pick a group and press **Add to group**. People already in it are left as they are.
+- **Add to group**: click into the group box and the list of groups opens straight away (with member counts; type to narrow it), pick one and press **Add to group**. People already in it are left as they are.
 - **New group**: type a **Group name** and optional **Description (optional)**, then **Create group**. Handy for a one-off mailing.
 - **Export**, **Copy emails**, **Bulk update** and **Mail merge** work on just the ticked people.
 - The X (**Clear selection**) unticks everyone.

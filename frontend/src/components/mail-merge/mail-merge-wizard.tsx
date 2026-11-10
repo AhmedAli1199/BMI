@@ -43,7 +43,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
-import { searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
+import { groupPicker } from "@/lib/group-picker";
+import { searchCompanies, searchContacts } from "@/lib/actions";
 import {
   deleteAttachment,
   listTemplates,
@@ -586,20 +587,13 @@ export function MailMergeWizard({
               <div className="max-w-md">
                 <EntityPicker
                   label="Group"
-                  placeholder="Search groups…"
                   value={group}
                   onChange={(g) => {
                     setGroup(g);
                     setSource(g ? { kind: "group", group_id: g.id } : null);
                     setSourceLabel(g ? `Group: ${g.label}` : "");
                   }}
-                  search={async (q) =>
-                    (await searchGroups(q)).map((g) => ({
-                      id: g.id,
-                      label: g.name,
-                      sublabel: `${g.member_count.toLocaleString()} members`,
-                    }))
-                  }
+                  {...groupPicker()}
                 />
                 {initial.source?.kind === "group" && !group && (
                   <p className="mt-1 text-xs text-muted-foreground">Currently: {initial.label}</p>

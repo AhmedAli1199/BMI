@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
-import { searchGroups } from "@/lib/actions";
+import { groupPicker } from "@/lib/group-picker";
 import { addContactsToGroup, createGroupWithMembers } from "@/lib/messaging-actions";
 import { downloadFile, postJson, stashMergeSelection } from "@/lib/download";
 import type { ContactField } from "@/lib/contact-tools-types";
@@ -160,14 +160,9 @@ export function ContactSelectionActions({
           </DialogHeader>
           <EntityPicker
             label="Group"
-            placeholder="Search groups…"
             value={group}
             onChange={setGroup}
-            search={async (q) =>
-              (await searchGroups(q))
-                .filter((g) => g.id !== excludeGroupId)
-                .map((g) => ({ id: g.id, label: g.name, sublabel: `${g.member_count.toLocaleString()} members` }))
-            }
+            {...groupPicker({ exclude: excludeGroupId })}
           />
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>

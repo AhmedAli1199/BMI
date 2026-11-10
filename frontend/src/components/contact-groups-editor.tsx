@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EntityPicker } from "@/components/entity-picker";
-import { addContactToGroup, browseGroups, removeContactFromGroup, searchGroups } from "@/lib/actions";
+import { addContactToGroup, removeContactFromGroup } from "@/lib/actions";
+import { groupPicker } from "@/lib/group-picker";
 
 export function ContactGroupsEditor({
   contactId,
@@ -19,14 +20,8 @@ export function ContactGroupsEditor({
   /** The contact's database: its groups are listed first when the picker opens. */
   sourceDb?: string | null;
 }) {
-  const memberOf = new Set(groups.map((g) => g.id));
-  const asOption = (g: { id: string; name: string; member_count: number; hier_level: number | null }) => ({
-    id: g.id,
-    label: g.name,
-    sublabel: memberOf.has(g.id) ? "already in this group" : `${g.member_count.toLocaleString()} member${g.member_count === 1 ? "" : "s"}`,
-    indent: Math.max(0, (g.hier_level ?? 1) - 1),
-    disabled: memberOf.has(g.id),
-  });
+  const picker = groupPicker({ sourceDb, alreadyIn: new Set(groups.map((g) => g.id)) });
+
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -67,15 +62,7 @@ export function ContactGroupsEditor({
         <div className="max-w-xs">
           <EntityPicker
             label="group"
-            placeholder="Pick a group, or type to search…"
-            search={async (q) => (await searchGroups(q)).map(asOption)}
-            browse={async () => {
-              const { items, total } = await browseGroups(sourceDb);
-              return {
-                options: items.map(asOption),
-                note: total > items.length ? `Showing ${items.length} of ${total.toLocaleString()} groups - type to find the rest.` : undefined,
-              };
-            }}
+            {...picker}
             value={null}
             onChange={(v) => {
               if (!v) return;

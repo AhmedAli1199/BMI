@@ -6,10 +6,10 @@ import { AlertTriangle, ArrowRight, Check, CircleHelp, EyeOff, Loader2, RefreshC
 import { toast } from "sonner";
 import type { ContactImport, ImportColumn, ImportOptions, ImportTarget } from "@/lib/contact-tools-types";
 import { autoMapImport, discardImport, patchImport } from "@/lib/contact-tools-actions";
-import { searchGroups } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EntityPicker } from "@/components/entity-picker";
+import { groupPicker } from "@/lib/group-picker";
 import { InfoHint } from "@/components/sales/info-hint";
 import { friendlyError } from "@/lib/errors";
 
@@ -188,7 +188,7 @@ export function ImportMapStep({ imp, targets, publications, onChange, onNext }: 
                 <option value="none">No group</option><option value="new">A new group</option><option value="existing">An existing group</option>
               </select>
               {groupMode === "existing" && (
-                <div className="min-w-0 flex-1"><EntityPicker label="" placeholder="Search groups…" search={async (q) => (await searchGroups(q)).map((g) => ({ id: g.id, label: g.name }))} value={groupPick} onChange={(g) => { setGroupPick(g); setOptions({ group_id: g?.id ?? null }); }} /></div>
+                <div className="min-w-0 flex-1"><EntityPicker label="group" {...groupPicker()} value={groupPick} onChange={(g) => { setGroupPick(g); setOptions({ group_id: g?.id ?? null }); }} /></div>
               )}
               {groupMode === "new" && <Input aria-label="New group name" defaultValue={opts.new_group_name ?? ""} onBlur={(e) => setOptions({ new_group_name: e.target.value.trim() || null })} className="h-9 min-w-0 flex-1 text-sm" />}
             </div>
