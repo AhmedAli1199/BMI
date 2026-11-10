@@ -1,5 +1,10 @@
 # BMI Brain — Handoff (from 30 Sep 2026 onwards)
 
+> **Picking this up? Start with `docs/REMAINING-WORK.md`** (the 10 automations left, what each needs, other open
+> work and the go-live checklist; updated 10 Nov 2026). Go-live is **4 Dec 2026**. Current status of all 54
+> Option Two automations: `docs/option2-status/index.html`. §2 below is the original project-state table and is
+> kept for history; §4.3h7 lists what was built 2–10 Nov.
+
 This is the working handbook for continuing the BMI Brain build in a new
 Claude session/account. Read it fully before touching code. It covers:
 
@@ -34,7 +39,7 @@ Other docs you must also know about:
 
 ---
 
-## 2. Project state (as of 3 Oct 2026)
+## 2. Project state (as of 3 Oct 2026 - superseded: see `docs/REMAINING-WORK.md` and `docs/option2-status/`)
 
 Spec stages and status (IDs from `docs/build-spec.txt`):
 
@@ -389,6 +394,41 @@ Reps: SW Sue Williams, CM Craig McQuinn, KH Kirsty Hicks, SP Sally Parker, ST/S.
   - **Unsubscribes, Brevo to BMI Brain:** hourly job `brevo_unsubscribe_sync` reads `GET /contacts?modifiedSince`. Blacklisted people are marked `is_unsubscribed` on every record with that address; `listUnsubscribed` removes them from that title's newsletter group. This happens automatically, recorded in field history and a note.
   - **SALES-004:** job `brevo_coverage_scan` every 3h reads sent campaigns. Clients (a booking in the last 2 years, name of 5 or more characters, whole-word match) named in the newsletter text become one `newsletter_coverage` card per owner, as a mail merge with `shareLink`.
 - **Still to do:** BMI to fill `brevo_title_lists` with the Brevo list numbers.
+### 4.3h7 Built 2–10 Nov 2026 (Option Two, plus BMI's feedback)
+- **FIN-007** confirmation as a locked PDF, Word or both (`app/sales/deals.py` `build_pdf`: LibreOffice in the Docker
+  image converts the Word file, pypdf locks it). **FIN-008** VAT number on bookings (migration 0069), remembered per
+  client, printed, shown on the Xero draft.
+- **CS-006** free address checks before mail merge / Copy emails (`app/services/email_check.py`: syntax, common
+  typos, DNS mail lookup; setting `email_domain_check_enabled`). Tests stub DNS in `conftest.py`.
+- **SALES-030** `campaign_replies.py`: replies to mail merges -> `campaign_unsubscribe` / `campaign_referral` cards.
+- **SALES-004** website side `website_coverage.py`: new stories on the three WordPress sites (`/wp-json/wp/v2/posts`)
+  -> `website_coverage` cards (reuses `brevo_sync.coverage_cards`).
+- **SALES-029** `issue_campaigns.py`: ~42 days before an issue's ad deadline, "Who should we pitch?" becomes a ready
+  mail merge per salesperson (`issue_pitch_campaign`).
+- **SALES-003** each advertiser's link opens their page: merge field `{{advert_page}}` (`mail_merge.issue_contact_values`,
+  stored per recipient in `mail_merge_recipients.values`, migration 0070), page read from the item's Page / position.
+- **SALES-006/007** `competitor_issues.py`: a salesperson uploads a competitor's issue (PDF) on Sales & Follow-ups;
+  the Brain lists advertisers (text pages in batches, picture pages as images), compares with our bookings, drafts an
+  approach, can add new companies (`competitor_issue`).
+- **Open as a mail merge keeps the card** (`ReviewAction.keeps_open`): the card closes only when the mail merge is
+  sent (`MergeIn.review_item_id` -> `messaging._close_card`). Migration 0072 reopened cards closed without a send.
+- **Sign-up cards** show key details; all answers tidied behind "See all their answers" (`payload.all_details`,
+  generic in `review-item-card.tsx`; migration 0071).
+- **Who sees which card (10 Nov, BMI's request):** `review_queue._apply_scope`. Administrators see everything and are
+  the only ones with "Everyone" on Today. Everyone else sees cards they own (`payload.owner_user_id`) plus: data
+  managers the data kinds (audience != "sales") for their databases; salespeople the team-wide kinds
+  (`SHARED_SALES_KINDS`); the accounts person booking checks. Email signals record their `mailbox` (migration 0073)
+  and their cards go to that person (`app/automations/owners.py`).
+- **Money is admins + accounts only:** commission and costs & profit use `app/sales/accounts.py` `sees_money` (admin or
+  the Accounts tick), not data managers.
+- **Notetaker:** settings `notetaker_default_mode` + `notetaker_mode_locked` (admin sets/locks it for everyone; a
+  per-meeting Skip still works and admins are told); `call_notes.notes_ready` emails the notes to every BMI attendee
+  (setting `call_notes_email_attendees`) and only meetings with someone from outside get the CRM card; "Not let in"
+  is recorded (`record_not_let_in`).
+- **Small things:** change your own password (Settings > Password, `POST /api/auth/password`); Sales menu folds away
+  (remembered per browser); booking items numbered with a "Check the booking" summary before confirming; unmatched
+  new Issuu publications can still be linked to any nearby issue.
+
 ### 4.3h SALES-022 save the sale (built 12 Oct 2026)
 - The email scan (`email_summary.py`) now also extracts **"decline"** signals (a client saying no to a booking) with a reason - budget / timing / results / competitor / other (model's answer if valid, else keyword rules, `decline_reason`). Migration `0047` (signal type + `email_signals.reason`).
 - `app/automations/save_the_sale.py` (job `save_the_sale_scan`, every 30 min, setting `automations_save_the_sale_enabled`, off by default; cap `save_the_sale_max_per_run`): one review item ("Save the sale") per decline with a draft reply from the reason's template. **The offer is chosen by rules, not AI**: budget = the next cheaper products in the same title on the rate card (below what they last paid) and the next issue; timing = the next open issue (with its ad deadline); results = the cheapest online/newsletter product in the brand; competitor/other = no offer, acknowledge and ask. AI polish only when configured and thrown away if it adds a figure.
@@ -514,23 +554,23 @@ Earlier copy was "too developer-facing". Grounded in Google / Microsoft / Mailch
 
 ---
 
-## 7. Waiting on BMI (keep `docs/bmi-open-questions.md` in sync)
-1. **IT – Outlook sending:** on the existing app registration add redirect `https://<domain>/api/outlook/callback`, delegated `Mail.Send`, `User.Read`, `offline_access`, grant admin consent.
-2. **Automation mailbox (done differently, 14 Oct):** no application permission needed. automation@bmipublishing.co.uk has its own BMI Brain login (`scripts/seed_team.py`); sign in as it, Settings → Email → Connect Outlook, and set Automations → Settings → "Automation mailbox". `app/services/notify.py` `send_automation_email` finds the Outlook connection whose address matches and sends with the normal delegated Mail.Send. If the connection ever expires, Settings → Email says so; reconnect it the same way.
-3. **Teams incoming webhook** (summaries/alerts).
-4. **Xero app** registered at developer.xero.com (client id/secret).
-5. **Rate card:** media packs received and loaded for all three brands (§3.8); BMI to confirm the items marked "please check" and whether prices are before VAT.
-6. **Editorial plan:** OBH + TBTM loaded (§3.9); still need Selling Travel's issue dates and features list.
-7. **Digital edition links** (past issues or the link pattern; one issue link + one page link).
-8. **3–5 sent proposals** (voice for SALES-020).
-9. **Commission rule** (2% vs 5%).
-10. Reps' pipeline spreadsheets (SALES-024); delivery stages/timings/owners (SALES-027).
-11. One contact with the "useful box" and "Ad agency" filled in; editorial logins (names + read/edit).
-12. Gemini API key + billing (offer Clare a 10-min call); branding files; mailbox list + Wufoo outcome; Teams/Zoom transcripts (SALES-008); "proposal sent" pattern (SALES-009); successor research method (CS-003).
+## 7. Waiting on BMI (as of 10 Nov; keep `docs/bmi-open-questions.md` in sync)
+1. Job titles per magazine for finding people (SALES-016..019), and travel-agent titles for events (CS-008).
+2. Apollo account (BMI agreed one month on Basic); its API key on the server.
+3. Whether the editors want their inboxes sorted (CS-011), and which shared inbox CS-010 reads.
+4. The prospect pipeline brief (SALES-024/025): needed by 16 Nov to make go-live.
+5. Delivery tracking: are the hand-offs enough (SALES-027)? Names for the hand-offs.
+6. How print subscriptions are recorded (so an unsubscribe can stop print).
+7. Paid email checking: yes or no.
+8. Who types page numbers on bookings once an issue is laid out.
+Earlier items still open: Teams webhook, Selling Travel editorial plan, 3–5 sent proposals, commission rule check.
 
-**WhatsApp ask already sent (3 Oct):** rate card, editorial plan, digital edition links, 3–5 sent proposals.
+## 8. Suggested next steps (10 Nov)
+See `docs/REMAINING-WORK.md`. In order: SOR trial import of the 2021–2027 zip; CS-009; CS-010; test the Apollo API
+and build SALES-016..019 (Craig tests it); CS-008 on top; CS-011 if the editors say yes; the pipeline if the brief
+arrives by 16 Nov. Then the go-live checklist in that file.
 
-## 8. Suggested next steps
+The original 3 Oct list (kept for history):
 1. Proposal builder: BMI voice from sent examples (blocked on BMI). Editorial plan + offers are wired in (§3.10).
 2. Act! feedback #7 (company address → update contacts with opt-out).
 3. SALES-024 pipeline → SALES-025 chase lists.
