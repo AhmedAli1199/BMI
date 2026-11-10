@@ -133,6 +133,31 @@ def custom_keys(db: Session, *, refresh: bool = False) -> list[str]:
     return keys
 
 
+_BOOLISH = ("true", "false", "yes", "no", "y", "n", "1", "0")
+
+
+def custom_kinds(db: Session, *, refresh: bool = False) -> dict[str, str]:
+    """{key: "bool" | "text"} for every custom field: "bool" when every value stored anywhere is a yes/no
+    (Act!'s True/False fields), so the contact page shows a tick box. Cached like custom_keys."""
+    hit = _cache.get("kinds")
+    if hit and not refresh and time.time() - hit[0] < _CACHE_SECONDS:
+        return dict(hit[1])
+    rows = db.execute(text(
+        "SELECT e.key, bool_and(lower(trim(e.value)) = ANY(:b)) FROM contacts, LATERAL jsonb_each_text(custom_fields) AS e "
+        "WHERE jsonb_typeof(custom_fields) = 'object' AND trim(coalesce(e.value, '')) <> '' GROUP BY e.key"
+    ), {"b": list(_BOOLISH)}).all()
+    kinds = {k: ("bool" if b else "text") for k, b in rows if k and not k.startswith("_")}
+    _cache["kinds"] = (time.time(), list(kinds.items()))
+    return kinds
+
+
+def custom_catalog(db: Session) -> list[dict]:
+    """Every custom field, for a record page: [{key, label, kind}] in name order."""
+    labels, kinds = get_custom_labels(db), custom_kinds(db)
+    out = [{"key": k, "label": labels.get(k) or pretty_key(k), "kind": kinds.get(k, "text")} for k in custom_keys(db)]
+    return sorted(out, key=lambda f: f["label"].lower())
+
+
 def forget_custom_keys() -> None:
     _cache.clear()
 

@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/page-header";
 import { RecordPager } from "@/components/record-pager";
 import { Badge } from "@/components/ui/badge";
 import { ActContactCard } from "@/components/act-contact-card";
+import { RememberOpenedContact } from "@/components/contacts/contacts-list-memory";
 import { ActTabWorkstation } from "@/components/act-tab-workstation";
 import { FieldChangeHistory } from "@/components/field-change-history";
 import { getContactFieldChanges } from "@/lib/actions";
@@ -118,9 +119,10 @@ export default async function ContactDetailPage({
 
         <RecordReminders reminders={reminders} />
 
+                <RememberOpenedContact id={contact.id} />
                 <ActContactCard contact={contact} />
 
-        <FieldChangeHistory entityId={contact.id} fetchChanges={getContactFieldChanges} />
+        <FieldChangeHistory entityId={contact.id} fetchChanges={getContactFieldChanges} customLabels={Object.fromEntries((contact.custom_field_catalog ?? []).map((f) => [f.key, f.label]))} />
 
                 <ActTabWorkstation contact={contact} />
       </div>

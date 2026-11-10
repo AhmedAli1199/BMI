@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
-import { createContact, listPublications, createCompany, searchCompanies, updateContact, type ContactFormInput } from "@/lib/actions";
+import { createContact, listPublications, createCompany, searchCompaniesWithSimilar, similarCompanies, updateContact, type ContactFormInput } from "@/lib/actions";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
 import type { Publication } from "@/lib/types";
 
@@ -176,11 +176,17 @@ export function ContactFormDialog({
                 <EntityPicker
                   label="company"
                   placeholder="Search companies…"
-                  search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))}
+                  search={async (q) => (await searchCompaniesWithSimilar(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.similar ? "similar name" : c.industry }))}
                   value={company ? { id: company.id, label: company.label } : null}
                   onChange={(v) => setCompany(v)}
                   viewHref={(id) => `/companies/${id}`}
                   onCreate={async (name) => {
+                    // Same company under a slightly different spelling ("Acme Travel" vs "Acme Travel Ltd"): use that one.
+                    const same = (await similarCompanies(name).catch(() => [])).find((x) => x.exact);
+                    if (same) {
+                      toast.info(`“${same.name}” is already in the CRM, so we've picked it instead of adding a copy.`);
+                      return { id: same.id, label: same.name };
+                    }
                     const c = await createCompany({ name, source_db: existing ? undefined : sourceDb || undefined });
                     toast.success(`Created the company “${name}”. Save to link it.`);
                     return { id: c.id, label: name };

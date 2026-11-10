@@ -118,7 +118,7 @@ export default async function CompaniesPage({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={`text-[11px] font-medium ${sourceBadgeStyle(c.source_db)}`}>
+                  <Badge variant="outline" className={`h-auto whitespace-nowrap py-0.5 text-[11px] font-medium ${sourceBadgeStyle(c.source_db)}`}>
                     {sourceLabel(c.source_db)}
                   </Badge>
                 </TableCell>

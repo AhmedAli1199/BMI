@@ -135,6 +135,75 @@ def get_company_position(
     )
 
 
+class SimilarCompany(BaseModel):
+    id: uuid.UUID
+    name: str
+    source_db: str | None = None
+    exact: bool
+    contacts: int = 0
+
+
+@router.get("/similar", response_model=list[SimilarCompany])
+def similar(name: str = Query(..., min_length=1, max_length=300), exclude: uuid.UUID | None = None,
+            db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> list[SimilarCompany]:
+    """Companies already in the CRM with the same or a close name - shown before adding one (Craig, feedback #12)."""
+    from app.services.record_delete import similar_companies
+
+    return [SimilarCompany(**f) for f in similar_companies(db, name, visible=company_clause(db, identity), exclude=exclude)]
+
+
+def _visible_company(db: Session, company_id: uuid.UUID, identity: Identity) -> Company:
+    company = db.get(Company, company_id)
+    vis = company_clause(db, identity)
+    if not company or (vis is not None and not db.scalar(select(Company.id).where(Company.id == company_id, vis))):
+        raise HTTPException(status_code=404, detail="Company not found")
+    return company
+
+
+@router.get("/{company_id}/usage")
+def usage(company_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """What deleting or merging this company would affect: contacts, bookings, deals, proposals."""
+    from app.services.record_delete import company_usage
+
+    return company_usage(db, _visible_company(db, company_id, identity).id)
+
+
+class MergeIn(BaseModel):
+    into_id: uuid.UUID
+
+
+@router.post("/{company_id}/merge")
+def merge(company_id: uuid.UUID, payload: MergeIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Merges this company into another: everything moves across, then this one is deleted. Anyone who can see both."""
+    from app.services.record_delete import merge_companies
+
+    if payload.into_id == company_id:
+        raise HTTPException(status_code=422, detail="Choose a different company to merge into.")
+    source = _visible_company(db, company_id, identity)
+    target = _visible_company(db, payload.into_id, identity)
+    moved = merge_companies(db, source, target, identity.user_uuid)
+    db.commit()
+    return {"into_id": str(target.id), "into_name": target.name, **moved}
+
+
+@router.delete("/{company_id}", status_code=200)
+def delete_company(company_id: uuid.UUID, contacts: str = Query("keep", pattern="^(keep|delete)$"),
+                   db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """Deletes a company (Craig, feedback #11) - anyone who can see its database. Its contacts are kept without a
+    company, or deleted too. Refused while it has bookings, deals or proposals: merge it into the right company instead."""
+    from app.services.record_delete import company_usage, delete_company_rows
+
+    company = _visible_company(db, company_id, identity)
+    u = company_usage(db, company.id)
+    held = [f"{n} {w}{'' if n == 1 else 's'}" for n, w in ((u["bookings"], "booking"), (u["deals"], "deal"), (u["proposals"], "proposal")) if n]
+    if held:
+        raise HTTPException(status_code=409, detail=f"{company.name} has {', '.join(held)}, so it can't be deleted - that "
+                            "would lose sales history. Use Merge into another company instead.")
+    gone = delete_company_rows(db, company, delete_contacts=contacts == "delete")
+    db.commit()
+    return {"deleted": True, "contacts_deleted": gone, "contacts_kept": u["contacts"] - gone}
+
+
 @router.get("/{company_id}", response_model=CompanyDetail)
 def get_company(company_id: uuid.UUID, db: Session = Depends(get_db)) -> CompanyDetail:
     company = db.get(Company, company_id)
@@ -411,32 +480,6 @@ def list_company_field_changes(company_id: uuid.UUID, db: Session = Depends(get_
         )
         for r in rows
     ]
-
-
-@router.delete("/{company_id}", status_code=204, response_model=None)
-def delete_company(company_id: uuid.UUID, db: Session = Depends(get_db),
-                   identity: Identity = Depends(get_identity)) -> None:
-    need_staff(identity, "Only administrators and data managers can delete companies.")
-    company = db.get(Company, company_id)
-    if not company:
-        raise HTTPException(status_code=404, detail="Company not found")
-
-    # Nothing that merely references this company gets deleted with it -
-    # contacts, activities, opportunities and any child company are just
-    # detached (their FK is nullable). Everything with a real FK straight
-    # into companies.id needs handling before the delete, same reasoning
-    # as delete_contact.
-    db.execute(Contact.__table__.update().where(Contact.company_id == company_id).values(company_id=None))
-    db.execute(Company.__table__.update().where(Company.parent_company_id == company_id).values(parent_company_id=None))
-    db.execute(Activity.__table__.update().where(Activity.company_id == company_id).values(company_id=None))
-    db.execute(Opportunity.__table__.update().where(Opportunity.company_id == company_id).values(company_id=None))
-    db.execute(Address.__table__.delete().where(Address.company_id == company_id))
-    db.execute(Phone.__table__.delete().where(Phone.company_id == company_id))
-    db.execute(Email.__table__.delete().where(Email.company_id == company_id))
-    db.execute(Note.__table__.delete().where(Note.entity_type == "company", Note.entity_id == company_id))
-    db.execute(HistoryEntry.__table__.delete().where(HistoryEntry.entity_type == "company", HistoryEntry.entity_id == company_id))
-    db.delete(company)
-    db.commit()
 
 
 # ---- Who looks after them (app/sales/ownership.py) --------------------------------------------------------------

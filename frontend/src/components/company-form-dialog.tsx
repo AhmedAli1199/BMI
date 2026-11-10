@@ -16,7 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { createCompany, listPublications, updateCompany } from "@/lib/actions";
+import { createCompany, listPublications, similarCompanies, updateCompany, type SimilarCompany } from "@/lib/actions";
+import Link from "next/link";
+import { AlertTriangle, ExternalLink } from "lucide-react";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
 import type { Publication } from "@/lib/types";
 
@@ -39,6 +41,19 @@ export function CompanyFormDialog({ existing, defaultSourceDb }: { existing?: Ex
   const [website, setWebsite] = useState(existing?.website ?? "");
   const [publications, setPublications] = useState<Publication[]>([]);
   const [sourceDb, setSourceDb] = useState(defaultSourceDb ?? "");
+  // Same or close names already in the CRM, shown as you type (Craig, feedback #12).
+  const [dupes, setDupes] = useState<SimilarCompany[]>([]);
+
+  useEffect(() => {
+    if (!open || name.trim().length < 2 || (existing && name.trim() === existing.name.trim())) {
+      setDupes([]); // eslint-disable-line react-hooks/set-state-in-effect -- clearing stale matches
+      return;
+    }
+    const id = setTimeout(() => {
+      similarCompanies(name, existing?.id).then(setDupes).catch(() => setDupes([]));
+    }, 300);
+    return () => clearTimeout(id);
+  }, [name, open, existing]);
 
   useEffect(() => {
     if (existing || open === false) return;
@@ -116,6 +131,22 @@ export function CompanyFormDialog({ existing, defaultSourceDb }: { existing?: Ex
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cof-name">Name</Label>
               <Input id="cof-name" value={name} onChange={(e) => setName(e.target.value)} />
+              {dupes.length > 0 && (
+                <div role="status" className="flex flex-col gap-1.5 rounded-md border border-[var(--warn)]/40 bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] px-3 py-2 text-xs">
+                  <span className="flex items-center gap-1.5 font-semibold text-[var(--warn)]">
+                    <AlertTriangle className="size-3.5" />
+                    {dupes.some((d) => d.exact) ? "This company may already be in the CRM" : "Similar companies already in the CRM"}
+                  </span>
+                  {dupes.map((d) => (
+                    <Link key={d.id} href={`/companies/${d.id}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-foreground hover:underline">
+                      <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
+                      {d.name}
+                      <span className="text-muted-foreground">· {d.contacts === 1 ? "1 contact" : `${d.contacts} contacts`}{d.exact ? " · same name" : ""}</span>
+                    </Link>
+                  ))}
+                  <span className="text-muted-foreground">Open one to check it. If yours is a different company, carry on.</span>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">

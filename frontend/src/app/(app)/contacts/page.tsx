@@ -11,6 +11,7 @@ import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { PageHeader } from "@/components/page-header";
 import { InfoHint } from "@/components/sales/info-hint";
 import { InteractiveContactTable } from "@/components/interactive-contact-table";
+import { ContactsListMemory } from "@/components/contacts/contacts-list-memory";
 import { AdvancedSearch } from "@/components/contacts/advanced-search";
 import { parseConds } from "@/lib/search-conditions";
 import { BulkUpdateDialog } from "@/components/contacts/bulk-update-dialog";
@@ -120,6 +121,7 @@ export default async function ContactsPage({
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6">
+      <ContactsListMemory />
       <PageHeader
         section="Clients"
         title="Contacts"
@@ -174,7 +176,7 @@ export default async function ContactsPage({
                 size="sm"
                 className="h-8"
                 nativeButton={false}
-                render={<Link href="/contacts" aria-label="Clear lookup" />}
+                render={<Link href="/contacts?fresh=1" aria-label="Clear lookup" />}
               >
                 <X className="size-3.5" />
               </Button>

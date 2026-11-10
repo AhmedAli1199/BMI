@@ -36,7 +36,11 @@ const FIELD_LABELS: Record<string, string> = {
 /** A record can have several of these, so they are added and removed rather than just changed. */
 const LIST_FIELDS = new Set(["phone", "email", "address"]);
 
-function fieldLabel(field: string): string {
+function fieldLabel(field: string, customLabels?: Record<string, string>): string {
+  if (field.startsWith("custom:")) {
+    const key = field.slice(7);
+    return customLabels?.[key] ?? key.replace(/_/g, " ");
+  }
   return FIELD_LABELS[field] ?? field.replace(/_/g, " ");
 }
 
@@ -58,9 +62,12 @@ function timeAgo(iso: string): string {
 export function FieldChangeHistory({
   entityId,
   fetchChanges,
+  customLabels,
 }: {
   entityId: string;
   fetchChanges: (id: string) => Promise<FieldChange[]>;
+  /** Real names of the extra (Act!) fields, so a change to "custom:user3" reads "ABTA number". */
+  customLabels?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const [changes, setChanges] = useState<FieldChange[] | null>(null);
@@ -104,7 +111,7 @@ export function FieldChangeHistory({
             <ul className="flex flex-col gap-2.5">
               {changes.map((c) => (
                 <li key={c.id} className="text-xs">
-                  <span className="font-semibold text-foreground">{fieldLabel(c.field)}</span>{" "}
+                  <span className="font-semibold text-foreground">{fieldLabel(c.field, customLabels)}</span>{" "}
                   {LIST_FIELDS.has(c.field) && !c.new_value ? (
                     <>
                       <span className="text-muted-foreground">removed</span>{" "}

@@ -192,8 +192,9 @@ export function InteractiveContactTable({
               return (
                 <ClickableTableRow
                   key={c.id}
+                  data-contact-id={c.id}
                   href={`/contacts/${c.id}${suffix}`}
-                  className={`group hover:bg-accent/40 ${checked ? "bg-primary/5" : ""}`}
+                  className={`group scroll-mt-24 transition-colors duration-700 hover:bg-accent/40 data-[last-opened=true]:bg-primary/10 data-[last-opened=true]:ring-1 data-[last-opened=true]:ring-inset data-[last-opened=true]:ring-primary/40 ${checked ? "bg-primary/5" : ""}`}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <input

@@ -41,7 +41,7 @@ from app.db.session import get_db
 from app.services.contact_transfer import reassign_contact_records
 from app.services.contact_lookup import SORTS, LookupFilters, apply_filters, apply_sort, lookup_ids, primary_address_expr, primary_email_expr
 from app.services.field_audit import company_names_for, readable_value, record_field_changes
-from app.contacts.fields import labels_for_record
+from app.contacts.fields import custom_catalog, custom_kinds, forget_custom_keys, labels_for_record
 from app.models import (
     Activity,
     Company,
@@ -295,6 +295,7 @@ def get_contact(contact_id: uuid.UUID, db: Session = Depends(get_db)) -> Contact
         has_left=contact.has_left,
         custom_fields=contact.custom_fields,
         custom_field_labels=labels_for_record(db, contact.custom_fields),
+        custom_field_catalog=custom_catalog(db),
         company=CompanySummary.model_validate(company) if company else None,
         addresses=[AddressOut.model_validate(a) for a in addresses],
         phones=[PhoneOut.model_validate(p) for p in phones],
@@ -533,6 +534,33 @@ def duplicate_contact(contact_id: uuid.UUID, payload: ContactDuplicate, db: Sess
     return get_contact(new.id, db)
 
 
+def _apply_custom_fields(db: Session, contact: Contact, changes: dict, identity: Identity) -> None:
+    """Sets or clears some of a contact's extra (Act!) fields, each change in the field history.
+    Yes/no fields store "True"/"False", the way Act! did."""
+    kinds = custom_kinds(db)
+    current = dict(contact.custom_fields or {}) if isinstance(contact.custom_fields, dict) else {}
+    before, after = {}, {}
+    for key, value in changes.items():
+        if not key or key.startswith("_"):
+            continue
+        if isinstance(value, bool) or kinds.get(key) == "bool" and isinstance(value, str) and value.strip().lower() in ("true", "false"):
+            value = "True" if (value is True or str(value).strip().lower() == "true") else "False"
+        value = (value or "").strip() if isinstance(value, str) else value
+        old = current.get(key)
+        if (old or "") == (value or ""):
+            continue
+        before[f"custom:{key}"], after[f"custom:{key}"] = old, value or None
+        if value:
+            current[key] = value
+        else:
+            current.pop(key, None)
+    if after:
+        contact.custom_fields = current
+        record_field_changes(db, entity_type="contact", entity_id=contact.id, before=before, updates=after,
+                             changed_by_user_id=identity.user_uuid)
+        forget_custom_keys()
+
+
 @router.patch("/{contact_id}", response_model=ContactDetail)
 def update_contact(
     contact_id: uuid.UUID, payload: ContactUpdate,
@@ -545,6 +573,9 @@ def update_contact(
         raise HTTPException(status_code=400, detail="That company no longer exists. Please pick another one.")
 
     updates = payload.model_dump(exclude_unset=True)
+    custom = updates.pop("custom_fields", None)
+    if custom:
+        _apply_custom_fields(db, contact, custom, identity)
     # full_name is derived from first/last at create time (see
     # create_contact) but was never recomputed here - clearing both name
     # fields left the old full_name behind, so the record still displayed
@@ -630,23 +661,9 @@ def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db),
     # transaction, before deleting the contact itself. Notes/History use
     # entity_id (not a real FK) so they can't block the delete, but we still
     # remove them - nothing should reference a contact that no longer exists.
-    from app.models.activity_link import ActivityContact
-    from app.models.contact import ContactCompanyLink
-    from app.models.email_signal import EmailSignal
-    from app.models.email_thread_state import EmailThreadState
+    from app.services.record_delete import delete_contact_rows
 
-    # Rows that only describe this contact (and can't exist without one).
-    for model in (ActivityContact, ContactCompanyLink, EmailSignal, EmailThreadState):
-        db.execute(model.__table__.delete().where(model.contact_id == contact_id))
-    db.execute(GroupMembership.__table__.delete().where(GroupMembership.contact_id == contact_id))
-    db.execute(Activity.__table__.update().where(Activity.contact_id == contact_id).values(contact_id=None))
-    db.execute(Opportunity.__table__.update().where(Opportunity.contact_id == contact_id).values(contact_id=None))
-    db.execute(Address.__table__.delete().where(Address.contact_id == contact_id))
-    db.execute(Phone.__table__.delete().where(Phone.contact_id == contact_id))
-    db.execute(Email.__table__.delete().where(Email.contact_id == contact_id))
-    db.execute(Note.__table__.delete().where(Note.entity_type == "contact", Note.entity_id == contact_id))
-    db.execute(HistoryEntry.__table__.delete().where(HistoryEntry.entity_type == "contact", HistoryEntry.entity_id == contact_id))
-    db.delete(contact)
+    delete_contact_rows(db, contact)
     db.commit()
 
 

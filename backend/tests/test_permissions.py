@@ -60,12 +60,12 @@ def test_exporting_a_selection_leaves_out_contacts_you_cant_see(client, db_sessi
     assert "Mine" in text and "Hidden" not in text
 
 
-def test_only_staff_delete_contacts_companies_and_groups(client, db_session):
+def test_anyone_with_access_deletes_contacts_others_cannot(client, db_session):
+    """As in Act!: anyone who can see a contact's database may delete it; someone without that database can't."""
     c = _contact(db_session)
-    sales, manager = make_user(db_session, role="sales"), make_user(db_session, role="data_manager")
-    access = [("onboardhospitality", None)]
-    assert client.delete(f"/api/contacts/{c.id}", headers=identity_headers(sales, access=access)).status_code == 403
-    assert client.delete(f"/api/contacts/{c.id}", headers=identity_headers(manager, access=access)).status_code == 204
+    sales, outsider = make_user(db_session, role="sales"), make_user(db_session, role="sales")
+    assert client.delete(f"/api/contacts/{c.id}", headers=identity_headers(outsider, access=[("sellingtravel", None)])).status_code in (403, 404)
+    assert client.delete(f"/api/contacts/{c.id}", headers=identity_headers(sales, access=[("onboardhospitality", None)])).status_code == 204
 
 
 def test_switched_off_account_is_turned_away_and_role_changes_apply_at_once(client, db_session):

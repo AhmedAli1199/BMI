@@ -20,6 +20,7 @@ import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
 import { ContactFormDialog } from "@/components/contact-form-dialog";
 import { AddExistingContactPicker } from "@/components/add-existing-contact-picker";
 import { PageHeader } from "@/components/page-header";
+import { CompanyDeleteMerge } from "@/components/company-delete-merge";
 import { RecordPager } from "@/components/record-pager";
 import { Button } from "@/components/ui/button";
 import { RemindMeDialog } from "@/components/remind-me-dialog";
@@ -125,6 +126,7 @@ export default async function CompanyDetailPage({
               <ClipboardList className="size-3.5" />
               New booking
             </Button>
+            <CompanyDeleteMerge companyId={company.id} name={company.name} />
             <RecordPager noun="company" position={position?.position} total={position?.total}
               prevHref={hrefFor(position?.prev_id ?? null)} nextHref={hrefFor(position?.next_id ?? null)} />
           </>}

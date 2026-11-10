@@ -94,6 +94,8 @@ export type FieldChange = {
 };
 export type CompanySummary = { id: string; name: string; source_db: string; industry: string | null; category: string | null; website?: string | null };
 
+export type CustomFieldDef = { key: string; label: string; kind: "bool" | "text" };
+
 export type ContactDetail = {
   id: string;
   source_db: string;
@@ -116,6 +118,8 @@ export type ContactDetail = {
   custom_fields: Record<string, unknown>;
   /** Display names for custom_fields; internal keys are left out. */
   custom_field_labels?: Record<string, string>;
+  /** Every extra (Act!) field there is, so empty ones can be filled in too. */
+  custom_field_catalog?: CustomFieldDef[];
   company: CompanySummary | null;
   addresses: AddressOut[];
   phones: PhoneOut[];

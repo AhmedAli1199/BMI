@@ -34,6 +34,9 @@ Each one narrows the list further ("contains"). Press **Look up** to run the sea
 ### Advanced search
 Opens rules of the form field / how / value, for example Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
 
+### Coming back to the list
+Contacts remembers how you left it: going back to it (from the sidebar or the record's **Contacts** link) shows the same search, sort and page, scrolled to the contact you last opened, which is briefly highlighted. The X next to **Look up** (**Clear lookup**) starts afresh.
+
 ### Column headings (Contact & Title, Company, Location, Email)
 Click to sort, click again to reverse. Location sorts by town. **Publication** does not sort.
 
@@ -69,7 +72,7 @@ Downloads the lookup as an Excel sheet, in the same order as the screen (up to 5
 Opens Mail merge with this lookup (including any advanced search) already chosen as the contacts.
 
 ### Add contact
-Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it; if it isn't in the CRM yet, choose **Create company "…"** at the bottom of the list to add it - typed text on its own isn't saved, and the box says "Not saved yet" until you pick or create one), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
+Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it - close spellings are listed too, marked "similar name"; if it isn't in the CRM yet, choose **Create company "…"** at the bottom of the list to add it - typed text on its own isn't saved, and the box says "Not saved yet" until you pick or create one), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
 
 ### Previous contact, Next contact
 Step through the same list, in the same order, that you opened the contact from.
@@ -101,13 +104,12 @@ The website of the person's company, if it has one. It opens in a new tab. To op
 ### History of changes
 Shows who changed which field, from what to what, and when (newest first). A change of company shows the company names. Adding, changing or removing a phone number, email or address is listed too.
 
-### Activities, Notes, History, Groups, Magazine & Issues, User Fields (tabs)
-- **Activities**: everything in one timeline (notes, history and scheduled items), newest first, with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green).
-- **Notes**: **Add note** at the top - type the note and press **Save note** (or Ctrl+Enter); it's saved with today's date and your name. Below that, every note with its date, type, the note and where it came from.
-- **History**: what happened (calls, emails, meetings, letters).
+### More details
+Under the contact's main details, in the same card: every extra field brought over from Act! (and any added since), under its real name once one has been set. Yes/no fields are tick boxes. **Edit Record** lets you change any of them - including empty ones, which are only listed while editing - and **Save Changes** saves them with the rest; each change appears in **History of changes**.
+
+### Notes and Groups (tabs)
+- **Notes**: everything to do with this contact in one list, newest first - notes, mail merges and emails sent, calls, meetings, tasks and other history - with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green). **Add note** at the top: type the note and press **Save note** (or Ctrl+Enter); it's saved with today's date and your name.
 - **Groups**: the groups they're in. The X on a group takes them out; **Add to group** opens the list of groups straight away (the contact's own database first, sub-groups indented under their parent, with how many members each has; groups they're already in are greyed out) - pick one, or type to search.
-- **Magazine & Issues**: custom fields whose names are about issues, adverts, print, circulation, sponsors or magazines.
-- **User Fields**: every Act! custom field with a value on this person, under its real name once one has been set.
 
 ### Search this contact's notes & history...
 Narrows and highlights matches in Activities, Notes and History at once; the tab counts show "x of y".
