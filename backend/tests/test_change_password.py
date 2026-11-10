@@ -18,3 +18,16 @@ def test_change_own_password(client, db_session):
     assert r.status_code == 200
     db_session.refresh(u)
     assert verify_password("new-password-1", u.hashed_password)
+
+
+def test_data_managers_dont_see_everyones_commission_or_costs(client, db_session):
+    """Commission and costs and profit are for administrators and accounts, not data managers."""
+    dm = make_user(db_session, role="data_manager")
+    acc = make_user(db_session, role="data_manager")
+    acc.can_approve_bookings = True
+    db_session.commit()
+    r = client.get("/api/commission/overview", headers=identity_headers(dm)).json()
+    assert r["scoped_to_me"] is True and r["reps"] == []
+    assert client.get("/api/sales/costs-report", headers=identity_headers(dm)).status_code == 403
+    assert client.get("/api/commission/overview", headers=identity_headers(acc)).json()["scoped_to_me"] is False
+    assert client.get("/api/sales/costs-report", headers=identity_headers(acc)).status_code == 200

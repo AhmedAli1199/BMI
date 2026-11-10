@@ -12,6 +12,7 @@ import { searchCompanies, searchContacts } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
 import { LineHandoff } from "@/components/deals/line-handoff";
 import { InfoHint } from "@/components/sales/info-hint";
@@ -181,6 +182,8 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
   }
 
   const totals = preview && !preview.error ? preview : null;
+  const [checking, setChecking] = useState(false);
+  const issueLabel = (titleId: string | null | undefined, id?: string | null) => (issues[titleId ?? ""] ?? []).find((i) => i.id === id)?.label;
   const showShares = f.pricing === "package" && f.package_split === "manual";
 
   return (
@@ -251,6 +254,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             const off = l.list_price && !l.added_value && f.pricing === "items" && l.unit_price != null ? 1 - each / (l.list_price * l.qty) : 0;
             return (
               <article key={l.key} className={`${cardCls} ${l.added_value ? "border-dashed" : ""}`} aria-label={`Item ${li + 1}`}>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Item {li + 1}{l.added_value ? " · free" : ""}</p>
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
                   <label className={labelCls}>Title
                     <select className={selectCls} value={l.title_id ?? ""} onChange={(e) => updLine(l.key, { title_id: e.target.value || null, rate_id: null, placements: [{}] })}>
@@ -476,12 +480,48 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
             </> : dealId ? (
               <Button disabled={pending} onClick={() => submit()}>{pending && <Loader2 className="size-3.5 animate-spin" />} Save changes</Button>
             ) : <>
-              <Button disabled={pending} onClick={() => submit("confirmed")}>{pending && <Loader2 className="size-3.5 animate-spin" />} Confirm the booking</Button>
+              <Button disabled={pending} onClick={() => setChecking(true)}>{pending && <Loader2 className="size-3.5 animate-spin" />} Confirm the booking</Button>
               <Button variant="outline" disabled={pending} onClick={() => submit("pencilled")}>Pencil it in</Button>
               <p className="text-[11px] text-muted-foreground">Pencilled bookings hold the space but don&apos;t count in sales figures or commission until they&apos;re confirmed.</p>
             </>}
             <Button variant="ghost" disabled={pending} onClick={() => router.back()}>Cancel</Button>
           </div>
+          <Dialog open={checking} onOpenChange={setChecking}>
+            <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Check the booking</DialogTitle>
+                <DialogDescription>This is what will be confirmed. Go back to change anything.</DialogDescription>
+              </DialogHeader>
+              <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto text-sm">
+                <p><span className="text-muted-foreground">Client: </span><strong>{f.client_name || company?.label}</strong>
+                  {f.contact_name ? <span className="text-muted-foreground"> · {f.contact_name}</span> : null}</p>
+                <ol className="flex flex-col gap-2">
+                  {lines.map((l, li) => (
+                    <li key={l.key} className="rounded-lg border border-border/70 p-2.5">
+                      <div className="flex justify-between gap-3">
+                        <span><span className="font-bold text-primary">Item {li + 1}</span> {l.description || l.size}</span>
+                        <span className="shrink-0 font-semibold tabular-nums">{l.added_value ? "Free" : totals?.lines?.[li] ? fmtGBP(totals.lines[li].total_gbp) : ""}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {titles.find((t) => t.id === l.title_id)?.name}
+                        {l.placements.length ? " · " + l.placements.map((p) => p.tba ? "To be allocated" : issueLabel(l.title_id, p.edition_id) ?? "").filter(Boolean).join(", ") : ""}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                {totals && (
+                  <p className="flex justify-between border-t border-border/70 pt-2 font-semibold">
+                    <span>Total, before VAT{totals.agency_gbp ? " (less agency commission)" : ""}</span>
+                    <span className="tabular-nums">{fmtGBP(totals.agency_gbp ? totals.payable_gbp ?? 0 : totals.total_gbp ?? 0)}</span>
+                  </p>
+                )}
+              </div>
+              <DialogFooter>
+                <DialogClose render={<Button variant="ghost" />}>Go back</DialogClose>
+                <Button disabled={pending} onClick={() => { setChecking(false); submit("confirmed"); }}>Yes, confirm it</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </aside>
     </div>

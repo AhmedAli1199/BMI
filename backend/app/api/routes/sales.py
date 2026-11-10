@@ -563,6 +563,11 @@ def _is_staff(identity: Identity) -> bool:
     return not identity.is_known or identity.role in CAN_USE_AUTOMATIONS
 
 
+def _sees_money(db: Session, identity: Identity) -> bool:
+    from app.sales.accounts import sees_money
+    return sees_money(db, identity)
+
+
 def _my_rep(db: Session, identity: Identity) -> SalesRep | None:
     uid = identity.user_uuid
     return db.scalars(select(SalesRep).where(SalesRep.user_id == uid)).first() if uid else None
@@ -712,7 +717,7 @@ def meta(db: Session = Depends(get_db), identity: Identity = Depends(get_identit
     return Meta(titles=[_title_out(t) for t in titles], reps=[_rep_out(r) for r in reps], years=years,
                 financial_years=sorted(fy, reverse=True), year_basis="financial" if financial else "calendar",
                 fy_start_month=start_month,
-                my_rep_id=me.id if me else None, can_see_all_commission=_is_staff(identity))
+                my_rep_id=me.id if me else None, can_see_all_commission=_sees_money(db, identity))
 
 
 # ---- Overview -----------------------------------------------------------------
@@ -1300,8 +1305,9 @@ def costs_report(year: int | None = None, basis: str | None = None, include_all:
                  identity: Identity = Depends(get_identity)) -> CostReport:
     """Every edition's costs and profit for a year - issues, events and awards alike. Profit is booked value minus cost lines,
     the same sum as each edition's own page. Management figures, so administrators and data managers only."""
-    if not _is_staff(identity):
-        raise HTTPException(status_code=403, detail="The costs report is for administrators and data managers.")
+    from app.sales.accounts import sees_money
+    if not sees_money(db, identity):
+        raise HTTPException(status_code=403, detail="The costs report is for administrators and accounts.")
     today = date.today()
     financial, start_month = _year_basis(db, basis)
     year = year or period_year_of(today, financial, start_month)
@@ -2045,7 +2051,7 @@ def company_orders(company_id: uuid.UUID, db: Session = Depends(get_db)) -> Comp
 @router.get("/commissions", response_model=Commissions)
 def commissions(year: int | None = None, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> Commissions:
     year = year or date.today().year
-    staff = _is_staff(identity)
+    staff = _sees_money(db, identity)
     me = None if staff else _my_rep(db, identity)
     if not staff and not me:
         return Commissions(year=year, reps=[], scoped_to_me=True)

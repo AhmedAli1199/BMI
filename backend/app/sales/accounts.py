@@ -50,6 +50,15 @@ def notify_people(db: Session) -> list[User]:
     return people
 
 
+def sees_money(db: Session, identity) -> bool:
+    """Everyone's commission and the costs-and-profit figures: administrators and the accounts person only. Data
+    managers look after contacts and circulation, so they don't see pay; a salesperson sees only their own."""
+    if not identity.is_known or identity.role == "admin":
+        return True
+    user = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    return bool(user and user.can_approve_bookings)
+
+
 def can_approve(db: Session, user_id: uuid.UUID | None, role: str | None = None) -> bool:
     """May this person pass booking checks and approve changes?"""
     user = db.get(User, user_id) if user_id else None

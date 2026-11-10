@@ -159,7 +159,11 @@ Ticked by default. Prints BMI's artwork specification on the confirmation.
 ### Notes for the team (never printed)
 Internal notes, shown on the booking page.
 
+### Items are numbered
+Each item on the form is headed **Item 1**, **Item 2** and so on (marked "free" when it's given free), so you can refer to them when talking to the client or accounts.
+
 ### Confirm the booking
+Opens **Check the booking**: the client, each item numbered (**Item 1**, **Item 2**…) with its issues and price, and the total before VAT. **Yes, confirm it** saves it as confirmed; **Go back** returns to the form to change anything.
 New bookings only. Saves it as confirmed: the client has said yes. It counts in sales figures and commission straight away.
 
 ### Pencil it in

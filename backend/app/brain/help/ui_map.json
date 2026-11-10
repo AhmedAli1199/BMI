@@ -4404,487 +4404,499 @@
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:191",
+   "src": "components/deals/deal-form.tsx:194",
    "kind": "heading",
    "label": "Client"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:197",
+   "src": "components/deals/deal-form.tsx:200",
    "kind": "field",
    "label": "Client name as booked How it appears on the items and the confirmation. Usually the company name, but can differ (\"Bruns"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:197",
+   "src": "components/deals/deal-form.tsx:200",
    "kind": "hint",
    "label": "",
    "hint": "How it appears on the items and the confirmation. Usually the company name, but can differ (\"Brunswick - Delice de France\")."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:200",
+   "src": "components/deals/deal-form.tsx:203",
    "kind": "field",
    "label": "Contact name"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:201",
+   "src": "components/deals/deal-form.tsx:204",
    "kind": "field",
    "label": "Contact email"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:203",
+   "src": "components/deals/deal-form.tsx:206",
    "kind": "field",
    "label": "Salesperson Choose … House account (no commission)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:210",
+   "src": "components/deals/deal-form.tsx:213",
    "kind": "field",
    "label": "Booking date The day the client agreed. Items added to the booking later are dated the day they're added, so only what w"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:210",
+   "src": "components/deals/deal-form.tsx:213",
    "kind": "hint",
    "label": "",
    "hint": "The day the client agreed. Items added to the booking later are dated the day they're added, so only what was on the first deal counts as new business."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:213",
+   "src": "components/deals/deal-form.tsx:216",
    "kind": "link",
    "label": "booking"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:216",
+   "src": "components/deals/deal-form.tsx:219",
    "kind": "button",
    "label": "Shared with another salesperson?"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:219",
+   "src": "components/deals/deal-form.tsx:222",
    "kind": "heading",
    "label": "Split of the credit (for commission)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:227",
+   "src": "components/deals/deal-form.tsx:230",
    "kind": "button",
    "label": "Remove"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:231",
+   "src": "components/deals/deal-form.tsx:234",
    "kind": "button",
    "label": "Add a salesperson"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:233",
+   "src": "components/deals/deal-form.tsx:236",
    "kind": "button",
    "label": "Not shared"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:243",
+   "src": "components/deals/deal-form.tsx:246",
    "kind": "heading",
    "label": "What they've booked One line per product. Put a line in every issue, month or event it runs in: each one becomes its own"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:243",
+   "src": "components/deals/deal-form.tsx:246",
    "kind": "hint",
    "label": "",
    "hint": "One line per product. Put a line in every issue, month or event it runs in: each one becomes its own item, counts in that issue's figures and earns commission when it runs."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:244",
+   "src": "components/deals/deal-form.tsx:247",
    "kind": "button",
    "label": "Add an item"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:255",
+   "src": "components/deals/deal-form.tsx:259",
    "kind": "field",
    "label": "Title Choose"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:261",
+   "src": "components/deals/deal-form.tsx:265",
    "kind": "field",
    "label": "From the rate card Choose a product, or type your own below"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:271",
+   "src": "components/deals/deal-form.tsx:275",
    "kind": "field",
    "label": "What it is, as it should read on the confirmation"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:276",
+   "src": "components/deals/deal-form.tsx:280",
    "kind": "field",
    "label": "Size code The order register's shorthand (FP, DPS, 1/2) - counts the pages in the issue."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:276",
+   "src": "components/deals/deal-form.tsx:280",
    "kind": "hint",
    "label": "",
    "hint": "The order register's shorthand (FP, DPS, 1/2) - counts the pages in the issue."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:278",
+   "src": "components/deals/deal-form.tsx:282",
    "kind": "field",
    "label": "Each time How many of it in each issue or month, e.g. 4 weekly banners in a month."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:278",
+   "src": "components/deals/deal-form.tsx:282",
    "kind": "hint",
    "label": "",
    "hint": "How many of it in each issue or month, e.g. 4 weekly banners in a month."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:281",
+   "src": "components/deals/deal-form.tsx:285",
    "kind": "field",
    "label": "Price each (£)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:283",
+   "src": "components/deals/deal-form.tsx:287",
    "kind": "field",
    "label": "% off this item"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:286",
+   "src": "components/deals/deal-form.tsx:290",
    "kind": "field",
    "label": "This line's share of the package (£)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:289",
+   "src": "components/deals/deal-form.tsx:293",
    "kind": "field",
    "label": "Rate card price (£)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:293",
+   "src": "components/deals/deal-form.tsx:297",
    "kind": "field",
    "label": "Free - added value"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:299",
+   "src": "components/deals/deal-form.tsx:303",
    "kind": "field",
    "label": "Extra wording"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:308",
+   "src": "components/deals/deal-form.tsx:312",
    "kind": "button",
    "label": "Every open issue"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:309",
+   "src": "components/deals/deal-form.tsx:313",
    "kind": "button",
    "label": "Another"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:310",
+   "src": "components/deals/deal-form.tsx:314",
    "kind": "button",
    "label": "To be allocated"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:333",
+   "src": "components/deals/deal-form.tsx:337",
    "kind": "button",
    "label": "Remove this one"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:345",
+   "src": "components/deals/deal-form.tsx:349",
    "kind": "field",
    "label": "Decide the issues by"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:359",
+   "src": "components/deals/deal-form.tsx:363",
    "kind": "button",
    "label": "Move up"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:360",
+   "src": "components/deals/deal-form.tsx:364",
    "kind": "button",
    "label": "Move down"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:361",
+   "src": "components/deals/deal-form.tsx:365",
    "kind": "button",
    "label": "Copy this item"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:362",
+   "src": "components/deals/deal-form.tsx:366",
    "kind": "button",
    "label": "Remove this item"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:372",
+   "src": "components/deals/deal-form.tsx:376",
    "kind": "heading",
    "label": "Price"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:381",
+   "src": "components/deals/deal-form.tsx:385",
    "kind": "field",
    "label": "Package price (£)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:382",
+   "src": "components/deals/deal-form.tsx:386",
    "kind": "field",
    "label": "Name on the confirmation"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:383",
+   "src": "components/deals/deal-form.tsx:387",
    "kind": "field",
    "label": "Share it across the items Each item still needs its own value, so the issue it runs in gets its revenue and commission i"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:383",
+   "src": "components/deals/deal-form.tsx:387",
    "kind": "hint",
    "label": "",
    "hint": "Each item still needs its own value, so the issue it runs in gets its revenue and commission is earned as it runs. By rate card value gives dearer items a bigger share."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:393",
+   "src": "components/deals/deal-form.tsx:397",
    "kind": "field",
    "label": "% off the whole booking"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:394",
+   "src": "components/deals/deal-form.tsx:398",
    "kind": "field",
    "label": "Booked through an agency The agency is invoiced and keeps its commission. It comes off what's invoiced and off the sales"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:394",
+   "src": "components/deals/deal-form.tsx:398",
    "kind": "hint",
    "label": "",
    "hint": "The agency is invoiced and keeps its commission. It comes off what's invoiced and off the salesperson's commissionable revenue."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:396",
+   "src": "components/deals/deal-form.tsx:400",
    "kind": "field",
    "label": "Agency commission (%)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:404",
+   "src": "components/deals/deal-form.tsx:408",
    "kind": "heading",
    "label": "Confirmation"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:406",
+   "src": "components/deals/deal-form.tsx:410",
    "kind": "field",
    "label": "Document Order confirmation (invoice to follow) Schedule of works (a campaign over several months)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:412",
+   "src": "components/deals/deal-form.tsx:416",
    "kind": "field",
    "label": "Publication heading"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:413",
+   "src": "components/deals/deal-form.tsx:417",
    "kind": "field",
    "label": "Confirmation address"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:414",
+   "src": "components/deals/deal-form.tsx:418",
    "kind": "field",
    "label": "Invoice to Same as confirmation"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:416",
+   "src": "components/deals/deal-form.tsx:420",
    "kind": "button",
    "label": "Same as confirmation"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:420",
+   "src": "components/deals/deal-form.tsx:424",
    "kind": "field",
    "label": "Client's order or PO number"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:421",
+   "src": "components/deals/deal-form.tsx:425",
    "kind": "field",
    "label": "Client's VAT number Shown on the confirmation and the invoice draft. Filled in from the client's last booking."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:421",
+   "src": "components/deals/deal-form.tsx:425",
    "kind": "hint",
    "label": "",
    "hint": "Shown on the confirmation and the invoice draft. Filled in from the client's last booking."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:423",
+   "src": "components/deals/deal-form.tsx:427",
    "kind": "field",
    "label": "Email the invoice to"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:424",
+   "src": "components/deals/deal-form.tsx:428",
    "kind": "field",
    "label": "When to invoice What you agreed with the client. Accounts get a reminder on the day, and can change it."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:424",
+   "src": "components/deals/deal-form.tsx:428",
    "kind": "hint",
    "label": "",
    "hint": "What you agreed with the client. Accounts get a reminder on the day, and can change it."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:431",
+   "src": "components/deals/deal-form.tsx:435",
    "kind": "field",
    "label": "Invoice on"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:433",
+   "src": "components/deals/deal-form.tsx:437",
    "kind": "field",
    "label": "Invoice in Prices here stay in pounds; accounts invoice in this currency. Pounds (GBP) Euros (EUR) US dollars (USD)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:433",
+   "src": "components/deals/deal-form.tsx:437",
    "kind": "hint",
    "label": "",
    "hint": "Prices here stay in pounds; accounts invoice in this currency."
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:438",
+   "src": "components/deals/deal-form.tsx:442",
    "kind": "field",
    "label": "Invoice instructions for accounts (never printed)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:440",
+   "src": "components/deals/deal-form.tsx:444",
    "kind": "field",
    "label": "Insertions booked"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:441",
+   "src": "components/deals/deal-form.tsx:445",
    "kind": "field",
    "label": "Special instructions"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:442",
+   "src": "components/deals/deal-form.tsx:446",
    "kind": "field",
    "label": "Copy and artwork"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:443",
+   "src": "components/deals/deal-form.tsx:447",
    "kind": "field",
    "label": "Client's copy and artwork contact"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:444",
+   "src": "components/deals/deal-form.tsx:448",
    "kind": "field",
    "label": "Their email"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:445",
+   "src": "components/deals/deal-form.tsx:449",
    "kind": "field",
    "label": "Production contact"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:446",
+   "src": "components/deals/deal-form.tsx:450",
    "kind": "field",
    "label": "Print the artwork specification"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:448",
+   "src": "components/deals/deal-form.tsx:452",
    "kind": "field",
    "label": "Notes for the team (never printed)"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:455",
+   "src": "components/deals/deal-form.tsx:459",
    "kind": "heading",
    "label": "Booking total"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:473",
+   "src": "components/deals/deal-form.tsx:477",
    "kind": "field",
    "label": "Why it needs changing"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:474",
+   "src": "components/deals/deal-form.tsx:478",
    "kind": "button",
    "label": "Send to accounts"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:477",
+   "src": "components/deals/deal-form.tsx:481",
    "kind": "button",
    "label": "Save changes"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:479",
+   "src": "components/deals/deal-form.tsx:483",
    "kind": "button",
    "label": "Confirm the booking"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:480",
+   "src": "components/deals/deal-form.tsx:484",
    "kind": "button",
    "label": "Pencil it in"
   },
   {
    "file": "components/deals/deal-form.tsx",
-   "src": "components/deals/deal-form.tsx:483",
+   "src": "components/deals/deal-form.tsx:487",
    "kind": "button",
    "label": "Cancel"
+  },
+  {
+   "file": "components/deals/deal-form.tsx",
+   "src": "components/deals/deal-form.tsx:492",
+   "kind": "dialog",
+   "label": "Check the booking"
+  },
+  {
+   "file": "components/deals/deal-form.tsx",
+   "src": "components/deals/deal-form.tsx:521",
+   "kind": "button",
+   "label": "Yes, confirm it"
   },
   {
    "file": "components/deals/deal-handoffs.tsx",

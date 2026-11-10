@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BadgePoundSterling, Banknote, Building2, CalendarClock, CalendarDays, CalendarRange, ChevronRight, CircleHelp, ClipboardCheck, Coins, Ellipsis, FileText, HeartPulse, House, LayoutDashboard, Mail, MessageSquareText, Mic, Newspaper, ReceiptText, Send, Settings, Tags, Users, Workflow, type LucideIcon } from "lucide-react";
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { BrainBuddy } from "@/components/brain/brain-buddy";
 import { LogoutButton } from "@/components/logout-button";
-import { canUseAutomations, canViewAutomationsQueue } from "@/lib/access";
+import { canUseAutomations, canViewAutomationsQueue, isAdmin } from "@/lib/access";
 import type { SessionPayload } from "@/lib/session";
 import type { WorkstreamSummary } from "@/lib/types";
 import type { SectionKey } from "@/lib/sections";
@@ -89,7 +89,7 @@ export function AppSidebar({
     show("bookings") && { href: "/sales/bookings", label: "All items" },
     show("renewals") && { href: "/sales/renewals", label: "Renewals" },
     canUseAutomations(session) && { href: "/sales/summaries", label: "Weekly summary" },
-    canUseAutomations(session) && { href: "/sales/costs", label: "Costs & profit" },
+    isAdmin(session) && { href: "/sales/costs", label: "Costs & profit" },
   ].filter(Boolean) as { href: string; label: string }[];
   const inMore = moreSales.some((m) => pathname === m.href);
   const [moreOpen, setMoreOpen] = useState(inMore);
@@ -155,7 +155,7 @@ export function AppSidebar({
         )}
 
         {session && anySales && (
-          <NavGroup label="Sales">
+          <NavGroup label="Sales" collapsible>
             {(show("sales_overview") || show("sales_dashboard")) && (
               <NavItem href="/sales" label="Overview" icon={LayoutDashboard} active={pathname === "/sales" || pathname === "/sales/dashboard"} />
             )}
@@ -167,8 +167,9 @@ export function AppSidebar({
               <NavItem href="/sales/invoicing" label="Invoicing" icon={Banknote} active={pathname === "/sales/invoicing"}
                 badge={salesOverdue > 0 ? salesOverdue.toLocaleString("en-GB") : undefined} badgeTitle="Bookings overdue for an invoice" />
             )}
-            {show("commissions") && (
-              <NavItem href="/sales/commissions" label={canUseAutomations(session) ? "Commissions" : "My commission"} icon={Coins}
+            {/* Everyone's pay is for administrators (and accounts, by link); a salesperson sees their own; data managers none. */}
+            {show("commissions") && session?.role !== "data_manager" && (
+              <NavItem href="/sales/commissions" label={isAdmin(session) ? "Commissions" : "My commission"} icon={Coins}
                 active={pathname.startsWith("/sales/commissions")} />
             )}
             {moreSales.length > 0 && (
@@ -350,13 +351,42 @@ function HubSubItem({
 
 const iconCls = (on: boolean) => `mr-1.5 size-4 ${on ? "text-primary" : "text-sidebar-foreground/70"}`;
 
-function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+/** A labelled block of the menu. `collapsible`: the label is a button that folds the block away (remembered on this
+ * device), to keep a long menu short. */
+function NavGroup({ label, children, collapsible = false }: { label: string; children: React.ReactNode; collapsible?: boolean }) {
+  const key = `bmi.nav.${label.toLowerCase()}.closed`;
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    if (!collapsible) return;
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from this device's storage after mount
+      setClosed(window.localStorage.getItem(key) === "1");
+    } catch { /* storage blocked: start open */ }
+  }, [collapsible, key]);
+  function toggle() {
+    const next = !closed;
+    setClosed(next);
+    try { window.localStorage.setItem(key, next ? "1" : "0"); } catch { /* storage blocked: still toggles */ }
+  }
   return (
     <SidebarGroup className="py-1">
-      <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">{label}</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-1">{children}</SidebarMenu>
-      </SidebarGroupContent>
+      {collapsible ? (
+        <SidebarGroupLabel
+          render={<button type="button" onClick={toggle} aria-expanded={!closed} />}
+          className="w-full cursor-pointer text-[11px] font-bold tracking-wider hover:text-sidebar-foreground"
+          title={closed ? `Show ${label}` : `Hide ${label}`}
+        >
+          {label}
+          <ChevronRight aria-hidden="true" className={`ml-auto size-3.5 shrink-0 transition-transform duration-200 ${closed ? "" : "rotate-90"}`} />
+        </SidebarGroupLabel>
+      ) : (
+        <SidebarGroupLabel className="text-[11px] font-bold tracking-wider">{label}</SidebarGroupLabel>
+      )}
+      {!closed && (
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1">{children}</SidebarMenu>
+        </SidebarGroupContent>
+      )}
     </SidebarGroup>
   );
 }

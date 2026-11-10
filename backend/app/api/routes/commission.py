@@ -28,8 +28,10 @@ from app.services.field_audit import record_field_changes
 router = APIRouter(prefix="/commission", tags=["commission"])
 
 
-def _staff(identity: Identity) -> bool:
-    return not identity.is_known or identity.role in CAN_USE_AUTOMATIONS
+def _staff(db: Session, identity: Identity) -> bool:
+    """Sees and manages every salesperson's commission: administrators and the accounts person (not data managers)."""
+    from app.sales.accounts import sees_money
+    return sees_money(db, identity)
 
 
 def _admin(identity: Identity) -> bool:
@@ -41,9 +43,9 @@ def _need_admin(identity: Identity) -> None:
         raise HTTPException(403, "Only administrators can change commission plans or approve statements.")
 
 
-def _need_staff(identity: Identity) -> None:
-    if not _staff(identity):
-        raise HTTPException(403, "Only administrators and data managers can do this.")
+def _need_staff(db: Session, identity: Identity) -> None:
+    if not _staff(db, identity):
+        raise HTTPException(403, "Only administrators and accounts can do this.")
 
 
 def _my_rep(db: Session, identity: Identity) -> SalesRep | None:
@@ -54,7 +56,7 @@ def _rep_or_404(db: Session, identity: Identity, rep_id: uuid.UUID) -> SalesRep:
     rep = db.get(SalesRep, rep_id)
     if not rep:
         raise HTTPException(404, "Salesperson not found")
-    if not _staff(identity):
+    if not _staff(db, identity):
         me = _my_rep(db, identity)
         if not me or me.id != rep.id:
             raise HTTPException(404, "Salesperson not found")
@@ -79,7 +81,7 @@ def _period_ok(period: str) -> str:
 def overview(year: int | None = None, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     """Each salesperson's commission month by month for a year (approved months as paid, others as they stand)."""
     year = year or date.today().year
-    staff = _staff(identity)
+    staff = _staff(db, identity)
     me = None if staff else _my_rep(db, identity)
     if not staff and not me:
         return {"year": year, "reps": [], "scoped_to_me": True, "can_manage": False, "has_plans": seed.plan_count(db) > 0}
@@ -115,8 +117,8 @@ def get_statement(rep_id: uuid.UUID, period: str, db: Session = Depends(get_db),
         s["approved"]["by_name"] = u.name if u else None
     db.commit()  # settings row may have been created
     return {**s, "rep": _rep_ref(rep), "can_approve": _admin(identity) and not s.get("approved") and period < date.today().strftime("%Y-%m"),
-            "can_decide": (_staff(identity) or bool((me := _my_rep(db, identity)) and me.id == rep.id)) and not s.get("approved"),
-            "is_manager": _staff(identity), "can_edit_attendance": _staff(identity) and not s.get("approved"),
+            "can_decide": (_staff(db, identity) or bool((me := _my_rep(db, identity)) and me.id == rep.id)) and not s.get("approved"),
+            "is_manager": _staff(db, identity), "can_edit_attendance": _staff(db, identity) and not s.get("approved"),
             "can_edit_advances": _admin(identity) and not s.get("approved"), "plan": [_rule_out(r) for r in cm._rules(db, rep)],
             "settings": _settings_out(ctx.st)}
 
@@ -175,7 +177,7 @@ class AttendanceIn(BaseModel):
 @router.put("/attendance")
 def save_attendance(payload: AttendanceIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
     """How many attendances to pay on one event (e.g. £75 each for Selling Travel Connect)."""
-    _need_staff(identity)
+    _need_staff(db, identity)
     rep = _rep_or_404(db, identity, payload.rep_id)
     ed = _edition(db, payload.edition_id)
     if not ed.edition_date:
@@ -272,12 +274,12 @@ def booking_new_business(order_id: uuid.UUID, db: Session = Depends(get_db), ide
     v = ctx.ix.classify(o, db.get(SalesEdition, o.edition_id))
     db.commit()
     return {"status": v.status, "reason": v.reason, "decided_by": v.decided_by, "last": v.last, "similar": v.similar,
-            "can_decide": _can_tick(db, identity, o), "is_manager": _staff(identity)}
+            "can_decide": _can_tick(db, identity, o), "is_manager": _staff(db, identity)}
 
 
 def _can_tick(db: Session, identity: Identity, o: SalesOrder) -> bool:
     """Managers, and the salesperson credited on the booking (they tick New business themselves; a manager checks it monthly)."""
-    if _staff(identity):
+    if _staff(db, identity):
         return True
     me = _my_rep(db, identity)
     return bool(me and db.scalars(select(SalesOrderCredit.id).where(SalesOrderCredit.order_id == o.id, SalesOrderCredit.rep_id == me.id)).first())
@@ -361,7 +363,7 @@ def _settings_out(st) -> dict:
 
 @router.get("/plans")
 def plans(db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
-    _need_staff(identity)
+    _need_staff(db, identity)
     st = cm.settings(db)
     db.commit()
     reps = db.scalars(select(SalesRep).order_by(SalesRep.active.desc(), SalesRep.name)).all()
@@ -462,7 +464,7 @@ def edition_commission(db: Session, ed: SalesEdition, identity: Identity) -> dic
         "profit_share": bool(profit_reps), "profit_share_reps": [_rep_ref(r) for r in db.scalars(select(SalesRep).where(SalesRep.id.in_(profit_reps)))] if profit_reps else [],
         "costs_final_at": ed.costs_final_at.isoformat() if ed.costs_final_at else None, "costs_final_by": users.get(ed.costs_final_by_user_id),
         "costs_signed_off_at": ed.costs_signed_off_at.isoformat() if ed.costs_signed_off_at else None, "costs_signed_off_by": users.get(ed.costs_signed_off_by_user_id),
-        "can_mark_guide": _staff(identity), "can_mark_final": _staff(identity) or bool(me and me.id in profit_reps), "can_sign_off": _admin(identity),
+        "can_mark_guide": _staff(db, identity), "can_mark_final": _staff(db, identity) or bool(me and me.id in profit_reps), "can_sign_off": _admin(identity),
     }
 
 
@@ -470,7 +472,7 @@ def can_edit_costs(db: Session, ed: SalesEdition, identity: Identity) -> None:
     """Costs are locked once signed off; until then admins, data managers and the person whose profit share it is can edit them."""
     if ed.costs_signed_off_at:
         raise HTTPException(409, "These costs are signed off for commission. An administrator can reopen them first.")
-    if _staff(identity):
+    if _staff(db, identity):
         return
     info = edition_commission(db, ed, identity)
     if not info["can_mark_final"]:
@@ -489,7 +491,7 @@ class GuideIn(BaseModel):
 
 @router.put("/editions/{edition_id}/new-guide")
 def mark_new_guide(edition_id: uuid.UUID, payload: GuideIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
-    _need_staff(identity)
+    _need_staff(db, identity)
     ed = _edition(db, edition_id)
     if payload.on and not payload.rep_id:
         raise HTTPException(422, "Choose who sold the guide.")
