@@ -176,6 +176,36 @@ def export_selected_contacts(payload: _ExportSelection, db: Session = Depends(ge
                              headers={"Content-Disposition": f'attachment; filename="{name}.xlsx"'})
 
 
+class EmailMatch(BaseModel):
+    id: uuid.UUID
+    name: str
+    company: str | None = None
+    source_db: str
+
+
+@router.get("/email-matches", response_model=list[EmailMatch])
+def email_matches(email: str = Query(..., min_length=3, max_length=512), exclude: uuid.UUID | None = None,
+                  db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> list[EmailMatch]:
+    """Contacts that already have this email address (case and spaces ignored) - a warning while adding or
+    editing a contact (Craig, feedback #17). Only contacts this person can see."""
+    from app.core.visibility import contact_clause
+
+    addr = email.strip().lower()
+    if "@" not in addr:
+        return []
+    stmt = (select(Contact).join(Email, Email.contact_id == Contact.id)
+            .where(func.lower(func.trim(Email.address)) == addr).distinct().limit(10))
+    if exclude:
+        stmt = stmt.where(Contact.id != exclude)
+    visible = contact_clause(db, identity)
+    if visible is not None:
+        stmt = stmt.where(visible)
+    rows = db.scalars(stmt).all()
+    names = dict(db.execute(select(Company.id, Company.name).where(Company.id.in_({r.company_id for r in rows if r.company_id}))).all()) if rows else {}
+    return [EmailMatch(id=r.id, name=r.full_name or " ".join(x for x in (r.first_name, r.last_name) if x) or "(no name)",
+                       company=names.get(r.company_id) or r.company_name_freetext, source_db=r.source_db) for r in rows]
+
+
 @router.get("/lookup-ids", response_model=list[uuid.UUID])
 def lookup_contact_ids(
     q: str | None = Query(None),

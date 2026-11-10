@@ -14,6 +14,7 @@ import { EntityPicker } from "@/components/entity-picker";
 import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, createCompany, searchCompaniesWithSimilar, similarCompanies } from "@/lib/actions";
 import { ReassignContactButton } from "@/components/reassign-contact-button";
 import { ContactDeleteControls } from "@/components/contact-delete-controls";
+import { EmailInUseWarning } from "@/components/email-in-use-warning";
 import { friendlyError } from "@/lib/errors";
 
 function websiteHref(site: string): string {
@@ -437,12 +438,17 @@ export function ActContactCard({
           <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-border/40">
             <span className="w-24 shrink-0 text-muted-foreground">E-mail</span>
             {editing ? (
-              <Input
-                className="h-7 text-xs flex-1"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Business email"
-              />
+              <div className="flex flex-1 flex-col">
+                <Input
+                  className="h-7 text-xs"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Business email"
+                />
+                {email.trim().toLowerCase() !== (contact.emails[0]?.address ?? "").trim().toLowerCase() && (
+                  <EmailInUseWarning email={email} excludeId={contact.id} />
+                )}
+              </div>
             ) : primaryEmail ? (
               <div className="flex items-center gap-1.5 max-w-[200px] truncate">
                 <a href={`mailto:${primaryEmail}`} className="font-mono text-[11px] text-foreground hover:text-primary truncate">

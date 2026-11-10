@@ -130,3 +130,14 @@ def test_extra_fields_show_on_the_contact_and_can_be_edited(client, db_session):
     assert cf == {"subscriber": "False", "region": "North", "_import": "x"}
     changed = {f.field for f in db_session.query(FieldChange).filter_by(entity_id=uuid.UUID(cid))}
     assert {"custom:subscriber", "custom:user3", "custom:region"} <= changed
+
+
+def test_email_already_on_another_contact_is_flagged(client):
+    """Feedback #17: typing an email that's already in the CRM shows who has it (case and spaces ignored)."""
+    a = _create_contact(client, first_name="Jane", last_name="Smith", email="jane@acme.test")
+    b = _create_contact(client, first_name="Other", last_name="Person", email="other@acme.test")
+    got = client.get("/api/contacts/email-matches", params={"email": "  JANE@acme.test "}).json()
+    assert [g["id"] for g in got] == [a["id"]] and got[0]["name"] == "Jane Smith"
+    assert client.get("/api/contacts/email-matches", params={"email": "jane@acme.test", "exclude": a["id"]}).json() == []
+    assert client.get("/api/contacts/email-matches", params={"email": "nobody@acme.test"}).json() == []
+    assert b["id"]

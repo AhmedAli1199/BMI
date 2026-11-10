@@ -72,7 +72,7 @@ Downloads the lookup as an Excel sheet, in the same order as the screen (up to 5
 Opens Mail merge with this lookup (including any advanced search) already chosen as the contacts.
 
 ### Add contact
-Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it - close spellings are listed too, marked "similar name"; if it isn't in the CRM yet, choose **Create company "…"** at the bottom of the list to add it - typed text on its own isn't saved, and the box says "Not saved yet" until you pick or create one), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
+Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it - close spellings are listed too, marked "similar name"; if it isn't in the CRM yet, choose **Create company "…"** at the bottom of the list to add it - typed text on its own isn't saved, and the box says "Not saved yet" until you pick or create one), **Email** and **Phone**. If the email is already on another contact, a warning under the box says who has it ("This email is already on another contact"), each name opening in a new tab - check it isn't the same person; for a shared address like info@ just carry on. You need at least a first or last name. **Add contact** saves it and opens the new record.
 
 ### Previous contact, Next contact
 Step through the same list, in the same order, that you opened the contact from.

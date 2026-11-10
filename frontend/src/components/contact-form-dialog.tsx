@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/errors";
+import { EmailInUseWarning } from "@/components/email-in-use-warning";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -199,6 +200,7 @@ export function ContactFormDialog({
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="cf-email">Email</Label>
                   <Input id="cf-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <EmailInUseWarning email={email} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="cf-phone">Phone</Label>

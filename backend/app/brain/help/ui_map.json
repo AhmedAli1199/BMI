@@ -191,6 +191,7 @@
     "components/company-owners.tsx",
     "components/contact-form-dialog.tsx",
     "components/delete-item-button.tsx",
+    "components/email-in-use-warning.tsx",
     "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
     "components/field-change-history.tsx",
@@ -241,6 +242,7 @@
     "components/delete-entity-button.tsx",
     "components/delete-item-button.tsx",
     "components/duplicate-contact-dialog.tsx",
+    "components/email-in-use-warning.tsx",
     "components/entity-picker.tsx",
     "components/field-change-history.tsx",
     "components/log-interaction-dialog.tsx",
@@ -295,6 +297,7 @@
     "components/contacts/bulk-update-dialog.tsx",
     "components/contacts/contacts-list-memory.tsx",
     "components/contacts/copy-emails-button.tsx",
+    "components/email-in-use-warning.tsx",
     "components/empty-state.tsx",
     "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
@@ -495,6 +498,7 @@
     "app/(app)/page.tsx",
     "components/company-form-dialog.tsx",
     "components/contact-form-dialog.tsx",
+    "components/email-in-use-warning.tsx",
     "components/entity-avatar.tsx",
     "components/entity-picker.tsx",
     "components/group-form-dialog.tsx",
@@ -2586,37 +2590,37 @@
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:213",
+   "src": "components/act-contact-card.tsx:221",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:223",
+   "src": "components/act-contact-card.tsx:231",
    "kind": "button",
    "label": "Saving..."
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:237",
+   "src": "components/act-contact-card.tsx:245",
    "kind": "button",
    "label": "Edit Record"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:264",
+   "src": "components/act-contact-card.tsx:272",
    "kind": "field",
    "label": "First Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:272",
+   "src": "components/act-contact-card.tsx:280",
    "kind": "field",
    "label": "Last Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:550",
+   "src": "components/act-contact-card.tsx:563",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
@@ -3755,73 +3759,73 @@
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:112",
+   "src": "components/contact-form-dialog.tsx:113",
    "kind": "button",
    "label": "Edit"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:117",
+   "src": "components/contact-form-dialog.tsx:118",
    "kind": "button",
    "label": "Add contact here"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:125",
+   "src": "components/contact-form-dialog.tsx:126",
    "kind": "dialog",
    "label": "Edit contact"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:132",
+   "src": "components/contact-form-dialog.tsx:133",
    "kind": "field",
    "label": "Database"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:157",
+   "src": "components/contact-form-dialog.tsx:158",
    "kind": "field",
    "label": "First name"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:161",
+   "src": "components/contact-form-dialog.tsx:162",
    "kind": "field",
    "label": "Last name"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:166",
+   "src": "components/contact-form-dialog.tsx:167",
    "kind": "field",
    "label": "Job title"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:170",
+   "src": "components/contact-form-dialog.tsx:171",
    "kind": "field",
    "label": "Department"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:175",
+   "src": "components/contact-form-dialog.tsx:176",
    "kind": "field",
    "label": "Company"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:200",
+   "src": "components/contact-form-dialog.tsx:201",
    "kind": "field",
    "label": "Email"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:204",
+   "src": "components/contact-form-dialog.tsx:206",
    "kind": "field",
    "label": "Phone"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:212",
+   "src": "components/contact-form-dialog.tsx:214",
    "kind": "button",
    "label": "Saving"
   },
@@ -5501,55 +5505,55 @@
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:68",
+   "src": "components/duplicate-contact-dialog.tsx:69",
    "kind": "button",
    "label": "Duplicate"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:75",
+   "src": "components/duplicate-contact-dialog.tsx:76",
    "kind": "dialog",
    "label": "Duplicate"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:83",
+   "src": "components/duplicate-contact-dialog.tsx:84",
    "kind": "field",
    "label": "First name"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:87",
+   "src": "components/duplicate-contact-dialog.tsx:88",
    "kind": "field",
    "label": "Last name"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:91",
+   "src": "components/duplicate-contact-dialog.tsx:92",
    "kind": "field",
    "label": "Email"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:95",
+   "src": "components/duplicate-contact-dialog.tsx:97",
    "kind": "field",
    "label": "Job title"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:99",
+   "src": "components/duplicate-contact-dialog.tsx:101",
    "kind": "field",
    "label": "Direct phone"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:102",
+   "src": "components/duplicate-contact-dialog.tsx:104",
    "kind": "field",
    "label": "Put them in the same groups"
   },
   {
    "file": "components/duplicate-contact-dialog.tsx",
-   "src": "components/duplicate-contact-dialog.tsx:114",
+   "src": "components/duplicate-contact-dialog.tsx:116",
    "kind": "button",
    "label": "Creating"
   },

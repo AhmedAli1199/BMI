@@ -522,6 +522,16 @@ export async function searchCompanies(q: string): Promise<CompanyListItem[]> {
   return page.items;
 }
 
+export type EmailMatch = { id: string; name: string; company: string | null; source_db: string };
+
+/** Contacts that already have this email address (Craig, feedback #17). */
+export async function emailMatches(email: string, exclude?: string): Promise<EmailMatch[]> {
+  if (!email.includes("@") || email.trim().length < 5) return [];
+  const qs = new URLSearchParams({ email: email.trim() });
+  if (exclude) qs.set("exclude", exclude);
+  return backendFetch<EmailMatch[]>(`/api/contacts/email-matches?${qs}`);
+}
+
 export type SimilarCompany = { id: string; name: string; source_db: string | null; exact: boolean; contacts: number };
 
 /** Companies already in the CRM with the same or a close name (spelling, Ltd/Limited...). */
