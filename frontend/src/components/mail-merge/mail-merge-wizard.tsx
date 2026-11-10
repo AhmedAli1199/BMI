@@ -43,11 +43,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
-import { searchCompanies, searchContacts, searchGroups } from "@/lib/actions";
+import { groupPicker } from "@/lib/group-picker";
+import { searchCompanies, searchContacts } from "@/lib/actions";
 import {
   deleteAttachment,
   listTemplates,
   previewMerge,
+  fixRecipientAddress,
   previewRecipients,
   saveTemplate,
   startEmailMerge,
@@ -66,6 +68,7 @@ import { MERGE_SELECTION_KEY, downloadFile, postJson } from "@/lib/download";
 import type { SalesTitle } from "@/lib/sales-types";
 import { ProposalIssuePicker } from "@/components/sales/proposal-issue-picker";
 import { friendlyError } from "@/lib/errors";
+import { InfoHint } from "@/components/sales/info-hint";
 
 export type InitialSource = {
   source: RecipientSource | null;
@@ -122,6 +125,10 @@ export function MailMergeWizard({
   const [loadingRecips, setLoadingRecips] = useState(false);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
+  // Flagged addresses ("can't work") are left out unless the person chooses to send to them anyway.
+  const [sendAnyway, setSendAnyway] = useState<Set<string>>(new Set());
+  const [onlyFlagged, setOnlyFlagged] = useState(false);
+  const [fixing, setFixing] = useState<string | null>(null);
   const [picked, setPicked] = useState<Option[]>([]);
   const [group, setGroup] = useState<Option | null>(null);
   const [company, setCompany] = useState<Option | null>(null);
@@ -189,6 +196,8 @@ export function MailMergeWizard({
       setRecips(null);
       return;
     }
+    setSendAnyway(new Set());
+    setOnlyFlagged(false);
     let cancelled = false;
     setLoadingRecips(true);
     previewRecipients(source)
@@ -211,13 +220,44 @@ export function MailMergeWizard({
   const items = useMemo(() => recips?.items ?? [], [recips]);
   const included = useMemo(() => items.filter((r) => !excluded.has(r.contact_id)), [items, excluded]);
   const reachable = useMemo(() => {
-    if (output === "email") return included.filter((r) => r.email && !r.address_problem && (includeUnsub || (!r.unsubscribed && !r.bounced)));
+    if (output === "email")
+      return included.filter(
+        (r) => r.email && (!r.address_problem || sendAnyway.has(r.contact_id)) && (includeUnsub || (!r.unsubscribed && !r.bounced))
+      );
     if (output === "labels") return included.filter((r) => r.has_address);
     return included;
-  }, [included, output, includeUnsub]);
+  }, [included, output, includeUnsub, sendAnyway]);
   const noEmailCount = included.filter((r) => !r.email).length;
   const optedOutCount = included.filter((r) => r.email && !r.address_problem && (r.unsubscribed || r.bounced)).length;
-  const badAddressCount = included.filter((r) => r.email && r.address_problem).length;
+  const flaggedRows = included.filter((r) => r.email && r.address_problem);
+  const badAddressCount = flaggedRows.filter((r) => !sendAnyway.has(r.contact_id)).length;
+  const sendingAnywayCount = flaggedRows.length - badAddressCount;
+
+  function toggleSendAnyway(ids: string[], on: boolean) {
+    setSendAnyway((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  }
+
+  async function fixAddress(r: { contact_id: string; email: string | null }) {
+    if (!r.email) return;
+    setFixing(r.contact_id);
+    try {
+      const { email } = await fixRecipientAddress(r.contact_id, r.email);
+      setRecips((prev) =>
+        prev
+          ? { ...prev, items: prev.items.map((x) => (x.contact_id === r.contact_id ? { ...x, email, address_problem: null, suggested_email: null } : x)) }
+          : prev
+      );
+      toast.success(`Fixed - now ${email}, on their contact record too.`);
+    } catch (e) {
+      toast.error(friendlyError(e, "Couldn't fix that address"));
+    } finally {
+      setFixing(null);
+    }
+  }
   const noAddressCount = included.filter((r) => !r.has_address).length;
   const previewRecipient = included[Math.min(previewIdx, Math.max(0, included.length - 1))];
   const needsMessage = output === "email" || output === "word";
@@ -333,6 +373,7 @@ export function MailMergeWizard({
       history_regarding: regarding || undefined,
       no_email: noEmail,
       include_unsubscribed: includeUnsub,
+      send_anyway: reachable.filter((r) => r.address_problem && r.email).map((r) => r.email!.trim().toLowerCase()),
       data_format: dataFormat,
       brand: mmBrand || null,
       edition_id: mmEdition || null,
@@ -398,11 +439,12 @@ export function MailMergeWizard({
   ];
   const emailBlocked = output === "email" && (!status?.connected || status.needs_reconnect);
 
+  const shown = onlyFlagged && output === "email" ? items.filter((r) => r.email && r.address_problem) : items;
   const filtered = filter.trim()
-    ? items.filter((r) =>
+    ? shown.filter((r) =>
         [r.name, r.company, r.email, r.city].some((v) => v?.toLowerCase().includes(filter.trim().toLowerCase()))
       )
-    : items;
+    : shown;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -545,20 +587,13 @@ export function MailMergeWizard({
               <div className="max-w-md">
                 <EntityPicker
                   label="Group"
-                  placeholder="Search groups…"
                   value={group}
                   onChange={(g) => {
                     setGroup(g);
                     setSource(g ? { kind: "group", group_id: g.id } : null);
                     setSourceLabel(g ? `Group: ${g.label}` : "");
                   }}
-                  search={async (q) =>
-                    (await searchGroups(q)).map((g) => ({
-                      id: g.id,
-                      label: g.name,
-                      sublabel: `${g.member_count.toLocaleString()} members`,
-                    }))
-                  }
+                  {...groupPicker()}
                 />
                 {initial.source?.kind === "group" && !group && (
                   <p className="mt-1 text-xs text-muted-foreground">Currently: {initial.label}</p>
@@ -656,10 +691,37 @@ export function MailMergeWizard({
                       {noEmailCount} without email
                     </Badge>
                   )}
-                  {output === "email" && badAddressCount > 0 && (
-                    <Badge variant="outline" className="border-destructive/40 text-destructive" title="Not written correctly, or the domain can't receive email">
-                      {badAddressCount} address{badAddressCount === 1 ? "" : "es"} that can&apos;t work
-                    </Badge>
+                  {output === "email" && flaggedRows.length > 0 && (
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setOnlyFlagged((v) => !v)}
+                        aria-pressed={onlyFlagged}
+                        title="Show only these, with the reason for each"
+                        className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                      >
+                        <Badge variant="outline" className="cursor-pointer border-destructive/40 text-destructive hover:bg-destructive/5">
+                          {badAddressCount > 0
+                            ? `${badAddressCount} address${badAddressCount === 1 ? "" : "es"} may not work - left out`
+                            : `${flaggedRows.length} flagged address${flaggedRows.length === 1 ? "" : "es"}`}
+                          {sendingAnywayCount > 0 && badAddressCount > 0 ? ` · ${sendingAnywayCount} sending anyway` : ""}
+                          {badAddressCount === 0 ? " - sending anyway" : ""}
+                        </Badge>
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-primary underline"
+                        onClick={() => toggleSendAnyway(flaggedRows.map((r) => r.contact_id), badAddressCount > 0)}
+                      >
+                        {badAddressCount > 0 ? "send to them anyway" : "leave them out"}
+                      </button>
+                      <InfoHint label="How do we know these may not work?">
+                        Two free checks: the address isn&apos;t written like an email address (or has a common slip such as
+                        gmial.com), or the internet&apos;s address book says the domain doesn&apos;t exist or can&apos;t take email.
+                        We can&apos;t check that one person&apos;s mailbox still exists - a bounce will tell us that. If you know an
+                        address is fine, send to it anyway.
+                      </InfoHint>
+                    </span>
                   )}
                   {output === "email" && optedOutCount > 0 && (
                     <Badge variant="outline" className="border-destructive/40 text-destructive">
@@ -750,7 +812,30 @@ export function MailMergeWizard({
                             <td className="px-2 py-1.5 font-medium">{r.name}</td>
                             <td className="hidden px-2 py-1.5 text-muted-foreground sm:table-cell">{r.company ?? "—"}</td>
                             <td className="px-2 py-1.5">
-                              {problem ? (
+                              {output === "email" && r.email && r.address_problem ? (
+                                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                                  <span className={`font-medium ${sendAnyway.has(r.contact_id) ? "text-muted-foreground" : "text-[var(--warn)]"}`}>
+                                    {problem} · <span className="font-mono">{r.email}</span>
+                                  </span>
+                                  {r.suggested_email && (
+                                    <button
+                                      type="button"
+                                      disabled={fixing === r.contact_id}
+                                      onClick={() => fixAddress(r)}
+                                      className="text-primary underline disabled:opacity-50"
+                                    >
+                                      Fix to {r.suggested_email}
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSendAnyway([r.contact_id], !sendAnyway.has(r.contact_id))}
+                                    className="text-primary underline"
+                                  >
+                                    {sendAnyway.has(r.contact_id) ? "Leave out" : "Send anyway"}
+                                  </button>
+                                </span>
+                              ) : problem ? (
                                 <span className="text-xs font-medium text-[var(--warn)]">
                                   {problem}
                                   {r.email && output === "email" ? ` · ${r.email}` : ""}

@@ -187,6 +187,7 @@
     "components/act-company-card.tsx",
     "components/add-existing-contact-picker.tsx",
     "components/commission/booking-new-business.tsx",
+    "components/company-delete-merge.tsx",
     "components/company-owners.tsx",
     "components/contact-form-dialog.tsx",
     "components/delete-item-button.tsx",
@@ -233,7 +234,11 @@
     "app/(app)/contacts/[id]/page.tsx",
     "components/act-contact-card.tsx",
     "components/act-tab-workstation.tsx",
+    "components/add-note-inline.tsx",
+    "components/contact-delete-controls.tsx",
     "components/contact-groups-editor.tsx",
+    "components/contacts/contacts-list-memory.tsx",
+    "components/delete-entity-button.tsx",
     "components/delete-item-button.tsx",
     "components/duplicate-contact-dialog.tsx",
     "components/entity-picker.tsx",
@@ -288,6 +293,7 @@
     "components/contact-selection-actions.tsx",
     "components/contacts/advanced-search.tsx",
     "components/contacts/bulk-update-dialog.tsx",
+    "components/contacts/contacts-list-memory.tsx",
     "components/contacts/copy-emails-button.tsx",
     "components/empty-state.tsx",
     "components/entity-avatar.tsx",
@@ -1407,61 +1413,61 @@
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:97",
+   "src": "app/(app)/companies/[id]/page.tsx:98",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:107",
+   "src": "app/(app)/companies/[id]/page.tsx:108",
    "kind": "button",
    "label": "Build a proposal"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:118",
+   "src": "app/(app)/companies/[id]/page.tsx:119",
    "kind": "button",
    "label": "New booking"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:145",
+   "src": "app/(app)/companies/[id]/page.tsx:147",
    "kind": "tab",
    "label": "Associated Contacts ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:152",
+   "src": "app/(app)/companies/[id]/page.tsx:154",
    "kind": "tab",
    "label": "Activity & History ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:158",
+   "src": "app/(app)/companies/[id]/page.tsx:160",
    "kind": "tab",
    "label": "Company Notes ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:165",
+   "src": "app/(app)/companies/[id]/page.tsx:167",
    "kind": "tab",
    "label": "Bookings ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:173",
+   "src": "app/(app)/companies/[id]/page.tsx:175",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:187",
+   "src": "app/(app)/companies/[id]/page.tsx:189",
    "kind": "heading",
    "label": "Contacts linked to"
   },
   {
    "file": "app/(app)/companies/[id]/page.tsx",
-   "src": "app/(app)/companies/[id]/page.tsx:308",
+   "src": "app/(app)/companies/[id]/page.tsx:310",
    "kind": "heading",
    "label": "Extra fields from Act!"
   },
@@ -1485,7 +1491,7 @@
   },
   {
    "file": "app/(app)/contacts/[id]/page.tsx",
-   "src": "app/(app)/contacts/[id]/page.tsx:97",
+   "src": "app/(app)/contacts/[id]/page.tsx:98",
    "kind": "button",
    "label": "Write"
   },
@@ -1497,50 +1503,50 @@
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:133",
+   "src": "app/(app)/contacts/page.tsx:135",
    "kind": "button",
    "label": "Import"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:162",
+   "src": "app/(app)/contacts/page.tsx:164",
    "kind": "button",
    "label": "Look up"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:166",
+   "src": "app/(app)/contacts/page.tsx:168",
    "kind": "hint",
    "label": "",
    "hint": "The search box looks in names, job titles, companies, emails, phone numbers, addresses and the custom fields - type several words in any order. The other boxes narrow it further. Click a column heading to sort; tick contacts to group, export, copy their emails or mail-merge them."
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:177",
+   "src": "app/(app)/contacts/page.tsx:179",
    "kind": "link",
    "label": "Clear lookup"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:194",
+   "src": "app/(app)/contacts/page.tsx:196",
    "kind": "button",
    "label": "Export"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:204",
+   "src": "app/(app)/contacts/page.tsx:206",
    "kind": "button",
    "label": "Mail merge"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:235",
+   "src": "app/(app)/contacts/page.tsx:237",
    "kind": "link",
    "label": "← Previous"
   },
   {
    "file": "app/(app)/contacts/page.tsx",
-   "src": "app/(app)/contacts/page.tsx:243",
+   "src": "app/(app)/contacts/page.tsx:245",
    "kind": "link",
    "label": "Next →"
   },
@@ -2580,93 +2586,57 @@
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:195",
+   "src": "components/act-contact-card.tsx:213",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:205",
+   "src": "components/act-contact-card.tsx:223",
    "kind": "button",
    "label": "Saving..."
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:218",
+   "src": "components/act-contact-card.tsx:237",
    "kind": "button",
    "label": "Edit Record"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:245",
+   "src": "components/act-contact-card.tsx:264",
    "kind": "field",
    "label": "First Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:253",
+   "src": "components/act-contact-card.tsx:272",
    "kind": "field",
    "label": "Last Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:520",
+   "src": "components/act-contact-card.tsx:550",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:77",
-   "kind": "tab",
-   "label": "Activities ( … )"
-  },
-  {
-   "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:91",
+   "src": "components/act-tab-workstation.tsx:55",
    "kind": "tab",
    "label": "Notes ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:101",
-   "kind": "tab",
-   "label": "History ( … )"
-  },
-  {
-   "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:111",
+   "src": "components/act-tab-workstation.tsx:69",
    "kind": "tab",
    "label": "Groups ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:119",
-   "kind": "tab",
-   "label": "Magazine & Issues"
-  },
-  {
-   "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:127",
-   "kind": "tab",
-   "label": "User Fields ( … )"
-  },
-  {
-   "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:271",
+   "src": "components/act-tab-workstation.tsx:116",
    "kind": "heading",
    "label": "Assigned Groups & Distribution Lists"
-  },
-  {
-   "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:288",
-   "kind": "heading",
-   "label": "Commercial Affiliation & Issue Inserts"
-  },
-  {
-   "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:328",
-   "kind": "heading",
-   "label": "Extra fields from Act!"
   },
   {
    "file": "components/add-existing-contact-picker.tsx",
@@ -2685,6 +2655,24 @@
    "src": "components/add-existing-contact-picker.tsx:67",
    "kind": "button",
    "label": "Adding"
+  },
+  {
+   "file": "components/add-note-inline.tsx",
+   "src": "components/add-note-inline.tsx:36",
+   "kind": "button",
+   "label": "Add note"
+  },
+  {
+   "file": "components/add-note-inline.tsx",
+   "src": "components/add-note-inline.tsx:56",
+   "kind": "button",
+   "label": "Save note"
+  },
+  {
+   "file": "components/add-note-inline.tsx",
+   "src": "components/add-note-inline.tsx:59",
+   "kind": "button",
+   "label": "Cancel"
   },
   {
    "file": "components/automation-setting-field.tsx",
@@ -3597,56 +3585,122 @@
    "label": "Save"
   },
   {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:73",
+   "kind": "button",
+   "label": "Merge into"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:76",
+   "kind": "button",
+   "label": "Delete"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:83",
+   "kind": "dialog",
+   "label": "Delete … ?"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:97",
+   "kind": "heading",
+   "label": "It has … . What should happen to them?"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:98",
+   "kind": "field",
+   "label": "Keep them - they stay in the CRM with no company. (Recommended)"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:102",
+   "kind": "field",
+   "label": "Delete them too - with their notes, history and group memberships."
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:111",
+   "kind": "button",
+   "label": "Merge into"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:113",
+   "kind": "button",
+   "label": "Deleting"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:124",
+   "kind": "dialog",
+   "label": "Merge … into another company"
+  },
+  {
+   "file": "components/company-delete-merge.tsx",
+   "src": "components/company-delete-merge.tsx:149",
+   "kind": "button",
+   "label": "Merging"
+  },
+  {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:75",
+   "src": "components/company-form-dialog.tsx:90",
    "kind": "button",
    "label": "Edit"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:80",
+   "src": "components/company-form-dialog.tsx:95",
    "kind": "button",
    "label": "Add company"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:88",
+   "src": "components/company-form-dialog.tsx:103",
    "kind": "dialog",
    "label": "Edit company"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:93",
+   "src": "components/company-form-dialog.tsx:108",
    "kind": "field",
    "label": "Database"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:117",
+   "src": "components/company-form-dialog.tsx:132",
    "kind": "field",
    "label": "Name"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:122",
+   "src": "components/company-form-dialog.tsx:141",
+   "kind": "link",
+   "label": "· 1 contact · same name"
+  },
+  {
+   "file": "components/company-form-dialog.tsx",
+   "src": "components/company-form-dialog.tsx:153",
    "kind": "field",
    "label": "Industry"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:126",
+   "src": "components/company-form-dialog.tsx:157",
    "kind": "field",
    "label": "Category"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:131",
+   "src": "components/company-form-dialog.tsx:162",
    "kind": "field",
    "label": "Website"
   },
   {
    "file": "components/company-form-dialog.tsx",
-   "src": "components/company-form-dialog.tsx:137",
+   "src": "components/company-form-dialog.tsx:168",
    "kind": "button",
    "label": "Saving"
   },
@@ -3755,25 +3809,25 @@
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:189",
+   "src": "components/contact-form-dialog.tsx:200",
    "kind": "field",
    "label": "Email"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:193",
+   "src": "components/contact-form-dialog.tsx:204",
    "kind": "field",
    "label": "Phone"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:201",
+   "src": "components/contact-form-dialog.tsx:212",
    "kind": "button",
    "label": "Saving"
   },
   {
    "file": "components/contact-groups-editor.tsx",
-   "src": "components/contact-groups-editor.tsx:77",
+   "src": "components/contact-groups-editor.tsx:82",
    "kind": "button",
    "label": "Add to group"
   },
@@ -3815,56 +3869,56 @@
   },
   {
    "file": "components/contact-selection-actions.tsx",
-   "src": "components/contact-selection-actions.tsx:174",
+   "src": "components/contact-selection-actions.tsx:169",
    "kind": "button",
    "label": "Adding"
   },
   {
    "file": "components/contact-selection-actions.tsx",
-   "src": "components/contact-selection-actions.tsx:184",
+   "src": "components/contact-selection-actions.tsx:179",
    "kind": "dialog",
    "label": "New group from"
   },
   {
    "file": "components/contact-selection-actions.tsx",
-   "src": "components/contact-selection-actions.tsx:191",
+   "src": "components/contact-selection-actions.tsx:186",
    "kind": "field",
    "label": "Group name"
   },
   {
    "file": "components/contact-selection-actions.tsx",
-   "src": "components/contact-selection-actions.tsx:201",
+   "src": "components/contact-selection-actions.tsx:196",
    "kind": "field",
    "label": "Description (optional)"
   },
   {
    "file": "components/contact-selection-actions.tsx",
-   "src": "components/contact-selection-actions.tsx:207",
+   "src": "components/contact-selection-actions.tsx:202",
    "kind": "button",
    "label": "Creating"
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:69",
+   "src": "components/contacts/advanced-search.tsx:75",
    "kind": "button",
    "label": "Advanced search"
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:72",
+   "src": "components/contacts/advanced-search.tsx:78",
    "kind": "hint",
    "label": "",
    "hint": "Search any field - including phone, address, notes and the Act! custom fields - with several rules at once, e.g. Postcode starts with SW1 and Job title contains counsellor."
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:106",
+   "src": "components/contacts/advanced-search.tsx:112",
    "kind": "button",
    "label": "Remove this rule"
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:111",
+   "src": "components/contacts/advanced-search.tsx:117",
    "kind": "button",
    "label": "Add a rule"
   },
@@ -3931,7 +3985,7 @@
   },
   {
    "file": "components/contacts/copy-emails-button.tsx",
-   "src": "components/contacts/copy-emails-button.tsx:55",
+   "src": "components/contacts/copy-emails-button.tsx:73",
    "kind": "button",
    "label": "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box"
   },
@@ -5399,19 +5453,19 @@
   },
   {
    "file": "components/delete-entity-button.tsx",
-   "src": "components/delete-entity-button.tsx:69",
+   "src": "components/delete-entity-button.tsx:72",
    "kind": "button",
    "label": "Delete"
   },
   {
    "file": "components/delete-entity-button.tsx",
-   "src": "components/delete-entity-button.tsx:76",
+   "src": "components/delete-entity-button.tsx:79",
    "kind": "dialog",
    "label": "Delete … ?"
   },
   {
    "file": "components/delete-entity-button.tsx",
-   "src": "components/delete-entity-button.tsx:84",
+   "src": "components/delete-entity-button.tsx:87",
    "kind": "button",
    "label": "Deleting"
   },
@@ -5929,13 +5983,19 @@
   },
   {
    "file": "components/entity-picker.tsx",
-   "src": "components/entity-picker.tsx:105",
+   "src": "components/entity-picker.tsx:146",
    "kind": "link",
    "label": "View"
   },
   {
+   "file": "components/entity-picker.tsx",
+   "src": "components/entity-picker.tsx:237",
+   "kind": "button",
+   "label": "Create … “ … ”"
+  },
+  {
    "file": "components/field-change-history.tsx",
-   "src": "components/field-change-history.tsx:86",
+   "src": "components/field-change-history.tsx:93",
    "kind": "button",
    "label": "History of changes"
   },
@@ -6271,259 +6331,290 @@
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:485",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:527",
    "kind": "link",
    "label": "Connect Outlook"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:497",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:539",
    "kind": "link",
    "label": "Reconnect"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:649",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:684",
    "kind": "button",
    "label": "include all"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:689",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:696",
+   "kind": "button",
+   "label": "- sending anyway"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:711",
+   "kind": "button",
+   "label": "send to them anyway"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:718",
+   "kind": "hint",
+   "label": "",
+   "hint": "Two free checks: the address isn't written like an email address (or has a common slip such as gmial.com), or the internet's address book says the domain doesn't exist or can't take email. We can't check that one person's mailbox still exists - a bounce will tell us that. If you know an address is fine, send to it anyway."
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:751",
    "kind": "button",
    "label": "Tick these"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:709",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:771",
    "kind": "column",
    "label": "Include"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:710",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:772",
    "kind": "column",
    "label": "Name"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:711",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:773",
    "kind": "column",
    "label": "Company"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:712",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:774",
    "kind": "column",
    "label": "Address"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:798",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:821",
+   "kind": "button",
+   "label": "Fix to"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:830",
+   "kind": "button",
+   "label": "Leave out"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:883",
    "kind": "field",
    "label": "Template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:810",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:895",
    "kind": "button",
    "label": "Update template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:815",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:900",
    "kind": "button",
    "label": "Save as new template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:823",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:908",
    "kind": "field",
    "label": "Brand (for its figures and links) Choose Selling Travel The Business Travel Magazine Onboard Hospitality"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:832",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:917",
    "kind": "field",
    "label": "Title"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:837",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:922",
    "kind": "field",
    "label": "The issue or event it's about"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:840",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:925",
    "kind": "field",
    "label": "The feature you're pitching"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:856",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:941",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:868",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:953",
    "kind": "field",
    "label": "Message"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:912",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:997",
    "kind": "button",
    "label": "Previous contact"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:917",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1002",
    "kind": "button",
    "label": "Next contact"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:966",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1051",
    "kind": "heading",
    "label": "Record history"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:994",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1079",
    "kind": "field",
    "label": "Regarding"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1004",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1089",
    "kind": "heading",
    "label": "Copies"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1006",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1091",
    "kind": "field",
    "label": "Cc (on every email)"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1010",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1095",
    "kind": "field",
    "label": "Bcc (on every email)"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1016",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1101",
    "kind": "heading",
    "label": "Attachments"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1035",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1120",
    "kind": "field",
    "label": "Uploading"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1046",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1131",
    "kind": "heading",
    "label": "Contacts who can't be emailed"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1047",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1132",
    "kind": "field",
    "label": "Skip them have no email address"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1054",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1139",
    "kind": "field",
    "label": "Make Word letters for them Downloads straight after the emails are queued"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1061",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1146",
    "kind": "field",
    "label": "Include unsubscribed and bounced contacts Off by default - only for essential, non-marketing messages (e.g. an invoice q"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1076",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1161",
    "kind": "heading",
    "label": "File type"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1078",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1163",
    "kind": "field",
    "label": "Excel (.xlsx) - for Word's own mail merge"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1104",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1189",
    "kind": "button",
    "label": "Send a test to myself"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1108",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1193",
    "kind": "button",
    "label": "Send … emails"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1131",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1216",
    "kind": "button",
    "label": "Back"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1136",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1221",
    "kind": "button",
    "label": "Next"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1142",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1227",
    "kind": "link",
    "label": "See earlier mail merges"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1152",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1237",
    "kind": "dialog",
    "label": "Save as a template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1157",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1242",
    "kind": "field",
    "label": "Template name"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1160",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1245",
    "kind": "field",
    "label": "Share with the team"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1167",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1252",
    "kind": "button",
    "label": "Save template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1177",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1262",
    "kind": "dialog",
    "label": "Send … emails?"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1186",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1271",
    "kind": "button",
    "label": "Send now"
   },

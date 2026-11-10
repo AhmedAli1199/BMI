@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/sales/info-hint";
 
 const selectCls = "h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+const LAST_FIELD_KEY = "bmi.contacts.advanced-search.last-field";
 const NO_VALUE = new Set(["is_empty", "is_not_empty", "is_yes", "is_no"]);
 
 function describe(c: SearchCondition, fields: ContactField[]) {
@@ -35,8 +36,12 @@ export function AdvancedSearch({ fields, initial, match: initialMatch }: { field
   const byKey = (k: string) => fields.find((f) => f.key === k);
   const complete = rows.filter((r) => r.field && r.op && (NO_VALUE.has(r.op) || r.value.trim()));
 
+  // A new rule starts on the field this person used last (Craig, feedback #7: he always searches by email,
+  // company or country), else Email (any) - "contains", ready to type into.
   function add() {
-    const f = fields.find((x) => x.key === "job_title") ?? fields[0];
+    let last: string | null = null;
+    try { last = window.localStorage.getItem(LAST_FIELD_KEY); } catch { /* private window */ }
+    const f = (last && byKey(last)) || byKey("email") || fields[0];
     setRows([...rows, { field: f.key, op: f.ops[0].op, value: "" }]);
     setOpen(true);
   }
@@ -45,6 +50,7 @@ export function AdvancedSearch({ fields, initial, match: initialMatch }: { field
       if (j !== i) return r;
       const next = { ...r, ...patch };
       if (patch.field && patch.field !== r.field) {
+        try { window.localStorage.setItem(LAST_FIELD_KEY, patch.field); } catch { /* private window */ }
         const f = byKey(patch.field);
         if (f && !f.ops.some((o) => o.op === next.op)) next.op = f.ops[0].op;
         next.value = "";

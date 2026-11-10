@@ -7,7 +7,11 @@
 
 What this can't tell: whether one person's mailbox still exists at a working domain (jane@bigcompany.com after Jane
 left). Only sending does that - a bounce is caught by the bounce scan (CS-001). If a lookup can't be answered
-(the network is slow), the address is given the benefit of the doubt.
+(the network is slow, or the domain's own DNS servers don't answer - often a passing fault), the address is given the
+benefit of the doubt. Only "this domain doesn't exist" (a definite answer from the domain registry) or "no mail
+servers and no address at all" counts as can't-receive.
+
+Flagged addresses are left out by default, but a person can still choose to send to them (mail merge "Send anyway").
 """
 from __future__ import annotations
 
@@ -44,6 +48,16 @@ def written_problem(address: str | None) -> str | None:
     return None
 
 
+def suggested_fix(address: str | None) -> str | None:
+    """The address with a common domain slip corrected (jane@gmial.com -> jane@gmail.com), or None."""
+    a = (address or "").strip()
+    if "@" not in a:
+        return None
+    local, dom = a.rsplit("@", 1)
+    fixed = TYPOS.get(dom.lower())
+    return f"{local}@{fixed}" if fixed and local else None
+
+
 def _lookup(domain: str) -> bool | None:
     import dns.exception
     import dns.resolver
@@ -53,8 +67,8 @@ def _lookup(domain: str) -> bool | None:
     try:
         r.resolve(domain, "MX")
         return True
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
-        return False
+    except dns.resolver.NXDOMAIN:
+        return False   # the registry says the domain doesn't exist - a definite answer
     except dns.resolver.NoAnswer:
         pass   # no mail servers listed: mail falls back to the domain's own address
     except (dns.exception.Timeout, dns.exception.DNSException, OSError):
@@ -62,7 +76,7 @@ def _lookup(domain: str) -> bool | None:
     try:
         r.resolve(domain, "A")
         return True
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
         return False
     except (dns.exception.Timeout, dns.exception.DNSException, OSError):
         return None

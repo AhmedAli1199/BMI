@@ -52,9 +52,11 @@ export function PickOverlay({ onPick, onCancel }: { onPick: (el: Element, d: Fee
   );
 }
 
-/** Snap an area: the screen is frozen as a picture and they drag a box over the part they mean. */
-export function AreaOverlay({ screen, onDone, onCancel }: {
+/** Snap an area: the screen is frozen as a picture and they drag a box over the part they mean. Scrolling with
+ * the mouse wheel moves the real page underneath and takes a fresh picture, so they can reach any part of it. */
+export function AreaOverlay({ screen, onDone, onCancel, onScroll }: {
   screen: HTMLCanvasElement | null; onDone: (box: { x: number; y: number; w: number; h: number } | null) => void; onCancel: () => void;
+  onScroll?: (deltaY: number, x: number, y: number) => void;
 }) {
   const [start, setStart] = useState<{ x: number; y: number } | null>(null);
   const [end, setEnd] = useState<{ x: number; y: number } | null>(null);
@@ -77,6 +79,7 @@ export function AreaOverlay({ screen, onDone, onCancel }: {
 
   return (
     <div data-feedback-ui="" className={`fixed inset-0 ${Z} cursor-crosshair select-none touch-none`}
+      onWheel={(e) => { if (!start) onScroll?.(e.deltaY, e.clientX, e.clientY); }}
       onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); setStart({ x: e.clientX, y: e.clientY }); setEnd({ x: e.clientX, y: e.clientY }); }}
       onPointerMove={(e) => start && setEnd({ x: e.clientX, y: e.clientY })}
       onPointerUp={() => {
@@ -89,7 +92,7 @@ export function AreaOverlay({ screen, onDone, onCancel }: {
         <div className="pointer-events-none absolute border-2 border-primary shadow-[0_0_0_9999px_color-mix(in_oklab,var(--foreground)_40%,transparent)]"
           style={{ left: box.x, top: box.y, width: box.w, height: box.h }} />
       ) : <div className="pointer-events-none absolute inset-0 bg-foreground/30" />}
-      <Banner icon={<Crosshair className="size-4" />} text="Drag a box over the part you mean."
+      <Banner icon={<Crosshair className="size-4" />} text={onScroll ? "Scroll to the part you mean, then drag a box over it." : "Drag a box over the part you mean."}
         extra={<Button size="sm" variant="outline" className="gap-1.5" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDone(null); }}><Maximize className="size-3.5" /> Whole screen</Button>}
         onCancel={onCancel} />
     </div>

@@ -21,6 +21,7 @@ export function DeleteEntityButton({
   action,
   redirectTo,
   description,
+  className,
 }: {
   /** Shown in the confirmation copy, e.g. "Jane Doe" or "this company". */
   entityLabel: string;
@@ -36,6 +37,8 @@ export function DeleteEntityButton({
    * group (its only other caller) owns none of those, so it needs its
    * own accurate wording instead of this generic one. */
   description?: string;
+  /** Extra classes for the trigger button, e.g. to match a compact toolbar. */
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -66,7 +69,7 @@ export function DeleteEntityButton({
 
   return (
     <>
-      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setOpen(true)}>
+      <Button variant="outline" size="sm" className={`text-destructive hover:text-destructive ${className ?? ""}`} onClick={() => setOpen(true)}>
         <Trash2 className="size-4" />
         Delete
       </Button>

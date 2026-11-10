@@ -34,10 +34,16 @@ Shown when you arrive from **Fix** on the Data Health page, where the list shows
 To see one database's companies, or all you can see, use the **All Titles** switcher at the top of the app. The choice also applies to Contacts, Groups and Home.
 
 ### Add company
-Choose the **Database**, then type **Name**, **Industry**, **Category** and **Website**. **Add company** saves it and opens the new company. The name is required.
+Choose the **Database**, then type **Name**, **Industry**, **Category** and **Website**. **Add company** saves it and opens the new company. The name is required. While you type the name, companies already in the CRM with the same or a close name (e.g. "Acme Travel" and "Acme Travel Ltd") are listed under it, each opening in a new tab so you can check - if yours is a different company, carry on.
 
 ### A row in the list
 Opens the company. The record arrows on its page then step through the same list.
+
+### Merge into…
+For duplicates. Pick the company to keep (close spellings are listed too, marked "similar name") and press **Merge into …**. Everything moves to it - contacts, notes, history, bookings, deals, proposals, who looks after them, addresses and phone numbers - a "Merged" entry is added to its history, and this company is deleted.
+
+### Delete
+Anyone who can see the company's database can delete it. It shows what's linked first. If it has contacts, choose **Keep them** (they stay, with no company; recommended) or **Delete them too** (with their notes, history and group memberships), then press **Delete company**. A company with bookings, deals or proposals can't be deleted, because that would lose sales history - use **Merge into…** instead. It can't be undone.
 
 ### Previous company, Next company
 Step to the neighbouring company in the list you came from.

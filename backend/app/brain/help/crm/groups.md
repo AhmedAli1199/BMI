@@ -49,7 +49,7 @@ Asks "Delete <group>?" and then deletes the group after you press **Delete**. Th
 ### Tick boxes and the selection bar
 Tick members (the top box ticks all the members shown so far). A bar appears with "<n> contacts selected" and:
 - **Remove from this group**: takes all the ticked people out in one go. The list keeps your place. People who are only in a sub-group aren't removed - you're told how many were left, and need to open the sub-group to remove them.
-- **Add to group**: copy them into another group (this group isn't offered). People already there are left as they are.
+- **Add to group**: copy them into another group (this group isn't offered). Clicking into the group box lists every group straight away, with member counts; type to narrow it. People already there are left as they are.
 - **New group**: start a new, smaller group from them. Type a **Group name** and optional description, then **Create group**.
 - **Export**: just the ticked people, to Excel.
 - **Copy emails**: their addresses, ready for Outlook's Bcc box (unsubscribed, bounced, repeated and unworkable addresses left out).

@@ -270,6 +270,8 @@ class ContactDetail(BaseModel):
     custom_fields: dict
     # Display names for custom_fields (internal "_" keys left out) - see app/contacts/fields.py
     custom_field_labels: dict[str, str] = {}
+    # Every custom field there is (so the page can offer empty ones too): [{key, label, kind: "bool" | "text"}]
+    custom_field_catalog: list[dict] = []
     company: CompanySummary | None = None
     addresses: list[AddressOut] = []
     phones: list[PhoneOut] = []
@@ -359,6 +361,8 @@ class ContactUpdate(BaseModel):
     referred_by: str | None = None
     birthdate: date | None = None
     company_id: uuid.UUID | None = None
+    # The extra (Act!) fields to change, by key: a value sets it, "" or null clears it. Other keys are left alone.
+    custom_fields: dict[str, str | bool | None] | None = None
 
 
 class FieldChangeOut(BaseModel):

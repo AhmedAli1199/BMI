@@ -32,7 +32,10 @@ Type several words in any order. Every word must appear somewhere: name, job tit
 Each one narrows the list further ("contains"). Press **Look up** to run the search. The small X next to **Look up** (**Clear lookup**) clears the whole lookup.
 
 ### Advanced search
-Opens rules of the form field / how / value, for example Postcode **starts with** SW1. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
+Opens rules of the form field / how / value, for example Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
+
+### Coming back to the list
+Contacts remembers how you left it: going back to it (from the sidebar or the record's **Contacts** link) shows the same search, sort and page, scrolled to the contact you last opened, which is briefly highlighted. The X next to **Look up** (**Clear lookup**) starts afresh.
 
 ### Column headings (Contact & Title, Company, Location, Email)
 Click to sort, click again to reverse. Location sorts by town. **Publication** does not sort.
@@ -43,7 +46,7 @@ To see one title's database, or all the ones you can see, use the **All Titles**
 ### Tick boxes and the selection bar
 Tick people (or the top box for the whole page). A bar appears with "<n> contacts selected" and:
 - **Select all <n> matching**: shown when you have ticked a whole page and more match. Ticks everyone in the lookup.
-- **Add to group**: pick a group and press **Add to group**. People already in it are left as they are.
+- **Add to group**: click into the group box and the list of groups opens straight away (with member counts; type to narrow it), pick one and press **Add to group**. People already in it are left as they are.
 - **New group**: type a **Group name** and optional **Description (optional)**, then **Create group**. Handy for a one-off mailing.
 - **Export**, **Copy emails**, **Bulk update** and **Mail merge** work on just the ticked people.
 - The X (**Clear selection**) unticks everyone.
@@ -52,7 +55,7 @@ Tick people (or the top box for the whole page). A bar appears with "<n> contact
 Opens Import contacts (see below).
 
 ### Copy emails
-Hovering over it says "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box". Copies the email addresses of everyone in the lookup (or the ticked people), separated by semicolons, ready to paste into Outlook's Bcc box. People who unsubscribed, opted out or whose email bounced are left out, as are people with no email, repeated addresses, and addresses that can't work (mistyped, or the domain doesn't take email); the message says how many. Over 5,000 contacts is too many to copy: narrow the search or use **Export**. Above 500 it reminds you Outlook only sends to about 500 at once.
+Hovering over it says "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box". Copies the email addresses of everyone in the lookup (or the ticked people), separated by semicolons, ready to paste into Outlook's Bcc box. People who unsubscribed, opted out or whose email bounced are left out, as are people with no email, repeated addresses, and addresses that may not work (mistyped, or the domain doesn't take email); the message says how many. If you know the flagged ones are fine, click **Add the N flagged** on that message to copy them as well. Over 5,000 contacts is too many to copy: narrow the search or use **Export**. Above 500 it reminds you Outlook only sends to about 500 at once.
 
 ### Bulk update
 Opens "Change many contacts at once" for the whole lookup (or the ticked people).
@@ -69,7 +72,7 @@ Downloads the lookup as an Excel sheet, in the same order as the screen (up to 5
 Opens Mail merge with this lookup (including any advanced search) already chosen as the contacts.
 
 ### Add contact
-Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
+Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it - close spellings are listed too, marked "similar name"; if it isn't in the CRM yet, choose **Create company "…"** at the bottom of the list to add it - typed text on its own isn't saved, and the box says "Not saved yet" until you pick or create one), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
 
 ### Previous contact, Next contact
 Step through the same list, in the same order, that you opened the contact from.
@@ -89,6 +92,9 @@ Act!'s "duplicate contact": a new person at the same company. Type **First name*
 ### Edit Record, Save Changes, Cancel
 **Edit Record** makes the card editable: names, company, title, department, the two phone numbers and the type of each (Business, Mobile, Home, Fax or Other), e-mail, address, ID/Status (the category), Referred By and Birthdate. A number keeps its own type when you save. **Save Changes** saves; **Cancel** throws the edits away. The copy icon next to a phone or email copies it.
 
+### Delete
+Next to **Mark as departed**. Anyone who can see the contact's database can delete it. It asks you to confirm, then removes the contact for good with their email addresses, phone numbers, addresses, notes, history and group memberships; their bookings, activities and deals stay but are no longer linked to them. It can't be undone. If the person has only left their company, use **Mark as departed** instead.
+
 ### Mark as departed
 For someone who has left. Search for who replaced them and press **Move notes and history**. Every note and history entry moves to that person, and both records get a short "Departure" note. The old record itself stays, marked "Left the company" (a yes/no field you can search, export and change in bulk). Scheduled activities don't move.
 
@@ -98,13 +104,12 @@ The website of the person's company, if it has one. It opens in a new tab. To op
 ### History of changes
 Shows who changed which field, from what to what, and when (newest first). A change of company shows the company names. Adding, changing or removing a phone number, email or address is listed too.
 
-### Activities, Notes, History, Groups, Magazine & Issues, User Fields (tabs)
-- **Activities**: everything in one timeline (notes, history and scheduled items), newest first, with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green).
-- **Notes**: date, type, the note and where it came from.
-- **History**: what happened (calls, emails, meetings, letters).
-- **Groups**: the groups they're in. The X on a group takes them out; **Add to group** lets you search for one to add.
-- **Magazine & Issues**: custom fields whose names are about issues, adverts, print, circulation, sponsors or magazines.
-- **User Fields**: every Act! custom field with a value on this person, under its real name once one has been set.
+### More details
+Under the contact's main details, in the same card: every extra field brought over from Act! (and any added since), under its real name once one has been set. Yes/no fields are tick boxes. **Edit Record** lets you change any of them - including empty ones, which are only listed while editing - and **Save Changes** saves them with the rest; each change appears in **History of changes**.
+
+### Notes and Groups (tabs)
+- **Notes**: everything to do with this contact in one list, newest first - notes, mail merges and emails sent, calls, meetings, tasks and other history - with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green). **Add note** at the top: type the note and press **Save note** (or Ctrl+Enter); it's saved with today's date and your name.
+- **Groups**: the groups they're in. The X on a group takes them out; **Add to group** opens the list of groups straight away (the contact's own database first, sub-groups indented under their parent, with how many members each has; groups they're already in are greyed out) - pick one, or type to search.
 
 ### Search this contact's notes & history...
 Narrows and highlights matches in Activities, Notes and History at once; the tab counts show "x of y".

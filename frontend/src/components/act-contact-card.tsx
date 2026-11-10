@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
-import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, searchCompanies } from "@/lib/actions";
+import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, createCompany, searchCompaniesWithSimilar, similarCompanies } from "@/lib/actions";
 import { ReassignContactButton } from "@/components/reassign-contact-button";
+import { ContactDeleteControls } from "@/components/contact-delete-controls";
 import { friendlyError } from "@/lib/errors";
 
 function websiteHref(site: string): string {
@@ -83,6 +84,24 @@ export function ActContactCard({
   const [addrPostal, setAddrPostal] = useState(contact.addresses[0]?.postal_code ?? "");
   const [addrCountry, setAddrCountry] = useState(contact.addresses[0]?.country ?? "");
 
+  // Every extra (Act!) field lives in this card now (Craig, feedback #10): yes/no ones as tick boxes.
+  const catalog = (contact.custom_field_catalog ?? []).length
+    ? contact.custom_field_catalog!
+    : Object.entries(contact.custom_fields ?? {})
+        .filter(([k]) => !k.startsWith("_"))
+        .map(([k, v]) => ({
+          key: k,
+          label: contact.custom_field_labels?.[k] ?? k,
+          kind: ["true", "false", "yes", "no"].includes(String(v ?? "").trim().toLowerCase()) ? ("bool" as const) : ("text" as const),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+  const savedCustom = (k: string) => {
+    const v = (contact.custom_fields ?? {})[k];
+    return v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+  };
+  const [custom, setCustom] = useState<Record<string, string>>(() => Object.fromEntries(catalog.map((f) => [f.key, savedCustom(f.key)])));
+  const isYes = (v: string) => ["true", "yes", "y", "1"].includes(v.trim().toLowerCase());
+
   const name =
     contact.full_name ||
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
@@ -108,6 +127,11 @@ export function ActContactCard({
             referred_by: referredBy,
             birthdate,
             company_id: company?.id ?? null,
+            custom_fields: Object.fromEntries(
+              catalog
+                .filter((f) => (f.kind === "bool" ? isYes(custom[f.key] ?? "") !== isYes(savedCustom(f.key)) : (custom[f.key] ?? "") !== savedCustom(f.key)))
+                .map((f) => [f.key, f.kind === "bool" ? isYes(custom[f.key] ?? "") : custom[f.key] ?? ""])
+            ),
           }),
           phone !== (contact.phones[0]?.number ?? "") || (contact.phones[0] && phoneType !== firstPhoneType)
             ? saveContactPhone(contact.id, contact.phones[0]?.id, { type_label: phoneType, number: phone })
@@ -171,6 +195,7 @@ export function ActContactCard({
     setAddrPostal(contact.addresses[0]?.postal_code ?? "");
     setAddrCountry(contact.addresses[0]?.country ?? "");
     setCompany(contact.company ? { id: contact.company.id, label: contact.company.name } : null);
+    setCustom(Object.fromEntries(catalog.map((f) => [f.key, savedCustom(f.key)])));
     setEditing(false);
   }
 
@@ -215,6 +240,7 @@ export function ActContactCard({
           ) : (
             <>
               <ReassignContactButton contactId={contact.id} contactName={name} />
+              <ContactDeleteControls contactId={contact.id} name={name} />
               <Button
                 size="sm"
                 variant="outline"
@@ -268,10 +294,21 @@ export function ActContactCard({
                 <EntityPicker
                   label="company"
                   placeholder="Search companies…"
-                  search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name }))}
+                  search={async (q) => (await searchCompaniesWithSimilar(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.similar ? "similar name" : undefined }))}
                   value={company}
                   onChange={setCompany}
                   viewHref={(id) => `/companies/${id}`}
+                  onCreate={async (name) => {
+                    // Same company under a slightly different spelling ("Acme Travel" vs "Acme Travel Ltd"): use that one.
+                    const same = (await similarCompanies(name).catch(() => [])).find((x) => x.exact);
+                    if (same) {
+                      toast.info(`“${same.name}” is already in the CRM, so we've picked it instead of adding a copy.`);
+                      return { id: same.id, label: same.name };
+                    }
+                    const c = await createCompany({ name, source_db: contact.source_db });
+                    toast.success(`Created the company “${name}”. Save to link it.`);
+                    return { id: c.id, label: name };
+                  }}
                 />
               </div>
             ) : (
@@ -630,6 +667,45 @@ export function ActContactCard({
             </div>
           </div>
         </div>
+
+        {/* More details: every extra field (from Act!), in the same card so nothing needs looking for elsewhere. */}
+        {catalog.length > 0 && (editing || catalog.some((f) => f.kind === "bool" || custom[f.key])) && (
+          <div className="flex flex-col gap-2.5 md:col-span-3">
+            <div className="border-b pb-1.5 mb-1">
+              <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">More details</span>
+            </div>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {catalog.map((f) => {
+                const v = custom[f.key] ?? "";
+                if (f.kind === "bool") {
+                  return (
+                    <label key={f.key} className={`flex items-center gap-2 ${editing ? "cursor-pointer" : ""}`}>
+                      <input
+                        type="checkbox"
+                        className="size-3.5 accent-primary disabled:opacity-80"
+                        checked={isYes(v)}
+                        disabled={!editing}
+                        onChange={(e) => setCustom({ ...custom, [f.key]: e.target.checked ? "True" : "False" })}
+                      />
+                      <span className="text-foreground">{f.label}</span>
+                    </label>
+                  );
+                }
+                if (!editing && !v) return null;
+                return (
+                  <div key={f.key} className={ROW}>
+                    <span className="text-muted-foreground">{f.label}</span>
+                    {editing ? (
+                      <Input className="h-7 text-xs" value={v} aria-label={f.label} onChange={(e) => setCustom({ ...custom, [f.key]: e.target.value })} />
+                    ) : (
+                      <span className="min-w-0 font-medium text-foreground [overflow-wrap:anywhere]">{v}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

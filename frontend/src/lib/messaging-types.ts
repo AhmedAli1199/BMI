@@ -109,6 +109,8 @@ export type Recipient = {
   bounced: boolean;
   /** Why the address can't work (not written correctly, or its domain can't receive email). */
   address_problem?: string | null;
+  /** The address with a common slip corrected (gmial.com -> gmail.com), offered as a one-click fix. */
+  suggested_email?: string | null;
 };
 
 export type RecipientsResult = { label: string; total: number; truncated: boolean; items: Recipient[] };
@@ -166,6 +168,8 @@ export type MergeRequest = {
   history_regarding?: string;
   no_email: "skip" | "letters";
   include_unsubscribed: boolean;
+  /** Flagged addresses the person chose to send to anyway. */
+  send_anyway?: string[];
   data_format: "xlsx" | "csv";
   test_only?: boolean;
   brand?: string | null;

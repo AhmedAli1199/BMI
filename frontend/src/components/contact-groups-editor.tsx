@@ -7,15 +7,21 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EntityPicker } from "@/components/entity-picker";
-import { addContactToGroup, removeContactFromGroup, searchGroups } from "@/lib/actions";
+import { addContactToGroup, removeContactFromGroup } from "@/lib/actions";
+import { groupPicker } from "@/lib/group-picker";
 
 export function ContactGroupsEditor({
   contactId,
   groups,
+  sourceDb,
 }: {
   contactId: string;
   groups: { id: string; name: string }[];
+  /** The contact's database: its groups are listed first when the picker opens. */
+  sourceDb?: string | null;
 }) {
+  const picker = groupPicker({ sourceDb, alreadyIn: new Set(groups.map((g) => g.id)) });
+
   const [adding, setAdding] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -56,8 +62,7 @@ export function ContactGroupsEditor({
         <div className="max-w-xs">
           <EntityPicker
             label="group"
-            placeholder="Search groups…"
-            search={async (q) => (await searchGroups(q)).map((g) => ({ id: g.id, label: g.name }))}
+            {...picker}
             value={null}
             onChange={(v) => {
               if (!v) return;

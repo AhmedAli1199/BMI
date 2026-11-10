@@ -294,3 +294,84 @@ def test_addresses_that_cant_work_are_marked_and_skipped(client, db_session, peo
     db_session.flush()
     out = client.post("/api/contacts/emails", headers=h, json={"ids": ids}).json()
     assert out["skipped_invalid"] == 1
+
+
+def test_flagged_addresses_can_be_sent_anyway_or_fixed(client, db_session, people, monkeypatch):
+    """Flagged addresses are left out by default, but a person can send to them anyway, fix a common slip, or copy them too."""
+    from app.models import Email
+    from app.services import email_check
+
+    monkeypatch.setattr(email_check, "_lookup", lambda domain: domain != "zeta.com")
+    me = make_user(db_session)
+    h = identity_headers(me, access=[("manual", None)])
+    dan = _contact(db_session, "Dan", "Typo", email="dan@gmial.com", title="Buyer")
+    ids = [str(people["amy"].id), str(people["bob"].id), str(dan.id)]
+    r = client.post("/api/mail-merge/recipients", headers=h, json={"kind": "contacts", "contact_ids": ids}).json()
+    assert {i["name"]: i["suggested_email"] for i in r["items"]} == {"Amy Zed": None, "Bob Young": None, "Dan Typo": "dan@gmail.com"}
+
+    db_session.add(MailAccount(id=uuid.uuid4(), user_id=me.id, email="me@bmi.test", refresh_token_enc=outlook.encrypt("rt")))
+    db_session.flush()
+    m = client.post("/api/mail-merge", headers=h, json={"output": "email", "contact_ids": ids, "subject": "Hi", "body": "Hi",
+                                                        "record_history": "none", "send_anyway": ["AMY@zeta.com"]}).json()
+    assert (m["total"], m["skipped"]) == (3, 1)   # Amy sent anyway; Dan still left out
+    status = {x.email: x.status for x in db_session.query(MailMergeRecipient).filter_by(merge_id=uuid.UUID(m["id"]))}
+    assert status == {"amy@zeta.com": "queued", "bob@x.com": "queued", "dan@gmial.com": "skipped"}
+
+    out = client.post("/api/contacts/emails", headers=h, json={"ids": ids}).json()
+    assert set(out["flagged_text"].split("; ")) == {"amy@zeta.com", "dan@gmial.com"}
+    assert {f["address"] for f in out["flagged"]} == {"amy@zeta.com", "dan@gmial.com"}
+
+    fixed = client.post("/api/mail-merge/fix-address", headers=h, json={"contact_id": str(dan.id), "address": "dan@gmial.com"})
+    assert fixed.status_code == 200 and fixed.json() == {"email": "dan@gmail.com"}
+    assert db_session.query(Email).filter_by(contact_id=dan.id).one().address == "dan@gmail.com"
+    no_fix = client.post("/api/mail-merge/fix-address", headers=h, json={"contact_id": str(people["amy"].id), "address": "amy@zeta.com"})
+    assert no_fix.status_code == 422 and "no obvious fix" in no_fix.json()["detail"]
+
+
+def test_dns_that_doesnt_answer_is_given_the_benefit_of_the_doubt(monkeypatch):
+    """Only "this domain doesn't exist" counts as can't-receive; DNS servers that don't answer are a maybe, so kept."""
+    import dns.resolver
+
+    from app.services import email_check
+
+    monkeypatch.undo()   # the real _lookup, with a fake resolver
+
+    class Fake:
+        lifetime = 3
+
+        def resolve(self, domain, kind):
+            raise {"gone.test": dns.resolver.NXDOMAIN(), "flaky.test": dns.resolver.NoNameservers()}[domain]
+
+    monkeypatch.setattr(dns.resolver, "Resolver", Fake)
+    assert email_check._lookup("gone.test") is False
+    assert email_check._lookup("flaky.test") is None
+
+
+def test_anyone_with_access_to_the_database_can_delete_its_contacts(client, db_session, people):
+    """Feedback #8: deleting works as in Act! - a salesperson can delete contacts in a database they can see, not others."""
+    rep = make_user(db_session, role="sales")
+    other = _contact(db_session, "Olly", "Other", email="olly@x.com")
+    other.source_db = "onboard"
+    db_session.flush()
+    h = identity_headers(rep, access=[("manual", None)])
+    assert client.delete(f"/api/contacts/{other.id}", headers=h).status_code in (403, 404)
+    assert client.delete(f"/api/contacts/{people['bob'].id}", headers=h).status_code == 204
+    db_session.expire_all()
+    assert db_session.get(Contact, people["bob"].id) is None and db_session.get(Contact, other.id) is not None
+
+
+def test_admin_deletes_a_contact_with_linked_records(client, db_session, people):
+    """Deleting a contact also clears rows that only describe them (e.g. Act!'s extra company links), instead of failing."""
+    from app.models.contact import ContactCompanyLink
+
+    admin = make_user(db_session, role="admin")
+    amy = people["amy"]
+    co = Company(id=uuid.uuid4(), name="Zeta Ltd", source_db="manual", source_act_id=str(uuid.uuid4()))
+    db_session.add(co)
+    db_session.flush()
+    db_session.add(ContactCompanyLink(id=uuid.uuid4(), contact_id=amy.id, company_id=co.id))
+    db_session.flush()
+    r = client.delete(f"/api/contacts/{amy.id}", headers=identity_headers(admin, access=[("manual", None)]))
+    assert r.status_code == 204
+    db_session.expire_all()
+    assert db_session.get(Contact, amy.id) is None and db_session.get(Company, co.id) is not None

@@ -28,6 +28,9 @@ export type EmailsResult = {
   duplicates_removed: number;
   /** Not written correctly, or the domain can't receive email. */
   skipped_invalid?: number;
+  /** The flagged addresses, so a person can still add them ("a@x.com; b@y.com"). */
+  flagged_text?: string;
+  flagged?: { address: string; reason: string }[];
 };
 
 export type BulkAction = "set" | "clear" | "replace";

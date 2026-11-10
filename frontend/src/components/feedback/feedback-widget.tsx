@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { CheckCircle2, Crosshair, ExternalLink, Info, Loader2, MapPin, MessageSquarePlus, Mic, Monitor, ScanLine, Square, ThumbsUp, X } from "lucide-react";
 import { toast } from "sonner";
@@ -124,6 +124,25 @@ export function FeedbackWidget() {
     catch { setMode(null); setOpen(true); toast.error("Couldn't take a picture of the page. Describe it in words instead."); }
   }
 
+  // Scrolling while snapping: move the page, then take a fresh picture once the wheel stops.
+  const rescanTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function areaScroll(deltaY: number, x: number, y: number) {
+    // The page may scroll inside a panel rather than the window: scroll whatever is under the pointer.
+    const under = document.elementsFromPoint(x, y).find((e) => !e.closest("[data-feedback-ui]"));
+    let el: Element | null = under ?? null;
+    while (el && el !== document.body) {
+      const st = getComputedStyle(el);
+      if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight) break;
+      el = el.parentElement;
+    }
+    if (el && el !== document.body) el.scrollBy({ top: deltaY });
+    else window.scrollBy({ top: deltaY });
+    if (rescanTimer.current) clearTimeout(rescanTimer.current);
+    rescanTimer.current = setTimeout(async () => {
+      try { setScreen(await captureScreen()); } catch { /* keep the last picture */ }
+    }, 250);
+  }
+
   function areaDone(box: { x: number; y: number; w: number; h: number } | null) {
     const s = screen;
     setMode(null);
@@ -162,7 +181,7 @@ export function FeedbackWidget() {
   return (
     <>
       {mode === "pick" && <PickOverlay onPick={picked} onCancel={() => { setMode(null); setOpen(true); }} />}
-      {mode === "area" && <AreaOverlay screen={screen} onDone={areaDone} onCancel={() => { setMode(null); setScreen(null); setOpen(true); }} />}
+      {mode === "area" && <AreaOverlay screen={screen} onDone={areaDone} onScroll={areaScroll} onCancel={() => { setMode(null); setScreen(null); setOpen(true); }} />}
       {marking && (
         <AnnotateDialog key={marking.key} image={marking.canvas} open onCancel={() => setMarking(null)}
           onDone={(c) => { addShot(c, marking.label, marking.replace); setMarking(null); }} />

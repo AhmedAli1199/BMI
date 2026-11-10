@@ -73,6 +73,8 @@ export type ContactFormInput = {
   email?: string;
   phone?: string;
   source_db?: string;
+  /** Extra (Act!) fields to change: key -> value ("" clears it). */
+  custom_fields?: Record<string, string | boolean | null>;
 };
 
 function cleanPayload<T extends Record<string, unknown>>(input: T): Partial<T> {
@@ -520,11 +522,65 @@ export async function searchCompanies(q: string): Promise<CompanyListItem[]> {
   return page.items;
 }
 
+export type SimilarCompany = { id: string; name: string; source_db: string | null; exact: boolean; contacts: number };
+
+/** Companies already in the CRM with the same or a close name (spelling, Ltd/Limited...). */
+export async function similarCompanies(name: string, exclude?: string): Promise<SimilarCompany[]> {
+  if (name.trim().length < 2) return [];
+  const qs = new URLSearchParams({ name: name.trim() });
+  if (exclude) qs.set("exclude", exclude);
+  return backendFetch<SimilarCompany[]>(`/api/companies/similar?${qs}`);
+}
+
+export async function companyUsage(id: string) {
+  return backendFetch<{ contacts: number; bookings: number; deals: number; proposals: number }>(`/api/companies/${id}/usage`);
+}
+
+/** Deletes a company; its contacts are kept (no company any more) or deleted with it. */
+export async function deleteCompanyChoosing(id: string, contacts: "keep" | "delete") {
+  const r = await backendFetch<{ contacts_deleted: number; contacts_kept: number }>(`/api/companies/${id}?contacts=${contacts}`, { method: "DELETE" });
+  revalidatePath("/companies");
+  revalidatePath("/contacts");
+  return r;
+}
+
+/** Merges a company into another: everything moves across, then it's deleted. */
+export async function mergeCompany(id: string, intoId: string) {
+  const r = await backendFetch<{ into_id: string; into_name: string; contacts: number; bookings: number }>(`/api/companies/${id}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ into_id: intoId }),
+  });
+  revalidatePath("/companies");
+  revalidatePath(`/companies/${intoId}`);
+  return r;
+}
+
+/** Company picker search: name matches plus close spellings, so a near-duplicate is offered before "Create". */
+export async function searchCompaniesWithSimilar(q: string): Promise<{ id: string; name: string; industry: string | null; similar?: boolean }[]> {
+  if (!q.trim()) return [];
+  const [found, close] = await Promise.all([searchCompanies(q), similarCompanies(q).catch(() => [] as SimilarCompany[])]);
+  const ids = new Set(found.map((c) => c.id));
+  return [
+    ...found.map((c) => ({ id: c.id, name: c.name, industry: c.industry ?? null })),
+    ...close.filter((c) => !ids.has(c.id)).map((c) => ({ id: c.id, name: c.name, industry: null, similar: true })),
+  ];
+}
+
 export async function searchGroups(q: string): Promise<GroupListItem[]> {
   const page = await backendFetch<Page<GroupListItem>>(
     `/api/groups?${new URLSearchParams({ q, page_size: "10" })}`
   );
   return page.items;
+}
+
+/** Groups to pick from without typing (the contact page's "Add to group"): the contact's own
+ * database first if given, in their parent/sub-group order. Up to 200; type to narrow beyond that. */
+export async function browseGroups(sourceDb?: string | null): Promise<{ items: GroupListItem[]; total: number }> {
+  const qs = new URLSearchParams({ page_size: "200" });
+  if (sourceDb) qs.set("source_db", sourceDb);
+  const page = await backendFetch<Page<GroupListItem>>(`/api/groups?${qs}`);
+  return { items: page.items, total: page.total };
 }
 
 /** Every group in one database, for the Team access picker's "restrict to

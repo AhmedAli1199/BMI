@@ -107,3 +107,26 @@ def test_add_note_to_contact(client):
     )
     assert resp.status_code == 201
     assert resp.json()["body"] == "Called about renewal."
+
+
+def test_extra_fields_show_on_the_contact_and_can_be_edited(client, db_session):
+    """Feedback #10: every extra (Act!) field is listed on the contact, True/False ones as yes/no, and editable one by one."""
+    from app.contacts.fields import forget_custom_keys
+    from app.models import Contact, FieldChange
+
+    cid = _create_contact(client)["id"]
+    c = db_session.get(Contact, uuid.UUID(cid))
+    c.custom_fields = {"user3": "ABTA 123", "subscriber": "True", "_import": "x"}
+    db_session.flush()
+    forget_custom_keys()
+    got = client.get(f"/api/contacts/{cid}").json()
+    kinds = {f["key"]: f["kind"] for f in got["custom_field_catalog"]}
+    assert kinds["subscriber"] == "bool" and kinds["user3"] == "text" and "_import" not in kinds
+
+    r = client.patch(f"/api/contacts/{cid}", json={"custom_fields": {"subscriber": False, "user3": "", "region": "North"}})
+    assert r.status_code == 200
+    db_session.expire_all()
+    cf = db_session.get(Contact, uuid.UUID(cid)).custom_fields
+    assert cf == {"subscriber": "False", "region": "North", "_import": "x"}
+    changed = {f.field for f in db_session.query(FieldChange).filter_by(entity_id=uuid.UUID(cid))}
+    assert {"custom:subscriber", "custom:user3", "custom:region"} <= changed
