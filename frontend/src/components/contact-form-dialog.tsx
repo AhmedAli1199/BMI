@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EntityPicker } from "@/components/entity-picker";
-import { createContact, listPublications, searchCompanies, updateContact, type ContactFormInput } from "@/lib/actions";
+import { createContact, listPublications, createCompany, searchCompanies, updateContact, type ContactFormInput } from "@/lib/actions";
 import { iconForKey, styleForColor } from "@/lib/publication-style";
 import type { Publication } from "@/lib/types";
 
@@ -180,6 +180,11 @@ export function ContactFormDialog({
                   value={company ? { id: company.id, label: company.label } : null}
                   onChange={(v) => setCompany(v)}
                   viewHref={(id) => `/companies/${id}`}
+                  onCreate={async (name) => {
+                    const c = await createCompany({ name, source_db: existing ? undefined : sourceDb || undefined });
+                    toast.success(`Created the company “${name}”. Save to link it.`);
+                    return { id: c.id, label: name };
+                  }}
                 />
               </div>
             )}

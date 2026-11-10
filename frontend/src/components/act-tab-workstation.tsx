@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { UnifiedActivityTimeline } from "@/components/unified-activity-timeline";
 import { TouchpointBar } from "@/components/touchpoint-bar";
 import { ContactGroupsEditor } from "@/components/contact-groups-editor";
+import { AddNoteInline } from "@/components/add-note-inline";
 import { cleanNoteBody, noteSourceLabel } from "@/lib/notes";
 import { highlightMatch } from "@/lib/highlight";
 import { deleteContactNote } from "@/lib/actions";
@@ -165,6 +166,7 @@ export function ActTabWorkstation({
 
         {/* TAB 2: Notes (Act! Table & Content View) */}
         <TabsContent value="notes" className="mt-4 flex flex-col gap-4">
+          <AddNoteInline contactId={contact.id} />
           <TouchpointBar contactId={contact.id} contactName={contact.full_name || contact.first_name || "Contact"} sourceDb={contact.source_db} />
 
           <Card className="overflow-hidden border border-border">
@@ -276,7 +278,7 @@ export function ActTabWorkstation({
                 </p>
               </div>
             </div>
-            <ContactGroupsEditor contactId={contact.id} groups={contact.groups} />
+            <ContactGroupsEditor contactId={contact.id} groups={contact.groups} sourceDb={contact.source_db} />
           </Card>
         </TabsContent>
 

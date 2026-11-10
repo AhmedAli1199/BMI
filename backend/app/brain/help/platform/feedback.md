@@ -45,7 +45,7 @@ Records you speaking and types it into the box. Press it again (**Stop**) when y
 The panel steps aside and a banner says "Click the thing you mean." As you move the mouse, whatever is under it is outlined and named. Click it to add it, with a close-up screenshot. Press Esc to stop. You can point at up to 10 things.
 
 ### Snap an area
-Takes a picture of the page, then you drag a box over the part you mean. **Whole screen** in the banner uses all of it. The picture then opens in the mark-up window.
+Takes a picture of the page, then you drag a box over the part you mean. If the part you mean is further down, scroll with the mouse wheel while the banner says "Scroll to the part you mean, then drag a box over it": the page moves underneath and a fresh picture is taken. **Whole screen** in the banner uses all of it. The picture then opens in the mark-up window.
 
 ### Whole screen
 Takes a picture of the whole page and opens it in the mark-up window.

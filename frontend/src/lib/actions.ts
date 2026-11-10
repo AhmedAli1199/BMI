@@ -527,6 +527,15 @@ export async function searchGroups(q: string): Promise<GroupListItem[]> {
   return page.items;
 }
 
+/** Groups to pick from without typing (the contact page's "Add to group"): the contact's own
+ * database first if given, in their parent/sub-group order. Up to 200; type to narrow beyond that. */
+export async function browseGroups(sourceDb?: string | null): Promise<{ items: GroupListItem[]; total: number }> {
+  const qs = new URLSearchParams({ page_size: "200" });
+  if (sourceDb) qs.set("source_db", sourceDb);
+  const page = await backendFetch<Page<GroupListItem>>(`/api/groups?${qs}`);
+  return { items: page.items, total: page.total };
+}
+
 /** Every group in one database, for the Team access picker's "restrict to
  * this group" dropdown - unlike searchGroups, scoped to a single
  * source_db and returns everything (up to 500) rather than a text-search

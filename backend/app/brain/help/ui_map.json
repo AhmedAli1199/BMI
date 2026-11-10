@@ -233,6 +233,7 @@
     "app/(app)/contacts/[id]/page.tsx",
     "components/act-contact-card.tsx",
     "components/act-tab-workstation.tsx",
+    "components/add-note-inline.tsx",
     "components/contact-groups-editor.tsx",
     "components/delete-item-button.tsx",
     "components/duplicate-contact-dialog.tsx",
@@ -2610,61 +2611,61 @@
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:520",
+   "src": "components/act-contact-card.tsx:525",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:77",
+   "src": "components/act-tab-workstation.tsx:78",
    "kind": "tab",
    "label": "Activities ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:91",
+   "src": "components/act-tab-workstation.tsx:92",
    "kind": "tab",
    "label": "Notes ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:101",
+   "src": "components/act-tab-workstation.tsx:102",
    "kind": "tab",
    "label": "History ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:111",
+   "src": "components/act-tab-workstation.tsx:112",
    "kind": "tab",
    "label": "Groups ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:119",
+   "src": "components/act-tab-workstation.tsx:120",
    "kind": "tab",
    "label": "Magazine & Issues"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:127",
+   "src": "components/act-tab-workstation.tsx:128",
    "kind": "tab",
    "label": "User Fields ( … )"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:271",
+   "src": "components/act-tab-workstation.tsx:273",
    "kind": "heading",
    "label": "Assigned Groups & Distribution Lists"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:288",
+   "src": "components/act-tab-workstation.tsx:290",
    "kind": "heading",
    "label": "Commercial Affiliation & Issue Inserts"
   },
   {
    "file": "components/act-tab-workstation.tsx",
-   "src": "components/act-tab-workstation.tsx:328",
+   "src": "components/act-tab-workstation.tsx:330",
    "kind": "heading",
    "label": "Extra fields from Act!"
   },
@@ -2685,6 +2686,24 @@
    "src": "components/add-existing-contact-picker.tsx:67",
    "kind": "button",
    "label": "Adding"
+  },
+  {
+   "file": "components/add-note-inline.tsx",
+   "src": "components/add-note-inline.tsx:36",
+   "kind": "button",
+   "label": "Add note"
+  },
+  {
+   "file": "components/add-note-inline.tsx",
+   "src": "components/add-note-inline.tsx:56",
+   "kind": "button",
+   "label": "Save note"
+  },
+  {
+   "file": "components/add-note-inline.tsx",
+   "src": "components/add-note-inline.tsx:59",
+   "kind": "button",
+   "label": "Cancel"
   },
   {
    "file": "components/automation-setting-field.tsx",
@@ -3755,25 +3774,25 @@
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:189",
+   "src": "components/contact-form-dialog.tsx:194",
    "kind": "field",
    "label": "Email"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:193",
+   "src": "components/contact-form-dialog.tsx:198",
    "kind": "field",
    "label": "Phone"
   },
   {
    "file": "components/contact-form-dialog.tsx",
-   "src": "components/contact-form-dialog.tsx:201",
+   "src": "components/contact-form-dialog.tsx:206",
    "kind": "button",
    "label": "Saving"
   },
   {
    "file": "components/contact-groups-editor.tsx",
-   "src": "components/contact-groups-editor.tsx:77",
+   "src": "components/contact-groups-editor.tsx:95",
    "kind": "button",
    "label": "Add to group"
   },
@@ -5929,9 +5948,15 @@
   },
   {
    "file": "components/entity-picker.tsx",
-   "src": "components/entity-picker.tsx:105",
+   "src": "components/entity-picker.tsx:146",
    "kind": "link",
    "label": "View"
+  },
+  {
+   "file": "components/entity-picker.tsx",
+   "src": "components/entity-picker.tsx:237",
+   "kind": "button",
+   "label": "Create … “ … ”"
   },
   {
    "file": "components/field-change-history.tsx",

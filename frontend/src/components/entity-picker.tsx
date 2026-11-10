@@ -6,10 +6,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink, Loader2, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-type Option = { id: string; label: string; sublabel?: string | null };
+type Option = { id: string; label: string; sublabel?: string | null; /** sub-group depth, for indenting */ indent?: number; /** shown but can't be picked (e.g. already a member) */ disabled?: boolean };
 
 /** Type-to-search picker for a single company/group/contact, backed by a
  * server action (see lib/actions.ts). Not a full combobox library - these
@@ -32,6 +32,8 @@ export function EntityPicker({
   value,
   onChange,
   viewHref,
+  browse,
+  onCreate,
 }: {
   label: string;
   placeholder: string;
@@ -43,10 +45,20 @@ export function EntityPicker({
    * since this picker is also used for things with no detail page of
    * their own (groups). */
   viewHref?: (id: string) => string;
+  /** Clicking into the empty box shows this list straight away (e.g. every group), so people
+   * don't need to remember a name. Typing still searches. */
+  browse?: () => Promise<{ options: Option[]; note?: string }>;
+  /** Offers "+ Create … '<typed text>'" at the end of the list, so a name that isn't there yet
+   * isn't lost. Returns the new record, which is then picked. */
+  onCreate?: (text: string) => Promise<Option>;
 }) {
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<Option[]>([]);
+  const [searchedFor, setSearchedFor] = useState("");   // the text the current results are for
   const [open, setOpen] = useState(false);
+  const [browsed, setBrowsed] = useState<{ options: Option[]; note?: string } | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const inputWrapRef = useRef<HTMLDivElement>(null);
@@ -57,7 +69,10 @@ export function EntityPicker({
       return;
     }
     const id = setTimeout(() => {
-      search(query).then(setOptions);
+      search(query).then((found) => {
+        setOptions(found);
+        setSearchedFor(query);
+      });
     }, 220);
     return () => clearTimeout(id);
   }, [query, search]);
@@ -94,6 +109,32 @@ export function EntityPicker({
     };
   }, [open]);
 
+  function pick(opt: Option) {
+    if (opt.disabled) return;
+    onChange(opt);
+    setQuery("");
+    setOptions([]);
+    setOpen(false);
+  }
+
+  async function create() {
+    if (!onCreate || !query.trim()) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      pick(await onCreate(query.trim()));
+    } catch {
+      setCreateError(`Couldn't create that ${label}. Please try again.`);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function openList() {
+    setOpen(true);
+    if (browse && !browsed) browse().then(setBrowsed).catch(() => setBrowsed({ options: [] }));
+  }
+
   if (value) {
     return (
       <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
@@ -125,7 +166,13 @@ export function EntityPicker({
     );
   }
 
-  const showDropdown = open && options.length > 0 && rect;
+  const typed = query.trim();
+  const list = typed ? options : browsed?.options ?? [];
+  const exact = typed && options.some((o) => o.label.trim().toLowerCase() === typed.toLowerCase());
+  // Only once the search for exactly this text has come back, so "Create" never races an existing match.
+  const offerCreate = !!onCreate && !!typed && searchedFor === query && !exact;
+  const searching = !!typed && searchedFor !== query;
+  const showDropdown = open && rect && (list.length > 0 || offerCreate || (!typed && browse) || (searching && onCreate));
 
   return (
     <div ref={inputWrapRef}>
@@ -136,31 +183,67 @@ export function EntityPicker({
           setQuery(e.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={openList}
+        onClick={openList}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter" && offerCreate && options.length === 0 && !creating) {
+            e.preventDefault();
+            void create();
+          }
+        }}
       />
+      {createError && <p className="mt-1 text-[11px] text-destructive">{createError}</p>}
+      {typed && !open && !createError && (
+        <p className="mt-1 text-[11px] text-[var(--warn)]">
+          Not saved yet - pick a {label} from the list{onCreate ? ` or choose “Create ${label}”` : ""}.
+        </p>
+      )}
       {showDropdown &&
         createPortal(
           <div
             ref={boxRef}
             style={{ position: "absolute", top: rect.top, left: rect.left, width: rect.width }}
-            className="z-50 max-h-64 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md"
+            className="z-50 max-h-72 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-md"
           >
-            {options.map((opt) => (
+            {!typed && browse && !browsed && (
+              <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" /> Loading…
+              </p>
+            )}
+            {searching && onCreate && list.length === 0 && (
+              <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" /> Searching…
+              </p>
+            )}
+            {list.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
-                className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-                onClick={() => {
-                  onChange(opt);
-                  setQuery("");
-                  setOptions([]);
-                  setOpen(false);
-                }}
+                disabled={opt.disabled}
+                style={opt.indent ? { paddingLeft: `${0.75 + opt.indent * 0.9}rem` } : undefined}
+                className="block w-full truncate px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+                onClick={() => pick(opt)}
               >
                 {opt.label}
                 {opt.sublabel && <span className="text-muted-foreground"> · {opt.sublabel}</span>}
               </button>
             ))}
+            {!typed && browsed && browsed.options.length === 0 && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">Nothing to choose from yet.</p>
+            )}
+            {!typed && browsed?.note && <p className="border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground">{browsed.note}</p>}
+            {offerCreate && (
+              <button
+                type="button"
+                disabled={creating}
+                className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm font-medium text-primary hover:bg-accent disabled:opacity-60"
+                onClick={() => void create()}
+              >
+                {creating ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+                Create {label} “{typed}”
+              </button>
+            )}
           </div>,
           document.body
         )}

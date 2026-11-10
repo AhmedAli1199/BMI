@@ -69,7 +69,7 @@ Downloads the lookup as an Excel sheet, in the same order as the screen (up to 5
 Opens Mail merge with this lookup (including any advanced search) already chosen as the contacts.
 
 ### Add contact
-Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
+Opens a form: choose the **Database**, then **First name**, **Last name**, **Job title**, **Department**, **Company** (search for it; if it isn't in the CRM yet, choose **Create company "…"** at the bottom of the list to add it - typed text on its own isn't saved, and the box says "Not saved yet" until you pick or create one), **Email** and **Phone**. You need at least a first or last name. **Add contact** saves it and opens the new record.
 
 ### Previous contact, Next contact
 Step through the same list, in the same order, that you opened the contact from.
@@ -100,9 +100,9 @@ Shows who changed which field, from what to what, and when (newest first). A cha
 
 ### Activities, Notes, History, Groups, Magazine & Issues, User Fields (tabs)
 - **Activities**: everything in one timeline (notes, history and scheduled items), newest first, with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green).
-- **Notes**: date, type, the note and where it came from.
+- **Notes**: **Add note** at the top - type the note and press **Save note** (or Ctrl+Enter); it's saved with today's date and your name. Below that, every note with its date, type, the note and where it came from.
 - **History**: what happened (calls, emails, meetings, letters).
-- **Groups**: the groups they're in. The X on a group takes them out; **Add to group** lets you search for one to add.
+- **Groups**: the groups they're in. The X on a group takes them out; **Add to group** opens the list of groups straight away (the contact's own database first, sub-groups indented under their parent, with how many members each has; groups they're already in are greyed out) - pick one, or type to search.
 - **Magazine & Issues**: custom fields whose names are about issues, adverts, print, circulation, sponsors or magazines.
 - **User Fields**: every Act! custom field with a value on this person, under its real name once one has been set.
 

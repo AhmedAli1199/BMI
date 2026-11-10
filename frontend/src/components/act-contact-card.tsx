@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
-import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, searchCompanies } from "@/lib/actions";
+import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, createCompany, searchCompanies } from "@/lib/actions";
 import { ReassignContactButton } from "@/components/reassign-contact-button";
 import { friendlyError } from "@/lib/errors";
 
@@ -272,6 +272,11 @@ export function ActContactCard({
                   value={company}
                   onChange={setCompany}
                   viewHref={(id) => `/companies/${id}`}
+                  onCreate={async (name) => {
+                    const c = await createCompany({ name, source_db: contact.source_db });
+                    toast.success(`Created the company “${name}”. Save to link it.`);
+                    return { id: c.id, label: name };
+                  }}
                 />
               </div>
             ) : (
