@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
 import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, createCompany, searchCompanies } from "@/lib/actions";
 import { ReassignContactButton } from "@/components/reassign-contact-button";
+import { ContactDeleteControls } from "@/components/contact-delete-controls";
 import { friendlyError } from "@/lib/errors";
 
 function websiteHref(site: string): string {
@@ -44,8 +45,11 @@ function PhoneTypeSelect({ value, onChange, label }: { value: string; onChange: 
 
 export function ActContactCard({
   contact,
+  canDelete = false,
 }: {
   contact: ContactDetail;
+  /** Administrators and data managers: a Delete button; everyone else gets "Ask to delete". */
+  canDelete?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -215,6 +219,7 @@ export function ActContactCard({
           ) : (
             <>
               <ReassignContactButton contactId={contact.id} contactName={name} />
+              <ContactDeleteControls contactId={contact.id} name={name} canDelete={canDelete} />
               <Button
                 size="sm"
                 variant="outline"

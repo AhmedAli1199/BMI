@@ -234,7 +234,9 @@
     "components/act-contact-card.tsx",
     "components/act-tab-workstation.tsx",
     "components/add-note-inline.tsx",
+    "components/contact-delete-controls.tsx",
     "components/contact-groups-editor.tsx",
+    "components/delete-entity-button.tsx",
     "components/delete-item-button.tsx",
     "components/duplicate-contact-dialog.tsx",
     "components/entity-picker.tsx",
@@ -2581,37 +2583,37 @@
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:195",
+   "src": "components/act-contact-card.tsx:199",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:205",
+   "src": "components/act-contact-card.tsx:209",
    "kind": "button",
    "label": "Saving..."
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:218",
+   "src": "components/act-contact-card.tsx:223",
    "kind": "button",
    "label": "Edit Record"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:245",
+   "src": "components/act-contact-card.tsx:250",
    "kind": "field",
    "label": "First Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:253",
+   "src": "components/act-contact-card.tsx:258",
    "kind": "field",
    "label": "Last Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:525",
+   "src": "components/act-contact-card.tsx:530",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
@@ -3719,6 +3721,24 @@
    "label": "Save"
   },
   {
+   "file": "components/contact-delete-controls.tsx",
+   "src": "components/contact-delete-controls.tsx:62",
+   "kind": "button",
+   "label": "Ask to delete"
+  },
+  {
+   "file": "components/contact-delete-controls.tsx",
+   "src": "components/contact-delete-controls.tsx:68",
+   "kind": "dialog",
+   "label": "Ask to delete"
+  },
+  {
+   "file": "components/contact-delete-controls.tsx",
+   "src": "components/contact-delete-controls.tsx:85",
+   "kind": "button",
+   "label": "Sending"
+  },
+  {
    "file": "components/contact-form-dialog.tsx",
    "src": "components/contact-form-dialog.tsx:112",
    "kind": "button",
@@ -3864,26 +3884,26 @@
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:69",
+   "src": "components/contacts/advanced-search.tsx:75",
    "kind": "button",
    "label": "Advanced search"
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:72",
+   "src": "components/contacts/advanced-search.tsx:78",
    "kind": "hint",
    "label": "",
    "hint": "Search any field - including phone, address, notes and the Act! custom fields - with several rules at once, e.g. Postcode starts with SW1 and Job title contains counsellor."
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:106",
+   "src": "components/contacts/advanced-search.tsx:112",
    "kind": "button",
    "label": "Remove this rule"
   },
   {
    "file": "components/contacts/advanced-search.tsx",
-   "src": "components/contacts/advanced-search.tsx:111",
+   "src": "components/contacts/advanced-search.tsx:117",
    "kind": "button",
    "label": "Add a rule"
   },
@@ -5418,19 +5438,19 @@
   },
   {
    "file": "components/delete-entity-button.tsx",
-   "src": "components/delete-entity-button.tsx:69",
+   "src": "components/delete-entity-button.tsx:72",
    "kind": "button",
    "label": "Delete"
   },
   {
    "file": "components/delete-entity-button.tsx",
-   "src": "components/delete-entity-button.tsx:76",
+   "src": "components/delete-entity-button.tsx:79",
    "kind": "dialog",
    "label": "Delete … ?"
   },
   {
    "file": "components/delete-entity-button.tsx",
-   "src": "components/delete-entity-button.tsx:84",
+   "src": "components/delete-entity-button.tsx:87",
    "kind": "button",
    "label": "Deleting"
   },

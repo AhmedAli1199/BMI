@@ -613,6 +613,39 @@ def reassign_contact(contact_id: uuid.UUID, successor_id: uuid.UUID, db: Session
     db.commit()
 
 
+class DeletionRequestIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+@router.post("/{contact_id}/deletion-request", status_code=202, response_model=None)
+def request_deletion(contact_id: uuid.UUID, payload: DeletionRequestIn, db: Session = Depends(get_db),
+                     identity: Identity = Depends(get_identity)) -> dict:
+    """Someone who can't delete contacts asks for one to be deleted: the administrators and data managers get a
+    bell notification (no email) linking to the contact, and the request is noted in the contact's history."""
+    from app.models import User
+    from app.services.notify import create_notification
+
+    contact = db.get(Contact, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    me = db.get(User, identity.user_uuid) if identity.user_uuid else None
+    who = me.name if me else "Someone"
+    name = contact.full_name or " ".join(x for x in (contact.first_name, contact.last_name) if x) or "a contact"
+    why = (payload.reason or "").strip()
+    db.add(HistoryEntry(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()), entity_type="contact",
+                        entity_id=contact_id, history_type="Deletion requested", subject=f"{who} asked for this contact to be deleted",
+                        details=why or None, occurred_at=datetime.now(timezone.utc), created_by_user_id=identity.user_uuid))
+    told = 0
+    for uid in db.scalars(select(User.id).where(User.role.in_(("admin", "data_manager")), User.is_active.is_(True))):
+        if uid == identity.user_uuid:
+            continue
+        create_notification(db, uid, "deletion_request", f"{who} asked to delete {name}", why or None,
+                            link=f"/contacts/{contact_id}", email=False)
+        told += 1
+    db.commit()
+    return {"told": told}
+
+
 @router.delete("/{contact_id}", status_code=204, response_model=None)
 def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db),
                    identity: Identity = Depends(get_identity)) -> None:
@@ -626,6 +659,14 @@ def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db),
     # transaction, before deleting the contact itself. Notes/History use
     # entity_id (not a real FK) so they can't block the delete, but we still
     # remove them - nothing should reference a contact that no longer exists.
+    from app.models.activity_link import ActivityContact
+    from app.models.contact import ContactCompanyLink
+    from app.models.email_signal import EmailSignal
+    from app.models.email_thread_state import EmailThreadState
+
+    # Rows that only describe this contact (and can't exist without one).
+    for model in (ActivityContact, ContactCompanyLink, EmailSignal, EmailThreadState):
+        db.execute(model.__table__.delete().where(model.contact_id == contact_id))
     db.execute(GroupMembership.__table__.delete().where(GroupMembership.contact_id == contact_id))
     db.execute(Activity.__table__.update().where(Activity.contact_id == contact_id).values(contact_id=None))
     db.execute(Opportunity.__table__.update().where(Opportunity.contact_id == contact_id).values(contact_id=None))

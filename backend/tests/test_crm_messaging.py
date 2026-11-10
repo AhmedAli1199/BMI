@@ -345,3 +345,38 @@ def test_dns_that_doesnt_answer_is_given_the_benefit_of_the_doubt(monkeypatch):
     monkeypatch.setattr(dns.resolver, "Resolver", Fake)
     assert email_check._lookup("gone.test") is False
     assert email_check._lookup("flaky.test") is None
+
+
+def test_salesperson_asks_to_delete_a_contact(client, db_session, people):
+    """Feedback #8: a salesperson can't delete a contact, but can ask; admins and data managers get a bell
+    notification (not an email) linking to it, and the request is in the contact's history."""
+    rep = make_user(db_session, role="sales", name="Craig")
+    admin = make_user(db_session, role="admin", name="Matt")
+    dm = make_user(db_session, role="data_manager", name="Clare")
+    db_session.flush()
+    amy = people["amy"]
+    h = identity_headers(rep, access=[("manual", None)])
+    assert client.delete(f"/api/contacts/{amy.id}", headers=h).status_code == 403
+    r = client.post(f"/api/contacts/{amy.id}/deletion-request", headers=h, json={"reason": "Duplicate of Amy Z"})
+    assert r.status_code == 202 and r.json()["told"] >= 2
+    notes = db_session.query(Notification).filter(Notification.kind == "deletion_request").all()
+    assert {n.user_id for n in notes} >= {admin.id, dm.id} and rep.id not in {n.user_id for n in notes}
+    assert all(n.email_status is None and n.link == f"/contacts/{amy.id}" and n.body == "Duplicate of Amy Z" for n in notes)
+    assert db_session.query(HistoryEntry).filter_by(entity_id=amy.id, history_type="Deletion requested").one().details == "Duplicate of Amy Z"
+
+
+def test_admin_deletes_a_contact_with_linked_records(client, db_session, people):
+    """Deleting a contact also clears rows that only describe them (e.g. Act!'s extra company links), instead of failing."""
+    from app.models.contact import ContactCompanyLink
+
+    admin = make_user(db_session, role="admin")
+    amy = people["amy"]
+    co = Company(id=uuid.uuid4(), name="Zeta Ltd", source_db="manual", source_act_id=str(uuid.uuid4()))
+    db_session.add(co)
+    db_session.flush()
+    db_session.add(ContactCompanyLink(id=uuid.uuid4(), contact_id=amy.id, company_id=co.id))
+    db_session.flush()
+    r = client.delete(f"/api/contacts/{amy.id}", headers=identity_headers(admin, access=[("manual", None)]))
+    assert r.status_code == 204
+    db_session.expire_all()
+    assert db_session.get(Contact, amy.id) is None and db_session.get(Company, co.id) is not None

@@ -32,7 +32,7 @@ Type several words in any order. Every word must appear somewhere: name, job tit
 Each one narrows the list further ("contains"). Press **Look up** to run the search. The small X next to **Look up** (**Clear lookup**) clears the whole lookup.
 
 ### Advanced search
-Opens rules of the form field / how / value, for example Postcode **starts with** SW1. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
+Opens rules of the form field / how / value, for example Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
 
 ### Column headings (Contact & Title, Company, Location, Email)
 Click to sort, click again to reverse. Location sorts by town. **Publication** does not sort.
@@ -88,6 +88,9 @@ Act!'s "duplicate contact": a new person at the same company. Type **First name*
 
 ### Edit Record, Save Changes, Cancel
 **Edit Record** makes the card editable: names, company, title, department, the two phone numbers and the type of each (Business, Mobile, Home, Fax or Other), e-mail, address, ID/Status (the category), Referred By and Birthdate. A number keeps its own type when you save. **Save Changes** saves; **Cancel** throws the edits away. The copy icon next to a phone or email copies it.
+
+### Delete and Ask to delete
+Administrators and data managers see **Delete** next to **Mark as departed**. It asks you to confirm, then removes the contact for good with their email addresses, phone numbers, addresses, notes, history and group memberships; their bookings, activities and deals stay but are no longer linked to them. It can't be undone. Everyone else sees **Ask to delete** instead: add a reason and press **Send request**. The administrators and data managers get a message under the bell with a link to the contact (no email), and the request is noted in the contact's history. If the person has only left their company, use **Mark as departed** instead.
 
 ### Mark as departed
 For someone who has left. Search for who replaced them and press **Move notes and history**. Every note and history entry moves to that person, and both records get a short "Departure" note. The old record itself stays, marked "Left the company" (a yes/no field you can search, export and change in bulk). Scheduled activities don't move.
