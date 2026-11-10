@@ -35,7 +35,8 @@ The **Review Queue** (sidebar > Review Queue) holds every suggestion the Brain's
 
 **Today**
 - The title "Today", with a count. On the Everyone view the line starts "Everyone's list."
-- Administrators and data managers get **My list** and **Everyone** switches. Everyone groups the cards by salesperson, with Unassigned last.
+- Administrators get **My list** and **Everyone** switches. Everyone groups the cards by salesperson, with Unassigned last. Everyone else sees only their own list.
+- **Whose card is it?** A card from someone's email (a promised call-back, a personal touchpoint) is theirs: it goes to the person whose inbox it came from. A follow-up goes to whoever set the activity, otherwise to whoever looks after the contact or company. Only that person and administrators see it. Data managers also see the data cards for their databases (bounces, sign-ups, duplicates, subscription changes); salespeople also see the team-wide ones (news campaigns, new leads from shared inboxes, new issues online); the accounts person also sees booking checks and change requests.
 - The same cards as in the Review Queue, best first.
 
 ## Buttons and controls
@@ -91,7 +92,7 @@ On **Rejected** rows whose button changed nothing (for example **Keep as separat
 On an empty filtered list, it goes back to every kind.
 
 ### My list / Everyone
-On Today, for administrators and data managers. **My list** shows cards that belong to you. **Everyone** shows the whole team, grouped by person.
+On Today, for administrators only. **My list** shows cards that belong to you. **Everyone** shows the whole team, grouped by person.
 
 ## How it works
 - **Who sees which cards.** Administrators and data managers see every kind. Salespeople see only sales cards: proposal requests, follow-ups, commercial signals, personal touchpoints, call notes, new leads, renewals, save-the-sale, items to allocate, invoice-to-booking and online bookings. Of those, renewals, items to allocate and proposal requests show only to the salesperson they belong to. Everyone only sees cards about contacts, companies and databases they have access to.

@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations.owners import owner_for
 from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.llm import extract_json, is_configured
@@ -232,6 +233,7 @@ def scan_personal_touchpoints() -> None:
                     "source_context": signal.source_snippet,
                     "related_entities": [{"type": "contact", "id": str(contact.id), "label": contact_label}],
                     "signal_id": str(signal.id),
+                    "owner_user_id": str(o) if (o := owner_for(db, mailbox=signal.mailbox, contact=contact)) else None,
                     "confidence": signal.confidence,
                     "due_date": signal.due_date.isoformat() if signal.due_date else None,
                 },

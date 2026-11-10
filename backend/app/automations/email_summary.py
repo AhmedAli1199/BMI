@@ -250,7 +250,7 @@ _SOURCE_SNIPPET_MAX_CHARS = 1200
 
 def _upsert_signals(
     db: Session, contact_id, thread_id: str, message_id: str, extracted: dict, *,
-    sent_at: datetime, message_body: str, confidence_threshold: float,
+    sent_at: datetime, message_body: str, confidence_threshold: float, mailbox: str | None = None,
 ) -> int:
     """Insert-or-update by (source_thread_id, signal_type) - a thread's Nth
     message about the same renewal date refines the existing row, it never
@@ -339,6 +339,7 @@ def _upsert_signals(
             existing.due_date = due_date
             existing.source_message_id = message_id
             existing.source_snippet = snippet
+            existing.mailbox = mailbox or existing.mailbox
             existing.confidence = confidence
             existing.package_offered = package_offered
             existing.rate_offered = rate_offered
@@ -349,7 +350,7 @@ def _upsert_signals(
             new_row = EmailSignal(
                 id=uuid.uuid4(), contact_id=contact_id, signal_type=signal_type,
                 due_date=due_date, summary=summary,
-                source_thread_id=thread_id, source_message_id=message_id, source_snippet=snippet,
+                source_thread_id=thread_id, source_message_id=message_id, source_snippet=snippet, mailbox=mailbox,
                 confidence=confidence, package_offered=package_offered, rate_offered=rate_offered,
                 reason=decline_reason(signal.get("reason"), summary + " " + message_body) if signal_type == "decline" else None,
             )
@@ -572,7 +573,7 @@ def scan_email_exchanges() -> None:
                 queued_this_mailbox += _upsert_signals(
                     db, contact.id, thread_id, latest_msg.message_id, extracted,
                     sent_at=latest_msg.received_at, message_body=latest_msg.body_text,
-                    confidence_threshold=confidence_threshold,
+                    confidence_threshold=confidence_threshold, mailbox=mailbox,
                 )
                 # Keeps the thread-quiescence tracker current regardless of
                 # whether this message produced any EmailSignal - a

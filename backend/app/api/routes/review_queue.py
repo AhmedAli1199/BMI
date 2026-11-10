@@ -62,23 +62,34 @@ def _visible_kinds(identity: Identity, db: Session | None = None) -> set[str] | 
     return ({k.kind for k in all_kinds()} if base is None else base) - accounts_kinds
 
 
+# Sales cards the whole team works from (no one person's): news worth a campaign, a new lead from a shared inbox, a new
+# issue online. Every other sales card is one person's - from their inbox, their client or their booking.
+SHARED_SALES_KINDS = ("news_campaign", "inbound_contact_unmatched", "issue_online")
+
+
 def _apply_scope(stmt, identity: Identity, db: Session | None = None):
-    """Kind + database scoping shared by every read/write endpoint below.
-    A NULL source_db row (e.g. bounce_unmatched - no contact matched yet,
-    nothing to scope by) is always let through the database filter; the
-    kind filter above already keeps such kinds admin/data_manager-only."""
+    """Who sees which card. Administrators see everything. Everyone else sees their own cards (payload owner_user_id:
+    from their inbox, their clients or their bookings), plus:
+      - a salesperson: the team-wide sales cards (SHARED_SALES_KINDS);
+      - a data manager: the data cards (bounces, sign-ups, duplicates...) for their databases, not salespeople's;
+      - the accounts person: booking checks and change requests.
+    A NULL source_db row (e.g. bounce_unmatched - no contact matched yet) is let through the database filter."""
     visible_kinds = _visible_kinds(identity, db)
     if visible_kinds is not None:
         stmt = stmt.where(ReviewQueueItem.kind.in_(visible_kinds))
-        # A renewal (or an allocation reminder) is the job of the rep who sold it: a salesperson sees only their own.
-        if identity.user_uuid and identity.role == "sales":
+    if identity.is_known and identity.role != "admin" and identity.user_uuid:
+        owned = ReviewQueueItem.payload["owner_user_id"].astext == str(identity.user_uuid)
+        if identity.role == "sales":
             from app.models import SalesOrder, SalesRep
 
-            mine = (select(SalesOrder.id).join(SalesRep, SalesOrder.rep_id == SalesRep.id)
-                    .where(SalesRep.user_id == identity.user_uuid,
-                           cast(SalesOrder.id, String) == ReviewQueueItem.payload["order_id"].astext)).exists()
-            stmt = stmt.where(or_(ReviewQueueItem.kind.notin_(("renewal_due", "allocation_due", "proposal_request", "press_release", "merge_followup", "issue_live_notes", "newsletter_coverage", "website_coverage", "issue_pitch_campaign", "competitor_issue", "campaign_unsubscribe", "campaign_referral")), mine,
-                                  ReviewQueueItem.payload["owner_user_id"].astext == str(identity.user_uuid)))
+            my_order = (select(SalesOrder.id).join(SalesRep, SalesOrder.rep_id == SalesRep.id)
+                        .where(SalesRep.user_id == identity.user_uuid,
+                               cast(SalesOrder.id, String) == ReviewQueueItem.payload["order_id"].astext)).exists()
+            stmt = stmt.where(or_(ReviewQueueItem.kind.in_(SHARED_SALES_KINDS), owned, my_order))
+        else:
+            data_kinds = [k.kind for k in all_kinds() if k.audience != "sales" and not k.approver]
+            accounts_kinds = [k.kind for k in all_kinds() if k.approver == "accounts"]
+            stmt = stmt.where(or_(ReviewQueueItem.kind.in_(data_kinds + accounts_kinds), owned))
 
     if db is not None:
         from app.core.visibility import review_item_clause
