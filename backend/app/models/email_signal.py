@@ -50,6 +50,8 @@ class EmailSignal(Base, UUIDPk):
     # Graph identifiers - just enough to find/update the right row.
     source_thread_id: Mapped[str] = mapped_column(String(256), nullable=False)
     source_message_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    # Whose inbox it was read from: their card goes to them (see automations/owners.py).
+    mailbox: Mapped[str | None] = mapped_column(String(320))
 
     # A bounded excerpt (see email_summary.py's _SOURCE_SNIPPET_MAX_CHARS)
     # of the specific message this signal was extracted from - not the

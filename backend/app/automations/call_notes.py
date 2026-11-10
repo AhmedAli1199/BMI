@@ -12,8 +12,13 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import logging
+
+from app.automations import runtime_settings
 from app.automations.registry import ReviewAction, ReviewKind, register
-from app.models import CallRecording, Company, Contact, ReviewQueueItem
+from app.models import CallRecording, Company, Contact, ReviewQueueItem, User
+
+logger = logging.getLogger("app.automations.call_notes")
 
 KIND = "call_notes"
 PLATFORM = {"google_meet": "Google Meet", "teams": "Microsoft Teams", "zoom": "Zoom"}
@@ -249,3 +254,87 @@ register(ReviewKind(
     facets=(("platform", "Call type"), ("interest", "Their interest"), ("linked", "Contact")),
     date_sort_label="call date",
 ))
+
+
+# ---- When the notes are ready: who gets them, and whether they go to the CRM --------------------------------
+
+def bmi_attendees(db: Session, call: CallRecording) -> list[User]:
+    """Everyone from BMI who was in the meeting (didn't decline it), plus whoever sent the notetaker."""
+    from app.models.calendar import CalendarAttendance
+    ids = {call.user_id} if call.user_id else set()
+    if call.calendar_meeting_id:
+        ids |= {a.user_id for a in db.scalars(select(CalendarAttendance).where(
+            CalendarAttendance.meeting_id == call.calendar_meeting_id, CalendarAttendance.response != "declined"))}
+    return [u for u in (db.get(User, i) for i in ids) if u and u.is_active]
+
+
+def is_internal(db: Session, call: CallRecording) -> bool:
+    """Only BMI people in it (from the calendar invite). Unknown (no invite) counts as with a client."""
+    from app.models.calendar import CalendarMeeting
+    from app.services import calendar_sync as cs
+    m = db.get(CalendarMeeting, call.calendar_meeting_id) if call.calendar_meeting_id else None
+    return bool(m) and not cs.outside_people(m, cs.internal_domains(db))
+
+
+def notes_email(call: CallRecording, internal: bool) -> tuple[str, str]:
+    import html
+    n = call.notes or {}
+    parts = [f"<p><b>{html.escape(call.title or 'Call')}</b>"
+             + (f" - {call.ended_at or call.started_at:%-d %B %Y}" if (call.ended_at or call.started_at) else "") + "</p>"]
+    if n.get("summary"):
+        parts.append(f"<p>{html.escape(n['summary'])}</p>")
+    for label, key in (("Key points", "key_points"), ("Decisions", "decisions")):
+        if n.get(key):
+            parts.append(f"<p><b>{label}</b></p><ul>" + "".join(f"<li>{html.escape(str(x))}</li>" for x in n[key]) + "</ul>")
+    if n.get("action_items"):
+        parts.append("<p><b>To do</b></p><ul>" + "".join(
+            f"<li>{html.escape(a.get('task') or '')}{' (' + html.escape(a['owner']) + ')' if a.get('owner') else ''}</li>"
+            for a in n["action_items"]) + "</ul>")
+    if n.get("next_step"):
+        parts.append(f"<p><b>Next step:</b> {html.escape(n['next_step'])}</p>")
+    parts.append("<p>" + ("An internal meeting, so nothing was added to the CRM." if internal else
+                          "The person who sent the notetaker has a card in their Review Queue to save these notes on the client.")
+                 + f" The full notes and transcript are in BMI Brain under Call notes.</p>")
+    return f"Notes: {call.title or 'your call'}", "".join(parts)
+
+
+def notes_ready(db: Session, call: CallRecording) -> None:
+    """A meeting with a client: a card to save the notes on the client (as before). An internal meeting: no CRM card.
+    Either way, everyone from BMI in it gets the notes - by email (Automations > Settings > Call notes) and in the bell."""
+    from app.services import notify
+    internal = is_internal(db, call)
+    if not internal:
+        queue_for_review(db, call)
+    people = bmi_attendees(db, call)
+    emailed = False
+    if people and runtime_settings.get_bool(db, "call_notes_email_attendees") and notify.automation_mailbox_ready(db):
+        subject, body = notes_email(call, internal)
+        try:
+            notify.send_automation_email(db, [u.email for u in people if u.email], subject, body)
+            emailed = True
+        except Exception:
+            logger.warning("call notes: the notes for call %s couldn't be emailed", call.id)
+    for u in people:
+        notify.create_notification(db, u.id, "call_notes", f"Notes ready: {call.title or 'your call'}",
+                                   (call.notes or {}).get("summary"), link=f"/calls/{call.id}", email=not emailed)
+
+
+_NOT_LET_IN = ("admit", "admission", "denied", "rejected", "removed", "waiting room", "lobby", "not let in", "kicked")
+
+
+def not_let_in(call: CallRecording) -> bool:
+    text = f"{call.status_label or ''} {call.status_detail or ''}".lower()
+    return any(w in text for w in _NOT_LET_IN)
+
+
+def record_not_let_in(db: Session, call: CallRecording) -> None:
+    """The notetaker was turned away (or never let in from the waiting room): recorded on the call, and the person who
+    sent it and the administrators are told."""
+    from app.services.notify import create_notification
+    call.status_label = "Not let in"
+    who = db.get(User, call.user_id) if call.user_id else None
+    to = {u.id for u in db.scalars(select(User).where(User.role == "admin", User.is_active.is_(True)))} | ({who.id} if who else set())
+    for uid in to:
+        create_notification(db, uid, "call_notes", f"The notetaker wasn't let into {call.title or 'a call'}",
+                            (f"{who.name or who.email}'s meeting. " if who else "") + (call.status_detail or ""),
+                            link=f"/calls/{call.id}", email=False)

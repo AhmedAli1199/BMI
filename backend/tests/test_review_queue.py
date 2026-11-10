@@ -11,7 +11,7 @@ from tests.conftest import identity_headers, make_user
 from app.models import Activity, Contact, ReviewQueueItem
 
 
-def _make_followup_item(db_session, *, source_db: str = "onboard", status: str = "pending") -> ReviewQueueItem:
+def _make_followup_item(db_session, *, source_db: str = "onboard", status: str = "pending", owner=None) -> ReviewQueueItem:
     """A followup_due item, backed by a real Activity - see
     followup_queue.py's _handle_followup, which resolves entity_id
     against Activity, not Contact directly."""
@@ -34,7 +34,7 @@ def _make_followup_item(db_session, *, source_db: str = "onboard", status: str =
         source_db=source_db,
         entity_type="activity",
         entity_id=activity.id,
-        payload={"summary": "Renewal date for Neil Hicks", "confidence": 0.8},
+        payload={"summary": "Renewal date for Neil Hicks", "confidence": 0.8, **({"owner_user_id": str(owner.id)} if owner else {})},
         status=status,
     )
     db_session.add(item)
@@ -152,9 +152,9 @@ def test_sales_identity_only_sees_own_database(client, db_session):
     """A sales rep granted access to 'onboard' only should never see a
     'prospects' item, even by guessing its id - review_queue.py's
     _apply_scope / _is_visible."""
-    onboard_item = _make_followup_item(db_session, source_db="onboard")
-    prospects_item = _make_followup_item(db_session, source_db="prospects")
     rep = make_user(db_session, role="sales")
+    onboard_item = _make_followup_item(db_session, source_db="onboard", owner=rep)
+    prospects_item = _make_followup_item(db_session, source_db="prospects", owner=rep)
 
     resp = client.get(
         "/api/review-queue", headers=identity_headers(rep, access=[("onboard", None)])
@@ -185,16 +185,19 @@ def test_admin_identity_sees_every_database(client, db_session):
     assert str(prospects_item.id) in ids
 
 
-def test_a_reps_item_is_visible_to_a_colleague_with_the_same_database_access(client, db_session):
-    """Directly tests the visibility answer given to the client: an item
-    from a conversation in one rep's inbox is NOT private to that rep -
-    any other sales rep with access to the same database can see and act
-    on it via the shared review queue."""
-    item = _make_followup_item(db_session, source_db="onboard")
+def test_a_reps_item_is_theirs_alone_and_only_admins_see_everyones(client, db_session):
+    """A card from one person's inbox or client is theirs: a colleague with the same database access doesn't see it,
+    nor does a data manager; an administrator does. (Changed 10 Nov at BMI's request: it used to be shared.)"""
+    rep_a = make_user(db_session, role="sales", name="Rep A")
+    item = _make_followup_item(db_session, source_db="onboard", owner=rep_a)
     rep_b = make_user(db_session, role="sales", name="Rep B")
-
-    resp = client.get(
-        "/api/review-queue", headers=identity_headers(rep_b, access=[("onboard", None)])
-    )
-    ids = [i["id"] for i in resp.json()["items"]]
-    assert str(item.id) in ids, "a colleague with the same database access should see the item"
+    dm = make_user(db_session, role="data_manager", name="Shani")
+    admin = make_user(db_session, role="admin")
+    see = lambda u: [i["id"] for i in client.get("/api/review-queue", headers=identity_headers(u, access=[("onboard", None)])).json()["items"]]
+    assert str(item.id) in see(rep_a)
+    assert str(item.id) not in see(rep_b)
+    assert str(item.id) not in see(dm)
+    assert str(item.id) in see(admin)
+    # Today: only administrators get everyone's list
+    today = client.get("/api/automations/today", headers=identity_headers(dm, access=[("onboard", None)])).json()
+    assert all(x["owner_user_id"] == str(dm.id) for x in today)

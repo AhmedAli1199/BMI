@@ -579,6 +579,21 @@ AUTOMATION_SETTING_DEFS: list[AutomationSettingDef] = [
         group="Call notes", type="bool",
     ),
     AutomationSettingDef(
+        key="notetaker_default_mode", label="Notetaker for everyone",
+        description="What happens when someone has a meeting with a Meet, Teams or Zoom link: auto (the notetaker joins), remind (they get a reminder with a button), or off. Used for anyone who hasn't chosen for themselves, or for everyone when locked below.",
+        group="Call notes", type="text",
+    ),
+    AutomationSettingDef(
+        key="notetaker_mode_locked", label="Lock it for everyone",
+        description="Everyone uses the setting above and can't change it on their calendar page. They can still skip a single meeting, and that's recorded.",
+        group="Call notes", type="bool",
+    ),
+    AutomationSettingDef(
+        key="call_notes_email_attendees", label="Email the notes to the BMI people in the meeting",
+        description="When a call's notes are ready, everyone from BMI who was in it gets them by email from the automation mailbox. Meetings with only BMI people in them are emailed but never noted in the CRM.",
+        group="Call notes", type="bool",
+    ),
+    AutomationSettingDef(
         key="calendar_include_internal", label="Record internal meetings",
         description="Also record meetings where everyone is from BMI. Off = only meetings with someone from outside.",
         group="Call notes", type="bool",

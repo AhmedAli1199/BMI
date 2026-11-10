@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import MANUAL_SOURCE_DB
+from app.automations.owners import owner_for
 from app.automations import review_facets as rf
 from app.automations import runtime_settings
 from app.automations.llm import extract_json, is_configured
@@ -290,6 +291,7 @@ def scan_for_due_followups() -> None:
                 entity_type="activity",
                 entity_id=activity.id,
                 payload={
+                    "owner_user_id": str(o) if (o := owner_for(db, contact=contact, company=company, made_by=activity.created_by_user_id)) else None,
                     "summary": f"{activity.activity_type or 'Follow-up'} due for {_entity_label(contact, company)}"
                                f" - \"{activity.subject or '(no subject)'}\"",
                     "details": [

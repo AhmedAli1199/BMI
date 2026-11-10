@@ -29,7 +29,7 @@ export default async function TodayPage({
   // see backend/app/api/routes/automations.py's get_today_queue - so
   // offering the toggle to them would just silently do nothing when
   // clicked, same bug as the publication switcher).
-  const canViewEveryone = session?.role === "admin" || session?.role === "data_manager";
+  const canViewEveryone = session?.role === "admin";   // only administrators see everyone's list
   const { view: rawView } = await searchParams;
   const view = rawView === "all" && canViewEveryone ? "all" : "mine";
 
@@ -92,7 +92,7 @@ export default async function TodayPage({
             <p className="mt-1 text-base font-bold text-foreground">Nothing due right now.</p>
             <p className="max-w-xs text-sm text-muted-foreground">
               {view === "mine"
-                ? "Nothing's assigned to you and due today. Check back tomorrow, or view everyone's list."
+                ? `Nothing's assigned to you and due today. Check back tomorrow${canViewEveryone ? ", or view everyone's list" : ""}.`
                 : "No budget windows, renewals, call-backs, or follow-ups are due across the team right now."}
             </p>
           </CardContent>

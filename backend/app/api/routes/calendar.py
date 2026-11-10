@@ -38,7 +38,7 @@ def connections(db: Session = Depends(get_db), user: User = Depends(current_user
     rows = db.scalars(select(CalendarConnection).where(CalendarConnection.user_id == user.id)).all()
     return {"connections": [_conn_view(c) for c in rows], "google_available": cp.google_configured(),
             "microsoft_available": outlook.is_configured(), "notetaker_available": notetaker.configured(),
-            "preference": cs.pref(user), "zoom": zoom.view(db, user.id)}
+            "preference": cs.pref(user, db), "preference_locked": cs.default_mode(db)[1], "zoom": zoom.view(db, user.id)}
 
 
 @router.get("/microsoft/start")
@@ -131,6 +131,8 @@ class PreferenceIn(BaseModel):
 def set_preference(body: PreferenceIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     if body.mode not in ("auto", "remind", "off"):
         raise HTTPException(422, "Choose join automatically, just remind me, or off.")
+    if cs.default_mode(db)[1]:
+        raise HTTPException(409, "An administrator has set this for everyone, so it can't be changed here. You can still skip a single meeting.")
     user.preferences = {**(user.preferences or {}), cs.PREF_KEY: body.mode}
     db.commit()
     cs.plan(db)
@@ -197,6 +199,13 @@ def override(meeting_id: uuid.UUID, body: OverrideIn, db: Session = Depends(get_
     if body.choice not in ("record", "skip", None):
         raise HTTPException(422, "Choose record or skip.")
     m.record_override, m.override_by_user_id = body.choice, user.id if body.choice else None
+    if body.choice == "skip" and cs.default_mode(db)[1] and user.role != "admin":
+        # The notetaker is set for everyone, so a skip is recorded for the administrators.
+        from app.services.notify import create_notification
+        for admin in db.scalars(select(User).where(User.role == "admin", User.is_active.is_(True))):
+            create_notification(db, admin.id, "call_notes", f"{user.name or user.email} skipped the notetaker",
+                                f"For \"{m.title or 'a meeting'}\"{f' on {m.start_at:%-d %b at %H:%M}' if m.start_at else ''}.",
+                                link="/calls/meetings", email=False)
     db.commit()
     cs.plan(db)
     domains = cs.internal_domains(db)

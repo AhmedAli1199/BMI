@@ -91,13 +91,13 @@ def get_today_queue(
     belongs to. Pass owner_user_id for one rep's own list; omit it for a
     manager's cross-team view grouped by rep.
 
-    A sales identity can only ever see their OWN queue - owner_user_id is
+    Anyone but an administrator only ever sees their OWN queue - owner_user_id is
     forced to their own id regardless of what's passed, so a rep can't
     page through this endpoint by guessing other reps' user ids. Both a
     sales and a data_manager identity are further restricted to their own
     database access (an admin, or no identity forwarded, sees everything -
     see identity.py's allowed_source_dbs)."""
-    if identity.is_known and identity.role == "sales":
+    if identity.is_known and identity.role != "admin":   # only administrators see everyone's list
         owner_user_id = identity.user_id
     return build_today_queue(db, owner_user_id=owner_user_id, source_dbs=identity.allowed_source_dbs())
 
