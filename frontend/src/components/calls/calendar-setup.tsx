@@ -121,12 +121,15 @@ export function CalendarSetup({ setup }: { setup: Setup }) {
         <div className="flex flex-wrap gap-2">
           {([["auto", "The notetaker joins automatically"], ["remind", "Just remind me"], ["off", "Do nothing"]] as const).map(([v, label]) => (
             <label key={v} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${setup.preference === v ? "border-primary" : "border-border/70"}`}>
-              <input type="radio" name="cal-pref" checked={setup.preference === v} disabled={pending}
+              <input type="radio" name="cal-pref" checked={setup.preference === v} disabled={pending || !!setup.preference_locked}
                 onChange={() => run(() => setRecordingPreference(v), "Saved", "Couldn't save that")} />
               {label}
             </label>
           ))}
         </div>
+        {setup.preference_locked && (
+          <p className="mt-1.5 text-xs text-muted-foreground">An administrator has set this for everyone. To leave the notetaker out of one meeting, press Skip on that meeting.</p>
+        )}
       </fieldset>
       {!setup.notetaker_available && <p className="mt-3 text-xs" style={{ color: "var(--warn)" }}>The notetaker itself isn&apos;t connected yet, so nothing will be recorded until an administrator connects it.</p>}
     </section>

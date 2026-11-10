@@ -178,8 +178,26 @@ def attending(db: Session, m: CalendarMeeting) -> list[CalendarAttendance]:
     return db.scalars(select(CalendarAttendance).where(CalendarAttendance.meeting_id == m.id)).all()
 
 
-def pref(user: User | None) -> str:
-    return ((user.preferences or {}).get(PREF_KEY) if user else None) or "auto"
+def default_mode(db: Session | None = None) -> tuple[str, bool]:
+    """(the notetaker setting for everyone, whether it's locked) - Automations > Settings > Call notes."""
+    from app.automations import runtime_settings
+    from app.db.session import SessionLocal
+    own = db is None
+    db = db or SessionLocal()
+    try:
+        mode = (runtime_settings.get_str(db, "notetaker_default_mode") or "auto").strip().lower()
+        return (mode if mode in ("auto", "remind", "off") else "auto"), runtime_settings.get_bool(db, "notetaker_mode_locked")
+    finally:
+        if own:
+            db.close()
+
+
+def pref(user: User | None, db: Session | None = None) -> str:
+    """This person's notetaker setting: the administrator's, when it's locked; otherwise their own, else the default."""
+    mode, locked = default_mode(db)
+    if locked:
+        return mode
+    return ((user.preferences or {}).get(PREF_KEY) if user else None) or mode
 
 
 def should_record(db: Session, m: CalendarMeeting, domains: set[str] | None = None) -> Decision:
@@ -221,13 +239,13 @@ def _by_preference(db: Session, m: CalendarMeeting, going: list[CalendarAttendan
     organiser = next((a for a in going if a.response == "organizer"), None) or next(
         (a for a in going if org_email and users[a.user_id] and (users[a.user_id].email or "").lower() == org_email), None)
     if organiser:
-        p = pref(users[organiser.user_id])
+        p = pref(users[organiser.user_id], db)
         if p == "auto":
             return Decision(True, "Will be recorded")
         if p == "remind":
             return Decision(False, "Reminder only", remind=True)
         return Decision(False, "Automatic recording is off for the organiser")
-    prefs = {pref(users[a.user_id]) for a in going}
+    prefs = {pref(users[a.user_id], db) for a in going}
     if "auto" in prefs and "off" not in prefs:
         return Decision(True, "Will be recorded")
     if "auto" in prefs:

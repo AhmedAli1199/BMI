@@ -263,6 +263,9 @@ For now, administrators can also open **Brevo lists** (at /automations/brevo-lis
 | Setting | What it changes | Starts at |
 |---|---|---|
 | Shared calendar and automatic notetaker | Every 3 minutes, reads connected calendars into the shared calendar and sends BMI Notetaker into meetings that should be recorded. | On |
+| Notetaker for everyone | auto (joins), remind (a reminder with a button) or off. Used for anyone who hasn't chosen, or for everyone when locked. | auto |
+| Lock it for everyone | Everyone uses the setting above and can't change it. They can still skip one meeting, and administrators are told. | Off |
+| Email the notes to the BMI people in the meeting | When notes are ready, everyone from BMI in the meeting gets them by email. Internal meetings are emailed but never noted in the CRM. | On |
 | Record internal meetings | Also record meetings with only BMI people. | On |
 | Record meetings marked private | Whether the notetaker joins private meetings. They're always hidden from others on the calendar. | Off |
 | Join this many minutes early | 0 to 10. | 1 |

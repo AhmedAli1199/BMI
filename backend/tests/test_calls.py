@@ -130,3 +130,80 @@ def test_not_configured_is_a_plain_message(client, db_session, monkeypatch):
     me = make_user(db_session)
     r = client.post("/api/calls", json={"meeting_url": "https://meet.google.com/abc-defg-hij"}, headers=identity_headers(me))
     assert r.status_code == 409 and "isn't set up" in r.json()["detail"]
+
+
+def _meeting(db, users, outside: list[str]):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models.calendar import CalendarAttendance, CalendarConnection, CalendarMeeting
+    now = datetime.now(timezone.utc)
+    m = CalendarMeeting(id=uuid.uuid4(), dedupe_key=uuid.uuid4().hex, title="Weekly sales", start_at=now - timedelta(hours=1),
+                        end_at=now, join_url="https://meet.google.com/x", platform="google_meet",
+                        attendees=[{"email": u.email} for u in users] + [{"email": e} for e in outside])
+    db.add(m)
+    db.flush()
+    for u in users:
+        conn = db.query(CalendarConnection).filter_by(user_id=u.id).first() or CalendarConnection(
+            id=uuid.uuid4(), user_id=u.id, provider="google", email=u.email, refresh_token_enc="x")
+        db.add(conn)
+        db.flush()
+        db.add(CalendarAttendance(id=uuid.uuid4(), meeting_id=m.id, connection_id=conn.id, user_id=u.id,
+                                  provider_event_id=uuid.uuid4().hex, response="accepted", last_seen_at=now))
+    db.flush()
+    return m
+
+
+def test_notes_go_to_every_bmi_person_and_internal_meetings_stay_out_of_the_crm(db_session, monkeypatch):
+    from app.automations import call_notes as cn
+    from app.services import notify
+
+    sent = []
+    monkeypatch.setattr(notify, "automation_mailbox_ready", lambda db: True)
+    monkeypatch.setattr(notify, "send_automation_email", lambda db, to, subject, body, attachments=None: sent.append((sorted(to), subject, body)))
+    a, b = make_user(db_session), make_user(db_session)
+    notes = {"summary": "Agreed the plan.", "action_items": [{"task": "Send the deck", "owner": "Sally"}], "key_points": ["Spring"]}
+    for outside, internal in (([], True), (["sarah@client.example"], False)):
+        m = _meeting(db_session, [a, b], outside)
+        c = CallRecording(id=uuid.uuid4(), user_id=a.id, meeting_url=m.join_url, title=m.title, status="completed",
+                          calendar_meeting_id=m.id, notes=notes)
+        db_session.add(c)
+        db_session.flush()
+        cn.notes_ready(db_session, c)
+        assert cn.is_internal(db_session, c) is internal
+        cards = db_session.query(ReviewQueueItem).filter(ReviewQueueItem.payload["call_id"].astext == str(c.id)).count()
+        assert cards == (0 if internal else 1)
+        to, subject, body = sent[-1]
+        assert to == sorted([a.email, b.email]) and "Send the deck" in body and "Sally" in body
+        assert ("nothing was added to the CRM" in body) is internal
+
+
+def test_an_administrator_can_set_the_notetaker_for_everyone(client, db_session):
+    from app.automations import runtime_settings
+    from app.services import calendar_sync as cs
+
+    u = make_user(db_session)
+    u.preferences = {cs.PREF_KEY: "off"}
+    db_session.commit()
+    assert cs.pref(u, db_session) == "off"
+    runtime_settings.set_override(db_session, "notetaker_default_mode", "auto")
+    runtime_settings.set_override(db_session, "notetaker_mode_locked", True)
+    db_session.commit()
+    assert cs.pref(u, db_session) == "auto"
+    r = client.put("/api/calendar/preference", json={"mode": "off"}, headers=identity_headers(u))
+    assert r.status_code == 409 and "set this for everyone" in r.json()["detail"]
+    assert client.get("/api/calendar/connections", headers=identity_headers(u)).json()["preference_locked"] is True
+
+
+def test_being_turned_away_is_recorded(db_session):
+    from app.automations import call_notes as cn
+    from app.models.messaging import Notification
+
+    admin, rep = make_user(db_session, role="admin"), make_user(db_session)
+    c = CallRecording(id=uuid.uuid4(), user_id=rep.id, meeting_url="https://zoom.us/j/1", title="Client call", status="failed",
+                      status_detail="The host didn't admit the notetaker from the waiting room.")
+    db_session.add(c)
+    db_session.flush()
+    assert cn.not_let_in(c)
+    cn.record_not_let_in(db_session, c)
+    assert c.status_label == "Not let in"
+    assert {n.user_id for n in db_session.query(Notification).filter(Notification.title.like("The notetaker wasn't let into%"))} == {admin.id, rep.id}

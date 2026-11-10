@@ -90,6 +90,9 @@ class Settings(BaseSettings):
     # The shared calendar (runtime-editable in Automations settings, group "Call notes")
     automations_calendar_sync_enabled: bool = True
     calendar_include_internal: bool = True     # meetings with only BMI people in them
+    notetaker_default_mode: str = "auto"       # auto | remind | off, for anyone who hasn't chosen (or everyone, when locked)
+    notetaker_mode_locked: bool = False        # True: everyone uses the default and can't change it
+    call_notes_email_attendees: bool = True    # email the notes to everyone from BMI who was in the meeting
     calendar_include_private: bool = False     # meetings someone marked private
     calendar_join_minutes_before: int = 1
     notetaker_api_key: str = ""

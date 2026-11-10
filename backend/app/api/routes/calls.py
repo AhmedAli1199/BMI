@@ -224,16 +224,9 @@ async def webhook(request: Request, db: Session = Depends(get_db)):
     if msg.get("event") == "meeting.completed":
         c.notes, c.transcript = data.get("notes"), data.get("transcript") or []
         if c.notes:
-            call_notes.queue_for_review(db, c)
-            from app.services.notify import create_notification
-            to = {c.user_id} if c.user_id else set()
-            if c.calendar_meeting_id:   # everyone from BMI who was in the meeting
-                from app.models.calendar import CalendarAttendance
-                to |= {a.user_id for a in db.scalars(select(CalendarAttendance).where(
-                    CalendarAttendance.meeting_id == c.calendar_meeting_id, CalendarAttendance.response != "declined"))}
-            for uid in to:
-                create_notification(db, uid, "call_notes", f"Notes ready: {c.title or 'your call'}",
-                                    (c.notes or {}).get("summary"), link=f"/calls/{c.id}")
+            call_notes.notes_ready(db, c)
+    elif msg.get("event") == "meeting.failed" and call_notes.not_let_in(c):
+        call_notes.record_not_let_in(db, c)
     elif msg.get("event") == "meeting.failed" and c.user_id:
         from app.services.notify import create_notification
         create_notification(db, c.user_id, "call_notes", f"The notetaker couldn't record {c.title or 'your call'}",

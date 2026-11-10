@@ -51,7 +51,7 @@ Your recording preference:
 - **The notetaker joins automatically**
 - **Just remind me**: a notification about 10 minutes before, so you can press **Record** if you want notes.
 - **Do nothing**
-It saves as soon as you choose.
+It saves as soon as you choose. If an administrator has set it for everyone, the choices are greyed out with "An administrator has set this for everyone"; you can still press **Skip** on a single meeting, and the administrators are told.
 
 ### Record, Skip, Undo (on a meeting)
 For a meeting that hasn't ended and has a Meet, Teams or Zoom link. **Record** sends the notetaker to this one meeting; **Skip** stops it for this one meeting. **Undo** goes back to your usual setting. Not shown for private meetings, all-day events, meetings with no link, Zoom meetings nobody from BMI in it has connected Zoom for, or where everyone from BMI declined.
@@ -93,7 +93,7 @@ After you confirm, removes every meeting on the list and calls off notetakers th
 - **Zoom**: the notetaker joins on behalf of someone from BMI going who has connected Zoom, the organiser first. It gets in only once that person has joined the call (it waits up to 10 minutes) and Zoom ends the recording if they leave. Until Zoom has approved BMI's Zoom app, it can only join meetings hosted by the Zoom account that made the app.
 - Private meetings show to others only as "Private meeting".
 - Administrators and data managers see everyone's meetings and calls. Everyone else sees their own meetings, calls they sent, and calls of meetings they were in.
-- When notes are ready, everyone from BMI who was in the meeting gets a notification, and a Call notes card goes to the Review Queue (filters: call type, their interest, whether a contact is linked; sorted by call date) with **Save to history** and **Not needed**. If the notetaker couldn't record, the person who sent it is told.
+- When notes are ready, everyone from BMI who was in the meeting gets them by email (the summary, key points, decisions, the to-dos with who does each, and the next step), from the automation mailbox, plus a notification. A meeting with only BMI people in it stops there: nothing goes into the CRM. A meeting with someone from outside also gets a Call notes card in the Review Queue of the person who sent the notetaker (filters: call type, their interest, whether a contact is linked; sorted by call date) with **Save to history** and **Not needed**. If the notetaker couldn't record, the person who sent it is told. If it wasn't let in (left in the waiting room, or removed), the call shows "Not let in" and the person who sent it and the administrators are told.
 - The contact is matched from the guests' email addresses where possible. If you link the contact on the call's page later, its waiting Review Queue card shows them too.
 - **Save to history** only saves once; pressing it again (here or in the Review Queue) doesn't add a second entry.
 
