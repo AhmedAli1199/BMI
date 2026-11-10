@@ -1,5 +1,7 @@
 # BMI Brain
 
+**Picking this up? Start with `docs/REMAINING-WORK.md`** (what is left, blockers, due dates), then `docs/HANDOFF.md`.
+
 Before doing anything in this repo, read `docs/HANDOFF.md`. It covers the working rules, current state, business logic, and the UI/UX rulebook every new screen must follow. Also see `CONTEXT.md` and `docs/build-spec.txt`.
 
 Key rules, in short:
