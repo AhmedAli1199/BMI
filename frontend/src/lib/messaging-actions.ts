@@ -117,6 +117,11 @@ export async function previewRecipients(source: RecipientSource) {
   return backendFetch<RecipientsResult>("/api/mail-merge/recipients", json(source));
 }
 
+/** Corrects a common slip in a contact's email (gmial.com -> gmail.com) on their record. */
+export async function fixRecipientAddress(contactId: string, address: string) {
+  return backendFetch<{ email: string }>("/api/mail-merge/fix-address", json({ contact_id: contactId, address }));
+}
+
 export async function composeFromTemplate(input: { contact_id?: string | null; template_id?: string | null; subject?: string | null; body?: string | null;
   brand?: string | null; edition_id?: string | null; feature?: string | null }) {
   return backendFetch<ComposeResult>("/api/mail/compose", json(input));

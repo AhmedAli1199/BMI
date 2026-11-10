@@ -38,12 +38,30 @@ export function CopyEmailsButton({ scope, size = "sm", variant = "outline", labe
           r.skipped_unsubscribed && `${r.skipped_unsubscribed} unsubscribed`,
           r.skipped_bounced && `${r.skipped_bounced} bounced`,
           r.skipped_no_email && `${r.skipped_no_email} with no email`,
-          r.skipped_invalid && `${r.skipped_invalid} that can't work (mistyped, or the domain doesn't take email)`,
+          r.skipped_invalid && `${r.skipped_invalid} that may not work (mistyped, or the domain doesn't take email)`,
           r.duplicates_removed && `${r.duplicates_removed} repeated`,
         ].filter(Boolean);
         toast.success(`Copied ${r.count.toLocaleString()} email address${r.count === 1 ? "" : "es"} - paste them into Bcc.`, {
           description: [left.length ? `Left out: ${left.join(", ")}.` : "", r.count > 500 ? "Outlook only sends to about 500 people at once, so send in batches." : ""].filter(Boolean).join(" ") || undefined,
-          duration: 8000,
+          duration: r.flagged_text ? 15000 : 8000,
+          ...(r.flagged_text
+            ? {
+                action: {
+                  label: `Add the ${r.skipped_invalid} flagged`,
+                  onClick: async () => {
+                    try {
+                      await navigator.clipboard.writeText(`${r.text}; ${r.flagged_text}`);
+                      toast.success(`Copied ${(r.count + (r.skipped_invalid ?? 0)).toLocaleString()} addresses, including the flagged ones.`, {
+                        description: (r.flagged ?? []).slice(0, 5).map((f) => `${f.address} - ${f.reason}`).join("\n") || undefined,
+                        duration: 10000,
+                      });
+                    } catch {
+                      toast.error("Your browser didn't let us copy. Click Copy emails again.");
+                    }
+                  },
+                },
+              }
+            : {}),
         });
       } catch (e) {
         toast.error(friendlyError(e, "Couldn't copy the addresses"));

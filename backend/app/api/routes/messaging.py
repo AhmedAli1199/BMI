@@ -418,6 +418,16 @@ class RecipientOut(BaseModel):
     unsubscribed: bool
     bounced: bool
     address_problem: str | None = None   # CS-006: why the address can't work ("domain can't receive email"), if so
+    suggested_email: str | None = None   # the address with a common slip corrected (gmial.com -> gmail.com)
+
+
+class FixAddressIn(BaseModel):
+    contact_id: uuid.UUID
+    address: str = Field(min_length=3, max_length=512)
+
+
+class FixAddressOut(BaseModel):
+    email: str
 
 
 class RecipientsOut(BaseModel):
@@ -473,8 +483,28 @@ def preview_recipients(src: RecipientSource, db: Session = Depends(get_db), user
         items.append(RecipientOut(contact_id=cid, name=c["full_name"] or "(no name)", company=c["company"] or None,
                                   email=c["email"] or None, city=c["city"] or None, country=c["country"] or None,
                                   has_address=bool(c["address_block"]), unsubscribed=c["_unsubscribed"], bounced=c["_bounced"],
-                                  address_problem=bad.get((c["email"] or "").strip().lower())))
+                                  address_problem=(why := bad.get((c["email"] or "").strip().lower())),
+                                  suggested_email=email_check.suggested_fix(c["email"]) if why else None))
     return RecipientsOut(label=label, total=len(items), truncated=truncated, items=items)
+
+
+@router.post("/mail-merge/fix-address", response_model=FixAddressOut)
+def fix_address(payload: FixAddressIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    """Corrects a common slip in a contact's email (jane@gmial.com -> jane@gmail.com) on their record, with history."""
+    from app.api.routes._channels import update_channel
+    from app.api.schemas import EmailWrite
+    from app.models import Email
+    from app.services import email_check
+
+    old = payload.address.strip()
+    new = email_check.suggested_fix(old)
+    if not new:
+        raise HTTPException(422, "There's no obvious fix for this address. Open the contact to change it by hand.")
+    row = db.scalars(select(Email).where(Email.contact_id == payload.contact_id, func.lower(Email.address) == old.lower())).first()
+    if not row:
+        raise HTTPException(404, "That address isn't on this contact any more. Reload the list and try again.")
+    update_channel(db, Email, "contact_id", payload.contact_id, row.id, EmailWrite(type_label=row.type_label, address=new), user.id)
+    return FixAddressOut(email=new)
 
 
 class PreviewIn(BaseModel):
@@ -554,6 +584,8 @@ class MergeIn(BaseModel):
     # letters for them (the response then tells the UI to download those).
     no_email: str = Field(default="skip", pattern="^(skip|letters)$")
     include_unsubscribed: bool = False
+    # Flagged addresses ("can't work") the person chose to send to anyway - otherwise they're left out.
+    send_anyway: list[str] = Field(default_factory=list, max_length=50000)
     data_format: str = Field(default="xlsx", pattern="^(xlsx|csv)$")
     test_only: bool = False  # email: send one rendered copy to myself only
     # Brand figures and the issue the mailing is about, filled in the same for everyone
@@ -712,6 +744,8 @@ def run_merge(payload: MergeIn, db: Session = Depends(get_db), user: User = Depe
 
     no_email_ids = []
     bad = email_check.problems(db, [c["email"] for _, c in ctxs])
+    for a in payload.send_anyway:
+        bad.pop(a.strip().lower(), None)
     for cid, ctx in ctxs:
         reason = _eligible(ctx, payload.include_unsubscribed, bad)
         rec = MailMergeRecipient(id=uuid.uuid4(), merge_id=m.id, contact_id=cid, email=ctx["email"] or None,

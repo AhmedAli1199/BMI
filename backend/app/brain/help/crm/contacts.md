@@ -52,7 +52,7 @@ Tick people (or the top box for the whole page). A bar appears with "<n> contact
 Opens Import contacts (see below).
 
 ### Copy emails
-Hovering over it says "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box". Copies the email addresses of everyone in the lookup (or the ticked people), separated by semicolons, ready to paste into Outlook's Bcc box. People who unsubscribed, opted out or whose email bounced are left out, as are people with no email, repeated addresses, and addresses that can't work (mistyped, or the domain doesn't take email); the message says how many. Over 5,000 contacts is too many to copy: narrow the search or use **Export**. Above 500 it reminds you Outlook only sends to about 500 at once.
+Hovering over it says "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box". Copies the email addresses of everyone in the lookup (or the ticked people), separated by semicolons, ready to paste into Outlook's Bcc box. People who unsubscribed, opted out or whose email bounced are left out, as are people with no email, repeated addresses, and addresses that may not work (mistyped, or the domain doesn't take email); the message says how many. If you know the flagged ones are fine, click **Add the N flagged** on that message to copy them as well. Over 5,000 contacts is too many to copy: narrow the search or use **Export**. Above 500 it reminds you Outlook only sends to about 500 at once.
 
 ### Bulk update
 Opens "Change many contacts at once" for the whole lookup (or the ticked people).

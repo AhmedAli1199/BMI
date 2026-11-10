@@ -3931,7 +3931,7 @@
   },
   {
    "file": "components/contacts/copy-emails-button.tsx",
-   "src": "components/contacts/copy-emails-button.tsx:55",
+   "src": "components/contacts/copy-emails-button.tsx:73",
    "kind": "button",
    "label": "Copy these contacts' email addresses, ready to paste into Outlook's Bcc box"
   },
@@ -6271,259 +6271,290 @@
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:485",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:526",
    "kind": "link",
    "label": "Connect Outlook"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:497",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:538",
    "kind": "link",
    "label": "Reconnect"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:649",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:690",
    "kind": "button",
    "label": "include all"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:689",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:702",
+   "kind": "button",
+   "label": "- sending anyway"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:717",
+   "kind": "button",
+   "label": "send to them anyway"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:724",
+   "kind": "hint",
+   "label": "",
+   "hint": "Two free checks: the address isn't written like an email address (or has a common slip such as gmial.com), or the internet's address book says the domain doesn't exist or can't take email. We can't check that one person's mailbox still exists - a bounce will tell us that. If you know an address is fine, send to it anyway."
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:757",
    "kind": "button",
    "label": "Tick these"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:709",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:777",
    "kind": "column",
    "label": "Include"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:710",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:778",
    "kind": "column",
    "label": "Name"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:711",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:779",
    "kind": "column",
    "label": "Company"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:712",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:780",
    "kind": "column",
    "label": "Address"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:798",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:827",
+   "kind": "button",
+   "label": "Fix to"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:836",
+   "kind": "button",
+   "label": "Leave out"
+  },
+  {
+   "file": "components/mail-merge/mail-merge-wizard.tsx",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:889",
    "kind": "field",
    "label": "Template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:810",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:901",
    "kind": "button",
    "label": "Update template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:815",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:906",
    "kind": "button",
    "label": "Save as new template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:823",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:914",
    "kind": "field",
    "label": "Brand (for its figures and links) Choose Selling Travel The Business Travel Magazine Onboard Hospitality"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:832",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:923",
    "kind": "field",
    "label": "Title"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:837",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:928",
    "kind": "field",
    "label": "The issue or event it's about"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:840",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:931",
    "kind": "field",
    "label": "The feature you're pitching"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:856",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:947",
    "kind": "field",
    "label": "Subject"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:868",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:959",
    "kind": "field",
    "label": "Message"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:912",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1003",
    "kind": "button",
    "label": "Previous contact"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:917",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1008",
    "kind": "button",
    "label": "Next contact"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:966",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1057",
    "kind": "heading",
    "label": "Record history"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:994",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1085",
    "kind": "field",
    "label": "Regarding"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1004",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1095",
    "kind": "heading",
    "label": "Copies"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1006",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1097",
    "kind": "field",
    "label": "Cc (on every email)"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1010",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1101",
    "kind": "field",
    "label": "Bcc (on every email)"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1016",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1107",
    "kind": "heading",
    "label": "Attachments"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1035",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1126",
    "kind": "field",
    "label": "Uploading"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1046",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1137",
    "kind": "heading",
    "label": "Contacts who can't be emailed"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1047",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1138",
    "kind": "field",
    "label": "Skip them have no email address"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1054",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1145",
    "kind": "field",
    "label": "Make Word letters for them Downloads straight after the emails are queued"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1061",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1152",
    "kind": "field",
    "label": "Include unsubscribed and bounced contacts Off by default - only for essential, non-marketing messages (e.g. an invoice q"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1076",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1167",
    "kind": "heading",
    "label": "File type"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1078",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1169",
    "kind": "field",
    "label": "Excel (.xlsx) - for Word's own mail merge"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1104",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1195",
    "kind": "button",
    "label": "Send a test to myself"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1108",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1199",
    "kind": "button",
    "label": "Send … emails"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1131",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1222",
    "kind": "button",
    "label": "Back"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1136",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1227",
    "kind": "button",
    "label": "Next"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1142",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1233",
    "kind": "link",
    "label": "See earlier mail merges"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1152",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1243",
    "kind": "dialog",
    "label": "Save as a template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1157",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1248",
    "kind": "field",
    "label": "Template name"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1160",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1251",
    "kind": "field",
    "label": "Share with the team"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1167",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1258",
    "kind": "button",
    "label": "Save template"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1177",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1268",
    "kind": "dialog",
    "label": "Send … emails?"
   },
   {
    "file": "components/mail-merge/mail-merge-wizard.tsx",
-   "src": "components/mail-merge/mail-merge-wizard.tsx:1186",
+   "src": "components/mail-merge/mail-merge-wizard.tsx:1277",
    "kind": "button",
    "label": "Send now"
   },

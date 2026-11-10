@@ -70,6 +70,11 @@ def save_custom_labels(payload: dict[str, str], db: Session = Depends(get_db), i
 MAX_COPY = 5000  # more than this is too many to paste anywhere useful (Outlook takes ~500 per email)
 
 
+class FlaggedAddress(BaseModel):
+    address: str
+    reason: str
+
+
 class EmailsOut(BaseModel):
     count: int
     too_many: bool = False
@@ -80,6 +85,9 @@ class EmailsOut(BaseModel):
     skipped_no_email: int
     duplicates_removed: int
     skipped_invalid: int = 0     # CS-006: not written correctly, or the domain can't receive email
+    # The flagged addresses themselves, so a person can still add them if they know better ("a@x.com; b@y.com").
+    flagged_text: str = ""
+    flagged: list[FlaggedAddress] = []
 
 
 @router.post("/emails", response_model=EmailsOut)
@@ -120,8 +128,10 @@ def email_addresses(scope: Scope, db: Session = Depends(get_db), identity: Ident
                     seen[key] = best[cid]
     bad = email_check.problems(db, list(seen.values()))
     addrs = [a for k, a in seen.items() if k not in bad]
+    flagged = [FlaggedAddress(address=a, reason=bad[k]) for k, a in seen.items() if k in bad]
     return EmailsOut(count=len(addrs), text="; ".join(addrs), contacts=len(ids), skipped_unsubscribed=unsub,
-                     skipped_bounced=bounced, skipped_no_email=no_email, duplicates_removed=dup, skipped_invalid=len(seen) - len(addrs))
+                     skipped_bounced=bounced, skipped_no_email=no_email, duplicates_removed=dup, skipped_invalid=len(flagged),
+                     flagged_text="; ".join(f.address for f in flagged), flagged=flagged[:200])
 
 
 # ---- bulk update ----------------------------------------------------------------
