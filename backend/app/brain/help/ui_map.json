@@ -2583,37 +2583,37 @@
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:199",
+   "src": "components/act-contact-card.tsx:196",
    "kind": "button",
    "label": "Cancel"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:209",
+   "src": "components/act-contact-card.tsx:206",
    "kind": "button",
    "label": "Saving..."
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:223",
+   "src": "components/act-contact-card.tsx:220",
    "kind": "button",
    "label": "Edit Record"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:250",
+   "src": "components/act-contact-card.tsx:247",
    "kind": "field",
    "label": "First Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:258",
+   "src": "components/act-contact-card.tsx:255",
    "kind": "field",
    "label": "Last Name"
   },
   {
    "file": "components/act-contact-card.tsx",
-   "src": "components/act-contact-card.tsx:530",
+   "src": "components/act-contact-card.tsx:527",
    "kind": "link",
    "label": "(opens in a new tab)"
   },
@@ -3719,24 +3719,6 @@
    "src": "components/company-owners.tsx:107",
    "kind": "button",
    "label": "Save"
-  },
-  {
-   "file": "components/contact-delete-controls.tsx",
-   "src": "components/contact-delete-controls.tsx:62",
-   "kind": "button",
-   "label": "Ask to delete"
-  },
-  {
-   "file": "components/contact-delete-controls.tsx",
-   "src": "components/contact-delete-controls.tsx:68",
-   "kind": "dialog",
-   "label": "Ask to delete"
-  },
-  {
-   "file": "components/contact-delete-controls.tsx",
-   "src": "components/contact-delete-controls.tsx:85",
-   "kind": "button",
-   "label": "Sending"
   },
   {
    "file": "components/contact-form-dialog.tsx",

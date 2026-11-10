@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.guards import need_staff
 from app.api.schemas import (
     MANUAL_SOURCE_DB,
     AddressOut,
@@ -613,46 +612,18 @@ def reassign_contact(contact_id: uuid.UUID, successor_id: uuid.UUID, db: Session
     db.commit()
 
 
-class DeletionRequestIn(BaseModel):
-    reason: str | None = Field(default=None, max_length=1000)
-
-
-@router.post("/{contact_id}/deletion-request", status_code=202, response_model=None)
-def request_deletion(contact_id: uuid.UUID, payload: DeletionRequestIn, db: Session = Depends(get_db),
-                     identity: Identity = Depends(get_identity)) -> dict:
-    """Someone who can't delete contacts asks for one to be deleted: the administrators and data managers get a
-    bell notification (no email) linking to the contact, and the request is noted in the contact's history."""
-    from app.models import User
-    from app.services.notify import create_notification
-
-    contact = db.get(Contact, contact_id)
-    if not contact:
-        raise HTTPException(status_code=404, detail="Contact not found")
-    me = db.get(User, identity.user_uuid) if identity.user_uuid else None
-    who = me.name if me else "Someone"
-    name = contact.full_name or " ".join(x for x in (contact.first_name, contact.last_name) if x) or "a contact"
-    why = (payload.reason or "").strip()
-    db.add(HistoryEntry(id=uuid.uuid4(), source_db=MANUAL_SOURCE_DB, source_act_id=str(uuid.uuid4()), entity_type="contact",
-                        entity_id=contact_id, history_type="Deletion requested", subject=f"{who} asked for this contact to be deleted",
-                        details=why or None, occurred_at=datetime.now(timezone.utc), created_by_user_id=identity.user_uuid))
-    told = 0
-    for uid in db.scalars(select(User.id).where(User.role.in_(("admin", "data_manager")), User.is_active.is_(True))):
-        if uid == identity.user_uuid:
-            continue
-        create_notification(db, uid, "deletion_request", f"{who} asked to delete {name}", why or None,
-                            link=f"/contacts/{contact_id}", email=False)
-        told += 1
-    db.commit()
-    return {"told": told}
-
-
 @router.delete("/{contact_id}", status_code=204, response_model=None)
 def delete_contact(contact_id: uuid.UUID, db: Session = Depends(get_db),
                    identity: Identity = Depends(get_identity)) -> None:
-    need_staff(identity, "Only administrators and data managers can delete contacts.")
+    # Anyone who can see this contact's database may delete it, as in Act!.
+    from app.core.visibility import contact_clause
+
     contact = db.get(Contact, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
+    visible = contact_clause(db, identity)
+    if visible is not None and not db.scalar(select(Contact.id).where(Contact.id == contact_id, visible)):
+        raise HTTPException(status_code=403, detail="You can only delete contacts in the databases you have access to.")
 
     # No cascade at the DB level (see contact_channel.py) - clean up every
     # row that actually has a foreign key into contacts.id ourselves, in one

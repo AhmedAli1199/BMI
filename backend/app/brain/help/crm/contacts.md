@@ -89,8 +89,8 @@ Act!'s "duplicate contact": a new person at the same company. Type **First name*
 ### Edit Record, Save Changes, Cancel
 **Edit Record** makes the card editable: names, company, title, department, the two phone numbers and the type of each (Business, Mobile, Home, Fax or Other), e-mail, address, ID/Status (the category), Referred By and Birthdate. A number keeps its own type when you save. **Save Changes** saves; **Cancel** throws the edits away. The copy icon next to a phone or email copies it.
 
-### Delete and Ask to delete
-Administrators and data managers see **Delete** next to **Mark as departed**. It asks you to confirm, then removes the contact for good with their email addresses, phone numbers, addresses, notes, history and group memberships; their bookings, activities and deals stay but are no longer linked to them. It can't be undone. Everyone else sees **Ask to delete** instead: add a reason and press **Send request**. The administrators and data managers get a message under the bell with a link to the contact (no email), and the request is noted in the contact's history. If the person has only left their company, use **Mark as departed** instead.
+### Delete
+Next to **Mark as departed**. Anyone who can see the contact's database can delete it. It asks you to confirm, then removes the contact for good with their email addresses, phone numbers, addresses, notes, history and group memberships; their bookings, activities and deals stay but are no longer linked to them. It can't be undone. If the person has only left their company, use **Mark as departed** instead.
 
 ### Mark as departed
 For someone who has left. Search for who replaced them and press **Move notes and history**. Every note and history entry moves to that person, and both records get a short "Departure" note. The old record itself stays, marked "Left the company" (a yes/no field you can search, export and change in bulk). Scheduled activities don't move.

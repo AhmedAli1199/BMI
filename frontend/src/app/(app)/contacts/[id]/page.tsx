@@ -5,7 +5,7 @@ import { Mail } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactDetail, GroupListItem, Page, RecordPosition } from "@/lib/types";
 import { getSession } from "@/lib/session";
-import { canAccessRecord, canUseAutomations } from "@/lib/access";
+import { canAccessRecord } from "@/lib/access";
 import { sourceBadgeStyle, sourceLabel } from "@/lib/sources";
 import { PageHeader } from "@/components/page-header";
 import { RecordPager } from "@/components/record-pager";
@@ -118,7 +118,7 @@ export default async function ContactDetailPage({
 
         <RecordReminders reminders={reminders} />
 
-                <ActContactCard contact={contact} canDelete={canUseAutomations(session)} />
+                <ActContactCard contact={contact} />
 
         <FieldChangeHistory entityId={contact.id} fetchChanges={getContactFieldChanges} />
 

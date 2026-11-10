@@ -207,17 +207,6 @@ export async function addContactNote(
   revalidatePath(`/contacts/${contactId}`);
 }
 
-/** Ask an administrator or data manager to delete a contact (for people who can't delete themselves). */
-export async function requestContactDeletion(contactId: string, reason: string) {
-  const r = await backendFetch<{ told: number }>(`/api/contacts/${contactId}/deletion-request`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reason: reason.trim() || null }),
-  });
-  revalidatePath(`/contacts/${contactId}`);
-  return r;
-}
-
 export async function deleteContactNote(contactId: string, noteId: string) {
   await backendFetch(`/api/contacts/${contactId}/notes/${noteId}`, { method: "DELETE" });
   revalidatePath(`/contacts/${contactId}`);

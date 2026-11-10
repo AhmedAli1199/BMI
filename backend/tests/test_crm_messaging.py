@@ -347,22 +347,17 @@ def test_dns_that_doesnt_answer_is_given_the_benefit_of_the_doubt(monkeypatch):
     assert email_check._lookup("flaky.test") is None
 
 
-def test_salesperson_asks_to_delete_a_contact(client, db_session, people):
-    """Feedback #8: a salesperson can't delete a contact, but can ask; admins and data managers get a bell
-    notification (not an email) linking to it, and the request is in the contact's history."""
-    rep = make_user(db_session, role="sales", name="Craig")
-    admin = make_user(db_session, role="admin", name="Matt")
-    dm = make_user(db_session, role="data_manager", name="Clare")
+def test_anyone_with_access_to_the_database_can_delete_its_contacts(client, db_session, people):
+    """Feedback #8: deleting works as in Act! - a salesperson can delete contacts in a database they can see, not others."""
+    rep = make_user(db_session, role="sales")
+    other = _contact(db_session, "Olly", "Other", email="olly@x.com")
+    other.source_db = "onboard"
     db_session.flush()
-    amy = people["amy"]
     h = identity_headers(rep, access=[("manual", None)])
-    assert client.delete(f"/api/contacts/{amy.id}", headers=h).status_code == 403
-    r = client.post(f"/api/contacts/{amy.id}/deletion-request", headers=h, json={"reason": "Duplicate of Amy Z"})
-    assert r.status_code == 202 and r.json()["told"] >= 2
-    notes = db_session.query(Notification).filter(Notification.kind == "deletion_request").all()
-    assert {n.user_id for n in notes} >= {admin.id, dm.id} and rep.id not in {n.user_id for n in notes}
-    assert all(n.email_status is None and n.link == f"/contacts/{amy.id}" and n.body == "Duplicate of Amy Z" for n in notes)
-    assert db_session.query(HistoryEntry).filter_by(entity_id=amy.id, history_type="Deletion requested").one().details == "Duplicate of Amy Z"
+    assert client.delete(f"/api/contacts/{other.id}", headers=h).status_code in (403, 404)
+    assert client.delete(f"/api/contacts/{people['bob'].id}", headers=h).status_code == 204
+    db_session.expire_all()
+    assert db_session.get(Contact, people["bob"].id) is None and db_session.get(Contact, other.id) is not None
 
 
 def test_admin_deletes_a_contact_with_linked_records(client, db_session, people):

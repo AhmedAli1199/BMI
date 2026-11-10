@@ -45,11 +45,8 @@ function PhoneTypeSelect({ value, onChange, label }: { value: string; onChange: 
 
 export function ActContactCard({
   contact,
-  canDelete = false,
 }: {
   contact: ContactDetail;
-  /** Administrators and data managers: a Delete button; everyone else gets "Ask to delete". */
-  canDelete?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -219,7 +216,7 @@ export function ActContactCard({
           ) : (
             <>
               <ReassignContactButton contactId={contact.id} contactName={name} />
-              <ContactDeleteControls contactId={contact.id} name={name} canDelete={canDelete} />
+              <ContactDeleteControls contactId={contact.id} name={name} />
               <Button
                 size="sm"
                 variant="outline"
