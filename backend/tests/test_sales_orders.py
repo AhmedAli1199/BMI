@@ -271,6 +271,12 @@ def test_overview_and_renewals(client, db_session, sor):
     assert ov["booked_gbp"] == 2200 and ov["last_year_total_gbp"] == 4000
     assert ov["uninvoiced_count"] == 1 and ov["renewal_candidates"] == 1
     assert ov["new_advertisers"] == 1  # "Brand New" never booked before
+    # The Title drop-down (feedback #22): one title, or another title with nothing booked
+    one = client.get(f"/api/sales/overview?basis=calendar&titles={sor['title'].id}").json()
+    assert one["booked_gbp"] == 2200 and one["title_ids"] == [str(sor["title"].id)]
+    other = client.get(f"/api/sales/overview?basis=calendar&titles={uuid.uuid4()}").json()
+    assert other["booked_gbp"] == 0 and other["last_year_total_gbp"] == 0
+    assert client.get("/api/sales/overview?basis=calendar&titles=all").json()["booked_gbp"] == 2200
 
     ren = client.get(f"/api/sales/renewals?title_id={sor['title'].id}&basis=calendar").json()
     assert [r["client_name"] for r in ren["items"]] == ["Lapsed Ltd"]

@@ -762,7 +762,8 @@
     "components/page-tabs.tsx",
     "components/sales/info-hint.tsx",
     "components/sales/pace-chart.tsx",
-    "components/sales/sales-ui.tsx"
+    "components/sales/sales-ui.tsx",
+    "components/sales/title-filter.tsx"
    ]
   },
   {
@@ -2160,63 +2161,63 @@
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:65",
+   "src": "app/(app)/sales/page.tsx:71",
    "kind": "button",
    "label": "Bookings"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:87",
+   "src": "app/(app)/sales/page.tsx:93",
    "kind": "hint",
    "label": "",
    "hint": "- cancelled, contra and moved bookings aren't counted."
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:105",
+   "src": "app/(app)/sales/page.tsx:111",
    "kind": "hint",
    "label": "",
    "hint": "Money actually billed: invoices dated in … , whatever issue or event they were for - so a booking only counts here once it's invoiced. “Booked” (left) counts every booking for this year's editions, invoiced or not. The percentage is how much of this year's booked value has been invoiced so far."
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:117",
+   "src": "app/(app)/sales/page.tsx:123",
    "kind": "link",
    "label": "not invoiced yet →"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:128",
+   "src": "app/(app)/sales/page.tsx:134",
    "kind": "link",
    "label": "from … not back yet"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:164",
+   "src": "app/(app)/sales/page.tsx:170",
    "kind": "column",
    "label": "Title"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:165",
+   "src": "app/(app)/sales/page.tsx:171",
    "kind": "column",
    "label": "Booked"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:166",
+   "src": "app/(app)/sales/page.tsx:172",
    "kind": "column",
    "label": "vs same point"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:167",
+   "src": "app/(app)/sales/page.tsx:173",
    "kind": "column",
    "label": "Progress"
   },
   {
    "file": "app/(app)/sales/page.tsx",
-   "src": "app/(app)/sales/page.tsx:216",
+   "src": "app/(app)/sales/page.tsx:222",
    "kind": "link",
    "label": "bookings"
   },
@@ -8659,6 +8660,12 @@
    "src": "components/sales/renewals-table.tsx:184",
    "kind": "button",
    "label": "New booking"
+  },
+  {
+   "file": "components/sales/title-filter.tsx",
+   "src": "components/sales/title-filter.tsx:11",
+   "kind": "field",
+   "label": "Title All titles"
   },
   {
    "file": "components/sales/writing-profile.tsx",

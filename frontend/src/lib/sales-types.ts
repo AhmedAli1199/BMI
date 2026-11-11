@@ -186,6 +186,8 @@ export type EditionDetail = EditionSummary & {
 export type OrdersPage = { items: SalesOrder[]; total: number; total_value_gbp: number };
 
 export type SalesOverview = {
+  title_ids: string[];
+  my_title_ids: string[];
   year: number;
   as_of: string;
   is_current_year: boolean;

@@ -22,6 +22,9 @@ This is the front page of BMI's order book: every booking across every title, is
 - **Three cards at the bottom** - **Renewals**, **Invoicing** and **All editions**, each with a one-line count.
 
 ## Buttons and controls
+### Title
+Which titles the figures are for. It opens on **My titles**: the titles that make up most of what you've sold in the last two years. Pick **All titles** for the whole company, or any one title. Someone who doesn't sell, or hasn't sold anything yet, starts on **All titles**. Every figure, chart and list on the page follows the choice, and the year buttons keep it.
+
 ### Financial year / Calendar year
 Switches how the year is counted. **Financial year** runs from July to June (hover to see the months) and is named by the year it starts in, so "2026/27" is 1 July 2026 to 30 June 2027. **Calendar year** runs January to December. Which one opens first is a company setting (financial year by default). The choice is kept in the page address, so you can bookmark or share it.
 

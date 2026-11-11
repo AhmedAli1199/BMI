@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, true
 from sqlalchemy.orm import Session
 
 from app.api.schemas import FieldChangeOut, UserSummary
@@ -390,6 +390,10 @@ class Overview(BaseModel):
     by_title: list[TitleRow]
     by_rep: list[RepRow]
     upcoming: list[EditionSummary]
+    # The Title drop-down (Craig, feedback #22): which titles these figures are for (empty = all), and the
+    # salesperson's own titles, which the page opens on.
+    title_ids: list[uuid.UUID] = []
+    my_title_ids: list[uuid.UUID] = []
     # Invoiced in the year by invoice date (whatever issue it was for) - what was actually billed.
     invoiced_in_year_gbp: float = 0
     invoiced_last_year_same_point_gbp: float = 0
@@ -722,7 +726,7 @@ def meta(db: Session = Depends(get_db), identity: Identity = Depends(get_identit
 
 # ---- Overview -----------------------------------------------------------------
 
-def invoiced_between(db: Session, lo: date, hi: date) -> float:
+def invoiced_between(db: Session, lo: date, hi: date, title_ids: list | None = None) -> float:
     """Value invoiced with an invoice dated lo..hi - whatever issue it was for. The invoice date is the one
     from Xero when the booking is linked, else the date typed on the booking."""
     inv_date = func.coalesce(SalesOrder.invoiced_on, XeroInvoice.issued_on)
@@ -730,6 +734,8 @@ def invoiced_between(db: Session, lo: date, hi: date) -> float:
          .select_from(SalesOrder).outerjoin(XeroInvoice, SalesOrder.xero_invoice_id == XeroInvoice.id)
          .where(SalesOrder.status == BOOKED, or_(SalesOrder.invoice_number.isnot(None), SalesOrder.xero_invoice_id.isnot(None)),
                 inv_date >= lo, inv_date <= hi))
+    if title_ids:
+        q = q.where(SalesOrder.edition_id.in_(select(SalesEdition.id).where(SalesEdition.title_id.in_(title_ids))))
     return round(float(db.scalar(q) or 0), 2)
 
 
@@ -757,8 +763,46 @@ def _in_period(year: int, financial: bool, start_month: int):
     return edition_date_expr().between(lo, hi)
 
 
+def my_titles(db: Session, user_id: uuid.UUID | None) -> list[uuid.UUID]:
+    """A salesperson's own titles: the ones that make up most of what they've sold in the last two years
+    (any title with at least a fifth of their credit, else their biggest)."""
+    if not user_id:
+        return []
+    rep_ids = list(db.scalars(select(SalesRep.id).where(SalesRep.user_id == user_id)))
+    if not rep_ids:
+        return []
+    since = date.today() - timedelta(days=730)
+    rows = db.execute(
+        select(SalesEdition.title_id, func.sum(SalesOrderCredit.amount_gbp))
+        .join(SalesOrder, SalesOrderCredit.order_id == SalesOrder.id)
+        .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+        .where(SalesOrderCredit.rep_id.in_(rep_ids), SalesOrder.status == BOOKED,
+               func.coalesce(SalesOrder.booked_on, SalesEdition.edition_date) >= since)
+        .group_by(SalesEdition.title_id)).all()
+    total = sum(float(v or 0) for _, v in rows)
+    if total <= 0:
+        return []
+    ranked = sorted(rows, key=lambda r: -float(r[1] or 0))
+    return [t for t, v in ranked if float(v or 0) >= total * 0.2] or [ranked[0][0]]
+
+
 @router.get("/overview", response_model=Overview)
-def overview(year: int | None = None, basis: str | None = None, db: Session = Depends(get_db)) -> Overview:
+def overview(year: int | None = None, basis: str | None = None, titles: str | None = None, db: Session = Depends(get_db),
+             identity: Identity = Depends(get_identity)) -> Overview:
+    """`titles`: "all", "mine" (the default: the salesperson's own titles, else all) or title ids separated by commas."""
+    mine = my_titles(db, identity.user_uuid)
+    if not titles or titles == "mine":
+        title_ids = mine
+    elif titles == "all":
+        title_ids = []
+    else:
+        title_ids = []
+        for part in titles.split(","):
+            try:
+                title_ids.append(uuid.UUID(part.strip()))
+            except ValueError:
+                continue
+    tf = SalesEdition.title_id.in_(title_ids) if title_ids else true()
     today = date.today()
     financial, start_month = _year_basis(db, basis)
     year = year or period_year_of(today, financial, start_month)
@@ -772,7 +816,7 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
         q = (select(SalesOrder.value_gbp, SalesOrder.booked_on, SalesEdition.title_id, SalesOrder.client_name,
                     SalesOrder.invoice_number, SalesOrder.invoice_value_gbp, SalesEdition.edition_date, SalesOrder.id)
              .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-             .where(_in_period(y, financial, start_month), SalesOrder.status == BOOKED))
+             .where(_in_period(y, financial, start_month), SalesOrder.status == BOOKED, tf))
         if before:
             q = q.where(func.coalesce(SalesOrder.booked_on, date.min) <= before)
         return db.execute(q).all()
@@ -784,13 +828,13 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
     before_period = edition_date_expr() < p_start if financial else SalesEdition.year < year
     earlier_clients = {ck(r.client_name) for r in db.execute(
         select(SalesOrder.client_name).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-        .where(before_period, SalesOrder.status == BOOKED)).all()}
+        .where(before_period, SalesOrder.status == BOOKED, tf)).all()}
     this_clients = {ck(r.client_name) for r in this}
     last_clients = {ck(r.client_name) for r in last_all if float(r.value_gbp) > 0}
     # "Back" also counts anyone who took a booking during this year, whatever issue it went into (same rule as Renewals).
     back_clients = this_clients | {ck(n) for n in db.scalars(
-        select(SalesOrder.client_name).where(SalesOrder.status == BOOKED, SalesOrder.booked_on >= p_start,
-                                             SalesOrder.booked_on <= min(p_end, today)))}
+        select(SalesOrder.client_name).join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
+        .where(SalesOrder.status == BOOKED, SalesOrder.booked_on >= p_start, SalesOrder.booked_on <= min(p_end, today), tf))}
 
     def slot_of(r, lo: date, hi: date) -> int:
         """Booking month as a position 0-11 in the reporting year: anything
@@ -833,7 +877,7 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
         select(SalesOrderCredit.rep_id, func.sum(SalesOrderCredit.amount_gbp), func.count(func.distinct(SalesOrderCredit.order_id)))
         .join(SalesOrder, SalesOrderCredit.order_id == SalesOrder.id)
         .join(SalesEdition, SalesOrder.edition_id == SalesEdition.id)
-        .where(_in_period(year, financial, start_month), SalesOrder.status == BOOKED)
+        .where(_in_period(year, financial, start_month), SalesOrder.status == BOOKED, tf)
         .group_by(SalesOrderCredit.rep_id)
     ).all()
     reps = {r.id: r for r in db.scalars(select(SalesRep))}
@@ -842,7 +886,7 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
 
     upcoming_eds = db.scalars(select(SalesEdition).where(
         SalesEdition.edition_date >= today, SalesEdition.edition_date <= today + timedelta(days=75),
-        SalesEdition.status == "open").order_by(SalesEdition.edition_date).limit(8)).all() if is_current else []
+        SalesEdition.status == "open", tf).order_by(SalesEdition.edition_date).limit(8)).all() if is_current else []
 
     uninvoiced = [r for r in this if float(r.value_gbp) > 0 and not r.invoice_number]
     return Overview(
@@ -859,9 +903,10 @@ def overview(year: int | None = None, basis: str | None = None, db: Session = De
         renewal_candidates=len(last_clients - back_clients),
         monthly=monthly, by_title=by_title_rows, by_rep=by_rep,
         upcoming=_edition_summaries(db, list(upcoming_eds), today),
-        invoiced_in_year_gbp=invoiced_between(db, p_start, min(p_end, as_of)),
-        invoiced_last_year_same_point_gbp=invoiced_between(db, prev_start, min(prev_end, cutoff_prev)),
-        invoiced_last_year_total_gbp=invoiced_between(db, prev_start, prev_end),
+        invoiced_in_year_gbp=invoiced_between(db, p_start, min(p_end, as_of), title_ids),
+        invoiced_last_year_same_point_gbp=invoiced_between(db, prev_start, min(prev_end, cutoff_prev), title_ids),
+        invoiced_last_year_total_gbp=invoiced_between(db, prev_start, prev_end, title_ids),
+        title_ids=title_ids, my_title_ids=mine,
     )
 
 

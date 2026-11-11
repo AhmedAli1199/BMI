@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Delta, KpiTile } from "@/components/automations/hub-ui";
 import { InfoHint } from "@/components/sales/info-hint";
 import { PaceChart, PaceLegend } from "@/components/sales/pace-chart";
+import { TitleFilter } from "@/components/sales/title-filter";
 import {
   MONTHS_SHORT,
   PaceBar,
@@ -22,19 +23,23 @@ import {
   fyLabel,
 } from "@/components/sales/sales-ui";
 
-export default async function SalesOverviewPage({ searchParams }: { searchParams: Promise<{ year?: string; basis?: string }> }) {
-  const { year: rawYear, basis: rawBasis } = await searchParams;
+export default async function SalesOverviewPage({ searchParams }: { searchParams: Promise<{ year?: string; basis?: string; titles?: string }> }) {
+  const { year: rawYear, basis: rawBasis, titles: rawTitles } = await searchParams;
   const [meta, hidden] = await Promise.all([backendFetch<SalesMeta>("/api/sales/meta"), hiddenSections()]);
   const basis: YearBasis = rawBasis === "calendar" || rawBasis === "financial" ? rawBasis : meta.year_basis;
   const yearParam = Number(rawYear) ? `&year=${Number(rawYear)}` : "";
-  const ov = await backendFetch<SalesOverview>(`/api/sales/overview?basis=${basis}${yearParam}`);
+  const titlesPick = rawTitles && /^(all|mine|[0-9a-f-]{36})$/.test(rawTitles) ? rawTitles : "mine";
+  const ov = await backendFetch<SalesOverview>(`/api/sales/overview?basis=${basis}${yearParam}&titles=${titlesPick}`);
+  const hasMine = ov.my_title_ids.length > 0;
+  const titleChoice = titlesPick === "mine" && !hasMine ? "all" : titlesPick;
+  const titlesParam = rawTitles ? `&titles=${titlesPick}` : "";
   const year = ov.year;
   const fy = ov.basis === "financial";
   const label = ov.label;
   const prevLabel = ov.previous_label;
   const yearWord = fy ? "financial year" : "year";
   const startMonth = MONTHS_SHORT[ov.fy_start_month - 1];
-  const overviewHref = (b: YearBasis, y?: number) => `/sales?basis=${b}${y ? `&year=${y}` : ""}`;
+  const overviewHref = (b: YearBasis, y?: number) => `/sales?basis=${b}${y ? `&year=${y}` : ""}${titlesParam}`;
 
   // Calendar years link to the editions list; financial years filter bookings by edition date.
   const periodQuery = fy ? `edition_from=${ov.period_start}&edition_to=${ov.period_end}` : `year=${year}`;
@@ -55,6 +60,7 @@ export default async function SalesOverviewPage({ searchParams }: { searchParams
         description="BMI's order book - every booking across every title, issue and event, in one place instead of fifteen spreadsheets."
         actions={
           <>
+            <TitleFilter titles={meta.titles.map((t) => ({ id: t.id, name: t.name }))} current={titleChoice} hasMine={hasMine} />
             <YearBasisSwitch current={ov.basis} startMonth={ov.fy_start_month} href={(b) => overviewHref(b)} />
             <YearSwitch
               years={fy ? meta.financial_years : meta.years}
