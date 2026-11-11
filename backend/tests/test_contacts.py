@@ -154,3 +154,19 @@ def test_anything_rule_matches_like_the_quick_search(client):
     assert [i["id"] for i in quick["items"]] == [i["id"] for i in rule["items"]] == [a["id"]]
     fields = {f["key"]: f for f in client.get("/api/contacts/fields").json()}
     assert [o["op"] for o in fields["anything"]["ops"]] == ["contains", "not_contains"]
+
+
+def test_quick_search_finds_names_made_of_digits(client):
+    """Craig's test contacts are called "006 006": searching "006" must find them (feedback #19)."""
+    a = _create_contact(client, first_name="006", last_name="006")
+    found = client.get("/api/contacts", params={"q": "006", "page_size": 10}).json()
+    assert a["id"] in [i["id"] for i in found["items"]]
+
+
+def test_relevance_sort_puts_name_matches_first(client):
+    """A picker search for "006" shows the person called 006 before people whose phone or postcode has 006 in it."""
+    for i in range(12):
+        _create_contact(client, first_name="Aaron", last_name=f"Aardvark{i}", phone=f"0207 006 00{i:02d}")
+    a = _create_contact(client, first_name="006", last_name="Zz006")
+    found = client.get("/api/contacts", params={"q": "006", "page_size": 10, "sort": "relevance"}).json()
+    assert found["items"][0]["id"] == a["id"]

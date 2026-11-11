@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.models import Company, Contact, Email, GroupMembership
 from app.models.contact_channel import Address, Phone
 
-SORTS = ("name", "first_name", "company", "city", "country", "title", "email", "added")
+SORTS = ("relevance", "name", "first_name", "company", "city", "country", "title", "email", "added")
 
 
 @dataclass
@@ -149,6 +149,14 @@ def apply_sort(stmt, f: LookupFilters, company_name_col=None):
         "added": Contact.created_at,
     }.get(f.sort, Contact.last_name)
     first = key.desc().nulls_last() if f.desc else key.asc().nulls_last()
+    if f.sort == "relevance" and f.q and f.q.strip():
+        # Pickers ("Their contact" on a booking): people whose NAME matches come first. A short search like "006"
+        # also matches hundreds of phone numbers and postcodes, which used to push the person off the 10 shown.
+        from sqlalchemy import case
+        q = f.q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        name = func.coalesce(Contact.full_name, func.concat_ws(" ", Contact.first_name, Contact.last_name))
+        rank = case((name.ilike(f"{q}%", escape="\\"), 0), (name.ilike(f"%{q}%", escape="\\"), 1), else_=2)
+        return stmt.order_by(rank, Contact.last_name.asc().nulls_last(), Contact.first_name.asc().nulls_last(), Contact.id)
     return stmt.order_by(first, Contact.last_name.asc().nulls_last(), Contact.first_name.asc().nulls_last(), Contact.id)
 
 

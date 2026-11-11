@@ -175,19 +175,76 @@ const isFeedbackUi = (n: Node) => n instanceof Element && !!n.closest?.("[data-f
 /** A picture of the screen as it is now (without the feedback panel). Falls back to the browser's own
  * screen capture (it asks first) if the page can't be drawn. */
 export async function captureScreen(): Promise<HTMLCanvasElement> {
+  // The app scrolls inside panels, not the window. The drawing library starts every panel at its top, so the
+  // picture showed the top of the page even when someone had scrolled down. Note where each panel is scrolled
+  // to, then shift its contents by that much in the copy that gets drawn - so the picture matches the screen.
+  // When the window itself is scrolled, the whole copy is moved up by that much, and anything pinned to the
+  // screen (the sidebar, the top bar) is moved back down so it stays where it is on screen.
+  const shift = window.scrollY || window.scrollX ? { x: window.scrollX, y: window.scrollY } : null;
+  const scrolled: HTMLElement[] = [];
+  document.querySelectorAll<HTMLElement>("body *").forEach((el) => {
+    if (isFeedbackUi(el)) return;
+    if (el.scrollTop > 0 || el.scrollLeft > 0) {
+      el.setAttribute("data-snap-scroll", `${el.scrollLeft},${el.scrollTop},${el.clientHeight},${el.clientWidth}`);
+      scrolled.push(el);
+    }
+    if (!shift) return;
+    const pos = getComputedStyle(el).position;
+    if (pos !== "fixed" && pos !== "sticky") return;
+    const now = el.getBoundingClientRect();
+    let dx = shift.x, dy = shift.y;   // fixed: undo the whole page's move
+    if (pos === "sticky") {          // sticky: from where it would sit unstuck to where it is on screen now
+      const before = el.style.position;
+      el.style.position = "relative";
+      const natural = el.getBoundingClientRect();
+      el.style.position = before;
+      dx = now.left - natural.left;
+      dy = now.top - natural.top;
+    }
+    if (dx || dy) {
+      el.setAttribute("data-snap-pin", `${dx},${dy}`);
+      scrolled.push(el);
+    }
+  });
   try {
     const { domToCanvas } = await import("modern-screenshot");
     const canvas = await domToCanvas(document.body, {
       width: innerWidth, height: innerHeight, scale: Math.min(2, devicePixelRatio || 1),
       backgroundColor: getComputedStyle(document.body).backgroundColor,
       filter: (n) => !isFeedbackUi(n),
-      features: { restoreScrollPosition: true },
+      features: { restoreScrollPosition: false },
+      style: shift ? { transform: `translate(${-shift.x}px, ${-shift.y}px)` } : undefined,
+      onCloneEachNode: (cloned) => {
+        if (!(cloned instanceof HTMLElement)) return;
+        const pin = cloned.getAttribute("data-snap-pin");
+        if (pin) {
+          cloned.removeAttribute("data-snap-pin");
+          const [dx, dy] = pin.split(",").map(Number);
+          const t = cloned.style.transform && cloned.style.transform !== "none" ? ` ${cloned.style.transform}` : "";
+          cloned.style.setProperty("transform", `translate(${dx}px, ${dy}px)${t}`, "important");
+        }
+        const mark = cloned.getAttribute("data-snap-scroll");
+        if (!mark) return;
+        cloned.removeAttribute("data-snap-scroll");
+        const [left, top, h, w] = mark.split(",").map(Number);
+        cloned.style.setProperty("height", `${h}px`, "important");
+        cloned.style.setProperty("max-height", `${h}px`, "important");
+        cloned.style.setProperty("width", `${w}px`, "important");
+        cloned.style.setProperty("overflow", "hidden", "important");
+        for (const child of Array.from(cloned.children)) {
+          if (!(child instanceof HTMLElement)) continue;
+          const t = child.style.transform && child.style.transform !== "none" ? ` ${child.style.transform}` : "";
+          child.style.setProperty("transform", `translate(${-left}px, ${-top}px)${t}`, "important");
+        }
+      },
       timeout: 15000,
     });
     if (canvas.width > 0) return canvas;
     throw new Error("empty");
   } catch {
     return captureWithBrowser();
+  } finally {
+    scrolled.forEach((el) => { el.removeAttribute("data-snap-scroll"); el.removeAttribute("data-snap-pin"); });
   }
 }
 

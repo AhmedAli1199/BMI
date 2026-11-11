@@ -614,7 +614,7 @@ export async function listGroupsForDatabase(source_db: string): Promise<GroupLis
 export async function searchContacts(q: string): Promise<ContactListItem[]> {
   if (!q.trim()) return [];
   const page = await backendFetch<Page<ContactListItem>>(
-    `/api/contacts?${new URLSearchParams({ q, page_size: "10" })}`
+    `/api/contacts?${new URLSearchParams({ q, page_size: "10", sort: "relevance" })}`
   );
   return page.items;
 }

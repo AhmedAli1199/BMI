@@ -50,25 +50,31 @@ Adds another item card, using the same title as the last one.
 The magazine or event the item is for. Changing it clears the rate card choice and the issues.
 
 ### From the rate card
-Pick a product from this year's, last year's or next year's rate card for that title. It fills in the description, **Rate card price** and **Price each**. If the title has nothing on the rate card, type the item yourself.
+Pick a product from this year's, last year's or next year's rate card for that title. It fills in the description, **Price each** and the **Full price** under **Discount**. If the title has nothing on the rate card, type the item yourself.
 
 ### What it is, as it should read on the confirmation
 The wording printed on the confirmation, for example "Full page advert" or "Solus html email".
 
-### Size code
-The order register's shorthand (FP, DPS, 1/2). It counts the pages in the issue.
+### Ad size
+Short form, for example FP (full page), DPS (double page), 1/2 or 1/4. It counts the pages in the issue.
 
-### Each time
-How many of it in each issue or month, for example 4 weekly banners in a month.
+### No. of insertions
+How many times it runs in each issue or month, for example 4 weekly banners in a month.
 
-### Price each (£) and % off this item
-Shown when each item has its own price. The price is per insertion. The % comes off this item only. An amber "N% below rate card" appears when the price is under the rate card price.
+### Price each (£)
+Shown when each item has its own price. The price is per insertion, in pounds. To invoice in euros or US dollars, choose it under **Invoice in**. An amber "N% below rate card" appears when the price is under the full price.
 
 ### This line's share of the package (£)
 Shown only with a package price shared by "I'll type each line's share".
 
-### Rate card price (£)
-Optional. Used to show how far below rate card the booking is, to share a package by value, and to print "usual rate" or "normally £X" on the confirmation.
+### Discount
+Click **Discount** on an item to open it. It opens by itself when the item has a discount.
+
+### % off this item
+Under **Discount**. The % comes off this item only.
+
+### Full price (£)
+Under **Discount**. Filled in when you pick from the rate card; only type it for something not on the rate card. Optional. Used to show how far below rate card the booking is, to share a package by value, and to print "usual rate" or "normally £X" on the confirmation.
 
 ### Free - added value
 Tick for an item given free. It is a £0 item and prints as "Added value - normally £X each" if it has a rate card price. The card gets a dashed border.
@@ -180,7 +186,7 @@ Goes back without saving.
 
 ## How it works
 - Each row under "Runs in" becomes one item on the order register in that issue. Commission is earned item by item, when each one runs.
-- Pricing order: item price times "Each time", less the item's % off (or the package price shared out); then the % off the whole booking; then the agency's commission. Pennies are put on the biggest item so the items always add up exactly to the total.
+- Pricing order: item price times "No. of insertions", less the item's % off (or the package price shared out); then the % off the whole booking; then the agency's commission. Pennies are put on the biggest item so the items always add up exactly to the total.
 - With "I'll type each line's share", if the shares don't add up to the package price they are scaled to fit and a warning says so.
 - Changing a booking: an item that's already invoiced and is taken off is marked cancelled, not deleted. You'll see a note saying so.
 - Saving a new booking tells Accounts (a note on their bell, and the confirmation emailed to the Accounts addresses), if that setting is on.
@@ -203,7 +209,7 @@ A: Under **Runs in**, press **To be allocated** for each one and set **Decide th
 A: Press **Confirm the booking** when the client has said yes. Press **Pencil it in** to hold the space while they decide. You can confirm it later from the booking page.
 
 **Q: How do I give something free?**
-A: Tick **Free - added value** on that item. Fill in **Rate card price** so the confirmation shows what it's normally worth.
+A: Tick **Free - added value** on that item. Fill in **Full price** under **Discount** so the confirmation shows what it's normally worth.
 
 **Q: How do I invoice in euros?**
 A: Set **Invoice in** to **Euros (EUR)**. Keep prices in pounds; Accounts invoice in euros.

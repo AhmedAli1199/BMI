@@ -276,23 +276,32 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                     <Input value={l.description} onChange={(e) => updLine(l.key, { description: e.target.value })} placeholder="e.g. Full page advert, Solus html email, Sponsored Q&A" className="h-8 text-sm" />
                   </label>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-                  <label className={labelCls}><span className="flex items-center gap-1">Size code <InfoHint>The order register&apos;s shorthand (FP, DPS, 1/2) - counts the pages in the issue.</InfoHint></span>
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <label className={labelCls}><span className="flex items-center gap-1">Ad size <InfoHint>Short form, e.g. FP (full page), DPS (double page), 1/2 or 1/4. It counts the pages in the issue.</InfoHint></span>
                     <Input value={l.size ?? ""} onChange={(e) => updLine(l.key, { size: e.target.value || null })} placeholder="e.g. FP" className="h-8 text-sm" /></label>
-                  <label className={labelCls}><span className="flex items-center gap-1">Each time <InfoHint>How many of it in each issue or month, e.g. 4 weekly banners in a month.</InfoHint></span>
+                  <label className={labelCls}><span className="flex items-center gap-1">No. of insertions <InfoHint>How many times it runs in each issue or month, e.g. 4 weekly banners in a month. Usually 1.</InfoHint></span>
                     <Input type="number" min={1} value={l.qty} onChange={(e) => updLine(l.key, { qty: Math.max(1, Number(e.target.value) || 1) })} className="h-8 text-sm" /></label>
-                  {f.pricing === "items" && !l.added_value ? <>
-                    <label className={labelCls}>Price each (£)
+                  {f.pricing === "items" && !l.added_value ? (
+                    <label className={`${labelCls} col-span-2`}><span className="flex items-center gap-1">Price each (£) <InfoHint>Enter prices in pounds. To invoice in euros or US dollars, choose it under Invoice in, further down.</InfoHint></span>
                       <Input inputMode="decimal" value={l.unit_price ?? ""} onChange={(e) => updLine(l.key, { unit_price: num(e.target.value) })} className="h-8 text-sm" /></label>
-                    <label className={labelCls}>% off this item
-                      <Input inputMode="decimal" value={pct(l.discount_pct)} onChange={(e) => updLine(l.key, { discount_pct: fromPct(e.target.value) })} placeholder="0" className="h-8 text-sm" /></label>
-                  </> : showShares && !l.added_value ? (
+                  ) : showShares && !l.added_value ? (
                     <label className={`${labelCls} col-span-2`}>This line&apos;s share of the package (£)
                       <Input inputMode="decimal" value={l.share_gbp ?? ""} onChange={(e) => updLine(l.key, { share_gbp: num(e.target.value) })} className="h-8 text-sm" /></label>
                   ) : <div className="col-span-2" />}
-                  <label className={labelCls}>Rate card price (£)
-                    <Input inputMode="decimal" value={l.list_price ?? ""} onChange={(e) => updLine(l.key, { list_price: num(e.target.value) })} placeholder="optional" className="h-8 text-sm" /></label>
                 </div>
+                <details className="group mt-2 rounded-md border border-border/70 px-3 py-1.5" open={!!l.discount_pct || undefined}>
+                  <summary className="cursor-pointer select-none text-xs font-semibold text-muted-foreground">
+                    Discount{l.discount_pct ? ` · ${pct(l.discount_pct)}% off` : ""}
+                  </summary>
+                  <div className="mt-2 grid grid-cols-2 gap-3 pb-1 sm:grid-cols-4">
+                    {f.pricing === "items" && !l.added_value && (
+                      <label className={labelCls}>% off this item
+                        <Input inputMode="decimal" value={pct(l.discount_pct)} onChange={(e) => updLine(l.key, { discount_pct: fromPct(e.target.value) })} placeholder="0" className="h-8 text-sm" /></label>
+                    )}
+                    <label className={labelCls}><span className="flex items-center gap-1">Full price (£) <InfoHint>Filled in when you pick from the rate card. Only change it for something not on the rate card, so the confirmation can show the saving.</InfoHint></span>
+                      <Input inputMode="decimal" value={l.list_price ?? ""} onChange={(e) => updLine(l.key, { list_price: num(e.target.value) })} placeholder="optional" className="h-8 text-sm" /></label>
+                  </div>
+                </details>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                   <label className="flex items-center gap-1.5 font-semibold">
                     <input type="checkbox" checked={l.added_value} onChange={(e) => updLine(l.key, { added_value: e.target.checked })} />
