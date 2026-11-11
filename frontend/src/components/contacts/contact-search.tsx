@@ -9,15 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/sales/info-hint";
 
-/** The Contacts lookup (Craig, feedback #14): two ways to search, one at a time.
- * - Quick search: the boxes (anything, company, town, country, job title).
- * - Advanced search: rule lines (field / how / value), starting on Email (any) contains.
- * Switching from Quick to Advanced turns what was typed into rules, so everything lives in one place.
- * Whatever is filtering the list - from either mode - shows as tags with an X, so nothing is ever hidden. */
+/** The Contacts search (Craig, feedback #14): one search, rule lines for any field.
+ * A new rule starts on Email (any) contains (or the last field used).
+ * Plain-word searches (the top bar, links) arrive as q/company/city... and are turned into rules on arrival.
+ * Whatever is filtering the list shows as tags with an X, so nothing is ever hidden. */
 
 type Quick = { q: string; company: string; city: string; country: string; title: string };
 
-const MODE_KEY = "bmi.contacts.search-mode";
 const LAST_FIELD_KEY = "bmi.contacts.advanced-search.last-field";
 const NO_VALUE = new Set(["is_empty", "is_not_empty", "is_yes", "is_no"]);
 const QUICK_FIELDS: { key: keyof Quick; rule: string; label: string; placeholder: string; aria: string }[] = [
@@ -57,14 +55,8 @@ export function ContactSearch({
   const byKey = (k: string) => fields.find((f) => f.key === k);
   const quickUsed = Object.values(quick).some(Boolean);
 
-  // Mode: what the URL is using, else what this person picked last time.
-  const [mode, setMode] = useState<"quick" | "advanced">(conds.length && !quickUsed ? "advanced" : "quick");
-  useEffect(() => {
-    if (conds.length || quickUsed) return;
-    if (readLS(MODE_KEY) === "advanced") setMode("advanced"); // eslint-disable-line react-hooks/set-state-in-effect -- restoring a saved choice
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // One search (Craig, feedback #14): rule lines for any field. Searches that arrive as plain words (the search box
+  // at the top of the app, "contacts at this company" links) are turned into rules straight away.
   const blankRule = (): SearchCondition => {
     const last = readLS(LAST_FIELD_KEY);
     const f = (last && byKey(last)) || byKey("email") || fields[0];
@@ -73,9 +65,9 @@ export function ContactSearch({
   const [rows, setRows] = useState<SearchCondition[]>(conds);
   const [match, setMatch] = useState(initialMatch === "any" ? "any" : "all");
   useEffect(() => {
-    setRows(conds.length ? conds : mode === "advanced" && fields.length ? [blankRule()] : []); // eslint-disable-line react-hooks/set-state-in-effect -- following the URL
+    setRows(conds.length ? conds : fields.length ? [blankRule()] : []); // eslint-disable-line react-hooks/set-state-in-effect -- following the URL
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, mode]);
+  }, [params]);
 
   const groups = useMemo(() => {
     const m = new Map<string, ContactField[]>();
@@ -96,20 +88,15 @@ export function ContactSearch({
     return out;
   }
 
-  function switchTo(next: "quick" | "advanced") {
-    if (next === mode) return;
-    writeLS(MODE_KEY, next);
-    if (next === "advanced" && quickUsed) {
-      // What was typed in Quick search carries over as rules.
-      const p = new URLSearchParams(params.toString());
-      for (const k of ["q", "company", "city", "country", "title"]) p.delete(k);
-      p.set("conds", JSON.stringify([...conds, ...quickAsRules()]));
-      setMode("advanced");
-      go(p);
-      return;
-    }
-    setMode(next);
-  }
+  useEffect(() => {
+    if (!quickUsed) return;
+    const p = new URLSearchParams(params.toString());
+    for (const k of ["q", "company", "city", "country", "title"]) p.delete(k);
+    p.set("conds", JSON.stringify([...conds, ...quickAsRules()]));
+    p.delete("page");
+    router.replace(`${pathname}?${p}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickUsed, params]);
 
   function change(i: number, patch: Partial<SearchCondition>) {
     setRows(rows.map((r, j) => {
@@ -150,9 +137,6 @@ export function ContactSearch({
     go(p);
   }
 
-  const tabCls = (on: boolean) =>
-    `inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors ${on ? "bg-card text-foreground shadow-2xs ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`;
-  const inputCls = "h-8 text-xs";
 
   return (
     <form action="/contacts" className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-2xs">
@@ -160,41 +144,15 @@ export function ContactSearch({
       {desc && <input type="hidden" name="desc" value="1" />}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="How to search" className="inline-flex gap-1 rounded-lg bg-muted p-0.5">
-          <button type="button" role="tab" aria-selected={mode === "quick"} className={tabCls(mode === "quick")} onClick={() => switchTo("quick")}>
-            <Search className="size-3.5" /> Quick search
-          </button>
-          <button type="button" role="tab" aria-selected={mode === "advanced"} className={tabCls(mode === "advanced")} onClick={() => switchTo("advanced")}>
-            <SlidersHorizontal className="size-3.5" /> Advanced search
-          </button>
-        </div>
+        <span className="inline-flex items-center gap-1.5 text-sm font-bold"><SlidersHorizontal className="size-3.5 text-muted-foreground" /> Search</span>
         <InfoHint>
-          <strong>Quick search</strong>: type in any of the boxes - the first one looks in names, job titles, companies, emails, phone
-          numbers, addresses and the extra fields. <strong>Advanced search</strong>: rules for any field, e.g. Email (any) contains
-          onboard. Switching to Advanced turns what you typed into rules. Everything that&apos;s filtering the list shows as a tag below -
-          its X removes it.
+          Pick a field, how to compare and a value, e.g. Email (any) contains onboard. <strong>Anything</strong> looks in names, job
+          titles, companies, emails, phone numbers, addresses and the extra fields. Add more rules to narrow it down. Everything
+          that&apos;s filtering the list shows as a tag below - its X removes it.
         </InfoHint>
       </div>
 
-      {mode === "quick" ? (
-        <>
-          {/* Rules from Advanced search keep applying while you use the boxes. */}
-          {conds.length > 0 && <input type="hidden" name="conds" value={JSON.stringify(conds)} />}
-          {conds.length > 0 && initialMatch === "any" && <input type="hidden" name="match" value="any" />}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[2fr_1.3fr_1fr_1fr_1.3fr_auto]">
-            <div className="relative col-span-2 sm:col-span-3 lg:col-span-1">
-              <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
-              <Input name="q" aria-label="Search" placeholder="Name, email, phone, address, company…" defaultValue={quick.q} className={`pl-8 ${inputCls}`} />
-            </div>
-            {QUICK_FIELDS.map((f) => (
-              <Input key={f.key} name={f.key} aria-label={f.aria} placeholder={f.placeholder} defaultValue={quick[f.key]} className={inputCls} />
-            ))}
-            <Button type="submit" size="sm" className="col-span-2 h-8 gap-1.5 sm:col-span-1">
-              <Search className="size-3.5" /> Look up
-            </Button>
-          </div>
-        </>
-      ) : (
+      {(
         <div className="flex flex-col gap-2">
           <input type="hidden" name="conds" value={complete.length ? JSON.stringify(complete) : ""} />
           <input type="hidden" name="match" value={complete.length > 1 && match === "any" ? "any" : ""} />

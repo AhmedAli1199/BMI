@@ -93,5 +93,5 @@ A: No. Only the group and its memberships go. The people stay in the CRM and in 
 - **The group doesn't open ("not found")**: it's outside the databases or group you've been given.
 - **The member count on the group's list is lower than on the group's page**: the Groups list counts people put directly in each group; the group's page, Mail merge and Export also include its sub-groups.
 - **Not everyone is in the table**: members load 200 at a time - press **Show <n> more** below the table.
-- **There's no Bulk update in a group**: bulk update is on the Contacts list. Look the group up there with **Advanced search** (In group), then use **Bulk update**.
+- **There's no Bulk update in a group**: bulk update is on the Contacts list. Look the group up there with **Search** (In group), then use **Bulk update**.
 - **"No members yet"**: nobody is in this group or any of its sub-groups.

@@ -11,7 +11,7 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 ## What you see
 **The list (Contacts)**
 - Header with the number of contacts that match, and the buttons **Import** and **Add contact**. If your access is limited to one group, a line says "Showing <group> only".
-- The lookup box with two ways to search, one at a time: **Quick search** (a search box plus **Company**, **City / town**, **Country** and **Job title** boxes and **Look up**) or **Advanced search** (rule lines and **Look up**), with an ⓘ that explains them. Underneath, **Searching for:** lists everything that's filtering the list as tags, each with an X, and **Clear all**.
+- The **Search** box: rule lines and **Look up**, with an ⓘ that explains them. Underneath, **Searching for:** lists everything that's filtering the list as tags, each with an X, and **Clear all**.
 - A bar "With these <n> contacts:" and the buttons **Copy emails**, **Bulk update**, **Export** and **Mail merge**, which work on everyone the lookup found.
 - The table: tick box, **Contact & Title**, **Company**, **Location**, **Email** and **Publication** (a coloured badge for the database the person belongs to). 50 a page, with **← Previous** and **Next →** at the bottom.
 
@@ -21,27 +21,18 @@ Contacts is BMI's address book: every person in every title's database. Use the 
 - An amber strip with your own open reminders about this person (red once overdue).
 - **Contact details** in three columns (empty fields are hidden until you press **Edit Record**): Business Card (company, title, department, up to two phone numbers each labelled with its type, such as Business or Mobile, and e-mail), Address & Web (the address and the company's website), and Status & Activity (ID/Status, Referred By, Birthdate, and the dates of the last meeting, reach, attempt and letter).
 - **History of changes** (closed until you click it).
-- **More details** in the same card: every extra field from Act!, yes/no ones as tick boxes.
+- **Extra details (from Act!)** in the same card: the extra fields brought over from Act!, yes/no ones as tick boxes. Only filled-in fields and ticked boxes show until you press **Edit Record**.
 - Tabs: **Notes (<n>)** (everything about the contact in one list) and **Groups (<n>)**, with a search box for the notes.
 
 ## Buttons and controls
 
-### Quick search, Advanced search
-Two ways to search; pick one with the switch at the top of the lookup box. The app remembers which one you used last, so it opens that way next time.
+### Search
+One search for everything: rules of the form field / how / value, with **Look up** to run them, for example Email (any) **contains** onboard, or Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
 
-### Search box ("Name, email, phone, address, company…")
-Type several words in any order. Every word must appear somewhere: name, job title, department, category, company, email, phone (digits alone work, so "020 7946" finds "+44 (0)20 7946..."), any address line or postcode, or a custom field. Only the first six words count. Notes are not searched here; use **Advanced search** for that.
-
-### Company, City / town, Country, Job title (Quick search)
-Each one narrows the list further ("contains"). Press **Look up** to run the search.
-
-### Advanced search
-Rules of the form field / how / value, with **Look up** to run them, for example Postcode **starts with** SW1. A new rule starts on **Email (any)** **contains**, ready to type into; once you've picked a different field, new rules start on the field you used last. **Add a rule** adds another; the bin (**Remove this rule**) takes one away. With two or more rules, choose **all of these rules** or **any one of these rules**. Press **Look up** to apply. Active rules show as chips; the X on a chip removes that rule. You can search names, job details, company, any email, phone or address, notes, the group someone is in, status flags (unsubscribed, bounced, private), dates (added, last emailed, last met, birthday) and every Act! custom field.
-
-Switching from Quick search to Advanced search turns what you typed into rules: the search box becomes **Anything (name, email, company…) contains …** and the other boxes become Company, City / town, Country or Job title rules. Rules keep applying if you switch back to Quick search.
+**Anything (name, email, company…) contains** looks everywhere at once: name, job title, department, category, company, email, phone (digits alone work, so "020 7946" finds "+44 (0)20 7946..."), any address line or postcode, or a custom field. A search typed in the box at the top of the app, or a "contacts at this company" link, arrives as rules like these.
 
 ### Searching for (tags), Clear all
-Everything that's filtering the list - from either mode - shows as a tag, e.g. Search “001” or Email (any) contains “onboard”. The X on a tag removes just that one; **Clear all** starts afresh.
+Everything that's filtering the list shows as a tag, e.g. Email (any) contains “onboard”. The X on a tag removes just that one; **Clear all** starts afresh.
 
 ### You added today
 Contacts you've added (with **Add contact** or **Duplicate**) show in a **You added today** strip above the list, newest first, tagged "new", so you can open one again without searching. Only you see it; it clears when you sign out (or after a day). The X on one hides it from the strip.
@@ -116,8 +107,8 @@ The website of the person's company, if it has one. It opens in a new tab. To op
 ### History of changes
 Shows who changed which field, from what to what, and when (newest first). A change of company shows the company names. Adding, changing or removing a phone number, email or address is listed too.
 
-### More details
-Under the contact's main details, in the same card: every extra field brought over from Act! (and any added since), under its real name once one has been set. Yes/no fields are tick boxes. **Edit Record** lets you change any of them - including empty ones, which are only listed while editing - and **Save Changes** saves them with the rest; each change appears in **History of changes**.
+### Extra details (from Act!)
+Under the contact's main details, in the same card: every extra field brought over from Act! (and any added since), under its real name once one has been set. Yes/no fields are tick boxes (ticked means yes). Until you press **Edit Record** only filled-in fields and ticked boxes show; **Edit Record** lists them all and lets you change any of them, and **Save Changes** saves them with the rest; each change appears in **History of changes**.
 
 ### Notes and Groups (tabs)
 - **Notes**: everything to do with this contact in one list, newest first - notes, mail merges and emails sent, calls, meetings, tasks and other history - with filters **All Activity**, **Calls**, **Meetings**, **Notes**, **Emails** and **Tasks**. Scheduled items say Scheduled (amber) or Done (green). **Add note** at the top: type the note and press **Save note** (or Ctrl+Enter); it's saved with today's date and your name.
@@ -170,7 +161,7 @@ Shows Added, Updated, Left out and Already complete. **See the contacts** opens 
 A: Type "counsellor" in **Job title** and "London" in **City / town**, then press **Look up**.
 
 **Q: How do I search by postcode or something in their notes?**
-A: Press **Advanced search**, pick Postcode (or Notes (text)) in the first box, choose how to compare, type the value and press **Look up**.
+A: In **Search**, pick Postcode (or Notes (text)) in the first box, choose how to compare, type the value and press **Look up**.
 
 **Q: How do I get these people into Excel?**
 A: Run your lookup and press **Export**. To export only some, tick them and press **Export** in the selection bar.

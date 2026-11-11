@@ -17,6 +17,7 @@ import { ReassignContactButton } from "@/components/reassign-contact-button";
 import { ContactDeleteControls } from "@/components/contact-delete-controls";
 import { EmailInUseWarning } from "@/components/email-in-use-warning";
 import { friendlyError } from "@/lib/errors";
+import { InfoHint } from "@/components/sales/info-hint";
 
 function websiteHref(site: string): string {
   return /^https?:\/\//i.test(site) ? site : `https://${site}`;
@@ -704,15 +705,23 @@ export function ActContactCard({
         </div>
 
         {/* More details: every extra field (from Act!), in the same card so nothing needs looking for elsewhere. */}
-        {catalog.length > 0 && (editing || catalog.some((f) => f.kind === "bool" || custom[f.key])) && (
+        {/* Craig (#27): say what these are; when not editing, only filled-in fields and ticked boxes show. */}
+        {catalog.length > 0 && (editing || catalog.some((f) => (f.kind === "bool" ? isYes(custom[f.key] ?? "") : custom[f.key]))) && (
           <div className="flex flex-col gap-2.5 md:col-span-3">
             <div className="border-b pb-1.5 mb-1">
-              <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">More details</span>
+              <span className="inline-flex items-center gap-1 font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
+                Extra details (from Act!)
+                <InfoHint>
+                  The extra fields this contact had in Act!, brought over as they were. A tick box is a yes/no field: ticked means yes.
+                  {editing ? "" : " Only filled-in fields and ticked boxes show here; click Edit Record to see them all."}
+                </InfoHint>
+              </span>
             </div>
             <div className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {catalog.map((f) => {
                 const v = custom[f.key] ?? "";
                 if (f.kind === "bool") {
+                  if (!editing && !isYes(v)) return null;
                   return (
                     <label key={f.key} className={`flex items-center gap-2 ${editing ? "cursor-pointer" : ""}`}>
                       <input

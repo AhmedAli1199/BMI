@@ -138,7 +138,7 @@ export default async function ContactsPage({
         </>}
       />
 
-      {/* Quick search or Advanced search (one at a time), with every active filter shown as a tag. Plain GET form,
+      {/* One search (rule lines), with every active filter shown as a tag. Plain GET form,
           so every lookup is a shareable, bookmarkable URL. */}
       <ContactSearch fields={fields} quick={{ q: q ?? "", ...lookup }} conds={conds} match={match} sort={sort} desc={desc} />
 

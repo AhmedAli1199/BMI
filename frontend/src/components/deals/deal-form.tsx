@@ -395,6 +395,8 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                           {digital && !tba ? (
                             <div className="flex flex-col gap-1">
                               <div className="grid grid-cols-2 gap-2">
+                                <span className="text-[11px] font-semibold text-muted-foreground">From</span>
+                                <span className="text-[11px] font-semibold text-muted-foreground">To</span>
                                 <Input type="date" min="2000-01-01" value={p.item_date ?? ""} aria-label="From" title="The day it starts"
                                   onChange={(e) => { const v = e.target.value || null; const m = monthFor(v); updPlace(l.key, pi, { item_date: v, edition_id: m?.id ?? p.edition_id ?? null, tba: false }); }}
                                   className="h-8 text-xs" />
@@ -402,7 +404,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                                   onChange={(e) => updPlace(l.key, pi, { item_end: e.target.value || null })} className="h-8 text-xs" />
                               </div>
                               <span className="text-[11px] text-muted-foreground">
-                                {!p.item_date ? "From and to dates" : iss ? `Counts in ${iss.label}` : <span style={{ color: "var(--warn)" }}>No month set up for that date yet: add it in Editions</span>}
+                                {!p.item_date ? "The day it starts and the day it ends" : iss ? `Counts in ${iss.label}` : <span style={{ color: "var(--warn)" }}>No month set up for that date yet: add it in Editions</span>}
                               </span>
                             </div>
                           ) : <>
@@ -426,7 +428,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                       );
                     })}
                   </ul>
-                  <p className="px-3 pb-2 text-[11px] text-muted-foreground">{digital ? "Digital runs from one date to another. Copy due is optional." : "Dates are optional: the exact day it runs (if not the issue's date) and when copy is due."}</p>
+                  <p className="px-3 pb-2 text-[11px] text-muted-foreground">{digital ? "Digital runs from one date to another. The third box is when copy is due (optional)." : "Dates are optional: the exact day it runs (if not the issue's date) and when copy is due."}</p>
                   {l.placements.some((p) => p.tba && !p.edition_id) && (
                     <div className="flex flex-wrap items-center gap-2 border-t border-border/70 px-3 py-2 text-xs">
                       <span className="text-muted-foreground">
