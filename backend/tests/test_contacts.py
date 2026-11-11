@@ -170,3 +170,21 @@ def test_relevance_sort_puts_name_matches_first(client):
     a = _create_contact(client, first_name="006", last_name="Zz006")
     found = client.get("/api/contacts", params={"q": "006", "page_size": 10, "sort": "relevance"}).json()
     assert found["items"][0]["id"] == a["id"]
+
+
+def test_company_move_takes_contacts_who_shared_its_address(client):
+    """Craig (#5): contacts with the company's address move with it; people with their own address don't."""
+    co = client.post("/api/companies", json={"name": "Movers Ltd"}).json()
+    addr = client.post(f"/api/companies/{co['id']}/addresses", json={"line1": "1 Old Street", "city": "London", "postal_code": "EC1 1AA"}).json()
+    office = _create_contact(client, first_name="Office", last_name="Person", company_id=co["id"])
+    home = _create_contact(client, first_name="Home", last_name="Worker", company_id=co["id"])
+    client.post(f"/api/contacts/{office['id']}/addresses", json={"line1": "1 old street", "city": "London", "postal_code": "EC11AA"})
+    client.post(f"/api/contacts/{home['id']}/addresses", json={"line1": "5 Home Lane", "city": "Leeds"})
+    r = client.patch(f"/api/companies/{co['id']}/addresses/{addr['id']}", json={"line1": "9 New Road", "city": "Bristol", "postal_code": "BS1 1AA"})
+    assert r.status_code == 200 and r.json()["contacts_moved"] == 1
+    assert client.get(f"/api/contacts/{office['id']}").json()["addresses"][0]["city"] == "Bristol"
+    assert client.get(f"/api/contacts/{home['id']}").json()["addresses"][0]["city"] == "Leeds"
+    # "Use the company's address" on the home worker copies it over
+    r = client.post(f"/api/contacts/{home['id']}/addresses/use-company")
+    assert r.status_code == 200 and r.json()["line1"] == "9 New Road"
+    assert len(client.get(f"/api/contacts/{home['id']}").json()["addresses"]) == 1

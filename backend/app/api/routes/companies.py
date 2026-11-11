@@ -411,8 +411,16 @@ def update_company_address(
     company_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db),
     identity: Identity = Depends(get_identity),
 ) -> AddressOut:
+    from app.services.shared_address import move_contacts_with_company, snapshot
+
     _require_company(db, company_id)
-    return AddressOut.model_validate(update_channel(db, Address, "company_id", company_id, address_id, payload, identity.user_uuid))
+    row = db.get(Address, address_id)
+    old = snapshot(row) if row and row.company_id == company_id else {}
+    row = update_channel(db, Address, "company_id", company_id, address_id, payload, identity.user_uuid)
+    moved = move_contacts_with_company(db, company_id, old, row, identity.user_uuid)   # people who shared the old address
+    if moved:
+        db.commit()
+    return AddressOut.model_validate(row).model_copy(update={"contacts_moved": moved})
 
 
 @router.delete("/{company_id}/addresses/{address_id}", status_code=204, response_model=None)

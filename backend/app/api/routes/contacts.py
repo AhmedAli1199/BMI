@@ -460,6 +460,23 @@ def add_contact_address(
     return AddressOut.model_validate(create_channel(db, Address, "contact_id", contact_id, payload, identity.user_uuid))
 
 
+@router.post("/{contact_id}/addresses/use-company", response_model=AddressOut)
+def use_company_address(
+    contact_id: uuid.UUID, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)
+) -> AddressOut:
+    """'Use the company's address': copies the company's address onto this contact (their main address)."""
+    from app.services.shared_address import use_company_address as copy_it
+
+    _require_contact(db, contact_id)
+    contact = db.get(Contact, contact_id)
+    row = copy_it(db, contact, identity.user_uuid)
+    if not row:
+        raise HTTPException(422, "Their company has no address yet. Add it on the company first.")
+    db.commit()
+    db.refresh(row)
+    return AddressOut.model_validate(row)
+
+
 @router.patch("/{contact_id}/addresses/{address_id}", response_model=AddressOut)
 def update_contact_address(
     contact_id: uuid.UUID, address_id: uuid.UUID, payload: AddressWrite, db: Session = Depends(get_db),

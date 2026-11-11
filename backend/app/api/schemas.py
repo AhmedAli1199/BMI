@@ -77,6 +77,7 @@ class AddressOut(BaseModel):
     state: str | None = None
     postal_code: str | None = None
     country: str | None = None
+    contacts_moved: int | None = None   # set when a company's address changed: contacts who shared it moved too
 
 
 class PhoneOut(BaseModel):

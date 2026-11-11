@@ -54,7 +54,7 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
   function handleSave() {
     startTransition(async () => {
       try {
-        await Promise.all([
+        const results = await Promise.all([
           updateCompany(company.id, {
             name,
             industry,
@@ -87,7 +87,8 @@ export function ActCompanyCard({ company }: { company: CompanyDetail }) {
               })
             : Promise.resolve(),
         ]);
-        toast.success("Company record updated");
+        const moved = typeof results[3] === "number" ? results[3] : 0;
+        toast.success(moved ? `Company record updated. ${moved} ${moved === 1 ? "contact" : "contacts"} with the old company address moved with it.` : "Company record updated");
         setEditing(false);
       } catch (e) {
         toast.error(friendlyError(e, "We couldn't save your changes. Please try again."));

@@ -417,8 +417,23 @@ export async function removeCompanyPhone(companyId: string, channelId: string) {
   return removeChannel("companies", "phones", companyId, channelId);
 }
 
-export async function saveCompanyAddress(companyId: string, channelId: string | undefined, input: AddressInput) {
-  return saveChannel("companies", "addresses", companyId, channelId, input);
+/** Saves a company's address. Returns how many contacts moved with it (those whose address was the company's old one). */
+export async function saveCompanyAddress(companyId: string, channelId: string | undefined, input: AddressInput): Promise<number> {
+  const out = await backendFetch<{ contacts_moved?: number | null }>(channelPath("companies", "addresses", companyId, channelId), {
+    method: channelId ? "PATCH" : "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  revalidatePath(`/companies/${companyId}`);
+  return out?.contacts_moved ?? 0;
+}
+
+/** The company's main address, for "Use the company's address" on a contact. Null when it has none. */
+export async function companyAddress(companyId: string): Promise<AddressInput | null> {
+  const c = await backendFetch<{ addresses: (AddressInput & { is_primary?: boolean })[] }>(`/api/companies/${companyId}`);
+  const a = c.addresses?.[0];
+  if (!a || ![a.line1, a.line2, a.city, a.state, a.postal_code, a.country].some((v) => v && String(v).trim())) return null;
+  return { type_label: a.type_label, line1: a.line1, line2: a.line2, city: a.city, state: a.state, postal_code: a.postal_code, country: a.country };
 }
 export async function removeCompanyAddress(companyId: string, channelId: string) {
   return removeChannel("companies", "addresses", companyId, channelId);

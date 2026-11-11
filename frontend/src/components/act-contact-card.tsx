@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EntityPicker } from "@/components/entity-picker";
-import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, createCompany, searchCompaniesWithSimilar, similarCompanies } from "@/lib/actions";
+import { updateContact, saveContactPhone, saveContactEmail, saveContactAddress, companyAddress, createCompany, searchCompaniesWithSimilar, similarCompanies } from "@/lib/actions";
 import { ReassignContactButton } from "@/components/reassign-contact-button";
 import { ContactDeleteControls } from "@/components/contact-delete-controls";
 import { EmailInUseWarning } from "@/components/email-in-use-warning";
@@ -175,6 +175,28 @@ export function ActContactCard({
         toast.error(friendlyError(e, "We couldn't save your changes. Please try again."));
       }
     });
+  }
+
+  // For office-based people: fill the address from their company (still changeable before saving). A company's
+  // address is for invoicing, so it's never copied without asking; people at home keep their own.
+  async function useCompanyAddress() {
+    if (!company) return;
+    try {
+      const a = await companyAddress(company.id);
+      if (!a) {
+        toast.error("Their company has no address yet. Add it on the company first.");
+        return;
+      }
+      setAddrLine1(a.line1 ?? "");
+      setAddrLine2(a.line2 ?? "");
+      setAddrCity(a.city ?? "");
+      setAddrState(a.state ?? "");
+      setAddrPostal(a.postal_code ?? "");
+      setAddrCountry(a.country ?? "");
+      toast.success("Filled in from the company. Click Save changes to keep it.");
+    } catch (e) {
+      toast.error(friendlyError(e, "Couldn't get the company's address. Try again."));
+    }
   }
 
   function handleCancel() {
@@ -490,6 +512,11 @@ export function ActContactCard({
             <span className="font-bold text-[11px] uppercase tracking-wider text-muted-foreground">
               Address &amp; Web
             </span>
+            {editing && company && (
+              <button type="button" className="text-[11px] font-semibold text-primary hover:underline" onClick={useCompanyAddress}>
+                Use the company&apos;s address
+              </button>
+            )}
           </div>
 
           <div className={editing ? ROW : ROW_VIEW}>
