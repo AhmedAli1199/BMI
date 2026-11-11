@@ -184,6 +184,12 @@ Shown instead of Save changes when Accounts have checked the booking and you are
 ### Cancel
 Goes back without saving.
 
+### Carry on with it
+Shown at the top of New booking when you left a booking unfinished (for example you went to look at a contact and came back). It puts back everything you had typed. Unfinished bookings are kept in this browser on this computer only, until you create the booking or press **Cancel**.
+
+### Start a new one
+Next to **Carry on with it**: throws the unfinished booking away and gives you an empty form.
+
 ## How it works
 - Each row under "Runs in" becomes one item on the order register in that issue. Commission is earned item by item, when each one runs.
 - Pricing order: item price times "No. of insertions", less the item's % off (or the package price shared out); then the % off the whole booking; then the agency's commission. Pennies are put on the biggest item so the items always add up exactly to the total.

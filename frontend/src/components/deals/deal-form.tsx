@@ -36,6 +36,8 @@ function blankLine(titleId: string | null): Line {
     discount_pct: 0, added_value: false, share_gbp: null, placements: [{}] };
 }
 
+const DRAFT_KEY = "bmi:new-booking-draft";
+
 export function DealForm({ dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId, requestChange = false, handoffRoutes, productionEmails = "" }: {
   /** The hand-off routing table (Bookings > Hand-offs), for the addresses each item suggests. */
   handoffRoutes?: HandoffRoutes;
@@ -65,6 +67,49 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
   // "" = not chosen yet; "house" = deliberately nobody (no commission)
   const [repPick, setRepPick] = useState<string>(() => initial.rep_id ?? myRepId ?? (dealId ? "house" : ""));
   const set = <K extends keyof DealInput>(k: K, v: DealInput[K]) => setF((x) => ({ ...x, [k]: v }));
+
+  // A new booking that isn't finished is kept in this browser as you type (Craig, feedback #21), so going to
+  // another page and coming back doesn't lose it. Coming back offers to carry on; creating the booking clears it.
+  const [draft, setDraft] = useState<{ savedAt: string; f: DealInput; lines: Line[]; company: Option | null; contact: Option | null } | null>(null);
+  const draftReady = useRef(!!dealId);
+  useEffect(() => {
+    if (dealId) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      const d = raw ? JSON.parse(raw) : null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from the browser after the page loads
+      if (d?.f && Array.isArray(d.lines)) setDraft(d);
+      else draftReady.current = true;
+    } catch { draftReady.current = true; }
+  }, [dealId]);
+  useEffect(() => {
+    if (dealId || !draftReady.current) return;
+    const t = setTimeout(() => {
+      const touched = !!(f.company_id || f.client_name || f.contact_name || lines.some((l) => l.title_id || l.description || l.unit_price));
+      try {
+        if (touched) localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: new Date().toISOString(), f, lines, company, contact }));
+      } catch { /* the browser won't keep it - nothing to do */ }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [dealId, f, lines, company, contact]);
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* fine */ }
+  }
+  function carryOn() {
+    if (!draft) return;
+    setF(draft.f);
+    setLines(draft.lines.map((l) => ({ ...l, key: l.key ?? newKey() })));
+    setCompany(draft.company);
+    setContact(draft.contact);
+    setRepPick(draft.f.rep_id ?? "");
+    setDraft(null);
+    draftReady.current = true;
+  }
+  function startAfresh() {
+    clearDraft();
+    setDraft(null);
+    draftReady.current = true;
+  }
 
   // Each title's issues, months and events (with deadlines), loaded once per title.
   const wanted = useMemo(() => [...new Set(lines.map((l) => l.title_id).filter(Boolean) as string[])], [lines]);
@@ -174,6 +219,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
         }
         const d = dealId ? await updateDeal(dealId, input) : await createDeal(input);
         d.notes?.forEach((n) => toast.info(n));
+        if (!dealId) clearDraft();
         toast.success(dealId ? "Booking saved" : `Booking ${d.number} created`);
         if (!dealId && input.status === "confirmed") celebrate(`Booking ${d.number} is confirmed. Next: send the client their confirmation.`);
         router.push(`/sales/deals/${d.id}`);
@@ -189,6 +235,16 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
       <div className="flex min-w-0 flex-col gap-5">
+        {draft && (
+          <div role="status" className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 text-sm">
+            <span className="min-w-0 flex-1">
+              You have a booking you didn&apos;t finish{draft.f.client_name ? ` for ${draft.f.client_name}` : ""}, from{" "}
+              {new Date(draft.savedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.
+            </span>
+            <Button size="sm" onClick={carryOn}>Carry on with it</Button>
+            <Button size="sm" variant="outline" onClick={startAfresh}>Start a new one</Button>
+          </div>
+        )}
         {/* ---- client ---- */}
         <section className={cardCls} aria-labelledby="df-client">
           <h2 id="df-client" className="mb-3 text-sm font-bold">Client</h2>
@@ -493,7 +549,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
               <Button variant="outline" disabled={pending} onClick={() => submit("pencilled")}>Pencil it in</Button>
               <p className="text-[11px] text-muted-foreground">Pencilled bookings hold the space but don&apos;t count in sales figures or commission until they&apos;re confirmed.</p>
             </>}
-            <Button variant="ghost" disabled={pending} onClick={() => router.back()}>Cancel</Button>
+            <Button variant="ghost" disabled={pending} onClick={() => { if (!dealId) clearDraft(); router.back(); }}>Cancel</Button>
           </div>
           <Dialog open={checking} onOpenChange={setChecking}>
             <DialogContent className="sm:max-w-xl">
