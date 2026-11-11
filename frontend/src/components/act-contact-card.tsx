@@ -7,6 +7,7 @@ import { Check, Copy, ExternalLink, Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import type { ContactDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { addRecent } from "@/lib/recent-adds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -307,6 +308,7 @@ export function ActContactCard({
                       return { id: same.id, label: same.name };
                     }
                     const c = await createCompany({ name, source_db: contact.source_db });
+                    addRecent("company", c.id, name);
                     toast.success(`Created the company “${name}”. Save to link it.`);
                     return { id: c.id, label: name };
                   }}

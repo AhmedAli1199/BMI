@@ -6,6 +6,7 @@ import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/errors";
 import { EmailInUseWarning } from "@/components/email-in-use-warning";
+import { addRecent } from "@/lib/recent-adds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,6 +95,7 @@ export function ContactFormDialog({
           toast.success("Contact updated");
         } else {
           const created = await createContact(payload);
+          addRecent("contact", created.id, [firstName.trim(), lastName.trim()].filter(Boolean).join(" "));
           toast.success("Contact added");
           setOpen(false);
           router.push(`/contacts/${created.id}`);
@@ -189,6 +191,7 @@ export function ContactFormDialog({
                       return { id: same.id, label: same.name };
                     }
                     const c = await createCompany({ name, source_db: existing ? undefined : sourceDb || undefined });
+                    addRecent("company", c.id, name);
                     toast.success(`Created the company “${name}”. Save to link it.`);
                     return { id: c.id, label: name };
                   }}

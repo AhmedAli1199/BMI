@@ -33,6 +33,9 @@ Shown when you arrive from **Fix** on the Data Health page, where the list shows
 ### Which title (the switcher at the top of the app)
 To see one database's companies, or all you can see, use the **All Titles** switcher at the top of the app. The choice also applies to Contacts, Groups and Home.
 
+### You added today
+Companies you've added show in a **You added today** strip above the list (newest first, tagged "new"), so you can open one again without searching. Only you see it; it clears when you sign out (or after a day). The X on one hides it from the strip.
+
 ### Add company
 Choose the **Database**, then type **Name**, **Industry**, **Category** and **Website**. **Add company** saves it and opens the new company. The name is required. While you type the name, companies already in the CRM with the same or a close name (e.g. "Acme Travel" and "Acme Travel Ltd") are listed under it, each opening in a new tab so you can check - if yours is a different company, carry on.
 

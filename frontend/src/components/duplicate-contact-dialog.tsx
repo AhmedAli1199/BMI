@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { EmailInUseWarning } from "@/components/email-in-use-warning";
+import { addRecent } from "@/lib/recent-adds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,7 @@ export function DuplicateContactDialog({
           phone: phone.trim() || undefined,
           copy_groups: copyGroups,
         });
+        addRecent("contact", c.id, [first.trim(), last.trim()].filter(Boolean).join(" "));
         toast.success("Contact created from a copy");
         setOpen(false);
         router.push(`/contacts/${c.id}`);

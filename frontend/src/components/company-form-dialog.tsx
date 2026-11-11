@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/errors";
+import { addRecent } from "@/lib/recent-adds";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,6 +75,7 @@ export function CompanyFormDialog({ existing, defaultSourceDb }: { existing?: Ex
           router.refresh();
         } else {
           const created = await createCompany({ name, industry, category, website, source_db: sourceDb });
+          addRecent("company", created.id, name.trim());
           toast.success("Company added");
           setOpen(false);
           router.push(`/companies/${created.id}`);

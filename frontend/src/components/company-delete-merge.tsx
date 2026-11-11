@@ -16,6 +16,7 @@ import {
 import { EntityPicker } from "@/components/entity-picker";
 import { companyUsage, deleteCompanyChoosing, mergeCompany, searchCompaniesWithSimilar } from "@/lib/actions";
 import { friendlyError } from "@/lib/errors";
+import { removeRecent } from "@/lib/recent-adds";
 
 type Usage = { contacts: number; bookings: number; deals: number; proposals: number };
 const plural = (n: number, w: string) => `${n.toLocaleString()} ${w}${n === 1 ? "" : "s"}`;
@@ -42,6 +43,7 @@ export function CompanyDeleteMerge({ companyId, name }: { companyId: string; nam
     start(async () => {
       try {
         const r = await deleteCompanyChoosing(companyId, contacts);
+        removeRecent("company", companyId);
         toast.success(
           `${name} deleted` + (r.contacts_deleted ? ` with ${plural(r.contacts_deleted, "contact")}` : r.contacts_kept ? ` - ${plural(r.contacts_kept, "contact")} kept, now without a company` : "")
         );
@@ -59,6 +61,7 @@ export function CompanyDeleteMerge({ companyId, name }: { companyId: string; nam
     start(async () => {
       try {
         const r = await mergeCompany(companyId, into.id);
+        removeRecent("company", companyId);
         toast.success(`Merged into ${r.into_name}`);
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign(`/companies/${r.into_id}`);

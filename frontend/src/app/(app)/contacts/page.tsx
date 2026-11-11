@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecentlyAdded } from "@/components/recently-added";
 import { Download, Mail, Upload } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { ContactListItem, Page } from "@/lib/types";
@@ -140,6 +141,8 @@ export default async function ContactsPage({
       {/* Quick search or Advanced search (one at a time), with every active filter shown as a tag. Plain GET form,
           so every lookup is a shareable, bookmarkable URL. */}
       <ContactSearch fields={fields} quick={{ q: q ?? "", ...lookup }} conds={conds} match={match} sort={sort} desc={desc} />
+
+      <RecentlyAdded kind="contact" />
 
       {/* What you can do with everyone this lookup found. The title filter is the switcher in the top bar. */}
       <div className="flex flex-wrap items-center gap-2">

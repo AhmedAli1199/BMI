@@ -43,6 +43,9 @@ Switching from Quick search to Advanced search turns what you typed into rules: 
 ### Searching for (tags), Clear all
 Everything that's filtering the list - from either mode - shows as a tag, e.g. Search “001” or Email (any) contains “onboard”. The X on a tag removes just that one; **Clear all** starts afresh.
 
+### You added today
+Contacts you've added (with **Add contact** or **Duplicate**) show in a **You added today** strip above the list, newest first, tagged "new", so you can open one again without searching. Only you see it; it clears when you sign out (or after a day). The X on one hides it from the strip.
+
 ### Coming back to the list
 Contacts remembers how you left it: going back to it (from the sidebar or the record's **Contacts** link) shows the same search, sort and page, scrolled to the contact you last opened, which is briefly highlighted. The X next to **Look up** (**Clear lookup**) starts afresh.
 

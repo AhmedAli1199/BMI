@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RecentlyAdded } from "@/components/recently-added";
 import { backendFetch } from "@/lib/backend";
 import type { CompanyListItem, Page } from "@/lib/types";
 import { getPublicationFilter } from "@/lib/publication";
@@ -89,6 +90,8 @@ export default async function CompaniesPage({
           <CompanyFormDialog defaultSourceDb={source_db} />
         </>}
       />
+
+      <RecentlyAdded kind="company" />
 
       <div className="overflow-hidden rounded-lg border bg-card">
         <Table>
