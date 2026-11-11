@@ -232,6 +232,7 @@ def sync_items(db: Session, deal: SalesDeal, priced: Priced, user_id: uuid.UUID 
             o.added_value = bool(ln.get("added_value"))
             o.value_gbp, o.agency_commission_gbp = p["value_gbp"], (p["agency_gbp"] or None)
             o.item_date = date.fromisoformat(p["item_date"]) if p.get("item_date") else None
+            o.item_end = date.fromisoformat(p["item_end"]) if p.get("item_end") and p.get("item_date") else None
             o.copy_due = date.fromisoformat(p["copy_due"]) if p.get("copy_due") else None
             o.notes = (p.get("note") or "").strip() or None
             # A confirmed order doesn't un-cancel an item someone cancelled on its own; everything else follows the order.
@@ -336,7 +337,9 @@ def document(db: Session, deal: SalesDeal) -> dict:
         when = []
         for p in ln["placements"]:
             ed = db.get(SalesEdition, uuid.UUID(str(p["edition_id"]))) if p.get("edition_id") else None
-            if p.get("item_date"):
+            if p.get("item_date") and p.get("item_end"):
+                when.append(f"{_day(date.fromisoformat(p['item_date']))} to {_day(date.fromisoformat(p['item_end']))}")
+            elif p.get("item_date"):
                 when.append(_day(date.fromisoformat(p["item_date"])))
             elif ed:
                 when.append(issue_label(ed))
@@ -589,8 +592,9 @@ def rebook_lines(db: Session, deal: SalesDeal, target_year: int, today: date | N
             item_date = shift_year(date.fromisoformat(p["item_date"])) if p.get("item_date") else None
             if not nxt:
                 notes.append(f"No {target_year} issue yet for {ed.name} - choose one (or plan next year in the editorial plan).")
+            item_end = shift_year(date.fromisoformat(p["item_end"])) if p.get("item_end") else None
             places.append({"edition_id": str(nxt.id) if nxt else None, "item_date": item_date.isoformat() if item_date else None,
-                           "copy_due": None, "note": p.get("note")})
+                           "item_end": item_end.isoformat() if item_end else None, "copy_due": None, "note": p.get("note")})
         new["placements"] = places
         out.append(new)
     return out, notes

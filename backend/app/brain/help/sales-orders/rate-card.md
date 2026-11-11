@@ -22,7 +22,7 @@ The rate card holds every price BMI sells, one page per brand: Onboard Hospitali
 - Jump links to each section, with how many prices each holds, and to Offers.
 - One card per section: Print magazine, Sponsored content, Website, Newsletter & emails, Events & sponsorship, Awards, Directory listings, Other, then any of the brand's own sections. Each price shows its name, size (for example "210 x 297 mm, 3 mm bleed · 2 pages"), specs, "Also:" names, an end date ("Until <date>" in amber, "Ended <date>" in red) and notes. On the right: the price ("£2,990", "From £495", or "On request") with "per month", "per event" and so on underneath.
 - **Offers & discounts**.
-- **Online edition links** (folded away; click to open).
+- **Short codes and online links** (folded away; click to open).
 - **Removed from the rate card (<n>)** at the bottom, if anything was removed.
 
 ## Buttons and controls
@@ -98,8 +98,8 @@ Opens the offer panel (editors only):
 - **How it reads on the rate card and proposals**: written for you from the steps; change it if you like.
 - **More detail (optional)**, then **Save offer**, **Cancel**, or **Delete**.
 
-### Online edition links
-For each title: **Link to a page in an issue** and **Link to an issue**, using {edition}, {year} and {page}. An example of the finished link shows underneath. **Save** appears when you change one. Renewal emails use these to link advertisers to last year's ad. Admins, data managers and the brand's publishers can change them.
+### Short codes and online links
+For each title: **Short code** (BMI's short name, for example OBH or TBTM; the booking form lists issues with it, as in OBH108), **Link to a page in an issue** and **Link to an issue**, using {edition}, {year} and {page}. An example of the finished link shows underneath. **Save** appears when you change one. Renewal emails use these to link advertisers to last year's ad. Admins, data managers and the brand's publishers can change them.
 
 ### Put back (removed products)
 Under "Removed from the rate card", brings a removed product back. Editors only.

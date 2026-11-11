@@ -63,6 +63,7 @@ class TitleOut(BaseModel):
     crm_source_db: str
     digital_page_url: str | None = None
     digital_issue_url: str | None = None
+    code: str | None = None
 
 
 class RepOut(BaseModel):
@@ -82,6 +83,7 @@ class Meta(BaseModel):
     year_basis: str = "calendar"  # the org's default view: calendar | financial
     fy_start_month: int = 7
     my_rep_id: uuid.UUID | None = None
+    my_title_ids: list[uuid.UUID] = []   # the salesperson's own titles - new booking items start on the first
     can_see_all_commission: bool
 
 
@@ -543,7 +545,7 @@ def _f(v) -> float | None:
 
 def _title_out(t: SalesTitle) -> TitleOut:
     return TitleOut(id=t.id, slug=t.slug, name=t.name, product_line=t.product_line, crm_source_db=t.crm_source_db,
-                    digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url)
+                    digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url, code=t.code)
 
 
 def _rep_out(r: SalesRep) -> RepOut:
@@ -721,7 +723,8 @@ def meta(db: Session = Depends(get_db), identity: Identity = Depends(get_identit
     return Meta(titles=[_title_out(t) for t in titles], reps=[_rep_out(r) for r in reps], years=years,
                 financial_years=sorted(fy, reverse=True), year_basis="financial" if financial else "calendar",
                 fy_start_month=start_month,
-                my_rep_id=me.id if me else None, can_see_all_commission=_sees_money(db, identity))
+                my_rep_id=me.id if me else None, can_see_all_commission=_sees_money(db, identity),
+                my_title_ids=my_titles(db, identity.user_uuid))
 
 
 # ---- Overview -----------------------------------------------------------------
@@ -790,7 +793,7 @@ def my_titles(db: Session, user_id: uuid.UUID | None) -> list[uuid.UUID]:
 def overview(year: int | None = None, basis: str | None = None, titles: str | None = None, db: Session = Depends(get_db),
              identity: Identity = Depends(get_identity)) -> Overview:
     """`titles`: "all", "mine" (the default: the salesperson's own titles, else all) or title ids separated by commas."""
-    mine = my_titles(db, identity.user_uuid)
+    mine = my_titles(db, identity.user_uuid) if isinstance(identity, Identity) else []   # None when a report calls it
     if not titles or titles == "mine":
         title_ids = mine
     elif titles == "all":
@@ -1478,6 +1481,7 @@ class RateOut(BaseModel):
 class TitleLinks(BaseModel):
     digital_page_url: str | None = Field(default=None, max_length=500)
     digital_issue_url: str | None = Field(default=None, max_length=500)
+    code: str | None = Field(default=None, max_length=24)   # not sent = leave as it is
 
 
 def _rate_out(r: SalesRate) -> RateOut:
@@ -1556,6 +1560,8 @@ def update_title_links(title_id: uuid.UUID, payload: TitleLinks, db: Session = D
         raise HTTPException(status_code=403, detail="Only admins, data managers and this brand's publishers can change its links.")
     t.digital_page_url = (payload.digital_page_url or "").strip() or None
     t.digital_issue_url = (payload.digital_issue_url or "").strip() or None
+    if "code" in payload.model_fields_set:
+        t.code = (payload.code or "").strip() or None
     db.commit()
     return _title_out(t)
 

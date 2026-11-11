@@ -134,7 +134,7 @@ def build_snapshot(db: Session, today: date) -> dict:
     dashboard and overview pages call, so the two can never disagree."""
     from app.api.routes.sales import dashboard, overview
 
-    ov = overview(year=None, basis=None, db=db)
+    ov = overview(year=None, basis=None, titles="all", db=db, identity=None)
     dash = dashboard(basis=None, db=db)
 
     def booked_between(start: date, end: date) -> tuple[int, float]:

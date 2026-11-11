@@ -14,6 +14,8 @@ in scripts/seed_team.py:
 """
 from __future__ import annotations
 
+from app.sales.title_codes import guess as guess_code
+
 import re
 import uuid
 from dataclasses import dataclass
@@ -108,7 +110,8 @@ def ensure_reference_data(db: Session) -> None:
         row = db.query(SalesTitle).filter_by(slug=t.slug).one_or_none()
         if not row:
             db.add(SalesTitle(id=uuid.uuid4(), slug=t.slug, name=t.name, product_line=t.product_line,
-                              crm_source_db=t.crm_source_db, sort_order=t.sort_order, active=t.active))
+                              crm_source_db=t.crm_source_db, sort_order=t.sort_order, active=t.active,
+                              code=guess_code(t.slug, t.name)))
     for r in REPS:
         row = db.query(SalesRep).filter_by(code=r.code).one_or_none()
         user_id = None

@@ -117,7 +117,7 @@ export async function deleteRate(id: string) {
   revalidatePath("/sales/rate-card");
 }
 
-export async function saveTitleLinks(titleId: string, links: { digital_page_url: string | null; digital_issue_url: string | null }): Promise<SalesTitle> {
+export async function saveTitleLinks(titleId: string, links: { digital_page_url: string | null; digital_issue_url: string | null; code?: string | null }): Promise<SalesTitle> {
   const t = await backendFetch<SalesTitle>(`/api/sales/titles/${titleId}/links`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

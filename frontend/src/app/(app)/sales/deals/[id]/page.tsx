@@ -250,7 +250,7 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         ].filter(Boolean).join("\n")}</Detail>
         {d.xero_contact && <Detail label="Xero contact">{d.xero_contact.name}</Detail>}
         <Detail label="Copy and artwork from">{[d.copy_contact_name, d.copy_contact_email].filter(Boolean).join("\n")}</Detail>
-        <Detail label="Client company">{d.company_id ? <Link href={`/companies/${d.company_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{d.client_name} <ExternalLink className="size-3" aria-hidden="true" /></Link> : d.client_name}</Detail>
+        <Detail label="Company">{d.company_id ? <Link href={`/companies/${d.company_id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">{d.client_name} <ExternalLink className="size-3" aria-hidden="true" /></Link> : d.client_name}</Detail>
         <Detail label="Document">{d.document === "schedule" ? "Schedule of works" : "Order confirmation"}</Detail>
         {(d.special_instructions || d.copy_instructions || d.production_contact) && (
           <div className="sm:col-span-2 lg:col-span-4 grid gap-4 sm:grid-cols-3">

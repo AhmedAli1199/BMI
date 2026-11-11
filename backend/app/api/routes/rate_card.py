@@ -94,6 +94,7 @@ class TitleRef(BaseModel):
     name: str
     digital_page_url: str | None = None
     digital_issue_url: str | None = None
+    code: str | None = None
 
 
 class BrandSummary(BaseModel):
@@ -265,7 +266,7 @@ def brand_page(key: str, year: int | None = None, db: Session = Depends(get_db),
     return BrandPage(
         brand=_summary(db, identity, brand, y), year=y, years=_years(db), sections=sections, offers=[_offer(o) for o in offers],
         archived=[_item(r, titles) for r in rows if r.archived],
-        titles=[TitleRef(id=t.id, slug=t.slug, name=t.name, digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url)
+        titles=[TitleRef(id=t.id, slug=t.slug, name=t.name, digital_page_url=t.digital_page_url, digital_issue_url=t.digital_issue_url, code=t.code)
                 for t in titles.values() if t.active],
         has_next_year=has_next,
         publishers_can_edit=_publishers_can_edit(db),

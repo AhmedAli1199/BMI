@@ -23,7 +23,7 @@ const selectCls = "h-8 w-full min-w-0 truncate rounded-lg border border-input bg
 const labelCls = "flex min-w-0 flex-col gap-1 text-xs font-semibold text-muted-foreground";
 const cardCls = "rounded-xl border border-border/80 bg-card p-4 shadow-2xs";
 
-type Option = { id: string; label: string; sublabel?: string | null };
+type Option = { id: string; label: string; sublabel?: string | null; company_id?: string | null; company_name?: string | null };
 type Line = DealLine & { key: string };
 
 const pct = (v: number) => (v ? String(Math.round(v * 10000) / 100) : "");
@@ -174,6 +174,8 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
     if (!o) return setF((x) => ({ ...x, contact_id: null }));
     setF((x) => ({ ...x, contact_id: o.id, contact_name: o.label }));
     getDealPrefill({ contact_id: o.id }).then((p) => setF((x) => ({ ...x, contact_email: p.contact_email ?? x.contact_email }))).catch(() => undefined);
+    // Their company too (Craig, feedback #24), unless one is already chosen - same as picking it yourself.
+    if (!company && o.company_id) pickCompany({ id: o.company_id, label: o.company_name ?? o.sublabel ?? "" });
   }
   function pickRate(l: Line, rateId: string) {
     const r = rates.find((x) => x.id === rateId);
@@ -247,13 +249,13 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
         )}
         {/* ---- client ---- */}
         <section className={cardCls} aria-labelledby="df-client">
-          <h2 id="df-client" className="mb-3 text-sm font-bold">Client</h2>
+          <h2 id="df-client" className="mb-3 text-sm font-bold">Company</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            <EntityPicker label="Client company" placeholder="Search the CRM…" search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))}
+            <EntityPicker label="Company" placeholder="Search the CRM…" search={async (q) => (await searchCompanies(q)).map((c) => ({ id: c.id, label: c.name, sublabel: c.industry }))}
               value={company} onChange={pickCompany} viewHref={(id) => `/companies/${id}`} />
-            <EntityPicker label="Their contact" placeholder="Search for the contact…" search={async (q) => (await searchContacts(q)).map((c) => ({ id: c.id, label: c.full_name ?? "Unnamed", sublabel: c.company_name }))}
+            <EntityPicker label="Their contact" placeholder="Search for the contact…" search={async (q) => (await searchContacts(q)).map((c) => ({ id: c.id, label: c.full_name ?? "Unnamed", sublabel: c.company_name, company_id: c.company_id, company_name: c.company_name }))}
               value={contact} onChange={pickContact} viewHref={(id) => `/contacts/${id}`} />
-            <label className={labelCls}><span className="flex items-center gap-1">Client name as booked <InfoHint>How it appears on the items and the confirmation. Usually the company name, but can differ (&quot;Brunswick - Delice de France&quot;).</InfoHint></span>
+            <label className={labelCls}><span className="flex items-center gap-1">Company name as booked <InfoHint>How it appears on the items and the confirmation. Usually the company name, but can differ (&quot;Brunswick - Delice de France&quot;).</InfoHint></span>
               <Input value={f.client_name} onChange={(e) => set("client_name", e.target.value)} className="h-8 text-sm" /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className={labelCls}>Contact name<Input value={f.contact_name ?? ""} onChange={(e) => set("contact_name", e.target.value)} className="h-8 text-sm" /></label>
@@ -305,6 +307,10 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
           {lines.map((l, li) => {
             const opts = issues[l.title_id ?? ""] ?? [];
             const titleRates = ratesFor(l.title_id);
+            // Digital publications are booked from one date to another, not by issue (Craig, feedback #26). The item
+            // still files under the month it starts in, so the order register and reports carry on as before.
+            const digital = titles.find((t) => t.id === l.title_id)?.product_line === "digital";
+            const monthFor = (d: string | null | undefined) => (d ? opts.find((o) => o.kind === "month" && o.edition_date?.slice(0, 7) === d.slice(0, 7)) : undefined);
             const pl = totals?.lines?.[li];
             const each = (l.unit_price ?? 0) * l.qty * (1 - l.discount_pct);
             const off = l.list_price && !l.added_value && f.pricing === "items" && l.unit_price != null ? 1 - each / (l.list_price * l.qty) : 0;
@@ -312,7 +318,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
               <article key={l.key} className={`${cardCls} ${l.added_value ? "border-dashed" : ""}`} aria-label={`Item ${li + 1}`}>
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Item {li + 1}{l.added_value ? " · free" : ""}</p>
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-                  <label className={labelCls}>Title
+                  <label className={labelCls}>Publication
                     <select className={selectCls} value={l.title_id ?? ""} onChange={(e) => updLine(l.key, { title_id: e.target.value || null, rate_id: null, placements: [{}] })}>
                       <option value="">Choose…</option>
                       {titles.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -385,14 +391,29 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                       const iss = opts.find((x) => x.id === p.edition_id);
                       const tba = !!p.tba && !p.edition_id;
                       return (
-                        <li key={pi} className="grid items-center gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1.6fr)_8.5rem_8.5rem_minmax(0,1fr)_auto]">
+                        <li key={pi} className={`grid items-center gap-2 px-3 py-2 ${digital && !tba ? "sm:grid-cols-[minmax(0,2fr)_8.5rem_minmax(0,1fr)_auto]" : "sm:grid-cols-[minmax(0,1.6fr)_8.5rem_8.5rem_minmax(0,1fr)_auto]"}`}>
+                          {digital && !tba ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input type="date" min="2000-01-01" value={p.item_date ?? ""} aria-label="From" title="The day it starts"
+                                  onChange={(e) => { const v = e.target.value || null; const m = monthFor(v); updPlace(l.key, pi, { item_date: v, edition_id: m?.id ?? p.edition_id ?? null, tba: false }); }}
+                                  className="h-8 text-xs" />
+                                <Input type="date" min={p.item_date ?? "2000-01-01"} value={p.item_end ?? ""} aria-label="To" title="The day it ends"
+                                  onChange={(e) => updPlace(l.key, pi, { item_end: e.target.value || null })} className="h-8 text-xs" />
+                              </div>
+                              <span className="text-[11px] text-muted-foreground">
+                                {!p.item_date ? "From and to dates" : iss ? `Counts in ${iss.label}` : <span style={{ color: "var(--warn)" }}>No month set up for that date yet: add it in Editions</span>}
+                              </span>
+                            </div>
+                          ) : <>
                           <select className={selectCls} value={tba ? "__tba" : p.edition_id ?? ""} disabled={!l.title_id} aria-label="Issue, month or event"
                             onChange={(e) => updPlace(l.key, pi, e.target.value === "__tba" ? { edition_id: null, tba: true, item_date: null, copy_due: null } : { edition_id: e.target.value || null, tba: false })}>
-                            <option value="">{l.title_id ? (opts.length ? "Choose the issue, month or event…" : "Loading…") : "Choose the title first"}</option>
+                            <option value="">{l.title_id ? (opts.length ? "Choose the issue, month or event…" : "Loading…") : "Pick the publication above first"}</option>
                             <option value="__tba">To be allocated (issue not decided yet)</option>
                             {opts.map((o) => <option key={o.id} value={o.id}>{o.label}{o.edition_date ? ` · ${fmtDate(o.edition_date)}` : ""}{!o.open ? " · deadline passed" : o.ad_deadline ? ` · book by ${fmtDate(o.ad_deadline)}` : ""}</option>)}
                           </select>
                           <Input type="date" min="2000-01-01" value={p.item_date ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { item_date: e.target.value || null })} className="h-8 text-xs" aria-label="Exact date it runs (optional)" title="Exact date it runs, if not the issue's date (an email on 13 May)" />
+                          </>}
                           <Input type="date" min="2000-01-01" value={p.copy_due ?? ""} disabled={tba} onChange={(e) => updPlace(l.key, pi, { copy_due: e.target.value || null })} className="h-8 text-xs" aria-label="Copy due (optional)"
                             title={iss?.copy_deadline ? `Copy due - the issue's copy deadline is ${fmtDate(iss.copy_deadline)}` : "Copy or artwork due (optional)"} />
                           <span className="text-right text-xs tabular-nums text-muted-foreground">
@@ -405,7 +426,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                       );
                     })}
                   </ul>
-                  <p className="px-3 pb-2 text-[11px] text-muted-foreground">Dates are optional: the exact day it runs (if not the issue&apos;s date) and when copy is due.</p>
+                  <p className="px-3 pb-2 text-[11px] text-muted-foreground">{digital ? "Digital runs from one date to another. Copy due is optional." : "Dates are optional: the exact day it runs (if not the issue's date) and when copy is due."}</p>
                   {l.placements.some((p) => p.tba && !p.edition_id) && (
                     <div className="flex flex-wrap items-center gap-2 border-t border-border/70 px-3 py-2 text-xs">
                       <span className="text-muted-foreground">
@@ -558,7 +579,7 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                 <DialogDescription>This is what will be confirmed. Go back to change anything.</DialogDescription>
               </DialogHeader>
               <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto text-sm">
-                <p><span className="text-muted-foreground">Client: </span><strong>{f.client_name || company?.label}</strong>
+                <p><span className="text-muted-foreground">Company: </span><strong>{f.client_name || company?.label}</strong>
                   {f.contact_name ? <span className="text-muted-foreground"> · {f.contact_name}</span> : null}</p>
                 <ol className="flex flex-col gap-2">
                   {lines.map((l, li) => (

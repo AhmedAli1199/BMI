@@ -54,6 +54,8 @@ class SalesTitle(Base, UUIDPk):
     # when the booking's page number is known, else the issue link.
     digital_page_url: Mapped[str | None] = mapped_column(String(500))
     digital_issue_url: Mapped[str | None] = mapped_column(String(500))
+    # BMI's short name for it ("OBH", "TBTM"): issues are listed as "OBH108". See app/sales/title_codes.py.
+    code: Mapped[str | None] = mapped_column(String(24))
 
 
 class SalesRate(Base, UUIDPk, TimestampMixin):
@@ -319,6 +321,7 @@ class SalesOrder(Base, UUIDPk, TimestampMixin):
     # how much of an issue was filled rather than sold.
     filler: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     item_date: Mapped[date | None] = mapped_column(Date, index=True)   # when this item runs, if not the issue's date (an email on 13 May)
+    item_end: Mapped[date | None] = mapped_column(Date)   # digital items that run from item_date to here (11 Nov to 11 Dec)
     copy_due: Mapped[date | None] = mapped_column(Date)                # copy / artwork deadline for this item
     invoice_due_on: Mapped[date | None] = mapped_column(Date)          # accounts' own "remind me on" date (wins over the booking's rule)
 

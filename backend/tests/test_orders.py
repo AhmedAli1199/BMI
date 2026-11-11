@@ -175,7 +175,7 @@ def test_rebook_next_year_moves_items_to_matching_issues(w, client):
                                               "lines": [{"description": "3/4 page column", "unit_price": 2250, "placements": [{"edition_id": str(a.id), "item_date": "2026-06-03"}]}]},
                     headers=w["h"]).json()
     iss = client.get(f"/api/sales/deals/issues?title_id={w['titles']['tbtm'].id}&include={a.id}", headers=w["h"]).json()
-    assert {i["label"] for i in iss} >= {"Summer 2026", "Summer 2027", "Winter 2027"}
+    assert {i["label"] for i in iss} >= {"TBTM Summer 2026", "TBTM Summer 2027", "TBTM Winter 2027"}
     r = client.post(f"/api/sales/deals/{d['id']}/rebook", headers=w["h"]).json()
     assert r["status"] == "pencilled" and r["rebooked_from_number"] == d["number"] and r["document"] == "schedule"
     assert r["schedule"][0]["edition"].endswith("Summer 2027") and r["schedule"][0]["runs_on"] == "2027-06-02"  # same weekday a year on
@@ -265,3 +265,20 @@ def test_reopening_a_cancelled_booking_leaves_kept_items_booked(w, client):
     # and confirming it from there books the rest as usual
     client.post(f"/api/sales/deals/{d['id']}/status", json={"status": "confirmed"}, headers=w["h"])
     assert status() == {"Full page": "booked", "Half page": "booked"}
+
+
+def test_digital_item_runs_from_one_date_to_another(w, client):
+    """Craig (#26): a digital item booked with From and To dates; issues listed with the publication's code (#25)."""
+    nov = w["ed"]("obh-web", "Nov 2026", date(2026, 11, 1), kind="month")
+    issue = w["ed"]("obh", "108", date(2026, 12, 1))
+    labels = {i["id"]: i["label"] for i in client.get(f"/api/sales/deals/issues?title_id={w['titles']['obh'].id}&include={issue.id}", headers=w["h"]).json()}
+    assert labels[str(issue.id)] == "OBH108"
+    body = {"client_name": "Range Co", "rep_id": str(w["reps"]["SP"].id), "booked_on": "2026-11-11", "pricing": "items",
+            "lines": [{"description": "Website banner", "title_id": str(w["titles"]["obh-web"].id), "unit_price": 900,
+                       "placements": [{"edition_id": str(nov.id), "item_date": "2026-11-11", "item_end": "2026-12-11"}]}]}
+    r = client.post("/api/sales/deals", json=body, headers=w["h"])
+    assert r.status_code == 201, r.text
+    o = w["db"].query(SalesOrder).filter_by(deal_id=uuid.UUID(r.json()["id"])).one()
+    assert o.item_date == date(2026, 11, 11) and o.item_end == date(2026, 12, 11) and float(o.value_gbp) == 900
+    doc = client.get(f"/api/sales/deals/{r.json()['id']}/document", headers=w["h"]).json()
+    assert doc["rows"][0]["when"] == ["11th November to 11th December"]

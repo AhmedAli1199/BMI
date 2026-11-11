@@ -4,6 +4,8 @@ export type DealPlacement = {
   order_id?: string | null;
   edition_id?: string | null;
   item_date?: string | null;
+  /** Digital items: runs from item_date to here. */
+  item_end?: string | null;
   copy_due?: string | null;
   note?: string | null;
   booked_on?: string | null;

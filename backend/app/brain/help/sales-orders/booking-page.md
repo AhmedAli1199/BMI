@@ -19,7 +19,7 @@ The booking page shows one booking: what was sold, where each item runs, what it
 - **Totals tiles**: **Booking total** (before VAT), **Agency commission**, **To invoice in all** (total less agency), **Invoiced so far**, **Ready to invoice** (due now and not invoiced) and **Below rate card**.
 - **Schedule**: one row per item, in date order. **Runs** (with "ran" once it's past), **Item** (opens the item in a new tab; "Free" and "cancelled" tags), **Issue, month or event** (opens the issue in a new tab, or "To be allocated"), **Copy due** (amber and bold within 14 days), **Value** (and any agency share), and **Invoice** (the invoice number and its Xero state such as Draft in Xero, Paid, Part paid, Awaiting payment, Overdue, Voided or Not found in Xero; or "Ready to invoice", "Due <date>", "Date not known yet", "Once it's allocated"). Cancelled items are struck through. A badge shows how many are ready to invoice.
 - **Hand-offs to editorial and production**: each item's team, addresses and state: Sent, Didn't go, No address yet, Waiting for the format, Goes after the accounts check, or Ready to send.
-- **Details**: Their contact, Confirmation address, Invoice to, Their order or PO number, Agency, When to invoice (with currency and instructions), Xero contact, Copy and artwork from, Client company (new tab), Document, Special instructions, Copy and artwork, Production contact and Notes for the team.
+- **Details**: Their contact, Confirmation address, Invoice to, Their order or PO number, Agency, When to invoice (with currency and instructions), Xero contact, Copy and artwork from, Company (new tab), Document, Special instructions, Copy and artwork, Production contact and Notes for the team.
 
 ## Buttons and controls
 

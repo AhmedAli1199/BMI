@@ -22,13 +22,13 @@ If you started from a proposal, the description says so and the items, prices an
 
 ## Buttons and controls
 
-### Client company
-Search the CRM for the client's company. Choosing one fills in **Client name as booked**, the confirmation address (from the company's main address), and the invoice details and agency from their last booking. A note then says "Invoice details filled in from their last booking, booking <number>" with a link (opens in a new tab). Check they still apply.
+### Company
+Search the CRM for the client's company. Choosing one fills in **Company name as booked**, the confirmation address (from the company's main address), and the invoice details and agency from their last booking. A note then says "Invoice details filled in from their last booking, booking <number>" with a link (opens in a new tab). Check they still apply.
 
 ### Their contact
-Search for the contact. Choosing one fills in **Contact name** and **Contact email**.
+Search for the contact. Choosing one fills in **Contact name** and **Contact email**. If no company is chosen yet, it also fills in **Company** and **Company name as booked** from the contact's company, with the same details as choosing the company yourself.
 
-### Client name as booked
+### Company name as booked
 How the client appears on the items and the confirmation. Usually the company name, but it can differ (for example "Brunswick - Delice de France").
 
 ### Contact name and Contact email
@@ -46,8 +46,8 @@ Opens **Split of the credit (for commission)**. Choose each salesperson and thei
 ### Add an item
 Adds another item card, using the same title as the last one.
 
-### Title (on each item)
-The magazine or event the item is for. Changing it clears the rate card choice and the issues.
+### Publication (on each item)
+The magazine, digital product or event the item is for. Changing it clears the rate card choice and the issues.
 
 ### From the rate card
 Pick a product from this year's, last year's or next year's rate card for that title. It fills in the description, **Price each** and the **Full price** under **Discount**. If the title has nothing on the rate card, type the item yourself.
@@ -84,7 +84,9 @@ Optional text printed under the line on the confirmation.
 
 ### Runs in
 The list of issues, months or events this item runs in. Each one becomes its own item on the order register. The bin beside a row (**Remove this one**) takes that issue off; an item always keeps at least one.
-- The drop-down lists the title's issues from three months ago onwards, with their date and "book by" deadline. "deadline passed" shows when the advertising deadline has gone.
+- The drop-down lists the publication's issues from three months ago onwards with BMI's short code (for example OBH108), their date and "book by" deadline.
+- **Digital publications** (websites, newsletters) show **From** and **To** dates instead of the drop-down: the day it starts and the day it ends. It counts in the month it starts in ("Counts in OBH Web Nov 2026"); if that month isn't set up yet, add it in Editions. The confirmation prints "11th November to 11th December".
+- A new item starts on your own publication (the one you sell most). "deadline passed" shows when the advertising deadline has gone.
 - The first date box is the exact day it runs, if not the issue's date (for example an email on 13 May).
 - The second date box is when copy or artwork is due. Hover to see the issue's own copy deadline.
 - The value of each one shows on the right.
@@ -244,7 +246,7 @@ A: Save the booking, open it, and in the Schedule click the item's name. On its 
 - **"Choose the date to invoice on, or pick another option for when to invoice."**: fill in **Invoice on**.
 - **"The copy and artwork contact's email doesn't look right."**
 - **"Say why the change is needed - accounts will see it"**: fill in **Why it needs changing**.
-- **The issue drop-down says "Choose the title first"**: pick the item's Title. "Loading..." means its issues are still coming.
+- **The issue drop-down says "Pick the publication above first"**: pick the item's Publication. "Loading..." means its issues are still coming.
 - **I can't find an older issue**: the list only goes back three months.
 - **"Accounts has checked this booking, so changes go to them for approval."**: the booking is locked. Use the request version of the form.
 - **"This booking is cancelled. Reopen it first to change it."**: use **Reopen** on the booking page.

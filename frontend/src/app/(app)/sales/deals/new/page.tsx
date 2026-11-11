@@ -18,6 +18,8 @@ export default async function NewDealPage({ searchParams }: { searchParams: Prom
   const initial: DealInput = {
     ...EMPTY_DEAL, ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v != null)),
     booked_on: new Date().toISOString().slice(0, 10),
+    // A new item starts on the salesperson's own publication (Craig, feedback #25).
+    title_id: rest.title_id ?? meta.my_title_ids?.[0] ?? null,
     lines: (rest.lines ?? []).map((l) => ({ ...l, discount_pct: l.discount_pct ?? 0, added_value: l.added_value ?? false, qty: l.qty ?? 1 })),
   } as DealInput;
   return (

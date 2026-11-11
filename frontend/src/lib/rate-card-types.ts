@@ -23,7 +23,7 @@ export type BrandSummary = {
   key: string; name: string; short: string; website: string; can_edit: boolean; products: number; needs_check: number; on_request: number;
   offers: number; last_updated: string | null; seed_available: number; sections: string[];
 };
-export type BrandTitle = { id: string; slug: string; name: string; digital_page_url: string | null; digital_issue_url: string | null };
+export type BrandTitle = { id: string; slug: string; name: string; digital_page_url: string | null; digital_issue_url: string | null; code?: string | null };
 export type BrandPage = {
   brand: BrandSummary; year: number; years: number[]; sections: RateSection[]; offers: RateOffer[]; archived: RateItem[]; titles: BrandTitle[]; has_next_year: boolean;
   /** "Publishers can change their own prices" (Automations > Settings). */

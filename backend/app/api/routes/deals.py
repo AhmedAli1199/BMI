@@ -42,6 +42,7 @@ class PlacementIn(BaseModel):
     order_id: uuid.UUID | None = None
     edition_id: uuid.UUID | None = None
     item_date: date | None = None
+    item_end: date | None = None   # digital items: runs from item_date to item_end
     copy_due: date | None = None
     note: str | None = Field(default=None, max_length=300)
     booked_on: date | None = None
@@ -526,14 +527,16 @@ def prefill(company_id: uuid.UUID | None = None, contact_id: uuid.UUID | None = 
 def issues(title_id: uuid.UUID, include: list[uuid.UUID] = Query(default=[]), db: Session = Depends(get_db)) -> list[dict]:
     """A title's issues, months and events from three months ago on - what an order's items can go in -
     with the booking and copy deadlines so the salesperson sees what's still open."""
-    from app.sales.editorial import issue_label
+    from app.sales.title_codes import coded_label
     today = date.today()
+    title = db.get(SalesTitle, title_id)
+    code = title.code if title else None
     eds = list(db.scalars(select(SalesEdition).where(SalesEdition.title_id == title_id, or_(SalesEdition.edition_date.is_(None),
                                                      SalesEdition.edition_date >= today - timedelta(days=92)))
                           .order_by(SalesEdition.edition_date.nulls_last(), SalesEdition.name).limit(120)))
     have = {e.id for e in eds}
     eds += [e for e in (db.get(SalesEdition, i) for i in include if i not in have) if e]
-    return [{"id": str(e.id), "label": issue_label(e), "kind": e.kind, "edition_date": e.edition_date.isoformat() if e.edition_date else None,
+    return [{"id": str(e.id), "label": coded_label(code, e.name), "kind": e.kind, "edition_date": e.edition_date.isoformat() if e.edition_date else None,
              "ad_deadline": e.ad_deadline.isoformat() if e.ad_deadline else None, "copy_deadline": e.copy_deadline.isoformat() if e.copy_deadline else None,
              "open": bool((e.ad_deadline or e.edition_date or today) >= today), "status": e.status} for e in eds]
 

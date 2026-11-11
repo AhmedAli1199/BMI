@@ -20,8 +20,9 @@ export function OnlineLinks({ titles, canEdit }: { titles: BrandTitle[]; canEdit
       <details>
         <summary className="flex cursor-pointer items-center gap-1.5 px-4 py-3 text-sm font-bold">
           <Globe className="size-4 text-muted-foreground" aria-hidden="true" />
-          <span id="links-h">Online edition links</span>
+          <span id="links-h">Short codes and online links</span>
           <InfoHint>
+            Short code: BMI&apos;s short name for the publication (OBH, TBTM). The booking form lists issues with it, e.g. OBH108.
             Renewal emails link the advertiser to last year&apos;s ad. Use {"{edition}"} (the edition name, e.g. 105), {"{year}"} and {"{page}"} (the page number from the order register).
             If the page isn&apos;t known the issue link is used; an edition&apos;s own link (set on its page) overrides both.
           </InfoHint>
@@ -40,10 +41,15 @@ function TitleLinks({ title, canEdit }: { title: BrandTitle; canEdit: boolean })
   const [pending, start] = useTransition();
   const [page, setPage] = useState(title.digital_page_url ?? "");
   const [issue, setIssue] = useState(title.digital_issue_url ?? "");
-  const dirty = page !== (title.digital_page_url ?? "") || issue !== (title.digital_issue_url ?? "");
+  const [code, setCode] = useState(title.code ?? "");
+  const dirty = page !== (title.digital_page_url ?? "") || issue !== (title.digital_issue_url ?? "") || code !== (title.code ?? "");
   return (
-    <li className="grid gap-3 px-4 py-3 md:grid-cols-[12rem_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start">
+    <li className="grid gap-3 px-4 py-3 md:grid-cols-[12rem_7rem_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start">
       <p className="text-sm font-semibold">{title.name}</p>
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        Short code
+        <Input value={code} onChange={(e) => setCode(e.target.value)} disabled={!canEdit} maxLength={24} placeholder="e.g. OBH" className="h-8 text-sm" />
+      </label>
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">
         Link to a page in an issue
         <Input value={page} onChange={(e) => setPage(e.target.value)} disabled={!canEdit} placeholder="https://…/{edition}/page/{page}" className="h-8 text-sm" />
@@ -58,8 +64,8 @@ function TitleLinks({ title, canEdit }: { title: BrandTitle; canEdit: boolean })
         {canEdit && dirty && (
           <Button size="sm" disabled={pending} onClick={() => start(async () => {
             try {
-              await saveTitleLinks(title.id, { digital_page_url: page.trim() || null, digital_issue_url: issue.trim() || null });
-              toast.success("Links saved");
+              await saveTitleLinks(title.id, { digital_page_url: page.trim() || null, digital_issue_url: issue.trim() || null, code: code.trim() || null });
+              toast.success("Saved");
               router.refresh();
             } catch (e) { toast.error(friendlyError(e, "Couldn't save the links")); }
           })}>Save</Button>

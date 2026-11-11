@@ -12,6 +12,8 @@ export type SalesTitle = {
   /** Online-edition link templates - {edition}, {year}, {page} placeholders. */
   digital_page_url?: string | null;
   digital_issue_url?: string | null;
+  /** BMI's short name, e.g. OBH, TBTM - issues are listed as OBH108. */
+  code?: string | null;
 };
 
 export type SalesRate = {
@@ -52,6 +54,7 @@ export type SalesMeta = {
   year_basis: YearBasis;
   fy_start_month: number;
   my_rep_id: string | null;
+  my_title_ids?: string[];
   can_see_all_commission: boolean;
 };
 
