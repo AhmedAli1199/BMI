@@ -33,7 +33,7 @@ If you aren't signed in, an amber box says your changes can't be saved.
 - On each row, a pencil button (**Edit**) and a power button (**Disable account** or **Re-enable account**). You don't get a power button on your own row.
 
 ### Sections people see - administrators only
-A table with one row per section of the app, grouped like the menu: **Everyday**, **Clients**, **Sales**, **Editorial**, **Outreach** and **The Brain**. There's a column for **Sales** and one for **Data Manager**, plus a column for each person who has their own choice (marked "just them"). Each cell is a tick box that reads **Shown** or **Hidden**. Automations Hub and Data Health say **Not available** in the Sales column, because Sales users can't open them anyway.
+A table with one row per section of the app, grouped like the menu: **Everyday**, **Clients**, **Outreach**, **Sales**, **Editorial** and **The Brain**. There's a column for **Sales** and one for **Data Manager**, plus a column for each person who has their own choice (marked "just them"). Each cell is a tick box that reads **Shown** or **Hidden**. Automations Hub and Data Health say **Not available** in the Sales column, because Sales users can't open them anyway.
 
 - **The Brain**: **Tips from the Brain** (On / Off) and **Small celebrations** (On / Off). **Take the tour again** (top right of Settings) plays the Brain's welcome tour again from Home.
 

@@ -154,6 +154,17 @@ export function AppSidebar({
           </NavGroup>
         )}
 
+        {/* Outreach straight under Clients: used a lot (Craig, feedback #33). */}
+        {(show("mail_merge") || show("email_templates")) && (
+          <NavGroup label="Outreach">
+            {show("mail_merge") && (
+              <NavItem href="/mail-merge" label="Mail merge" icon={Send}
+                active={pathname.startsWith("/mail-merge") && !pathname.startsWith("/mail-merge/templates")} />
+            )}
+            {show("email_templates") && <NavItem href="/mail-merge/templates" label="Email templates" icon={Mail} active={pathname.startsWith("/mail-merge/templates")} />}
+          </NavGroup>
+        )}
+
         {session && anySales && (
           <NavGroup label="Sales" collapsible>
             {(show("sales_overview") || show("sales_dashboard")) && (
@@ -192,16 +203,6 @@ export function AppSidebar({
         {show("editorial") && (
           <NavGroup label="Editorial">
             <NavItem href="/editorial" label="Editorial plan" icon={CalendarRange} active={pathname.startsWith("/editorial")} />
-          </NavGroup>
-        )}
-
-        {(show("mail_merge") || show("email_templates")) && (
-          <NavGroup label="Outreach">
-            {show("mail_merge") && (
-              <NavItem href="/mail-merge" label="Mail merge" icon={Send}
-                active={pathname.startsWith("/mail-merge") && !pathname.startsWith("/mail-merge/templates")} />
-            )}
-            {show("email_templates") && <NavItem href="/mail-merge/templates" label="Email templates" icon={Mail} active={pathname.startsWith("/mail-merge/templates")} />}
           </NavGroup>
         )}
 
