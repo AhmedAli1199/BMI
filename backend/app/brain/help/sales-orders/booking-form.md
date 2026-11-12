@@ -47,10 +47,10 @@ Opens **Split of the credit (for commission)**. Choose each salesperson and thei
 Adds another item card, using the same title as the last one.
 
 ### Publication (on each item)
-The magazine, digital product or event the item is for. Changing it clears the rate card choice and the issues.
+What the item is, from BMI's own list, grouped under Onboard Hospitality, The Business Travel Magazine and Selling Travel (for example OBH Magazine, OBH Weekly Newsletter, TBTM Dinner Club, ST Connect Event). Each choice decides which prices show under **From the rate card**, and whether you then pick an issue, an event, or **From** and **To** dates. Behind the scenes it's counted in the same publication as always, so figures and commission don't change. Changing it clears the rate card choice and the issues. A booking made before this list keeps showing the publication it was filed under.
 
 ### From the rate card
-Pick a product from this year's, last year's or next year's rate card for that title. It fills in the description, **Price each** and the **Full price** under **Discount**. If the title has nothing on the rate card, type the item yourself.
+Pick a product from this year's, last year's or next year's rate card. Only the prices for the chosen Publication show (OBH Weekly Newsletter shows just the newsletter positions); "Nothing on the rate card" means there are none yet. It fills in the description, **Price each** and the **Full price** under **Discount**. If the title has nothing on the rate card, type the item yourself.
 
 ### What it is, as it should read on the confirmation
 The wording printed on the confirmation, for example "Full page advert" or "Solus html email".

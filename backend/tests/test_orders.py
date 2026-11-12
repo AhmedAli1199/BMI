@@ -282,3 +282,30 @@ def test_digital_item_runs_from_one_date_to_another(w, client):
     assert o.item_date == date(2026, 11, 11) and o.item_end == date(2026, 12, 11) and float(o.value_gbp) == 900
     doc = client.get(f"/api/sales/deals/{r.json()['id']}/document", headers=w["h"]).json()
     assert doc["rows"][0]["when"] == ["11th November to 11th December"]
+
+
+def test_publication_options_show_only_their_prices(w, client):
+    """Craig's Publication list (12 Nov): each option files under an existing title and shows only its own prices."""
+    from app.models import SalesRate
+    db = w["db"]
+    web = w["titles"]["obh-web"]
+    def rate(section, product, price):
+        r = SalesRate(id=uuid.uuid4(), title_id=web.id, year=2026, section=section, product=product, price_gbp=price)
+        db.add(r)
+        db.flush()
+        return str(r.id)
+    banner = rate("newsletter", "Newsletter banner (Position A)", 750)
+    solus = rate("newsletter", "Client solus email", 2990)
+    lead = rate("website", "Leaderboard", 1000)
+    got = client.get("/api/sales/deals/products", headers=w["h"]).json()["items"]
+    by = {p["label"]: p for p in got}
+    assert len(got) == 26 and by["OBH Weekly Newsletter"]["title_id"] == str(web.id)
+    assert by["OBH Weekly Newsletter"]["rate_ids"] == [banner] and by["OBH Weekly Newsletter"]["booked_by"] == "dates"
+    assert by["OBH Client Solus Email"]["rate_ids"] == [solus] and by["OBH Web"]["rate_ids"] == [lead]
+    assert by["TBTM Dinner Club"]["edition_words"] == ["dinner"] and by["OBH Magazine"]["booked_by"] == "issue"
+    # renaming an option
+    p = by["OBH Web"]
+    body = {k: p[k] for k in ("label", "title_id", "rate_sections", "rate_words", "rate_exclude", "booked_by", "edition_words", "sort_order", "active")}
+    body["label"] = "OBH Website"
+    assert client.put(f"/api/sales/deals/products/{p['id']}", json=body, headers=w["h"]).status_code == 200
+    assert "OBH Website" in {x["label"] for x in client.get("/api/sales/deals/products", headers=w["h"]).json()["items"]}

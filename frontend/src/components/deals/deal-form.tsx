@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, CalendarPlus, Copy, Gift, Loader2, Plus, Trash2, X 
 import { celebrate } from "@/lib/celebrate";
 import { toast } from "sonner";
 import type { SalesRate, SalesRep, SalesTitle } from "@/lib/sales-types";
-import { INVOICE_PLANS, type HandoffRoutes, type DealInput, type DealIssue, type DealLine, type DealPlacement, type DealPreview } from "@/lib/deals-types";
+import { INVOICE_PLANS, type BookingProduct, type HandoffRoutes, type DealInput, type DealIssue, type DealLine, type DealPlacement, type DealPreview } from "@/lib/deals-types";
 import { createDeal, getDealIssues, getDealPrefill, previewDeal, requestDealChange, updateDeal } from "@/lib/deals-actions";
 import { searchCompanies, searchContacts } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
@@ -31,14 +31,14 @@ const fromPct = (s: string) => Math.min(Math.max((Number(s) || 0) / 100, 0), 1);
 const num = (s: string) => (s.trim() === "" ? null : Number(s));
 const newKey = () => crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
-function blankLine(titleId: string | null): Line {
-  return { key: newKey(), title_id: titleId, rate_id: null, description: "", detail: null, size: null, qty: 1, unit_price: null, list_price: null,
+function blankLine(titleId: string | null, productId: string | null = null): Line {
+  return { key: newKey(), title_id: titleId, product_id: productId, rate_id: null, description: "", detail: null, size: null, qty: 1, unit_price: null, list_price: null,
     discount_pct: 0, added_value: false, share_gbp: null, placements: [{}] };
 }
 
 const DRAFT_KEY = "bmi:new-booking-draft";
 
-export function DealForm({ dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId, requestChange = false, handoffRoutes, productionEmails = "" }: {
+export function DealForm({ products = [], dealId, initial, titles, reps, rates, company: initialCompany, contact: initialContact, myRepId, requestChange = false, handoffRoutes, productionEmails = "" }: {
   /** The hand-off routing table (Bookings > Hand-offs), for the addresses each item suggests. */
   handoffRoutes?: HandoffRoutes;
   productionEmails?: string;
@@ -52,12 +52,16 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
   company: Option | null;
   contact: Option | null;
   myRepId: string | null;
+  /** The Publication drop-down in BMI's words (Craig, 12 Nov); each option files under one of `titles`. */
+  products?: BookingProduct[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [changeReason, setChangeReason] = useState("");
   const [f, setF] = useState<DealInput>(() => ({ ...initial, rep_id: initial.rep_id ?? myRepId }));
-  const [lines, setLines] = useState<Line[]>(() => (initial.lines.length ? initial.lines : [blankLine(initial.title_id)]).map((l) => ({ ...l, key: l.key ?? newKey() })));
+  // A new item starts on the salesperson's own publication: its first option (the magazine, usually).
+  const productFor = (titleId: string | null | undefined) => (titleId ? products.find((p) => p.title_id === titleId) ?? null : null);
+  const [lines, setLines] = useState<Line[]>(() => (initial.lines.length ? initial.lines : [blankLine(initial.title_id, productFor(initial.title_id)?.id ?? null)]).map((l) => ({ ...l, key: l.key ?? newKey() })));
   const [company, setCompany] = useState<Option | null>(initialCompany);
   const [contact, setContact] = useState<Option | null>(initialContact);
   const [issues, setIssues] = useState<Record<string, DealIssue[]>>({});
@@ -302,14 +306,20 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
         <section className="flex flex-col gap-3" aria-labelledby="df-items">
           <div className="flex items-center justify-between">
             <h2 id="df-items" className="flex items-center gap-1 text-sm font-bold">What they&apos;ve booked <InfoHint>One line per product. Put a line in every issue, month or event it runs in: each one becomes its own item, counts in that issue&apos;s figures and earns commission when it runs.</InfoHint></h2>
-            <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => setLines((ls) => [...ls, blankLine(ls[ls.length - 1]?.title_id ?? f.title_id)])}><Plus className="size-3.5" /> Add an item</Button>
+            <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => setLines((ls) => { const last = ls[ls.length - 1]; return [...ls, blankLine(last?.title_id ?? f.title_id, last?.product_id ?? productFor(f.title_id)?.id ?? null)]; })}><Plus className="size-3.5" /> Add an item</Button>
           </div>
           {lines.map((l, li) => {
-            const opts = issues[l.title_id ?? ""] ?? [];
-            const titleRates = ratesFor(l.title_id);
+            const product = products.find((p) => p.id === l.product_id);
+            // An option shows only its own prices, and only its own issues or events (Dinner Club dates for "TBTM
+            // Dinner Club"); if no issue or event has its words, all of the publication's are listed.
+            const allOpts = issues[l.title_id ?? ""] ?? [];
+            const named = product?.edition_words.length ? allOpts.filter((o) => product.edition_words.some((w) => o.label.toLowerCase().includes(w.toLowerCase()))) : [];
+            const kindOk = product?.booked_by === "event" ? allOpts.filter((o) => o.kind === "event" || o.kind === "awards") : [];
+            const opts = named.length ? named : kindOk.length ? kindOk : allOpts;
+            const titleRates = product ? ratesFor(l.title_id).filter((r) => product.rate_ids.includes(r.id)) : ratesFor(l.title_id);
             // Digital publications are booked from one date to another, not by issue (Craig, feedback #26). The item
             // still files under the month it starts in, so the order register and reports carry on as before.
-            const digital = titles.find((t) => t.id === l.title_id)?.product_line === "digital";
+            const digital = product ? product.booked_by === "dates" : titles.find((t) => t.id === l.title_id)?.product_line === "digital";
             const monthFor = (d: string | null | undefined) => (d ? opts.find((o) => o.kind === "month" && o.edition_date?.slice(0, 7) === d.slice(0, 7)) : undefined);
             const pl = totals?.lines?.[li];
             const each = (l.unit_price ?? 0) * l.qty * (1 - l.discount_pct);
@@ -319,10 +329,29 @@ export function DealForm({ dealId, initial, titles, reps, rates, company: initia
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">Item {li + 1}{l.added_value ? " · free" : ""}</p>
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
                   <label className={labelCls}>Publication
-                    <select className={selectCls} value={l.title_id ?? ""} onChange={(e) => updLine(l.key, { title_id: e.target.value || null, rate_id: null, placements: [{}] })}>
-                      <option value="">Choose…</option>
-                      {titles.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
+                    {products.length ? (
+                      <select className={selectCls} value={l.product_id ?? (l.title_id ? `t:${l.title_id}` : "")}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const pick = products.find((p) => p.id === v);
+                          if (pick) updLine(l.key, { product_id: pick.id, title_id: pick.title_id, rate_id: null, placements: [{}] });
+                          else updLine(l.key, { product_id: null, title_id: v.startsWith("t:") ? v.slice(2) : null, rate_id: null, placements: [{}] });
+                        }}>
+                        <option value="">Choose…</option>
+                        {/* A booking made before the list existed keeps showing what it was filed under. */}
+                        {l.title_id && !product && <option value={`t:${l.title_id}`}>{titles.find((t) => t.id === l.title_id)?.name ?? "This publication"}</option>}
+                        {[...new Set(products.map((p) => p.group))].map((g) => (
+                          <optgroup key={g} label={g || "Other"}>
+                            {products.filter((p) => p.group === g).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                          </optgroup>
+                        ))}
+                      </select>
+                    ) : (
+                      <select className={selectCls} value={l.title_id ?? ""} onChange={(e) => updLine(l.key, { title_id: e.target.value || null, rate_id: null, placements: [{}] })}>
+                        <option value="">Choose…</option>
+                        {titles.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    )}
                   </label>
                   <label className={labelCls}>From the rate card
                     <select className={selectCls} value={l.rate_id ?? ""} disabled={!l.title_id} onChange={(e) => pickRate(l, e.target.value)}>

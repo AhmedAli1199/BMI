@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { backendFetch } from "@/lib/backend";
-import type { BookingForm, BookingFormInput, Deal, DealAttach, DealEmailDraft, DealInput, DealIssue, DealPreview, DealSettings } from "@/lib/deals-types";
+import type { BookingForm, BookingProduct, BookingFormInput, Deal, DealAttach, DealEmailDraft, DealInput, DealIssue, DealPreview, DealSettings } from "@/lib/deals-types";
 
 const json = { "Content-Type": "application/json" };
 
@@ -140,4 +140,11 @@ export async function setLineHandoff(id: string, lineKey: string, input: { hando
   const d = await backendFetch<Deal>(`/api/sales/deals/${id}/lines/${encodeURIComponent(lineKey)}/handoff`, { method: "PUT", headers: json, body: JSON.stringify(input) });
   refresh(d);
   return d;
+}
+
+/** Bookings settings > Publication list: add or change one option of the booking form's Publication drop-down. */
+export async function saveBookingProduct(id: string | null, input: Omit<BookingProduct, "id" | "rate_ids" | "group"> & { group_label: string }): Promise<void> {
+  await backendFetch(id ? `/api/sales/deals/products/${id}` : "/api/sales/deals/products",
+    { method: id ? "PUT" : "POST", headers: json, body: JSON.stringify(input) });
+  revalidatePath("/sales/deals");
 }

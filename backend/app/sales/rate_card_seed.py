@@ -69,6 +69,7 @@ PRICES: dict[str, list[P]] = {
         P("newsletter", "Newsletter banner (Position A)", 750, specs="360px x 120px", notes="Onboard Hospitality Weekly, sent every Monday to 25,000+ readers"),
         P("newsletter", "Newsletter banner (Position B)", 550, specs="360px x 120px"),
         P("newsletter", "Newsletter button (Position C)", 300, specs="170px x 155px"),
+        P("newsletter", "Client solus email", 2990, aliases=["Solus email"], notes="From Craig McQuinn, 12 Nov 2026"),
         P("listings", "Onboard Finder - standard listing", 300, unit="year", notes="Logo, company name and phone number"),
         P("listings", "Onboard Finder - enhanced listing", 550, unit="year", notes="Adds a dedicated page with banner and 100-word description"),
         P("listings", "Onboard Finder - premium package", 750, unit="year", notes="Adds a slide show, video and testimonials"),

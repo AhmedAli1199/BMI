@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ClipboardList, Plus } from "lucide-react";
 import { backendFetch } from "@/lib/backend";
 import type { SalesMeta } from "@/lib/sales-types";
-import type { BookingForm, DealListItem, DealSettings } from "@/lib/deals-types";
+import type { BookingForm, BookingProduct, DealListItem, DealSettings } from "@/lib/deals-types";
 import type { FilterDef, SortState } from "@/lib/data-view/schema";
 import { parseFilters, parseSort } from "@/lib/data-view/schema";
 import { DataView, DataViewLayout } from "@/components/data-view/data-view";
@@ -14,6 +14,7 @@ import { DealSettingsButton } from "@/components/deals/deal-settings";
 import { XeroCodesButton } from "@/components/deals/xero-codes-button";
 import { HandoffRoutesButton } from "@/components/deals/handoff-routes-button";
 import { BookingFormsButton } from "@/components/deals/booking-forms";
+import { PublicationListButton } from "@/components/deals/publication-list";
 import { EmptyState, SalesHeader, fmtDate, fmtGBP } from "@/components/sales/sales-ui";
 
 const SIZES = [50, 100, 200];
@@ -23,10 +24,11 @@ type Page = { items: DealListItem[]; total: number; total_value_gbp: number; una
 
 export default async function DealsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const [meta, settings, forms, xeroCodes] = await Promise.all([
+  const [meta, settings, forms, productList, xeroCodes] = await Promise.all([
     backendFetch<SalesMeta>("/api/sales/meta"),
     backendFetch<DealSettings>("/api/sales/deals/settings").catch(() => null),
     backendFetch<BookingForm[]>("/api/sales/booking-forms").catch(() => null),   // only managers can set these up
+    backendFetch<{ items: BookingProduct[]; can_edit: boolean }>("/api/sales/deals/products?all=true").catch(() => null),
     backendFetch<unknown>("/api/xero-invoicing/codes").catch(() => null),          // only accounts make invoices
   ]);
   const year = new Date().getFullYear();
@@ -68,6 +70,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         crumbs={[{ label: "Sales Orders", href: "/sales" }]}
         description="Client bookings with everything agreed in one place: items across issues, months and events, package prices, discounts and agency commission. Each one prints as BMI's order confirmation or schedule of works."
         actions={<div className="flex items-center gap-2">
+          {productList?.can_edit && <PublicationListButton products={productList.items} titles={meta.titles} />}
           {forms && <BookingFormsButton forms={forms} titles={meta.titles} reps={meta.reps} />}
           {settings && <DealSettingsButton settings={settings} titles={meta.titles} />}
           {settings?.can_edit && <HandoffRoutesButton settings={settings} titles={meta.titles} />}

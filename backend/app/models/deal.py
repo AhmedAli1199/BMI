@@ -147,3 +147,26 @@ class BookingForm(Base, UUIDPk, TimestampMixin):
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     received: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class BookingProduct(Base):
+    """One option in the booking form's Publication drop-down, in BMI's own words (Craig's list, 12 Nov: "OBH Weekly
+    Newsletter", "TBTM Dinner Club"...). Underneath it is filed under an existing sales title, so the order register,
+    figures, commission and history carry on as before; it only decides what the salesperson sees:
+    - rate_sections / rate_words / rate_exclude: which rate-card prices show under "From the rate card";
+    - booked_by: "issue" (pick an issue), "dates" (From and To) or "event" (pick an event);
+    - edition_words: only issues or events whose name has one of these words (all of them if none match).
+    Set up in Bookings settings; app/sales/booking_products.py has the starting list."""
+    __tablename__ = "booking_products"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    group_label: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    title_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("sales_titles.id", ondelete="CASCADE"), nullable=False)
+    rate_sections: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    rate_words: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    rate_exclude: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    booked_by: Mapped[str] = mapped_column(String(10), nullable=False, default="issue")
+    edition_words: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

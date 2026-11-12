@@ -9,7 +9,7 @@ sources: ["frontend/src/app/(app)/sales/deals/page.tsx", "frontend/src/component
 The Bookings list (Sales Orders > Bookings) shows every client booking. A booking holds everything the client agreed: the items across issues, months and events, the price, any discounts and any agency commission. Each booking prints as BMI's order confirmation or schedule of works. Use this list to find a booking, check what is still pencilled or not yet sent, and see what is due to invoice.
 
 ## What you see
-- **Header**: the title "Bookings", a short description, and buttons on the right: **Online forms**, **Confirmation details**, **Hand-offs**, **Xero codes** and **New booking**. You only see the buttons your role allows (see below).
+- **Header**: the title "Bookings", a short description, and buttons on the right: **Publication list**, **Online forms**, **Confirmation details**, **Hand-offs**, **Xero codes** and **New booking**. You only see the buttons your role allows (see below).
 - **Filter bookings** sidebar on the left, with a search box above the table and chips for each filter you have switched on.
 - **Summary line** above the table: how many bookings match, their total value (cancelled bookings are left out), and, if some items are not yet placed in an issue, "of which £X still to be allocated" with a link to those bookings.
 - **The table**, newest booking number first:
@@ -70,6 +70,9 @@ Opens a side panel with what every order confirmation and schedule of works carr
 
 ### Hand-offs
 Administrators only. Opens "Who gets the hand-offs": the editorial and production email addresses for each magazine, plus an **Every magazine** row used when a magazine has no row of its own. The booking form suggests these addresses on each item. Once accounts have checked a booking, each item is emailed to editorial (sponsored content, social media) or production (adverts, banners, HTML emails). Separate several addresses with commas. Press **Save**.
+
+### Publication list
+Administrators and data managers. The choices in a booking item's **Publication** drop-down, grouped by brand. Each row says what it's **filed under** (the publication the figures and commission count it in), how it's booked, and how many prices it shows. The pencil (**Change …**) opens it: **Name in the drop-down**, **Heading it sits under**, **Filed under**, **How it's booked** (Pick an issue, From and To dates, Pick an event), **Prices from these rate-card sections**, **Only prices with these words**, **Leave out prices with these words**, **Only issues or events with these words**, **Order in the list** and **In the drop-down** (untick to hide it). **Save** keeps it; **Back** returns to the list. **Add an option** adds a new one.
 
 ### Online forms
 Administrators and data managers only. Opens "Online booking forms", the list of connected Jotform and Stova forms (awards entries, event seats, the Quiz). Each entry someone sends waits in the Review Queue under Online bookings. Pressing **Create booking** on it there adds it straight away as a confirmed booking (not a pencilled one), without retyping; **Not a booking** turns it down.

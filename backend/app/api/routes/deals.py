@@ -52,6 +52,7 @@ class PlacementIn(BaseModel):
 class LineIn(BaseModel):
     key: str | None = Field(default=None, max_length=40)
     title_id: uuid.UUID | None = None
+    product_id: uuid.UUID | None = None   # the Publication option picked (BookingProduct) - title_id is what it files under
     rate_id: uuid.UUID | None = None
     description: str = Field(default="", max_length=300)
     detail: str | None = Field(default=None, max_length=1000)    # extra wording under the line on the confirmation
@@ -539,6 +540,74 @@ def issues(title_id: uuid.UUID, include: list[uuid.UUID] = Query(default=[]), db
     return [{"id": str(e.id), "label": coded_label(code, e.name), "kind": e.kind, "edition_date": e.edition_date.isoformat() if e.edition_date else None,
              "ad_deadline": e.ad_deadline.isoformat() if e.ad_deadline else None, "copy_deadline": e.copy_deadline.isoformat() if e.copy_deadline else None,
              "open": bool((e.ad_deadline or e.edition_date or today) >= today), "status": e.status} for e in eds]
+
+
+# ---- the Publication drop-down (BookingProduct) --------------------------------------------------------------
+
+class ProductIn(BaseModel):
+    label: str = Field(min_length=1, max_length=120)
+    group_label: str = Field(default="", max_length=120)
+    title_id: uuid.UUID
+    rate_sections: list[str] = Field(default_factory=list, max_length=20)
+    rate_words: list[str] = Field(default_factory=list, max_length=20)
+    rate_exclude: list[str] = Field(default_factory=list, max_length=20)
+    booked_by: str = Field(default="issue", pattern="^(issue|dates|event)$")
+    edition_words: list[str] = Field(default_factory=list, max_length=20)
+    sort_order: int = 100
+    active: bool = True
+
+
+def _can_edit_products(identity: Identity) -> bool:
+    from app.roles import CAN_USE_AUTOMATIONS
+    return not identity.is_known or identity.role in CAN_USE_AUTOMATIONS
+
+
+def _products(db: Session, everything: bool = False) -> list[dict]:
+    from app.models import BookingProduct
+    from app.sales import booking_products as bp
+    if bp.seed(db):
+        db.commit()
+    q = select(BookingProduct).order_by(BookingProduct.sort_order, BookingProduct.label)
+    if not everything:
+        q = q.where(BookingProduct.active.is_(True))
+    rows = list(db.scalars(q))
+    rates = list(db.scalars(select(SalesRate).where(SalesRate.title_id.in_({p.title_id for p in rows}), SalesRate.archived.is_(False)))) if rows else []
+    return [bp.out(p, rates) for p in rows]
+
+
+@router.get("/products")
+def booking_products(all: bool = False, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    """The booking form's Publication options, in BMI's words, each with what it files under and which prices it shows."""
+    return {"items": _products(db, everything=all), "can_edit": _can_edit_products(identity)}
+
+
+@router.post("/products", status_code=201)
+def add_booking_product(p: ProductIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    from app.models import BookingProduct
+    if not _can_edit_products(identity):
+        raise HTTPException(403, "Only administrators and data managers can change the Publication list.")
+    if not db.get(SalesTitle, p.title_id):
+        raise HTTPException(422, "Choose what it's filed under.")
+    row = BookingProduct(id=uuid.uuid4(), **p.model_dump())
+    db.add(row)
+    db.commit()
+    return {"id": str(row.id)}
+
+
+@router.put("/products/{product_id}")
+def save_booking_product(product_id: uuid.UUID, p: ProductIn, db: Session = Depends(get_db), identity: Identity = Depends(get_identity)) -> dict:
+    from app.models import BookingProduct
+    if not _can_edit_products(identity):
+        raise HTTPException(403, "Only administrators and data managers can change the Publication list.")
+    row = db.get(BookingProduct, product_id)
+    if not row:
+        raise HTTPException(404, "That option has gone. Refresh the page.")
+    if not db.get(SalesTitle, p.title_id):
+        raise HTTPException(422, "Choose what it's filed under.")
+    for k, v in p.model_dump().items():
+        setattr(row, k, v)
+    db.commit()
+    return {"id": str(row.id)}
 
 
 @router.get("/settings")

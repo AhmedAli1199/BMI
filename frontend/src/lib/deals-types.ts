@@ -18,6 +18,8 @@ export type DealPlacement = {
 export type DealLine = {
   key?: string | null;
   title_id?: string | null;
+  /** The Publication option picked (BMI's own list); title_id is what it files under. */
+  product_id?: string | null;
   rate_id?: string | null;
   description: string;
   detail?: string | null;
@@ -215,3 +217,10 @@ export type BookingForm = {
 };
 
 export type BookingFormInput = Omit<BookingForm, "id" | "becomes" | "received" | "last_received_at" | "address">;
+
+/** One option in the booking form's Publication drop-down (Bookings settings > Publication list). */
+export type BookingProduct = {
+  id: string; label: string; group: string; title_id: string; booked_by: "issue" | "dates" | "event";
+  rate_sections: string[]; rate_words: string[]; rate_exclude: string[]; edition_words: string[];
+  sort_order: number; active: boolean; rate_ids: string[];
+};
